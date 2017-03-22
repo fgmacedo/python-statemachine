@@ -124,28 +124,39 @@ class CombinedTransition(Transition):
 
 class State(object):
 
-    def __init__(self, name, key=None, initial=False):
+    def __init__(self, name, value=None, initial=False):
         self.name = name
-        self.key = key
+        self.identifier = None
+        self.value = value
         self._initial = initial
         self.transitions = []
 
     def __repr__(self):
-        return "{}({!r}, key={!r}, initial={!r})".format(
-            type(self).__name__, self.name, self.key, self.initial)
+        return "{}({!r}, identifier={!r}, value={!r}, initial={!r})".format(
+            type(self).__name__, self.name, self.identifier, self.value, self.initial)
 
     def to(self, state):
         transition = Transition(self, state)
         self.transitions.append(transition)
         return transition
 
-    def __contribute_to_class__(self, managed, key):
+    def __contribute_to_class__(self, managed, identifier):
         self.managed = managed
-        self.key = key
+        self.identifier = identifier
+        if not self.value:
+            self.value = identifier
 
     @property
     def initial(self):
         return self._initial
+
+
+def check_state_factory(state):
+    "Return a property that checks if the current state is the desired state"
+    @property
+    def is_in_state(self):
+        return self.current_state == state
+    return is_in_state
 
 
 class StateMachineMetaclass(type):
@@ -167,7 +178,10 @@ class StateMachineMetaclass(type):
                 value.__contribute_to_class__(cls, key)
                 cls.transitions.append(value)
 
-        cls.states_map = {s.key: s for s in cls.states}
+        for state in cls.states:
+            setattr(cls, 'is_{}'.format(state.identifier), check_state_factory(state))
+
+        cls.states_map = {s.value: s for s in cls.states}
 
 
 class BaseStateMachine(object):
@@ -199,22 +213,22 @@ class BaseStateMachine(object):
                                'Your currently have these: {!r}'.format(initials)))
         self.initial_state = initials[0]
 
-        if self.current_state_key is None:
-            self.current_state_key = self.initial_state.key
+        if self.current_state_value is None:
+            self.current_state_value = self.initial_state.value
 
     @property
-    def current_state_key(self):
+    def current_state_value(self):
         return getattr(self.model, self.state_field, None)
 
-    @current_state_key.setter
-    def current_state_key(self, value):
+    @current_state_value.setter
+    def current_state_value(self, value):
         if value not in self.states_map:
             raise Exception(_("{!r} is not a valid state value.").format(value))
         setattr(self.model, self.state_field, value)
 
     @property
     def current_state(self):
-        return self.states_map[self.current_state_key]
+        return self.states_map[self.current_state_value]
 
     @property
     def allowed_transitions(self):
@@ -226,7 +240,7 @@ class BaseStateMachine(object):
 
     @current_state.setter
     def current_state(self, value):
-        self.current_state_key = value.key
+        self.current_state_value = value.value
 
     def _activate(self, transition, *args, **kwargs):
         on_event = getattr(self, 'on_{}'.format(transition.key), None)

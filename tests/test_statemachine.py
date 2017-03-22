@@ -15,7 +15,9 @@ class MyModel(object):
 
 
 @pytest.fixture
-def campaign_machine():
+def campaign_machine(request):
+    "Define a new class for each test"
+
     class CampaignMachine(StateMachine):
         draft = State('Draft', initial=True)
         producing = State('Being produced')
@@ -32,7 +34,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)
 
-    assert [s.key for s in campaign_machine.states] == ['closed', 'draft', 'producing']
+    assert [s.value for s in campaign_machine.states] == ['closed', 'draft', 'producing']
     assert [t.key for t in campaign_machine.transitions] == ['add_job', 'deliver', 'produce']
 
     assert model.state == 'draft'
@@ -58,8 +60,8 @@ def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.transitions if t.key == 'produce'][0])
     print(s)
     assert s == ("Transition("
-                 "State('Draft', key='draft', initial=True), "
-                 "State('Being produced', key='producing', initial=False), key='produce')")
+                 "State('Draft', identifier='draft', value='draft', initial=True), "
+                 "State('Being produced', identifier='producing', value='producing', initial=False), key='produce')")
 
 
 def test_should_change_state(campaign_machine):
@@ -218,3 +220,44 @@ def test_should_allow_plug_an_event_on_running_a_transition(campaign_machine):
 
     assert machine.add_job() == 0
     assert machine.add_job(value=2) == 4
+
+
+def test_should_check_if_is_in_status(campaign_machine):
+    model = MyModel()
+    machine = campaign_machine(model)
+
+    assert machine.is_draft
+    assert not machine.is_producing
+    assert not machine.is_closed
+
+    machine.produce()
+
+    assert not machine.is_draft
+    assert machine.is_producing
+    assert not machine.is_closed
+
+    machine.deliver()
+
+    assert not machine.is_draft
+    assert not machine.is_producing
+    assert machine.is_closed
+
+
+def test_defined_value_must_be_assigned_to_models():
+    class CampaignMachineWithKeys(StateMachine):
+        draft = State('Draft', initial=True, value=1)
+        producing = State('Being produced', value=2)
+        closed = State('Closed', value=3)
+
+        add_job = draft.to(draft) | producing.to(producing)
+        produce = draft.to(producing)
+        deliver = producing.to(closed)
+
+    model = MyModel()
+    machine = CampaignMachineWithKeys(model)
+
+    assert model.state == 1
+    machine.produce()
+    assert model.state == 2
+    machine.deliver()
+    assert model.state == 3
