@@ -53,22 +53,22 @@ class CallableInstance(object):
 
 class Transition(object):
 
-    def __init__(self, source, destination, key=None, validators=None):
+    def __init__(self, source, destination, identifier=None, validators=None):
         self.source = source
         self.destination = destination
-        self.key = key
+        self.identifier = identifier
         self.validators = validators or []
 
     def __repr__(self):
-        return "{}({!r}, {!r}, key={!r})".format(
-            type(self).__name__, self.source, self.destination, self.key)
+        return "{}({!r}, {!r}, identifier={!r})".format(
+            type(self).__name__, self.source, self.destination, self.identifier)
 
     def __or__(self, other):
-        return CombinedTransition(self, other, key=self.key)
+        return CombinedTransition(self, other, identifier=self.identifier)
 
-    def __contribute_to_class__(self, managed, key):
+    def __contribute_to_class__(self, managed, identifier):
         self.managed = managed
-        self.key = key
+        self.identifier = identifier
 
     def __get__(self, instance, owner):
         def callable(*args, **kwargs):
@@ -85,7 +85,12 @@ class Transition(object):
 
     def _run(self, instance, *args, **kwargs):
         if not self._can_run(instance):
-            raise LookupError(_("Transition is not supported."))
+            raise LookupError(
+                _("Can't {} when in {}.").format(
+                    self.identifier,
+                    instance.current_state.name
+                )
+            )
 
         self._validate(*args, **kwargs)
         return instance._activate(self, *args, **kwargs)
@@ -105,17 +110,22 @@ class CombinedTransition(Transition):
     def _right(self):
         return self.destination
 
-    def __contribute_to_class__(self, managed, key):
-        super(CombinedTransition, self).__contribute_to_class__(managed, key)
-        self._left.__contribute_to_class__(managed, key)
-        self._right.__contribute_to_class__(managed, key)
+    def __contribute_to_class__(self, managed, identifier):
+        super(CombinedTransition, self).__contribute_to_class__(managed, identifier)
+        self._left.__contribute_to_class__(managed, identifier)
+        self._right.__contribute_to_class__(managed, identifier)
 
     def _can_run(self, instance):
         return instance.current_state in [self._left.source, self._right.source]
 
     def _run(self, instance, *args, **kwargs):
         if not self._can_run(instance):
-            raise LookupError(_("Transition is not supported."))
+            raise LookupError(
+                _("Can't {} when in {}.").format(
+                    self.identifier,
+                    instance.current_state.name
+                )
+            )
 
         self._validate(*args, **kwargs)
         transition = self._left if instance.current_state == self._left.source else self._right
@@ -184,11 +194,19 @@ class StateMachineMetaclass(type):
         cls.states_map = {s.value: s for s in cls.states}
 
 
+class Model(object):
+    state = None
+
+    def __repr__(self):
+        return 'Model(state={})'.format(self.state)
+
+
 class BaseStateMachine(object):
 
-    def __init__(self, model, state_field='state'):
-        self.model = model
+    def __init__(self, model=None, state_field='state', start_value=None):
+        self.model = model if model else Model()
         self.state_field = state_field
+        self.start_value = start_value
 
         self.check()
 
@@ -214,7 +232,10 @@ class BaseStateMachine(object):
         self.initial_state = initials[0]
 
         if self.current_state_value is None:
-            self.current_state_value = self.initial_state.value
+            if self.start_value:
+                self.current_state_value = self.start_value
+            else:
+                self.current_state_value = self.initial_state.value
 
     @property
     def current_state_value(self):
@@ -223,7 +244,7 @@ class BaseStateMachine(object):
     @current_state_value.setter
     def current_state_value(self, value):
         if value not in self.states_map:
-            raise Exception(_("{!r} is not a valid state value.").format(value))
+            raise ValueError(_("{!r} is not a valid state value.").format(value))
         setattr(self.model, self.state_field, value)
 
     @property
@@ -234,7 +255,7 @@ class BaseStateMachine(object):
     def allowed_transitions(self):
         "get the callable proxy of the current allowed transitions"
         return [
-            getattr(self, t.key)
+            getattr(self, t.identifier)
             for t in self.current_state.transitions if t._can_run(self)
         ]
 
@@ -243,19 +264,20 @@ class BaseStateMachine(object):
         self.current_state_value = value.value
 
     def _activate(self, transition, *args, **kwargs):
-        on_event = getattr(self, 'on_{}'.format(transition.key), None)
+        on_event = getattr(self, 'on_{}'.format(transition.identifier), None)
         result = on_event(*args, **kwargs) if callable(on_event) else None
         self.current_state = transition.destination
         return result
 
-    def get_transition(self, transition_key):
-        transition = getattr(self, transition_key, None)
+    def get_transition(self, transition_identifier):
+        transition = getattr(self, transition_identifier, None)
         if not hasattr(transition, 'source') or not callable(transition):
-            raise ValueError('{!r} is not a valid transition key'.format(transition_key))
+            raise ValueError(
+                '{!r} is not a valid transition identifier'.format(transition_identifier))
         return transition
 
-    def run(self, transition_key, *args, **kwargs):
-        transition = self.get_transition(transition_key)
+    def run(self, transition_identifier, *args, **kwargs):
+        transition = self.get_transition(transition_identifier)
         return transition(*args, **kwargs)
 
 

@@ -15,7 +15,7 @@ class MyModel(object):
 
 
 @pytest.fixture
-def campaign_machine(request):
+def campaign_machine():
     "Define a new class for each test"
 
     class CampaignMachine(StateMachine):
@@ -30,12 +30,28 @@ def campaign_machine(request):
     return CampaignMachine
 
 
+@pytest.fixture
+def campaign_machine_with_values():
+    "Define a new class for each test"
+
+    class CampaignMachineWithKeys(StateMachine):
+        draft = State('Draft', initial=True, value=1)
+        producing = State('Being produced', value=2)
+        closed = State('Closed', value=3)
+
+        add_job = draft.to(draft) | producing.to(producing)
+        produce = draft.to(producing)
+        deliver = producing.to(closed)
+
+    return CampaignMachineWithKeys
+
+
 def test_machine_should_be_at_start_state(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)
 
     assert [s.value for s in campaign_machine.states] == ['closed', 'draft', 'producing']
-    assert [t.key for t in campaign_machine.transitions] == ['add_job', 'deliver', 'produce']
+    assert [t.identifier for t in campaign_machine.transitions] == ['add_job', 'deliver', 'produce']
 
     assert model.state == 'draft'
     assert machine.current_state == machine.draft
@@ -57,11 +73,11 @@ def test_machine_should_only_allow_only_one_initial_state():
 
 
 def test_transition_representation(campaign_machine):
-    s = repr([t for t in campaign_machine.transitions if t.key == 'produce'][0])
+    s = repr([t for t in campaign_machine.transitions if t.identifier == 'produce'][0])
     print(s)
     assert s == ("Transition("
                  "State('Draft', identifier='draft', value='draft', initial=True), "
-                 "State('Being produced', identifier='producing', value='producing', initial=False), key='produce')")
+                 "State('Being produced', identifier='producing', value='producing', initial=False), identifier='produce')")
 
 
 def test_should_change_state(campaign_machine):
@@ -137,11 +153,11 @@ def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_m
     machine = campaign_machine(model)
 
     assert model.state == 'draft'
-    assert [t.key for t in machine.allowed_transitions] == ['add_job', 'produce']
+    assert [t.identifier for t in machine.allowed_transitions] == ['add_job', 'produce']
 
     machine.produce()
     assert model.state == 'producing'
-    assert [t.key for t in machine.allowed_transitions] == ['add_job', 'deliver']
+    assert [t.identifier for t in machine.allowed_transitions] == ['add_job', 'deliver']
 
     deliver = machine.allowed_transitions[1]
 
@@ -243,21 +259,49 @@ def test_should_check_if_is_in_status(campaign_machine):
     assert machine.is_closed
 
 
-def test_defined_value_must_be_assigned_to_models():
-    class CampaignMachineWithKeys(StateMachine):
-        draft = State('Draft', initial=True, value=1)
-        producing = State('Being produced', value=2)
-        closed = State('Closed', value=3)
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
-
+def test_defined_value_must_be_assigned_to_models(campaign_machine_with_values):
     model = MyModel()
-    machine = CampaignMachineWithKeys(model)
+    machine = campaign_machine_with_values(model)
 
     assert model.state == 1
     machine.produce()
     assert model.state == 2
     machine.deliver()
     assert model.state == 3
+
+
+def test_state_machine_without_model(campaign_machine):
+    machine = campaign_machine()
+    assert machine.is_draft
+    assert not machine.is_producing
+    assert not machine.is_closed
+
+    machine.produce()
+
+    assert not machine.is_draft
+    assert machine.is_producing
+    assert not machine.is_closed
+
+
+@pytest.mark.parametrize('model, machine_cls, start_value', [
+    (None, campaign_machine(), 'producing'),
+    (None, campaign_machine_with_values(), 2),
+    (MyModel(), campaign_machine(), 'producing'),
+    (MyModel(), campaign_machine_with_values(), 2),
+])
+def test_state_machine_with_a_start_value(model, machine_cls, start_value):
+    machine = machine_cls(model, start_value=start_value)
+    assert not machine.is_draft
+    assert machine.is_producing
+    assert not model or model.state == start_value
+
+
+@pytest.mark.parametrize('model, machine_cls, start_value', [
+    (None, campaign_machine(), 'tapioca'),
+    (None, campaign_machine_with_values(), 99),
+    (MyModel(), campaign_machine(), 'tapioca'),
+    (MyModel(), campaign_machine_with_values(), 99),
+])
+def test_state_machine_with_a_invalid_start_value(model, machine_cls, start_value):
+    with pytest.raises(ValueError):
+        machine_cls(model, start_value=start_value)
