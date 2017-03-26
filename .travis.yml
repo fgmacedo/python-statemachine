@@ -14,7 +14,13 @@ env:
 - TOXENV=py34
 - TOXENV=py33
 - TOXENV=py27
+before_install:
+  - pip install -U pytest
+  - pip install codecov
+  - pip install -e .
 install: pip install -U tox
 language: python
 python: 3.5
 script: tox -e ${TOXENV}
+after_success:
+  - codecov
