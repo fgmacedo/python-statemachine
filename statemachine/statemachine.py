@@ -17,7 +17,7 @@ class CallableInstance(object):
     of the state machine is only know at the __get__ method of the transition,
     since it's a property descriptor.
 
-    To allow concurrency, we cannot store the the current instance in the
+    To allow concurrency, we cannot store the current instance in the
     descriptor, as it permits only one instance to call a transition  at a
     time.
 
@@ -77,8 +77,7 @@ class Transition(object):
         return CallableInstance(self, func=callable)
 
     def __set__(self, instance, value):
-        # does nothing (not allow overriding)
-        pass
+        "does nothing (not allow overriding)"
 
     def _can_run(self, instance):
         return instance.current_state == self.source
@@ -221,9 +220,6 @@ class BaseStateMachine(object):
 
         if not self.transitions:
             raise ValueError(_('There are no transitions.'))
-
-        if not self.model:
-            raise ValueError(_('There is no model.'))
 
         initials = [s for s in self.states if s.initial]
         if len(initials) != 1:

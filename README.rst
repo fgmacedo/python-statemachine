@@ -35,18 +35,14 @@ Getting started
 
 To install Python State Machine, run this command in your terminal:
 
-.. _code-block:: console
+.. code-block:: console
 
     $ pip install python-statemachine
 
 
-Import the statemachine::
-
-    from statemachine import StateMachine, State
-
-
 Define your state machine::
 
+    from statemachine import StateMachine, State
 
     class TrafficLightMachine(StateMachine):
         green = State('Green', initial=True)
@@ -60,83 +56,65 @@ Define your state machine::
 
 You can now create an instance:
 
-.. _code-block: pycon
-
-    >>> traffic_light = TrafficLightMachine()
+>>> traffic_light = TrafficLightMachine()
 
 And inspect about the current state:
 
-.. _code-block: pycon
-
-    >>> traffic_light.current_state
-    State('Green', identifier='green', value='green', initial=True)
-    >>> traffic_light.current_state == TrafficLightMachine.green == traffic_light.green
-    True
+>>> traffic_light.current_state
+State('Green', identifier='green', value='green', initial=True)
+>>> traffic_light.current_state == TrafficLightMachine.green == traffic_light.green
+True
 
 For each state, there's a dinamically created property in the form ``is_<state.identifier>``, that
 returns ``True`` if the current status matches the query:
 
-.. _code-block: pycon
-
-    >>> traffic_light.is_green
-    True
-    >>> traffic_light.is_yellow
-    False
-    >>> traffic_light.is_red
-    False
+>>> traffic_light.is_green
+True
+>>> traffic_light.is_yellow
+False
+>>> traffic_light.is_red
+False
 
 Query about metadata:
 
-.. _code-block: pycon
-
-    >>> [s.identifier for s in m.states]
-    ['green', 'red', 'yellow']
-    >>> [t.identifier for t in m.transitions]
-    ['go', 'slowdown', 'stop']
+>>> [s.identifier for s in m.states]
+['green', 'red', 'yellow']
+>>> [t.identifier for t in m.transitions]
+['go', 'slowdown', 'stop']
 
 Call a transition:
 
-.. _code-block: pycon
-
-    >>> traffic_light.slowdown()
+>>> traffic_light.slowdown()
 
 And check for the current status:
 
-.. _code-block: pycon
-
-    >>> traffic_light.current_state
-    State('Yellow', identifier='yellow', value='yellow', initial=False)
-    >>> traffic_light.is_yellow
-    True
+>>> traffic_light.current_state
+State('Yellow', identifier='yellow', value='yellow', initial=False)
+>>> traffic_light.is_yellow
+True
 
 You can't run a transition from an invalid state:
 
-.. _code-block: pycon
-
-    >>> traffic_light.is_yellow
-    True
-    >>> traffic_light.slowdown()
-    Traceback (most recent call last):
-    ...
-    LookupError: Can't slowdown when in Yellow.
+>>> traffic_light.is_yellow
+True
+>>> traffic_light.slowdown()
+Traceback (most recent call last):
+...
+LookupError: Can't slowdown when in Yellow.
 
 You can also trigger events in an alternative way, calling the ``run(<transition.identificer>)`` method:
 
-.. _code-block: pycon
-
-    >>> traffic_light.is_yellow
-    True
-    >>> traffic_light.run('stop')
-    >>> traffic_light.is_red
-    True
+>>> traffic_light.is_yellow
+True
+>>> traffic_light.run('stop')
+>>> traffic_light.is_red
+True
 
 A state machine can be instantiated with an initial value:
 
-.. _code-block: pycon
-
-    >>> machine = TrafficLightMachine(start_value='red')
-    >>> traffic_light.is_red
-    True
+>>> machine = TrafficLightMachine(start_value='red')
+>>> traffic_light.is_red
+True
 
 
 Models
@@ -146,29 +124,33 @@ If you need to persist the current state on another object, or you're using the
 state machine to control the flow of another object, you can pass this object
 to the ``StateMachine`` constructor:
 
-.. _code-block: pycon
-
-    >>> class MyModel(object):
-    ...     def __init__(self, state):
-    ...         self.state = state
-    ...
-    >>> obj = MyModel(state='red')
-    >>> traffic_light = TrafficLightMachine(obj)
-    >>> traffic_light.is_red
-    True
-    >>> obj.state
-    'red'
-    >>> obj.state = 'green'
-    >>> traffic_light.is_green
-    True
-    >>> traffic_light.slowdown()
-    >>> obj.state
-    'yellow'
-    >>> traffic_light.is_yellow
-    True
+>>> class MyModel(object):
+...     def __init__(self, state):
+...         self.state = state
+...
+>>> obj = MyModel(state='red')
+>>> traffic_light = TrafficLightMachine(obj)
+>>> traffic_light.is_red
+True
+>>> obj.state
+'red'
+>>> obj.state = 'green'
+>>> traffic_light.is_green
+True
+>>> traffic_light.slowdown()
+>>> obj.state
+'yellow'
+>>> traffic_light.is_yellow
+True
 
 
 Events
+------
+
+Docs needed.
+
+
+Mixins
 ------
 
 Docs needed.

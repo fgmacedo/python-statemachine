@@ -4,3 +4,4 @@ pytest-cov==2.4.0
 pytest-pep8==1.0.6
 pytest-watch==4.1.0
 Sphinx==1.5.3
+sphinx_rtd_theme==0.2.4

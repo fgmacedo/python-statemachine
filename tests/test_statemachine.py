@@ -274,3 +274,19 @@ def test_state_machine_with_a_start_value(model, machine_cls, start_value):
 def test_state_machine_with_a_invalid_start_value(model, machine_cls, start_value):
     with pytest.raises(ValueError):
         machine_cls(model, start_value=start_value)
+
+
+def test_should_not_create_instance_of_machine_without_states():
+    class EmptyMachine(StateMachine):
+        pass
+
+    with pytest.raises(ValueError):
+        EmptyMachine()
+
+
+def test_should_not_create_instance_of_machine_without_transitions():
+    class NoTransitionsMachine(StateMachine):
+        initial = State('initial')
+
+    with pytest.raises(ValueError):
+        NoTransitionsMachine()
