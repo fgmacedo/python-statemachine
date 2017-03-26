@@ -103,17 +103,20 @@ def test_should_change_state_with_multiple_machine_instances(campaign_machine):
     assert machine2.current_state == campaign_machine.producing
 
 
+@pytest.mark.parametrize('current_state, transition', [
+    ('draft', 'deliver'),
+    ('closed', 'add_job'),
+])
 def test_call_to_transition_that_is_not_in_the_current_state_should_raise_exception(
-        campaign_machine):
+        campaign_machine, current_state, transition):
 
-    model = MyModel()
+    model = MyModel(state=current_state)
     machine = campaign_machine(model)
 
-    assert model.state == 'draft'
-    assert machine.current_state == machine.draft
+    assert machine.current_state.value == current_state
 
     with pytest.raises(LookupError):
-        machine.deliver()
+        machine.run(transition)
 
 
 def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_machine):

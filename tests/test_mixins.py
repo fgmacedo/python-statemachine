@@ -22,6 +22,7 @@ def test_mixin_should_instantiate_a_machine(campaign_machine):
     assert model.state == 'draft'
     assert model.statemachine.current_state == model.statemachine.draft
 
+
 def test_mixin_should_raise_exception_if_machine_class_does_not_exist(campaign_machine):  # NOQA
     class MyModelWithoutMachineName(MachineMixin):
         pass

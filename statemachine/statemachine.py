@@ -170,10 +170,6 @@ def check_state_factory(state):
 
 class StateMachineMetaclass(type):
 
-    @classmethod
-    def __prepare__(cls, name, bases, **kwargs):
-        return OrderedDict()
-
     def __init__(cls, name, bases, attrs):
         super(StateMachineMetaclass, cls).__init__(name, bases, attrs)
         registry.register(cls)
