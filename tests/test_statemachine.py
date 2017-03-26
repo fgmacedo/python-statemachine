@@ -3,6 +3,7 @@
 import pytest
 
 from statemachine import StateMachine, State
+from .conftest import campaign_machine, campaign_machine_with_values
 
 
 class MyModel(object):
@@ -12,38 +13,6 @@ class MyModel(object):
 
     def __repr__(self):
         return "{}({!r})".format(type(self).__name__, self.__dict__)
-
-
-@pytest.fixture
-def campaign_machine():
-    "Define a new class for each test"
-
-    class CampaignMachine(StateMachine):
-        draft = State('Draft', initial=True)
-        producing = State('Being produced')
-        closed = State('Closed')
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
-
-    return CampaignMachine
-
-
-@pytest.fixture
-def campaign_machine_with_values():
-    "Define a new class for each test"
-
-    class CampaignMachineWithKeys(StateMachine):
-        draft = State('Draft', initial=True, value=1)
-        producing = State('Being produced', value=2)
-        closed = State('Closed', value=3)
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
-
-    return CampaignMachineWithKeys
 
 
 def test_machine_should_be_at_start_state(campaign_machine):

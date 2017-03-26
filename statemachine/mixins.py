@@ -1,7 +1,11 @@
 # coding: utf-8
 from __future__ import unicode_literals, absolute_import
 
-from django.utils.translation import gettext as _
+try:
+    from django.utils.translation import ugettext as _
+except Exception:
+    def _(text):
+        return text
 from . import registry
 
 
@@ -11,7 +15,7 @@ class MachineMixin(object):
     state_machine_attr = 'statemachine'
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(MachineMixin, self).__init__(*args, **kwargs)
         if not self.state_machine_name:
             raise ValueError(_("{!r} is not a valid state machine name.").format(
                 self.state_machine_name))
