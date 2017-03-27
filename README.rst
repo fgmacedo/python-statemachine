@@ -50,7 +50,7 @@ Define your state machine::
         red = State('Red')
 
         slowdown = green.to(yellow)
-        stop = yellow.to(green)
+        stop = yellow.to(red)
         go = red.to(green)
 
 
