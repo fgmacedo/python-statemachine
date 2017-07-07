@@ -52,6 +52,9 @@ class CallableInstance(object):
 
 
 class Transition(object):
+    """
+    A transition holds reference to the source and destinations states.
+    """
 
     def __init__(self, *states, **options):
         self.source = states[0]
@@ -157,9 +160,8 @@ class CombinedTransition(Transition):
 
     def __call__(self, f):
         result = super(CombinedTransition, self).__call__(f)
-        if self.on_execute:
-            self._left.on_execute = self.on_execute
-            self._right.on_execute = self.on_execute
+        self._left.on_execute = self.on_execute
+        self._right.on_execute = self.on_execute
         return result
 
     def __contribute_to_class__(self, managed, identifier):

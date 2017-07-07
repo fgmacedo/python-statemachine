@@ -41,17 +41,6 @@ def test_machine_should_only_allow_only_one_initial_state():
         model = MyModel()
         CampaignMachine(model)
 
-
-def test_transition_representation(campaign_machine):
-    s = repr([t for t in campaign_machine.transitions if t.identifier == 'produce'][0])
-    print(s)
-    assert s == (
-        "Transition("
-         "State('Draft', identifier='draft', value='draft', initial=True), "
-         "(State('Being produced', identifier='producing', value='producing', initial=False),), identifier='produce')"
-    )
-
-
 def test_should_change_state(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)
@@ -300,15 +289,3 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
     with pytest.raises(ValueError):
         NoTransitionsMachine()
-
-
-def test_transition_should_accept_decorator_syntax(traffic_light_machine):
-    machine = traffic_light_machine()
-    assert machine.current_state == machine.green
-
-
-def test_transition_as_decorator_should_call_method_before_activating_state(traffic_light_machine):
-    machine = traffic_light_machine()
-    assert machine.current_state == machine.green
-    assert machine.slowdown(1, 2, number=3, text='x') == ((1, 2), {'number': 3, 'text': 'x'})
-    assert machine.current_state == machine.yellow
