@@ -3,7 +3,6 @@
 import pytest
 
 from statemachine import StateMachine, State
-from .conftest import campaign_machine, campaign_machine_with_values
 
 
 class MyModel(object):
@@ -255,26 +254,28 @@ def test_state_machine_without_model(campaign_machine):
     assert not machine.is_closed
 
 
-@pytest.mark.parametrize('model, machine_cls, start_value', [
-    (None, campaign_machine(), 'producing'),
-    (None, campaign_machine_with_values(), 2),
-    (MyModel(), campaign_machine(), 'producing'),
-    (MyModel(), campaign_machine_with_values(), 2),
+@pytest.mark.parametrize('model, machine_name, start_value', [
+    (None, 'campaign_machine', 'producing'),
+    (None, 'campaign_machine_with_values', 2),
+    (MyModel(), 'campaign_machine', 'producing'),
+    (MyModel(), 'campaign_machine_with_values', 2),
 ])
-def test_state_machine_with_a_start_value(model, machine_cls, start_value):
+def test_state_machine_with_a_start_value(model, machine_name, start_value):
+    machine_cls = pytest.getfixturevalue(machine_name)
     machine = machine_cls(model, start_value=start_value)
     assert not machine.is_draft
     assert machine.is_producing
     assert not model or model.state == start_value
 
 
-@pytest.mark.parametrize('model, machine_cls, start_value', [
-    (None, campaign_machine(), 'tapioca'),
-    (None, campaign_machine_with_values(), 99),
-    (MyModel(), campaign_machine(), 'tapioca'),
-    (MyModel(), campaign_machine_with_values(), 99),
+@pytest.mark.parametrize('model, machine_name, start_value', [
+    (None, 'campaign_machine', 'tapioca'),
+    (None, 'campaign_machine_with_values', 99),
+    (MyModel(), 'campaign_machine', 'tapioca'),
+    (MyModel(), 'campaign_machine_with_values', 99),
 ])
-def test_state_machine_with_a_invalid_start_value(model, machine_cls, start_value):
+def test_state_machine_with_a_invalid_start_value(model, machine_name, start_value):
+    machine_cls = pytest.getfixturevalue(machine_name)
     with pytest.raises(ValueError):
         machine_cls(model, start_value=start_value)
 
