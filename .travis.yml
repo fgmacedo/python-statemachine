@@ -20,6 +20,6 @@ python:
   - 3.4
   - 3.5
   - 3.6
-script: tox -e ${TOXENV}
+script: tox
 after_success:
   - codecov
