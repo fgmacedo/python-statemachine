@@ -169,3 +169,17 @@ def test_should_change_to_returned_state_on_multiple_destination_with_combined_t
     with pytest.raises(LookupError) as e:
         assert machine.validate()
         assert e.message == "Can't validate when in Completed."
+
+
+def test_transition_on_execute_should_be_called_with_run_syntax(approval_machine, current_time):
+    # given
+    model = mock.MagicMock(state='requested', accepted_at=None,)
+    machine = approval_machine(model)
+
+    model.is_ok.return_value = True
+
+    # when
+    assert machine.run('validate') == model
+    # then
+    assert model.accepted_at == current_time
+    assert machine.is_accepted
