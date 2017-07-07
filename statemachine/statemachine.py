@@ -53,16 +53,16 @@ class CallableInstance(object):
 
 class Transition(object):
 
-    def __init__(self, source, destination, identifier=None, validators=None, on_execute=None):
-        self.source = source
-        self.destination = destination
-        self.identifier = identifier
-        self.validators = validators or []
-        self.on_execute = on_execute
+    def __init__(self, *states, **options):
+        self.source = states[0]
+        self.destinations = states[1:]
+        self.identifier = options.get('identifier')
+        self.validators = options.get('validators', [])
+        self.on_execute = options.get('on_execute')
 
     def __repr__(self):
         return "{}({!r}, {!r}, identifier={!r})".format(
-            type(self).__name__, self.source, self.destination, self.identifier)
+            type(self).__name__, self.source, self.destinations, self.identifier)
 
     def __or__(self, other):
         return CombinedTransition(self, other, identifier=self.identifier)
@@ -89,7 +89,7 @@ class Transition(object):
     def _can_run(self, instance):
         return instance.current_state == self.source
 
-    def _run(self, instance, *args, **kwargs):
+    def _verify_can_run(self, instance):
         if not self._can_run(instance):
             raise LookupError(
                 _("Can't {} when in {}.").format(
@@ -98,12 +98,51 @@ class Transition(object):
                 )
             )
 
+    def _run(self, instance, *args, **kwargs):
+        self._verify_can_run(instance)
         self._validate(*args, **kwargs)
         return instance._activate(self, *args, **kwargs)
 
     def _validate(self, *args, **kwargs):
         for validator in self.validators:
             validator(*args, **kwargs)
+
+    def _get_destination(self, result):
+        """
+        A transition can point to one or more destination states.
+        If there is more than 1 state, the transition **must** specify a `on_execution` callback
+        that should return the desired state.
+        """
+        msg_multiple = _('Multiple destinations, you must return the desired state as: '
+                         '`return <State>` or `return <result>, <State>`.')
+
+        if len(self.destinations) == 1:
+            return result, self.destinations[0]
+
+        if result is None:
+            raise ValueError(msg_multiple)
+        elif isinstance(result, State):
+            destination = result
+            result = None
+        else:
+            try:
+                num = len(result)
+            except TypeError:
+                raise ValueError(msg_multiple)
+
+            if num != 2:
+                raise ValueError(msg_multiple)
+
+            result, destination = result
+
+        if not isinstance(destination, State):
+            raise ValueError(msg_multiple)
+
+        if destination not in self.destinations:
+            raise ValueError(
+                _('{} is not a possible destination state.').format(destination.name))
+
+        return result, destination
 
 
 class CombinedTransition(Transition):
@@ -114,7 +153,7 @@ class CombinedTransition(Transition):
 
     @property
     def _right(self):
-        return self.destination
+        return self.destinations[0]
 
     def __contribute_to_class__(self, managed, identifier):
         super(CombinedTransition, self).__contribute_to_class__(managed, identifier)
@@ -125,14 +164,7 @@ class CombinedTransition(Transition):
         return instance.current_state in [self._left.source, self._right.source]
 
     def _run(self, instance, *args, **kwargs):
-        if not self._can_run(instance):
-            raise LookupError(
-                _("Can't {} when in {}.").format(
-                    self.identifier,
-                    instance.current_state.name
-                )
-            )
-
+        self._verify_can_run(instance)
         self._validate(*args, **kwargs)
         transition = self._left if instance.current_state == self._left.source else self._right
         return transition._run(instance, *args, **kwargs)
@@ -151,8 +183,8 @@ class State(object):
         return "{}({!r}, identifier={!r}, value={!r}, initial={!r})".format(
             type(self).__name__, self.name, self.identifier, self.value, self.initial)
 
-    def to(self, state):
-        transition = Transition(self, state)
+    def to(self, *states):
+        transition = Transition(self, *states)
         self.transitions.append(transition)
         return transition
 
@@ -265,7 +297,10 @@ class BaseStateMachine(object):
     def _activate(self, transition, *args, **kwargs):
         on_event = getattr(self, 'on_{}'.format(transition.identifier), transition.on_execute)
         result = on_event(self, *args, **kwargs) if callable(on_event) else None
-        self.current_state = transition.destination
+
+        result, destination = transition._get_destination(result)
+
+        self.current_state = destination
         return result
 
     def get_transition(self, transition_identifier):

@@ -1,6 +1,12 @@
 # coding: utf-8
 
 import pytest
+from datetime import datetime
+
+
+@pytest.fixture
+def current_time():
+    return datetime.now()
 
 
 @pytest.fixture
@@ -59,3 +65,41 @@ def traffic_light_machine():
             return args, kwargs
 
     return TrafficLightMachine
+
+
+@pytest.fixture
+def approval_machine(current_time):
+    from statemachine import StateMachine, State
+
+    class ApprovalMachine(StateMachine):
+        requested = State('Requested', initial=True)
+        accepted = State('Accepted')
+        rejected = State('Rejected')
+
+        completed = State('Completed')
+
+        @requested.to(accepted, rejected)
+        def validate(self, *args, **kwargs):
+            if self.model.is_ok():
+                self.model.accepted_at = current_time
+                return self.model, self.accepted
+            else:
+                self.model.rejected_at = current_time
+                return self.model, self.rejected
+
+        @accepted.to(completed)
+        def complete(self):
+            self.model.completed_at = current_time
+
+        @requested.to(requested)
+        def update(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self.model, k, v)
+            return self.model
+
+        @rejected.to(requested)
+        def retry(self):
+            self.model.rejected_at = None
+            return self.model
+
+    return ApprovalMachine

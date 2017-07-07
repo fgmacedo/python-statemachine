@@ -9,16 +9,11 @@ deploy:
     secure: i68HiBr+uLUc3cWFVs6ZyGJ9L+/RFtqKFPPIqGuWKCBfSNOjUu5VHsejKQ9nhJaOPp3VIzgXfE+1KntWYA+fDeZgHxitxodtdax5th810K/OQRqdrPUoJW6liJ4/BhRuUCXwCSrvGfhOiBH3kLTXiXgZ64gnCSeHGd2DZubvzUpiGA9638F5mV7UitkKfB+NKPNxO07IDYGDe8nvk8Yx9KbOuwgQ67O79x9DI8/JJGJsgI86wYyOLUhnhoJVRXXg7T5jLSe8CL3qYFoxoLE2MgTehfwt46Jqh3ERHTIENhJSECBTZeZg2xTSbR1iCRSWbjwoM51iiMUD0eE4jNRVpBgqaSao7yjRSgtHMsAHrRUHiqC7xELB5yHGea6qnTQk1NEu+lvlgM5bEkXn6UNYq9hYVPgykaAoJebzUJqYkQKTkpzHU9Ol6A2IRAFA30WLHUFZA/BwilT8+P8gOC9ESztSruzIhj0zdavGmAFaIW0/82wj7P23/ySZFvBJYD3+r3DBDEsXD85eguoIDq+MDFgKfOwOL8RY8U5WHPsCDx3betOUGDqOyK8hzJBYwSQd63R0WKI3XS9pVNDp2kF1DG4HvDUVFk5Mitaxxyg9LbSl1+WtXzQJbNOh6W41pl+gRdKl+PMk3kjeLsk8sZ/1cIO6lkzFBdzOPTf65H/rpWA=
   provider: pypi
   user: fgmacedo
-env:
-- TOXENV=py36
-- TOXENV=py35
-- TOXENV=py34
-- TOXENV=py27
 before_install:
   - pip install -U pytest
   - pip install codecov
   - pip install -e .
-install: pip install -U tox
+install: pip install -U tox-travis
 language: python
 python:
   - 2.7

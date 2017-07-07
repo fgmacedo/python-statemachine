@@ -43,9 +43,11 @@ def test_machine_should_only_allow_only_one_initial_state():
 def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.transitions if t.identifier == 'produce'][0])
     print(s)
-    assert s == ("Transition("
-                 "State('Draft', identifier='draft', value='draft', initial=True), "
-                 "State('Being produced', identifier='producing', value='producing', initial=False), identifier='produce')")
+    assert s == (
+        "Transition("
+         "State('Draft', identifier='draft', value='draft', initial=True), "
+         "(State('Being produced', identifier='producing', value='producing', initial=False),), identifier='produce')"
+    )
 
 
 def test_should_change_state(campaign_machine):
