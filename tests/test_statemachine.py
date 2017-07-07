@@ -260,8 +260,8 @@ def test_state_machine_without_model(campaign_machine):
     (MyModel(), 'campaign_machine', 'producing'),
     (MyModel(), 'campaign_machine_with_values', 2),
 ])
-def test_state_machine_with_a_start_value(model, machine_name, start_value):
-    machine_cls = pytest.getfixturevalue(machine_name)
+def test_state_machine_with_a_start_value(request, model, machine_name, start_value):
+    machine_cls = request.getfixturevalue(machine_name)
     machine = machine_cls(model, start_value=start_value)
     assert not machine.is_draft
     assert machine.is_producing
@@ -274,8 +274,8 @@ def test_state_machine_with_a_start_value(model, machine_name, start_value):
     (MyModel(), 'campaign_machine', 'tapioca'),
     (MyModel(), 'campaign_machine_with_values', 99),
 ])
-def test_state_machine_with_a_invalid_start_value(model, machine_name, start_value):
-    machine_cls = pytest.getfixturevalue(machine_name)
+def test_state_machine_with_a_invalid_start_value(request, model, machine_name, start_value):
+    machine_cls = request.getfixturevalue(machine_name)
     with pytest.raises(ValueError):
         machine_cls(model, start_value=start_value)
 
