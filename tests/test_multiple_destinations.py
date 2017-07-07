@@ -117,3 +117,55 @@ def test_should_change_to_returned_state_on_multiple_destination():
     machine = ApprovalMachine()
 
     assert machine.validate() is None
+    assert machine.is_accepted
+
+
+def test_should_change_to_returned_state_on_multiple_destination_with_combined_transitions():
+    class ApprovalMachine(StateMachine):
+        requested = State('Requested', initial=True)
+        accepted = State('Accepted')
+        rejected = State('Rejected')
+        completed = State('Completed')
+
+        validate = requested.to(accepted, rejected) | accepted.to(completed)
+        retry = rejected.to(requested)
+
+        @validate
+        def do_validate(self):
+            if not self.is_accepted:
+                if self.model.is_ok():
+                    return self.accepted
+                else:
+                    return self.rejected
+            else:
+                return 'congrats!'
+
+    # given
+    model = mock.MagicMock(state='requested')
+    machine = ApprovalMachine(model)
+
+    model.is_ok.return_value = False
+
+    # when
+    assert machine.validate() is None
+    # then
+    assert machine.is_rejected
+
+    # given
+    assert machine.retry() is None
+    assert machine.is_requested
+    model.is_ok.return_value = True
+
+    # when
+    assert machine.validate() is None
+    # then
+    assert machine.is_accepted
+
+    # when
+    assert machine.validate() == 'congrats!'
+    # then
+    assert machine.is_completed
+
+    with pytest.raises(LookupError) as e:
+        assert machine.validate()
+        assert e.message == "Can't validate when in Completed."

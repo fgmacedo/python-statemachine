@@ -155,6 +155,13 @@ class CombinedTransition(Transition):
     def _right(self):
         return self.destinations[0]
 
+    def __call__(self, f):
+        result = super(CombinedTransition, self).__call__(f)
+        if self.on_execute:
+            self._left.on_execute = self.on_execute
+            self._right.on_execute = self.on_execute
+        return result
+
     def __contribute_to_class__(self, managed, identifier):
         super(CombinedTransition, self).__contribute_to_class__(managed, identifier)
         self._left.__contribute_to_class__(managed, identifier)
