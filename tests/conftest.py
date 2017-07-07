@@ -35,3 +35,27 @@ def campaign_machine_with_values():
         deliver = producing.to(closed)
 
     return CampaignMachineWithKeys
+
+
+@pytest.fixture
+def traffic_light_machine():
+    from statemachine import StateMachine, State
+
+    class TrafficLightMachine(StateMachine):
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        red = State('Red')
+
+        @green.to(yellow)
+        def slowdown(self, *args, **kwargs):
+            return args, kwargs
+
+        @yellow.to(red)
+        def stop(self, *args, **kwargs):
+            return args, kwargs
+
+        @red.to(green)
+        def go(self, *args, **kwargs):
+            return args, kwargs
+
+    return TrafficLightMachine

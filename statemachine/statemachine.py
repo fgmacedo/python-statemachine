@@ -53,11 +53,12 @@ class CallableInstance(object):
 
 class Transition(object):
 
-    def __init__(self, source, destination, identifier=None, validators=None):
+    def __init__(self, source, destination, identifier=None, validators=None, on_execute=None):
         self.source = source
         self.destination = destination
         self.identifier = identifier
         self.validators = validators or []
+        self.on_execute = on_execute
 
     def __repr__(self):
         return "{}({!r}, {!r}, identifier={!r})".format(
@@ -78,6 +79,12 @@ class Transition(object):
 
     def __set__(self, instance, value):
         "does nothing (not allow overriding)"
+
+    def __call__(self, f):
+        if not callable(f):
+            raise ValueError('Transitions can only be called as method decorators.')
+        self.on_execute = f
+        return self
 
     def _can_run(self, instance):
         return instance.current_state == self.source
@@ -256,8 +263,8 @@ class BaseStateMachine(object):
         self.current_state_value = value.value
 
     def _activate(self, transition, *args, **kwargs):
-        on_event = getattr(self, 'on_{}'.format(transition.identifier), None)
-        result = on_event(*args, **kwargs) if callable(on_event) else None
+        on_event = getattr(self, 'on_{}'.format(transition.identifier), transition.on_execute)
+        result = on_event(self, *args, **kwargs) if callable(on_event) else None
         self.current_state = transition.destination
         return result
 

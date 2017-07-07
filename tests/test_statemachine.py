@@ -294,3 +294,15 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
     with pytest.raises(ValueError):
         NoTransitionsMachine()
+
+
+def test_transition_should_accept_decorator_syntax(traffic_light_machine):
+    machine = traffic_light_machine()
+    assert machine.current_state == machine.green
+
+
+def test_transition_as_decorator_should_call_method_before_activating_state(traffic_light_machine):
+    machine = traffic_light_machine()
+    assert machine.current_state == machine.green
+    assert machine.slowdown(1, 2, number=3, text='x') == ((1, 2), {'number': 3, 'text': 'x'})
+    assert machine.current_state == machine.yellow
