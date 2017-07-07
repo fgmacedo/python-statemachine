@@ -20,7 +20,11 @@ before_install:
   - pip install -e .
 install: pip install -U tox
 language: python
-python: 3.6
+python:
+  - 2.7
+  - 3.4
+  - 3.5
+  - 3.6
 script: tox -e ${TOXENV}
 after_success:
   - codecov
