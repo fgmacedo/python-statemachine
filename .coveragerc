@@ -1,7 +1,6 @@
 [run]
 branch = True
 data_file = .coverage
-parallel = False
 source =
     statemachine
 omit =
@@ -10,6 +9,7 @@ omit =
     pytest_cov
 
 [report]
+show_missing = True
 exclude_lines =
     # Have to re-enable the standard pragma
     pragma: no cover

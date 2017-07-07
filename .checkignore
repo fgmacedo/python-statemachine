@@ -1,0 +1,3 @@
+tests/*
+
+travis_pypi_setup.py

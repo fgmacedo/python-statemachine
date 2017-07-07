@@ -3,10 +3,10 @@
 import pytest
 
 from statemachine import StateMachine, State
-from .conftest import campaign_machine, campaign_machine_with_values
 
 
 class MyModel(object):
+    "A class that can be used to hold arbitrary key/value pairs as attributes."
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -28,6 +28,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
 
 def test_machine_should_only_allow_only_one_initial_state():
     class CampaignMachine(StateMachine):
+        "A workflow machine"
         draft = State('Draft', initial=True)
         producing = State('Being produced')
         closed = State('Closed', initial=True)  # Should raise an Exception when instantiated
@@ -39,15 +40,6 @@ def test_machine_should_only_allow_only_one_initial_state():
     with pytest.raises(ValueError):
         model = MyModel()
         CampaignMachine(model)
-
-
-def test_transition_representation(campaign_machine):
-    s = repr([t for t in campaign_machine.transitions if t.identifier == 'produce'][0])
-    print(s)
-    assert s == ("Transition("
-                 "State('Draft', identifier='draft', value='draft', initial=True), "
-                 "State('Being produced', identifier='producing', value='producing', initial=False), identifier='produce')")
-
 
 def test_should_change_state(campaign_machine):
     model = MyModel()
@@ -255,32 +247,35 @@ def test_state_machine_without_model(campaign_machine):
     assert not machine.is_closed
 
 
-@pytest.mark.parametrize('model, machine_cls, start_value', [
-    (None, campaign_machine(), 'producing'),
-    (None, campaign_machine_with_values(), 2),
-    (MyModel(), campaign_machine(), 'producing'),
-    (MyModel(), campaign_machine_with_values(), 2),
+@pytest.mark.parametrize('model, machine_name, start_value', [
+    (None, 'campaign_machine', 'producing'),
+    (None, 'campaign_machine_with_values', 2),
+    (MyModel(), 'campaign_machine', 'producing'),
+    (MyModel(), 'campaign_machine_with_values', 2),
 ])
-def test_state_machine_with_a_start_value(model, machine_cls, start_value):
+def test_state_machine_with_a_start_value(request, model, machine_name, start_value):
+    machine_cls = request.getfixturevalue(machine_name)
     machine = machine_cls(model, start_value=start_value)
     assert not machine.is_draft
     assert machine.is_producing
     assert not model or model.state == start_value
 
 
-@pytest.mark.parametrize('model, machine_cls, start_value', [
-    (None, campaign_machine(), 'tapioca'),
-    (None, campaign_machine_with_values(), 99),
-    (MyModel(), campaign_machine(), 'tapioca'),
-    (MyModel(), campaign_machine_with_values(), 99),
+@pytest.mark.parametrize('model, machine_name, start_value', [
+    (None, 'campaign_machine', 'tapioca'),
+    (None, 'campaign_machine_with_values', 99),
+    (MyModel(), 'campaign_machine', 'tapioca'),
+    (MyModel(), 'campaign_machine_with_values', 99),
 ])
-def test_state_machine_with_a_invalid_start_value(model, machine_cls, start_value):
+def test_state_machine_with_a_invalid_start_value(request, model, machine_name, start_value):
+    machine_cls = request.getfixturevalue(machine_name)
     with pytest.raises(ValueError):
         machine_cls(model, start_value=start_value)
 
 
 def test_should_not_create_instance_of_machine_without_states():
     class EmptyMachine(StateMachine):
+        "An empty machine"
         pass
 
     with pytest.raises(ValueError):
@@ -289,6 +284,7 @@ def test_should_not_create_instance_of_machine_without_states():
 
 def test_should_not_create_instance_of_machine_without_transitions():
     class NoTransitionsMachine(StateMachine):
+        "A machine without transitions"
         initial = State('initial')
 
     with pytest.raises(ValueError):
