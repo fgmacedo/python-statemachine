@@ -15,6 +15,7 @@ def campaign_machine():
     from statemachine import State, StateMachine
 
     class CampaignMachine(StateMachine):
+        "A workflow machine"
         draft = State('Draft', initial=True)
         producing = State('Being produced')
         closed = State('Closed')
@@ -32,6 +33,7 @@ def campaign_machine_with_values():
     from statemachine import State, StateMachine
 
     class CampaignMachineWithKeys(StateMachine):
+        "A workflow machine"
         draft = State('Draft', initial=True, value=1)
         producing = State('Being produced', value=2)
         closed = State('Closed', value=3)
@@ -48,6 +50,7 @@ def traffic_light_machine():
     from statemachine import StateMachine, State
 
     class TrafficLightMachine(StateMachine):
+        "A traffic light machine"
         green = State('Green', initial=True)
         yellow = State('Yellow')
         red = State('Red')
@@ -72,6 +75,7 @@ def approval_machine(current_time):
     from statemachine import StateMachine, State
 
     class ApprovalMachine(StateMachine):
+        "A workflow machine"
         requested = State('Requested', initial=True)
         accepted = State('Accepted')
         rejected = State('Rejected')

@@ -6,6 +6,7 @@ from statemachine import StateMachine, State
 
 
 class MyModel(object):
+    "A class that can be used to hold arbitrary key/value pairs as attributes."
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -27,6 +28,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
 
 def test_machine_should_only_allow_only_one_initial_state():
     class CampaignMachine(StateMachine):
+        "A workflow machine"
         draft = State('Draft', initial=True)
         producing = State('Being produced')
         closed = State('Closed', initial=True)  # Should raise an Exception when instantiated
@@ -284,6 +286,7 @@ def test_state_machine_with_a_invalid_start_value(request, model, machine_name, 
 
 def test_should_not_create_instance_of_machine_without_states():
     class EmptyMachine(StateMachine):
+        "An empty machine"
         pass
 
     with pytest.raises(ValueError):
@@ -292,6 +295,7 @@ def test_should_not_create_instance_of_machine_without_states():
 
 def test_should_not_create_instance_of_machine_without_transitions():
     class NoTransitionsMachine(StateMachine):
+        "A machine without transitions"
         initial = State('initial')
 
     with pytest.raises(ValueError):

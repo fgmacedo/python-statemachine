@@ -47,6 +47,7 @@ def test_transition_should_choose_final_state_on_multiple_possibilities(
 
 def test_should_raise_error_if_not_define_callback_in_multiple_destinations():
     class ApprovalMachine(StateMachine):
+        "A workflow"
         requested = State('Requested', initial=True)
         accepted = State('Accepted')
         rejected = State('Rejected')
@@ -67,34 +68,19 @@ def test_should_raise_error_if_not_define_callback_in_multiple_destinations():
     (2, 3),
     (4, 5, 6),
     ((7, 8), 9),
+    'requested'
 ])
 def test_should_raise_error_if_not_inform_state_in_multiple_destinations(return_value):
     class ApprovalMachine(StateMachine):
+        "A workflow"
         requested = State('Requested', initial=True)
         accepted = State('Accepted')
         rejected = State('Rejected')
 
         @requested.to(accepted, rejected)
         def validate(self):
-            return return_value
-
-    machine = ApprovalMachine()
-
-    with pytest.raises(ValueError) as e:
-        machine.validate()
-
-        assert 'desired state' in e.message
-
-
-def test_should_raise_error_if_returned_state_is_not_a_possible_destination():
-    class ApprovalMachine(StateMachine):
-        requested = State('Requested', initial=True)
-        accepted = State('Accepted')
-        rejected = State('Rejected')
-
-        @requested.to(accepted, rejected)
-        def validate(self):
-            return self.requested
+            "tries to get an attr (like a desired state), failsback to the `return_value` itself"
+            return getattr(self, str(return_value), return_value)
 
     machine = ApprovalMachine()
 
@@ -106,6 +92,7 @@ def test_should_raise_error_if_returned_state_is_not_a_possible_destination():
 
 def test_should_change_to_returned_state_on_multiple_destination():
     class ApprovalMachine(StateMachine):
+        "A workflow"
         requested = State('Requested', initial=True)
         accepted = State('Accepted')
         rejected = State('Rejected')
@@ -122,6 +109,7 @@ def test_should_change_to_returned_state_on_multiple_destination():
 
 def test_should_change_to_returned_state_on_multiple_destination_with_combined_transitions():
     class ApprovalMachine(StateMachine):
+        "A workflow"
         requested = State('Requested', initial=True)
         accepted = State('Accepted')
         rejected = State('Rejected')
