@@ -9,6 +9,7 @@ deploy:
     repo: fgmacedo/python-statemachine
     tags: true
     condition: $TRAVIS_PYTHON_VERSION = "2.7"
+    all_branches: true
 before_install:
   - pip install -U pytest
   - pip install codecov
