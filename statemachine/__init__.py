@@ -4,4 +4,4 @@ from .statemachine import StateMachine, State, Transition
 
 __author__ = """Fernando Macedo"""
 __email__ = 'fgmacedo@gmail.com'
-__version__ = '0.3.1'
+__version__ = '0.4.0'
