@@ -4,7 +4,7 @@ from __future__ import absolute_import, unicode_literals
 import pytest
 import mock
 
-from statemachine import StateMachine, State
+from statemachine import StateMachine, State, exceptions
 
 
 def test_transition_should_choose_final_state_on_multiple_possibilities(
@@ -56,21 +56,21 @@ def test_should_raise_error_if_not_define_callback_in_multiple_destinations():
 
     machine = ApprovalMachine()
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(exceptions.MultipleStatesFound) as e:
         machine.validate()
 
         assert 'desired state' in e.message
 
 
-@pytest.mark.parametrize('return_value', [
-    None,
-    1,
-    (2, 3),
-    (4, 5, 6),
-    ((7, 8), 9),
-    'requested'
+@pytest.mark.parametrize('return_value, expected_exception', [
+    (None, exceptions.MultipleStatesFound),
+    (1, exceptions.MultipleStatesFound),
+    ((2, 3), exceptions.MultipleStatesFound),
+    ((4, 5, 6), exceptions.MultipleStatesFound),
+    (((7, 8), 9), exceptions.MultipleStatesFound),
+    ('requested', exceptions.InvalidDestinationState),
 ])
-def test_should_raise_error_if_not_inform_state_in_multiple_destinations(return_value):
+def test_should_raise_error_if_not_inform_state_in_multiple_destinations(return_value, expected_exception):
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State('Requested', initial=True)
@@ -84,7 +84,7 @@ def test_should_raise_error_if_not_inform_state_in_multiple_destinations(return_
 
     machine = ApprovalMachine()
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(expected_exception) as e:
         machine.validate()
 
         assert 'desired state' in e.message
@@ -154,7 +154,7 @@ def test_should_change_to_returned_state_on_multiple_destination_with_combined_t
     # then
     assert machine.is_completed
 
-    with pytest.raises(LookupError) as e:
+    with pytest.raises(exceptions.TransitionNotAllowed) as e:
         assert machine.validate()
         assert e.message == "Can't validate when in Completed."
 
@@ -171,3 +171,22 @@ def test_transition_on_execute_should_be_called_with_run_syntax(approval_machine
     # then
     assert model.accepted_at == current_time
     assert machine.is_accepted
+
+
+def test_multiple_transition_callbacks():
+    class ApprovalMachine(StateMachine):
+        "A workflow"
+        requested = State('Requested', initial=True)
+        accepted = State('Accepted')
+
+        @requested.to(accepted)
+        def validate(self):
+            return self.accepted
+
+        def on_validate(self):
+            return self.accepted
+
+    machine = ApprovalMachine()
+
+    with pytest.raises(exceptions.MultipleTransitionCallbacksFound):
+        machine.validate()
