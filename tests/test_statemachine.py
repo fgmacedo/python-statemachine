@@ -3,6 +3,7 @@
 import pytest
 
 from statemachine import StateMachine, State
+from statemachine import exceptions
 
 
 class MyModel(object):
@@ -37,9 +38,10 @@ def test_machine_should_only_allow_only_one_initial_state():
         produce = draft.to(producing)
         deliver = producing.to(closed)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(exceptions.InvalidDefinition):
         model = MyModel()
         CampaignMachine(model)
+
 
 def test_should_change_state(campaign_machine):
     model = MyModel()
@@ -107,7 +109,7 @@ def test_call_to_transition_that_is_not_in_the_current_state_should_raise_except
 
     assert machine.current_state.value == current_state
 
-    with pytest.raises(LookupError):
+    with pytest.raises(exceptions.TransitionNotAllowed):
         machine.run(transition)
 
 
@@ -153,7 +155,7 @@ def test_machine_should_raise_an_exception_if_a_transition_by_his_key_is_not_fou
 
     assert model.state == 'draft'
 
-    with pytest.raises(ValueError):
+    with pytest.raises(exceptions.InvalidTransitionIdentifier):
         machine.run('go_horse')
 
 
@@ -269,7 +271,7 @@ def test_state_machine_with_a_start_value(request, model, machine_name, start_va
 ])
 def test_state_machine_with_a_invalid_start_value(request, model, machine_name, start_value):
     machine_cls = request.getfixturevalue(machine_name)
-    with pytest.raises(ValueError):
+    with pytest.raises(exceptions.InvalidStateValue):
         machine_cls(model, start_value=start_value)
 
 
@@ -278,7 +280,7 @@ def test_should_not_create_instance_of_machine_without_states():
         "An empty machine"
         pass
 
-    with pytest.raises(ValueError):
+    with pytest.raises(exceptions.InvalidDefinition):
         EmptyMachine()
 
 
@@ -287,5 +289,5 @@ def test_should_not_create_instance_of_machine_without_transitions():
         "A machine without transitions"
         initial = State('initial')
 
-    with pytest.raises(ValueError):
+    with pytest.raises(exceptions.InvalidDefinition):
         NoTransitionsMachine()

@@ -1,12 +1,17 @@
 # coding: utf-8
 
-from collections import OrderedDict
 from . import registry
-try:
-    from django.utils.translation import ugettext as _
-except Exception:
-    def _(text):
-        return text
+from .exceptions import (
+    StateMachineError,
+    InvalidDefinition,
+    InvalidStateValue,
+    InvalidDestinationState,
+    InvalidTransitionIdentifier,
+    TransitionNotAllowed,
+    MultipleStatesFound,
+    MultipleTransitionCallbacksFound,
+)
+from .utils import ugettext as _
 
 
 class CallableInstance(object):
@@ -85,7 +90,7 @@ class Transition(object):
 
     def __call__(self, f):
         if not callable(f):
-            raise ValueError('Transitions can only be called as method decorators.')
+            raise StateMachineError('Transitions can only be called as method decorators.')
         self.on_execute = f
         return self
 
@@ -94,12 +99,7 @@ class Transition(object):
 
     def _verify_can_run(self, instance):
         if not self._can_run(instance):
-            raise LookupError(
-                _("Can't {} when in {}.").format(
-                    self.identifier,
-                    instance.current_state.name
-                )
-            )
+            raise TransitionNotAllowed(self, instance.current_state)
 
     def _run(self, instance, *args, **kwargs):
         self._verify_can_run(instance)
@@ -116,14 +116,11 @@ class Transition(object):
         If there is more than 1 state, the transition **must** specify a `on_execution` callback
         that should return the desired state.
         """
-        msg_multiple = _('Multiple destinations, you must return the desired state as: '
-                         '`return <State>` or `return <result>, <State>`.')
-
         if len(self.destinations) == 1:
             return result, self.destinations[0]
 
         if result is None:
-            raise ValueError(msg_multiple)
+            raise MultipleStatesFound(self)
         elif isinstance(result, State):
             destination = result
             result = None
@@ -131,19 +128,18 @@ class Transition(object):
             try:
                 num = len(result)
             except TypeError:
-                raise ValueError(msg_multiple)
+                raise MultipleStatesFound(self)
 
             if num != 2:
-                raise ValueError(msg_multiple)
+                raise MultipleStatesFound(self)
 
             result, destination = result
 
         if not isinstance(destination, State):
-            raise ValueError(msg_multiple)
+            raise MultipleStatesFound(self)
 
         if destination not in self.destinations:
-            raise ValueError(
-                _('{} is not a possible destination state.').format(destination.name))
+            raise InvalidDestinationState(self, destination)
 
         return result, destination
 
@@ -260,15 +256,15 @@ class BaseStateMachine(object):
 
     def check(self):
         if not self.states:
-            raise ValueError(_('There are no states.'))
+            raise InvalidDefinition(_('There are no states.'))
 
         if not self.transitions:
-            raise ValueError(_('There are no transitions.'))
+            raise InvalidDefinition(_('There are no transitions.'))
 
         initials = [s for s in self.states if s.initial]
         if len(initials) != 1:
-            raise ValueError(_('There should be one and only one initial state. '
-                               'Your currently have these: {!r}'.format(initials)))
+            raise InvalidDefinition(_('There should be one and only one initial state. '
+                                      'Your currently have these: {!r}'.format(initials)))
         self.initial_state = initials[0]
 
         if self.current_state_value is None:
@@ -284,7 +280,7 @@ class BaseStateMachine(object):
     @current_state_value.setter
     def current_state_value(self, value):
         if value not in self.states_map:
-            raise ValueError(_("{!r} is not a valid state value.").format(value))
+            raise InvalidStateValue(value)
         setattr(self.model, self.state_field, value)
 
     @property
@@ -304,8 +300,17 @@ class BaseStateMachine(object):
         self.current_state_value = value.value
 
     def _activate(self, transition, *args, **kwargs):
-        on_event = getattr(self, 'on_{}'.format(transition.identifier), transition.on_execute)
-        result = on_event(self, *args, **kwargs) if callable(on_event) else None
+        bounded_on_event = getattr(self, 'on_{}'.format(transition.identifier), None)
+        on_event = transition.on_execute
+
+        if bounded_on_event and on_event and bounded_on_event != on_event:
+            raise MultipleTransitionCallbacksFound(transition)
+
+        result = None
+        if callable(bounded_on_event):
+            result = bounded_on_event(*args, **kwargs)
+        elif callable(on_event):
+            result = on_event(self, *args, **kwargs)
 
         result, destination = transition._get_destination(result)
 
@@ -315,8 +320,7 @@ class BaseStateMachine(object):
     def get_transition(self, transition_identifier):
         transition = getattr(self, transition_identifier, None)
         if not hasattr(transition, 'source') or not callable(transition):
-            raise ValueError(
-                '{!r} is not a valid transition identifier'.format(transition_identifier))
+            raise InvalidTransitionIdentifier(transition_identifier)
         return transition
 
     def run(self, transition_identifier, *args, **kwargs):

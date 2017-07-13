@@ -1,9 +1,15 @@
-=======
 History
 =======
 
-0.3.2 (not released yet)
-------------------------
+0.5.0 (2017-07-13)
+------------------
+
+* Custom exceptions.
+* Duplicated definition of ``on_execute`` callback is not allowed.
+* Fix bug on ``StateMachine.on_<transition.identifier>`` being called with extra ``self`` param.
+
+0.4.2 (2017-07-10)
+------------------
 
 * Python 3.6 support.
 * Drop official support for Python 3.3.
