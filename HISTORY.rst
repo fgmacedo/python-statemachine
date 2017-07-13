@@ -1,9 +1,8 @@
-=======
 History
 =======
 
-0.3.2 (not released yet)
-------------------------
+0.4.2 (2017-07-10)
+------------------
 
 * Python 3.6 support.
 * Drop official support for Python 3.3.
