@@ -10,11 +10,11 @@ Development Lead
 Contributors
 ------------
 
-None yet. Why not be the first?
+* Guilherme Nepomuceno <piercio@loggi.com>
 
 
 Credits
----------
+-------
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
 

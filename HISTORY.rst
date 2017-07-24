@@ -1,6 +1,12 @@
 History
 =======
 
+0.5.1 (2017-07-24)
+------------------
+
+* Fix bug on ``CombinedTransition._can_run`` not allowing transitions to run if there are more than
+  two transitions combined.
+
 0.5.0 (2017-07-13)
 ------------------
 
