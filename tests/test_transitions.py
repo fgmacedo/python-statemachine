@@ -73,3 +73,19 @@ def test_statemachine_transition_callback(transition_callback_machine):
     machine = transition_callback_machine(model)
     assert machine.validate() == 'accepted'
     model.assert_called_once_with('on_validate')
+
+
+def test_can_run_combined_transitions():
+    class CampaignMachine(StateMachine):
+        "A workflow machine"
+        draft = State('Draft', initial=True)
+        producing = State('Being produced')
+        closed = State('Closed')
+
+        abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+
+    machine = CampaignMachine()
+
+    machine.abort()
+
+    assert machine.is_closed

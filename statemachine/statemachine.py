@@ -95,11 +95,14 @@ class Transition(object):
         return self
 
     def _can_run(self, instance):
-        return instance.current_state == self.source
+        if instance.current_state == self.source:
+            return self
 
     def _verify_can_run(self, instance):
-        if not self._can_run(instance):
+        transition = self._can_run(instance)
+        if not transition:
             raise TransitionNotAllowed(self, instance.current_state)
+        return transition
 
     def _run(self, instance, *args, **kwargs):
         self._verify_can_run(instance)
@@ -166,12 +169,11 @@ class CombinedTransition(Transition):
         self._right.__contribute_to_class__(managed, identifier)
 
     def _can_run(self, instance):
-        return instance.current_state in [self._left.source, self._right.source]
+        return self._left._can_run(instance) or self._right._can_run(instance)
 
     def _run(self, instance, *args, **kwargs):
-        self._verify_can_run(instance)
+        transition = self._verify_can_run(instance)
         self._validate(*args, **kwargs)
-        transition = self._left if instance.current_state == self._left.source else self._right
         return transition._run(instance, *args, **kwargs)
 
 

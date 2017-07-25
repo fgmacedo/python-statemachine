@@ -5,7 +5,7 @@ from .utils import ugettext as _
 
 
 class StateMachineError(Exception):
-    pass
+    "Base exception for this project, all exceptions that can be raised inherit from this class."
 
 
 class InvalidDefinition(StateMachineError):
@@ -76,4 +76,11 @@ class MultipleStatesFound(StateMachineError):
 
 
 class MultipleTransitionCallbacksFound(InvalidDefinition):
-    pass
+    """
+    You have defined multiple callbacks ``on_execute`` for the same transition.
+    """
+    def __init__(self, transition):
+        self.transition = transition
+        msg = _('Multiple callbacks found, you must choose between a callback in the transition'
+                'or a bouded method in the state machine class.')
+        super(MultipleTransitionCallbacksFound, self).__init__(msg)

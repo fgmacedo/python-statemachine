@@ -2,5 +2,5 @@
 pip==9.0.1
 bumpversion==0.5.3
 wheel==0.29.0
-cryptography==1.9
+cryptography==2.0
 PyYAML==3.12
