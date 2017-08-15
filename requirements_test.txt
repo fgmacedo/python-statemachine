@@ -4,6 +4,6 @@ pytest==3.2.0
 pytest-cov==2.5.1
 pytest-pep8==1.0.6
 pytest-watch==4.1.0
-pytest-sugar==0.8.0
+pytest-sugar==0.9.0
 Sphinx==1.6.3
 sphinx_rtd_theme==0.2.4
