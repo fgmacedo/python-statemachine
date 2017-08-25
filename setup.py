@@ -1,13 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+import os
 
 from setuptools import setup
+import restructuredtext_lint
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
+
+long_description = readme + '\n\n' + history
+
+errors = restructuredtext_lint.lint(long_description)
+if errors:
+    lines = long_description.splitlines()
+    msg = "Long description has errors.\r\n"
+    for idx, error in enumerate(errors, 1):
+        line = lines[error.line - 1]
+        msg += "{}) Linha {}. '{}'\r\n{}\r\n\r\n".format(
+            idx, error.line, line, error.full_message)
+
+    print(msg)
+    os._exit(1)
 
 requirements = [
     # TODO: put package requirements here
@@ -21,7 +38,7 @@ setup(
     name='python-statemachine',
     version='0.6.2',
     description="Python Finite State Machines made easy.",
-    long_description=readme + '\n\n' + history,
+    long_description=long_description,
     author="Fernando Macedo",
     author_email='fgmacedo@gmail.com',
     url='https://github.com/fgmacedo/python-statemachine',
