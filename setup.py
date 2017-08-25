@@ -19,7 +19,7 @@ test_requirements = [
 
 setup(
     name='python-statemachine',
-    version='0.5.1',
+    version='0.6.0',
     description="Python Finite State Machines made easy.",
     long_description=readme + '\n\n' + history,
     author="Fernando Macedo",
