@@ -1,6 +1,12 @@
 History
 =======
 
+0.6.0 (2017-08-25)
+------------------
+
+* Auto-discovering `statemachine`/`statemachines` under a Django project when
+they are requested using the mixin/registry feature.
+
 0.5.1 (2017-07-24)
 ------------------
 
