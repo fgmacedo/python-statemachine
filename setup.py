@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-import os
 
 from setuptools import setup
 
@@ -14,13 +13,9 @@ with open('HISTORY.rst') as history_file:
 long_description = readme + '\n\n' + history
 
 
-requirements = [
-    # TODO: put package requirements here
-]
+requirements = []
 
-test_requirements = [
-    # TODO: put package test requirements here
-]
+test_requirements = []
 
 setup(
     name='python-statemachine',
