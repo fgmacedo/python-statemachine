@@ -113,17 +113,10 @@ class Transition(object):
         for validator in self.validators:
             validator(*args, **kwargs)
 
-    def _get_destination(self, result):
-        """
-        A transition can point to one or more destination states.
-        If there is more than 1 state, the transition **must** specify a `on_execution` callback
-        that should return the desired state.
-        """
-        if len(self.destinations) == 1:
-            return result, self.destinations[0]
-
+    def _get_destination_from_result(self, result):
+        destination = None
         if result is None:
-            raise MultipleStatesFound(self)
+            return result, destination
         elif isinstance(result, State):
             destination = result
             result = None
@@ -131,15 +124,31 @@ class Transition(object):
             try:
                 num = len(result)
             except TypeError:
+                return result, destination
+
+            if num < 2:
+                return result, destination
+
+            if isinstance(result[-1], State):
+                result, destination = result[:-1], result[-1]
+                if len(result) == 1:
+                    result = result[0]
+
+        return result, destination
+
+    def _get_destination(self, result):
+        """
+        A transition can point to one or more destination states.
+        If there is more than 1 state, the transition **must** specify a `on_execution` callback
+        that should return the desired state.
+        """
+        result, destination = self._get_destination_from_result(result)
+
+        if destination is None:
+            if len(self.destinations) == 1:
+                destination = self.destinations[0]
+            else:
                 raise MultipleStatesFound(self)
-
-            if num != 2:
-                raise MultipleStatesFound(self)
-
-            result, destination = result
-
-        if not isinstance(destination, State):
-            raise MultipleStatesFound(self)
 
         if destination not in self.destinations:
             raise InvalidDestinationState(self, destination)

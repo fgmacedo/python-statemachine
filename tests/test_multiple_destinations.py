@@ -91,20 +91,40 @@ def test_should_raise_error_if_not_inform_state_in_multiple_destinations(
         assert 'desired state' in e.message
 
 
-def test_should_change_to_returned_state_on_multiple_destination():
+@pytest.mark.parametrize('callback', ['single', 'multiple'])
+@pytest.mark.parametrize('with_return_value', [True, False], ids=['with_return', 'without_return'])
+@pytest.mark.parametrize('return_value', [None, 'spam'])
+def test_should_transition_to_the_state_returned_by_callback(
+        callback, with_return_value, return_value):
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State('Requested', initial=True)
         accepted = State('Accepted')
         rejected = State('Rejected')
 
+        @requested.to(accepted)
+        def transition_with_single_destination(self):
+            if with_return_value:
+                return return_value, self.accepted
+            else:
+                return self.accepted
+
         @requested.to(accepted, rejected)
-        def validate(self):
-            return self.accepted
+        def transition_with_multiple_destination(self):
+            if with_return_value:
+                return return_value, self.accepted
+            else:
+                return self.accepted
 
     machine = ApprovalMachine()
 
-    assert machine.validate() is None
+    transition = 'transition_with_{}_destination'.format(callback)
+
+    result = machine.run(transition)
+    if with_return_value:
+        assert result == return_value
+    else:
+        assert result is None
     assert machine.is_accepted
 
 
