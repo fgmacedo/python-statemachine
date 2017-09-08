@@ -1,6 +1,6 @@
-===============================
+====================
 Python State Machine
-===============================
+====================
 
 
 .. image:: https://img.shields.io/pypi/v/python-statemachine.svg

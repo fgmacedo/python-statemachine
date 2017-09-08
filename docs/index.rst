@@ -1,5 +1,5 @@
-Welcome to Python State Machine's documentation!
-======================================
+Python State Machine
+====================
 
 Contents:
 
