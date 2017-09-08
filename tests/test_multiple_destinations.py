@@ -70,7 +70,8 @@ def test_should_raise_error_if_not_define_callback_in_multiple_destinations():
     (((7, 8), 9), exceptions.MultipleStatesFound),
     ('requested', exceptions.InvalidDestinationState),
 ])
-def test_should_raise_error_if_not_inform_state_in_multiple_destinations(return_value, expected_exception):
+def test_should_raise_error_if_not_inform_state_in_multiple_destinations(
+        return_value, expected_exception):
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State('Requested', initial=True)

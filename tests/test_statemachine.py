@@ -21,7 +21,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
     machine = campaign_machine(model)
 
     assert [s.value for s in campaign_machine.states] == ['closed', 'draft', 'producing']
-    assert [t.identifier for t in campaign_machine.transitions] == ['add_job', 'deliver', 'produce']
+    assert [t.identifier for t in campaign_machine.transitions] == ['add_job', 'deliver', 'produce']  # noqa: E501
 
     assert model.state == 'draft'
     assert machine.current_state == machine.draft
