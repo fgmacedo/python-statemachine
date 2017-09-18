@@ -154,3 +154,8 @@ Mixins
 ------
 
 Docs needed.
+
+
+.. image:: https://badges.gitter.im/fgmacedo/python-statemachine.svg
+   :alt: Join the chat at https://gitter.im/fgmacedo/python-statemachine
+   :target: https://gitter.im/fgmacedo/python-statemachine?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
