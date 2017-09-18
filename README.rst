@@ -19,8 +19,12 @@ Python State Machine
         :alt: Documentation Status
 
 .. image:: https://pyup.io/repos/github/fgmacedo/python-statemachine/shield.svg
-     :target: https://pyup.io/repos/github/fgmacedo/python-statemachine/
-     :alt: Updates
+        :target: https://pyup.io/repos/github/fgmacedo/python-statemachine/
+        :alt: Updates
+
+.. image:: https://badges.gitter.im/fgmacedo/python-statemachine.svg
+        :alt: Join the chat at https://gitter.im/fgmacedo/python-statemachine
+        :target: https://gitter.im/fgmacedo/python-statemachine
 
 
 Python `finite-state machines <https://en.wikipedia.org/wiki/Finite-state_machine>`_ made easy.
