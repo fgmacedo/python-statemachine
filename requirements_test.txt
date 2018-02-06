@@ -4,7 +4,7 @@ pytest==3.2.3
 pytest-cov==2.5.1
 pytest-flake8==0.8.1
 pytest-watch==4.1.0
-pytest-sugar==0.9.0
+pytest-sugar==0.9.1
 Sphinx==1.6.4
 sphinx_rtd_theme==0.2.4
 restructuredtext-lint==1.1.1
