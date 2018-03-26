@@ -55,6 +55,8 @@ def traffic_light_machine():
         yellow = State('Yellow')
         red = State('Red')
 
+        cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
         @green.to(yellow)
         def slowdown(self, *args, **kwargs):
             return args, kwargs
@@ -65,6 +67,9 @@ def traffic_light_machine():
 
         @red.to(green)
         def go(self, *args, **kwargs):
+            return args, kwargs
+
+        def on_cicle(self, *args, **kwargs):
             return args, kwargs
 
     return TrafficLightMachine

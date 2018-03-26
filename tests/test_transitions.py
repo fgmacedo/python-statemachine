@@ -31,6 +31,14 @@ def test_transition_as_decorator_should_call_method_before_activating_state(traf
     assert machine.current_state == machine.yellow
 
 
+def test_cycle_transitions(traffic_light_machine):
+    machine = traffic_light_machine()
+    expected_states = ['green', 'yellow', 'red'] * 2
+    for expected_state in expected_states:
+        assert machine.current_state.identifier == expected_state
+        machine.cycle()
+
+
 def test_transition_call_can_only_be_used_as_decorator():
     source, dest = State('Source'), State('Destination')
     transition = Transition(source, dest)
@@ -89,3 +97,20 @@ def test_can_run_combined_transitions():
     machine.abort()
 
     assert machine.is_closed
+
+
+def test_transitions_to_the_same_estate_as_itself():
+    class CampaignMachine(StateMachine):
+        "A workflow machine"
+        draft = State('Draft', initial=True)
+        producing = State('Being produced')
+        closed = State('Closed')
+
+        update = draft.to.itself()
+        abort = draft.to(closed) | producing.to(closed) | closed.to.itself()
+
+    machine = CampaignMachine()
+
+    machine.update()
+
+    assert machine.is_draft
