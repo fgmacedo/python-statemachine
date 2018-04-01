@@ -44,7 +44,9 @@ To install Python State Machine, run this command in your terminal:
     $ pip install python-statemachine
 
 
-Define your state machine::
+Define your state machine:
+
+.. code-block:: python
 
     from statemachine import StateMachine, State
 
@@ -148,13 +150,106 @@ True
 True
 
 
-Events
-------
+Callbacks
+---------
 
-Docs needed.
+Callbacks when running events:
 
+.. code-block:: python
+
+    from statemachine import StateMachine, State
+
+    class TrafficLightMachine(StateMachine):
+        "A traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        red = State('Red')
+
+        slowdown = green.to(yellow)
+        stop = yellow.to(red)
+        go = red.to(green)
+
+        def on_slowdown(self):
+            print('Calma, lá!')
+
+        def on_stop(self):
+            print('Parou.')
+
+        def on_go(self):
+            print('Valendo!')
+
+
+>>> stm = TrafficLightMachine()
+>>> stm.slowdown()
+Calma, lá!
+>>> stm.stop()
+Parou.
+>>> stm.go()
+Valendo!
+
+
+Or when entering/exiting states:
+
+.. code-block:: python
+
+    from statemachine import StateMachine, State
+
+    class TrafficLightMachine(StateMachine):
+        "A traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        red = State('Red')
+
+        cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+        def on_enter_green(self):
+            print('Valendo!')
+
+        def on_enter_yellow(self):
+            print('Calma, lá!')
+
+        def on_enter_red(self):
+            print('Parou.')
+
+>>> stm = TrafficLightMachine()
+>>> stm.cycle()
+Calma, lá!
+>>> stm.cycle()
+Parou.
+>>> stm.cycle()
+Valendo!
 
 Mixins
 ------
 
-Docs needed.
+Your model can inherited from a custom mixin to auto-instantiate a state machine.
+
+.. code-block:: python
+
+    class CampaignMachineWithKeys(StateMachine):
+        "A workflow machine"
+        draft = State('Draft', initial=True, value=1)
+        producing = State('Being produced', value=2)
+        closed = State('Closed', value=3)
+
+        add_job = draft.to(draft) | producing.to(producing)
+        produce = draft.to(producing)
+        deliver = producing.to(closed)
+
+
+    class MyModel(MachineMixin):
+        state_machine_name = 'CampaignMachine'
+
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+            super(MyModel, self).__init__()
+
+        def __repr__(self):
+            return "{}({!r})".format(type(self).__name__, self.__dict__)
+
+
+    model = MyModel(state='draft')
+    assert isinstance(model.statemachine, campaign_machine)
+    assert model.state == 'draft'
+    assert model.statemachine.current_state == model.statemachine.draft
