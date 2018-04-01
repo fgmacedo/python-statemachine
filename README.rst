@@ -232,7 +232,7 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
         producing = State('Being produced', value=2)
         closed = State('Closed', value=3)
 
-        add_job = draft.to(draft) | producing.to(producing)
+        add_job = draft.to.itself() | producing.to.itself()
         produce = draft.to(producing)
         deliver = producing.to(closed)
 
