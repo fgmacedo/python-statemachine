@@ -79,11 +79,11 @@ class Transition(object):
         self.managed = managed
         self.identifier = identifier
 
-    def __get__(self, instance, owner):
-        def callable(*args, **kwargs):
-            return self._run(instance, *args, **kwargs)
+    def __get__(self, machine, owner):
+        def transition_callback(*args, **kwargs):
+            return self._run(machine, *args, **kwargs)
 
-        return CallableInstance(self, func=callable)
+        return CallableInstance(self, func=transition_callback)
 
     def __set__(self, instance, value):
         "does nothing (not allow overriding)"
@@ -94,26 +94,29 @@ class Transition(object):
         self.on_execute = f
         return self
 
-    def _can_run(self, instance):
-        if instance.current_state == self.source:
+    def _can_run(self, machine):
+        if machine.current_state == self.source:
             return self
 
-    def _verify_can_run(self, instance):
-        transition = self._can_run(instance)
+    def _verify_can_run(self, machine):
+        transition = self._can_run(machine)
         if not transition:
-            raise TransitionNotAllowed(self, instance.current_state)
+            raise TransitionNotAllowed(self, machine.current_state)
         return transition
 
-    def _run(self, instance, *args, **kwargs):
-        self._verify_can_run(instance)
+    def _run(self, machine, *args, **kwargs):
+        self._verify_can_run(machine)
         self._validate(*args, **kwargs)
-        return instance._activate(self, *args, **kwargs)
+        return machine._activate(self, *args, **kwargs)
 
     def _validate(self, *args, **kwargs):
         for validator in self.validators:
             validator(*args, **kwargs)
 
     def _get_destination_from_result(self, result):
+        """
+        Try to extract a destination state from ``result`` if it exists.
+        """
         destination = None
         if result is None:
             return result, destination
@@ -177,13 +180,13 @@ class CombinedTransition(Transition):
         self._left.__contribute_to_class__(managed, identifier)
         self._right.__contribute_to_class__(managed, identifier)
 
-    def _can_run(self, instance):
-        return self._left._can_run(instance) or self._right._can_run(instance)
+    def _can_run(self, machine):
+        return self._left._can_run(machine) or self._right._can_run(machine)
 
-    def _run(self, instance, *args, **kwargs):
-        transition = self._verify_can_run(instance)
+    def _run(self, machine, *args, **kwargs):
+        transition = self._verify_can_run(machine)
         self._validate(*args, **kwargs)
-        return transition._run(instance, *args, **kwargs)
+        return transition._run(machine, *args, **kwargs)
 
 
 class State(object):
@@ -199,10 +202,18 @@ class State(object):
         return "{}({!r}, identifier={!r}, value={!r}, initial={!r})".format(
             type(self).__name__, self.name, self.identifier, self.value, self.initial)
 
-    def to(self, *states):
-        transition = Transition(self, *states)
-        self.transitions.append(transition)
-        return transition
+    @property
+    def to(self):
+        def to_method(*states):
+            transition = Transition(self, *states)
+            self.transitions.append(transition)
+            return transition
+
+        def to_itself():
+            return to_method(self)
+
+        to_method.itself = to_itself
+        return to_method
 
     def __contribute_to_class__(self, managed, identifier):
         self.managed = managed
@@ -261,8 +272,9 @@ class BaseStateMachine(object):
         self.check()
 
     def __repr__(self):
-        return "{}(model={!r}, state_field={!r})".format(
+        return "{}(model={!r}, state_field={!r}, current_state={!r})".format(
             type(self).__name__, self.model, self.state_field,
+            self.current_state.identifier,
         )
 
     def check(self):
@@ -324,6 +336,24 @@ class BaseStateMachine(object):
             result = on_event(self, *args, **kwargs)
 
         result, destination = transition._get_destination(result)
+
+        bounded_on_exit_state_event = getattr(self, 'on_exit_state', None)
+        if callable(bounded_on_exit_state_event):
+            bounded_on_exit_state_event(self.current_state)
+
+        bounded_on_enter_state_event = getattr(self, 'on_enter_state', None)
+        if callable(bounded_on_enter_state_event):
+            bounded_on_enter_state_event(destination)
+
+        bounded_on_exit_specific_state_event = getattr(
+            self, 'on_exit_{}'.format(self.current_state.identifier), None)
+        if callable(bounded_on_exit_specific_state_event):
+            bounded_on_exit_specific_state_event()
+
+        bounded_on_enter_specific_state_event = getattr(
+            self, 'on_enter_{}'.format(destination.identifier), None)
+        if callable(bounded_on_enter_specific_state_event):
+            bounded_on_enter_specific_state_event()
 
         self.current_state = destination
         return result

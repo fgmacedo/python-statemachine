@@ -16,6 +16,13 @@ class MyModel(object):
         return "{}({!r})".format(type(self).__name__, self.__dict__)
 
 
+def test_machine_repr(campaign_machine):
+    model = MyModel()
+    machine = campaign_machine(model)
+    assert repr(machine) == "CampaignMachine(model=MyModel({'state': 'draft'}), " \
+                            "state_field='state', current_state='draft')"
+
+
 def test_machine_should_be_at_start_state(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)
