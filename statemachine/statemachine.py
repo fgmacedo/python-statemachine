@@ -231,6 +231,19 @@ class State(object):
         to_method.itself = to_itself
         return to_method
 
+    @property
+    def from_(self):
+        def from_method(*states):
+            transition = ReverseTrasition(self, *states)
+            self.transitions.append(transition)
+            return transition
+
+        def from_itself():
+            return from_method(self)
+
+        from_method.itself = from_itself
+        return from_method
+
     def __contribute_to_class__(self, managed, identifier):
         self.managed = managed
         self.identifier = identifier
