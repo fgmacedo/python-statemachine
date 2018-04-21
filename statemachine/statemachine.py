@@ -159,6 +159,22 @@ class Transition(object):
         return result, destination
 
 
+class ReverseTrasition(Transition):
+    def __init__(self, *states, **options):
+        self.destination = states[0]
+        self.sources = states[1:]
+        self.identifier = options.get('identifier')
+        self.validators = options.get('validators', [])
+        self.on_execute = options.get('on_execute')
+
+    def _can_run(self, machine):
+        if machine.current_state in self.sources:
+            return self
+
+    def _get_destination(self, result):
+        return result, self.destination
+
+
 class CombinedTransition(Transition):
 
     @property
@@ -328,7 +344,6 @@ class BaseStateMachine(object):
 
         if bounded_on_event and on_event and bounded_on_event != on_event:
             raise MultipleTransitionCallbacksFound(transition)
-
         result = None
         if callable(bounded_on_event):
             result = bounded_on_event(*args, **kwargs)
