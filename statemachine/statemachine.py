@@ -167,6 +167,10 @@ class ReverseTrasition(Transition):
         self.validators = options.get('validators', [])
         self.on_execute = options.get('on_execute')
 
+    def __repr__(self):
+        return "{}({!r}, {!r}, identifier={!r})".format(
+            type(self).__name__, self.destination, self.sources, self.identifier)
+
     def _can_run(self, machine):
         if machine.current_state in self.sources:
             return self
