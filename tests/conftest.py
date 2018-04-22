@@ -3,6 +3,8 @@
 import pytest
 from datetime import datetime
 
+from statemachine import StateMachine, State
+
 
 @pytest.fixture
 def current_time():
@@ -45,32 +47,60 @@ def campaign_machine_with_values():
     return CampaignMachineWithKeys
 
 
+class BaseTrafficLightMachine(StateMachine):
+    "A traffic light machine"
+    green = State('Green', initial=True)
+    yellow = State('Yellow')
+    red = State('Red')
+
+    cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+    @green.to(yellow)
+    def slowdown(self, *args, **kwargs):
+        return args, kwargs
+
+    @yellow.to(red)
+    def stop(self, *args, **kwargs):
+        return args, kwargs
+
+    @red.to(green)
+    def go(self, *args, **kwargs):
+        return args, kwargs
+
+    def on_cicle(self, *args, **kwargs):
+        return args, kwargs
+
+
 @pytest.fixture
 def traffic_light_machine():
-    from statemachine import StateMachine, State
 
-    class TrafficLightMachine(StateMachine):
+    return BaseTrafficLightMachine
+
+
+@pytest.fixture
+def reverse_traffic_light_machine():
+
+    class TrafficLightMachine(BaseTrafficLightMachine):
         "A traffic light machine"
         green = State('Green', initial=True)
         yellow = State('Yellow')
         red = State('Red')
 
-        cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+        cycle = green.from_(red) | yellow.from_(green) | red.from_(yellow) | red.from_.itself()
 
-        @green.to(yellow)
-        def slowdown(self, *args, **kwargs):
-            return args, kwargs
+    return TrafficLightMachine
 
-        @yellow.to(red)
-        def stop(self, *args, **kwargs):
-            return args, kwargs
 
-        @red.to(green)
-        def go(self, *args, **kwargs):
-            return args, kwargs
+@pytest.fixture
+def mixed_traffic_light_machine():
 
-        def on_cicle(self, *args, **kwargs):
-            return args, kwargs
+    class TrafficLightMachine(BaseTrafficLightMachine):
+        "A traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        red = State('Red')
+
+        cycle = green.to(yellow) | yellow.to(red) | green.from_(red)
 
     return TrafficLightMachine
 
