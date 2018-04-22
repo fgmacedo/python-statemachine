@@ -298,3 +298,25 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
     with pytest.raises(exceptions.InvalidDefinition):
         NoTransitionsMachine()
+
+
+@pytest.mark.parametrize('machine_name', [
+    'reverse_traffic_light_machine', 'mixed_traffic_light_machine'
+])
+def test_should_cylce_using_reverse_transition(request, machine_name):
+    machine_cls = request.getfixturevalue(machine_name)
+    machine = machine_cls()
+
+    for _ in machine.states:
+        state_backup = machine.current_state
+        machine.cycle()
+        assert machine.current_state != state_backup
+
+
+def test_not_allowed_reverse_transition(reverse_traffic_light_machine):
+    machine = reverse_traffic_light_machine()
+    assert machine.initial_state.value == 'green'
+
+    with pytest.raises(exceptions.TransitionNotAllowed) as e:
+        machine.stop()
+        e.match("Can't stop when in Green")
