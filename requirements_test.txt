@@ -2,7 +2,7 @@ tox==3.0.0
 mock==2.0.0
 pytest==3.5.0
 pytest-cov==2.5.1
-pytest-flake8==1.0.0
+pytest-flake8==1.0.1
 pytest-watch==4.1.0
 pytest-sugar==0.9.1
 Sphinx==1.7.2
