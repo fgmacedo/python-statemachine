@@ -336,6 +336,7 @@ class BaseStateMachine(object):
             result = on_event(self, *args, **kwargs)
 
         result, destination = transition._get_destination(result)
+        self.current_state = destination
 
         bounded_on_exit_state_event = getattr(self, 'on_exit_state', None)
         if callable(bounded_on_exit_state_event):
@@ -355,7 +356,6 @@ class BaseStateMachine(object):
         if callable(bounded_on_enter_specific_state_event):
             bounded_on_enter_specific_state_event()
 
-        self.current_state = destination
         return result
 
     def get_transition(self, transition_identifier):
