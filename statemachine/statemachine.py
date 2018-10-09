@@ -295,6 +295,7 @@ class BaseStateMachine(object):
                 self.current_state_value = self.start_value
             else:
                 self.current_state_value = self.initial_state.value
+            self.previous_state = None
 
     @property
     def current_state_value(self):
@@ -336,6 +337,7 @@ class BaseStateMachine(object):
             result = on_event(self, *args, **kwargs)
 
         result, destination = transition._get_destination(result)
+        self.previous_state = self.current_state
         self.current_state = destination
 
         bounded_on_exit_state_event = getattr(self, 'on_exit_state', None)
