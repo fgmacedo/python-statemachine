@@ -42,5 +42,5 @@ def load_modules(modules=None):
                 except Exception:
                     pass
 
-        for module in modules:
-            autodiscover_modules(module)
+    for module in modules:
+        autodiscover_modules(module)
