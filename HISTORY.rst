@@ -1,6 +1,12 @@
 History
 =======
 
+0.7.1 (2019-01-18)
+------------------
+
+* Fix Django integration for registry loading statemachine modules on Django1.7+.
+
+
 0.7.0 (2018-04-01)
 ------------------
 
