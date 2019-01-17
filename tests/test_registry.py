@@ -21,19 +21,28 @@ def test_should_register_a_state_machine():
 
 
 @pytest.fixture()
-def django_module_loading():
+def django_autodiscover_modules():
     import sys
-    if 'django' not in sys.modules:
-        django = mock.MagicMock()
-        module_loading = mock.MagicMock()
-        sys.modules['django'] = django
-        sys.modules['django.utils.module_loading'] = module_loading
-        yield module_loading
-        del sys.modules['django']
-        del sys.modules['django.utils.module_loading']
+
+    real_django = sys.modules.get('django')
+
+    django = mock.MagicMock()
+    module_loading = mock.MagicMock()
+    auto_discover_modules = module_loading.autodiscover_modules
+
+    sys.modules['django'] = django
+    sys.modules['django.utils.module_loading'] = module_loading
+
+    with mock.patch('statemachine.registry._autodiscover_modules', new=auto_discover_modules):
+        yield auto_discover_modules
+
+    del sys.modules['django']
+    del sys.modules['django.utils.module_loading']
+    if real_django:
+        sys.modules['django'] = real_django
 
 
-def test_load_modules_should_call_autodiscover_modules(django_module_loading):
+def test_load_modules_should_call_autodiscover_modules(django_autodiscover_modules):
     from statemachine.registry import load_modules
 
     # given
@@ -43,6 +52,6 @@ def test_load_modules_should_call_autodiscover_modules(django_module_loading):
     load_modules(modules)
 
     # then
-    django_module_loading.autodiscover_modules.assert_has_calls(
+    django_autodiscover_modules.assert_has_calls(
         mock.call(m) for m in modules
     )
