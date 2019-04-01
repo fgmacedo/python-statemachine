@@ -1,6 +1,6 @@
 tox==3.6.1
 mock==2.0.0
-pytest==4.1.0
+pytest==4.4.0
 pytest-cov==2.6.1
 pytest-flake8==1.0.2
 pytest-watch==4.2.0
