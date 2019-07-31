@@ -3,4 +3,4 @@ pip==18.1
 bumpversion==0.5.3
 wheel==0.32.3
 cryptography==2.4.2
-PyYAML==3.13
+PyYAML==5.1.2
