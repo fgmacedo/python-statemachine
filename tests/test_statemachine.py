@@ -318,3 +318,20 @@ def test_should_not_create_disconnected_machine():
 
     with pytest.raises(exceptions.InvalidDefinition):
         BrokenTrafficLightMachine()
+
+
+def test_should_not_create_big_disconnected_machine():
+    class BrokenTrafficLightMachine(StateMachine):
+        "A broken traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        red = State('Red')
+        cyan = State('Cyan')
+        blue = State('Blue')  # This state is unreachable
+
+        cycle = green.to(yellow)
+        stomp = green.to(cyan) | cyan.to(red)
+        validate = yellow.to(green)
+
+    with pytest.raises(exceptions.InvalidDefinition):
+        BrokenTrafficLightMachine()

@@ -278,9 +278,6 @@ class BaseStateMachine(object):
         )
 
     def _visitable_states(self, start_state, visited_states):
-        if start_state in visited_states:
-            return visited_states
-
         visited_states.append(start_state)
 
         for transition in start_state.transitions:
