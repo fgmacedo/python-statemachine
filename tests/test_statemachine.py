@@ -303,7 +303,7 @@ def test_should_not_create_instance_of_machine_without_transitions():
 def test_perfectly_fine_machine_should_be_connected(traffic_light_machine):
     model = MyModel()
     machine = traffic_light_machine(model)
-    initial_state = filter(lambda state: state._initial, machine.states)[0]
+    initial_state = [s for s in traffic_light_machine.states if s.initial][0]
     assert machine._is_connected(initial_state)
 
 

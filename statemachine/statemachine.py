@@ -290,11 +290,7 @@ class BaseStateMachine(object):
         return visited_states
 
     def _is_connected(self, starting_state):
-        initial_state = filter(
-            lambda state: state._initial, self.states
-            )[0]
-        visited_states = []
-        visitable_states = self._visitable_states(initial_state, visited_states)
+        visitable_states = self._visitable_states(starting_state, visited_states=[])
 
         return len(visitable_states) == len(self.states)
 
