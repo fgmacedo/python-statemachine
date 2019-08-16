@@ -277,6 +277,27 @@ class BaseStateMachine(object):
             self.current_state.identifier,
         )
 
+    def _visitable_states(self, start_state, visited_states):
+        if start_state in visited_states:
+            return visited_states
+
+        visited_states.append(start_state)
+
+        for transition in start_state.transitions:
+            for neighbour_state in transition.destinations:
+                if neighbour_state not in visited_states:
+                    self._visitable_states(neighbour_state, visited_states)
+        return visited_states
+
+    def _is_connected(self, starting_state):
+        initial_state = filter(
+            lambda state: state._initial, self.states
+            )[0]
+        visited_states = []
+        visitable_states = self._visitable_states(initial_state, visited_states)
+
+        return len(visitable_states) == len(self.states)
+
     def check(self):
         if not self.states:
             raise InvalidDefinition(_('There are no states.'))
@@ -289,6 +310,9 @@ class BaseStateMachine(object):
             raise InvalidDefinition(_('There should be one and only one initial state. '
                                       'Your currently have these: {!r}'.format(initials)))
         self.initial_state = initials[0]
+        if (not self._is_connected(self.initial_state)):
+            raise InvalidDefinition(_('There are unreachable states. '
+                                    'The statemachine graph should have a single component.'))
 
         if self.current_state_value is None:
             if self.start_value:

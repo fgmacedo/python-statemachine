@@ -298,3 +298,23 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
     with pytest.raises(exceptions.InvalidDefinition):
         NoTransitionsMachine()
+
+
+def test_perfectly_fine_machine_should_be_connected(traffic_light_machine):
+    model = MyModel()
+    machine = traffic_light_machine(model)
+    initial_state = filter(lambda state: state._initial, machine.states)[0]
+    assert machine._is_connected(initial_state)
+
+
+def test_should_not_create_disconnected_machine(broken_traffic_light_machine):
+    class BrokenTrafficLightMachine(StateMachine):
+        "A broken traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        blue = State('Blue')  # This state is unreachable
+
+        cycle = green.to(yellow) | yellow.to(green)
+
+    with pytest.raises(exceptions.InvalidDefinition):
+        BrokenTrafficLightMachine()
