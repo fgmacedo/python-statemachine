@@ -277,13 +277,16 @@ class BaseStateMachine(object):
             self.current_state.identifier,
         )
 
+    def _visit_neighbour_states(self, transition, visited_states):
+        for neighbour_state in transition.destinations:
+            if neighbour_state not in visited_states:
+                self._visitable_states(neighbour_state, visited_states)
+
     def _visitable_states(self, start_state, visited_states):
         visited_states.append(start_state)
 
         for transition in start_state.transitions:
-            for neighbour_state in transition.destinations:
-                if neighbour_state not in visited_states:
-                    self._visitable_states(neighbour_state, visited_states)
+            self._visit_neighbour_states(transition, visited_states)
         return visited_states
 
     def _is_connected(self, starting_state):
