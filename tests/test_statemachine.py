@@ -307,7 +307,7 @@ def test_perfectly_fine_machine_should_be_connected(traffic_light_machine):
     assert machine._is_connected(initial_state)
 
 
-def test_should_not_create_disconnected_machine(broken_traffic_light_machine):
+def test_should_not_create_disconnected_machine():
     class BrokenTrafficLightMachine(StateMachine):
         "A broken traffic light machine"
         green = State('Green', initial=True)
