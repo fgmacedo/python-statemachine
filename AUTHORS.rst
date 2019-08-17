@@ -11,6 +11,7 @@ Contributors
 ------------
 
 * Guilherme Nepomuceno <piercio@loggi.com>
+* Rafael Rêgo <crafards@gmail.com>
 
 
 Credits
