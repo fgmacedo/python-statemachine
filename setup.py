@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import io
 from setuptools import setup
 
-with open('README.rst') as readme_file:
+with io.open('README.rst', encoding='utf-8') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with io.open('HISTORY.rst', encoding='utf-8') as history_file:
     history = history_file.read()
 
 long_description = readme + '\n\n' + history
