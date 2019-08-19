@@ -69,6 +69,7 @@ def test_should_raise_error_if_not_define_callback_in_multiple_destinations():
     ((4, 5, 6), exceptions.MultipleStatesFound),
     (((7, 8), 9), exceptions.MultipleStatesFound),
     ('requested', exceptions.InvalidDestinationState),
+    ('rejected', None),
 ])
 def test_should_raise_error_if_not_inform_state_in_multiple_destinations(
         return_value, expected_exception):
@@ -85,10 +86,13 @@ def test_should_raise_error_if_not_inform_state_in_multiple_destinations(
 
     machine = ApprovalMachine()
 
-    with pytest.raises(expected_exception) as e:
-        machine.validate()
+    if expected_exception is not None:
+        with pytest.raises(expected_exception) as e:
+            machine.validate()
 
-        assert 'desired state' in e.message
+            assert 'desired state' in e.message
+    else:
+        machine.validate()
 
 
 @pytest.mark.parametrize('callback', ['single', 'multiple'])
@@ -211,3 +215,19 @@ def test_multiple_transition_callbacks():
 
     with pytest.raises(exceptions.MultipleTransitionCallbacksFound):
         machine.validate()
+
+
+def test_multiple_values_returned_with_multiple_destinations():
+    class ApprovalMachine(StateMachine):
+        "A workflow"
+        requested = State('Requested', initial=True)
+        accepted = State('Accepted')
+        denied = State('Denied')
+
+        @requested.to(accepted, denied)
+        def validate(self):
+            return 1, 2, self.accepted
+
+    machine = ApprovalMachine()
+
+    assert machine.validate() == (1, 2, )
