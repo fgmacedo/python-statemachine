@@ -90,7 +90,8 @@ def test_can_run_combined_transitions():
         producing = State('Being produced')
         closed = State('Closed')
 
-        abort = draft.to(closed) | closed.to(producing) | closed.to(closed)
+        abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+        produce = draft.to(producing)
 
     machine = CampaignMachine()
 
