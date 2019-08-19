@@ -91,6 +91,7 @@ def test_can_run_combined_transitions():
         closed = State('Closed')
 
         abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+        produce = draft.to(producing)
 
     machine = CampaignMachine()
 
@@ -108,6 +109,7 @@ def test_transitions_to_the_same_estate_as_itself():
 
         update = draft.to.itself()
         abort = draft.to(closed) | producing.to(closed) | closed.to.itself()
+        produce = draft.to(producing)
 
     machine = CampaignMachine()
 

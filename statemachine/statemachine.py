@@ -277,6 +277,23 @@ class BaseStateMachine(object):
             self.current_state.identifier,
         )
 
+    def _visit_neighbour_states(self, transition, visited_states):
+        for neighbour_state in transition.destinations:
+            if neighbour_state not in visited_states:
+                self._visitable_states(neighbour_state, visited_states)
+
+    def _visitable_states(self, start_state, visited_states):
+        visited_states.append(start_state)
+
+        for transition in start_state.transitions:
+            self._visit_neighbour_states(transition, visited_states)
+        return visited_states
+
+    def _disconnected_states(self, starting_state):
+        visitable_states = self._visitable_states(starting_state, visited_states=[])
+
+        return set(self.states) - set(visitable_states)
+
     def check(self):
         if not self.states:
             raise InvalidDefinition(_('There are no states.'))
@@ -289,6 +306,12 @@ class BaseStateMachine(object):
             raise InvalidDefinition(_('There should be one and only one initial state. '
                                       'Your currently have these: {!r}'.format(initials)))
         self.initial_state = initials[0]
+
+        disconnected_states = self._disconnected_states(self.initial_state)
+        if (disconnected_states):
+            raise InvalidDefinition(_('There are unreachable states. '
+                                    'The statemachine graph should have a single component. '
+                                      'Disconnected states: [{}]'.format(disconnected_states)))
 
         if self.current_state_value is None:
             if self.start_value:
