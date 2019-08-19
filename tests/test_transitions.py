@@ -108,7 +108,7 @@ def test_transitions_to_the_same_estate_as_itself():
         closed = State('Closed')
 
         update = draft.to.itself()
-        abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+        abort = draft.to(closed) | producing.to(closed) | closed.to.itself()
         produce = draft.to(producing)
 
     machine = CampaignMachine()
