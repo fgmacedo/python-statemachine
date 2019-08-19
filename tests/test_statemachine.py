@@ -304,7 +304,8 @@ def test_perfectly_fine_machine_should_be_connected(traffic_light_machine):
     model = MyModel()
     machine = traffic_light_machine(model)
     initial_state = [s for s in traffic_light_machine.states if s.initial][0]
-    assert machine._is_connected(initial_state)
+    disconnected_states = machine._disconnected_states(initial_state)
+    assert len(disconnected_states) == 0
 
 
 def test_should_not_create_disconnected_machine():
