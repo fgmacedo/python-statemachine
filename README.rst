@@ -238,7 +238,7 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
 
 
     class MyModel(MachineMixin):
-        state_machine_name = 'CampaignMachine'
+        state_machine_name = 'CampaignMachineWithKeys'
 
         def __init__(self, **kwargs):
             for k, v in kwargs.items():
