@@ -342,3 +342,31 @@ def test_should_not_create_big_disconnected_machine():
         assert 'Magenta' in e.message
         assert 'Blue' in e.message
         assert 'Cyan' not in e.message
+
+
+def test_state_machine_inheritance():
+    class BaseClass(StateMachine):
+        state_1 = State('1', initial=True)
+        state_2 = State('2')
+        trans_1_2 = state_1.to(state_2)
+
+    class InheritedClass(BaseClass):
+        state_3 = State('3')
+        trans_2_3 = BaseClass.state_2.to(state_3)
+
+    try:
+        statemachine_under_test = InheritedClass()
+
+        # check if base states are available in inherited class
+        assert BaseClass.state_1 in InheritedClass.states
+        assert BaseClass.state_2 in InheritedClass.states
+
+        # test transitions from base class states to inherited class states
+        assert statemachine_under_test.current_state is BaseClass.state_1
+        statemachine_under_test.trans_1_2()
+        assert statemachine_under_test.current_state is BaseClass.state_2
+        statemachine_under_test.trans_2_3()
+        assert statemachine_under_test.current_state is InheritedClass.state_3
+
+    except exceptions.InvalidDefinition:
+        pytest.fail('unexpected InvalidDefinition exception')
