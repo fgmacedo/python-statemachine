@@ -1,6 +1,14 @@
 History
 =======
 
+1.0.0 (not released yet)
+------------------------
+
+* Drop official support for Python 3.4 (removing from test matrix, code may still work).
+* Add support for Python 3.7 and 3.8 (adding to test matrix).
+* Update development requirements.
+
+
 0.7.1 (2019-01-18)
 ------------------
 

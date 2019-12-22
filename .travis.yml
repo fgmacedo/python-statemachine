@@ -8,7 +8,7 @@ deploy:
   on:
     repo: fgmacedo/python-statemachine
     tags: true
-    condition: $TRAVIS_PYTHON_VERSION = "2.7"
+    condition: $TRAVIS_PYTHON_VERSION = "3.8"
     all_branches: true
 before_install:
   - pip install -U pytest
@@ -18,9 +18,10 @@ install: pip install -U tox-travis
 language: python
 python:
   - 2.7
-  - 3.4
   - 3.5
   - 3.6
+  - 3.7
+  - 3.8
 script: tox
 after_success:
   - codecov

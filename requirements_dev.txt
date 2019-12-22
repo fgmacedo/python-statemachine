@@ -1,6 +1,6 @@
 # deploy stuff
-pip==19.2.2
+pip==19.3.1
 bumpversion==0.5.3
 wheel==0.33.6
-cryptography==2.7
-PyYAML==5.1.2
+cryptography==2.8
+PyYAML==5.2
