@@ -5,7 +5,7 @@ import mock
 import pytest
 
 
-def test_should_register_a_state_machine():
+def test_should_register_a_state_machine(caplog):
     from statemachine import StateMachine, State, registry
 
     class CampaignMachine(StateMachine):
@@ -17,7 +17,10 @@ def test_should_register_a_state_machine():
         produce = draft.to(producing)
 
     assert 'CampaignMachine' in registry._REGISTRY
-    assert registry.get_machine_cls('CampaignMachine') == CampaignMachine
+    assert registry.get_machine_cls('tests.test_registry.CampaignMachine') == CampaignMachine
+
+    with pytest.warns(DeprecationWarning):
+        assert registry.get_machine_cls('CampaignMachine') == CampaignMachine
 
 
 @pytest.fixture()

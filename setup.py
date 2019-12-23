@@ -14,10 +14,6 @@ with io.open('HISTORY.rst', encoding='utf-8') as history_file:
 long_description = readme + '\n\n' + history
 
 
-requirements = []
-
-test_requirements = []
-
 setup(
     name='python-statemachine',
     version='0.7.1',
@@ -32,23 +28,22 @@ setup(
     package_dir={'statemachine':
                  'statemachine'},
     include_package_data=True,
-    install_requires=requirements,
     license="MIT license",
     zip_safe=False,
     keywords='statemachine',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         "Programming Language :: Python :: 2",
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Software Development :: Libraries',
     ],
-    test_suite='tests',
-    tests_require=test_requirements
+    test_suite='tests'
 )

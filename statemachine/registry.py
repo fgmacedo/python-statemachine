@@ -1,16 +1,30 @@
 # coding: utf-8
+import warnings
 
 _REGISTRY = {}
 _initialized = False
 
 
+def _qualname(cls):
+    """
+    Returns a fully qualified name of the class, to avoid name collisions.
+    """
+    return u'.'.join([cls.__module__, cls.__name__])
+
+
 def register(cls):
+    _REGISTRY[_qualname(cls)] = cls
     _REGISTRY[cls.__name__] = cls
     return cls
 
 
 def get_machine_cls(name):
     init_registry()
+    if '.' not in name:
+        warnings.warn(
+            """Use fully qualified names (<module>.<class>) for state machine mixins.""",
+            DeprecationWarning
+        )
     return _REGISTRY[name]
 
 

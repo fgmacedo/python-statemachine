@@ -1,5 +1,7 @@
 # coding: utf-8
 
+from typing import Any, List, Dict, Optional, TypeVar, Text, Generic
+
 from . import registry
 from .exceptions import (
     StateMachineError,
@@ -12,6 +14,9 @@ from .exceptions import (
     MultipleTransitionCallbacksFound,
 )
 from .utils import ugettext as _
+
+
+V = TypeVar('V')
 
 
 class CallableInstance(object):
@@ -192,15 +197,17 @@ class CombinedTransition(Transition):
 class State(object):
 
     def __init__(self, name, value=None, initial=False):
+        # type: (Text, Optional[V], bool) -> None
         self.name = name
-        self.identifier = None
         self.value = value
         self._initial = initial
-        self.transitions = []
+        self.identifier = None  # type: Optional[Text]
+        self.transitions = []  # type: List[Transition]
 
     def __repr__(self):
         return "{}({!r}, identifier={!r}, value={!r}, initial={!r})".format(
-            type(self).__name__, self.name, self.identifier, self.value, self.initial)
+            type(self).__name__, self.name, self.identifier, self.value, self.initial
+        )
 
     @property
     def to(self):
@@ -230,7 +237,8 @@ def check_state_factory(state):
     "Return a property that checks if the current state is the desired state"
     @property
     def is_in_state(self):
-        return self.current_state == state
+        # type: (BaseStateMachine) -> bool
+        return bool(self.current_state == state)
     return is_in_state
 
 
@@ -255,8 +263,10 @@ class StateMachineMetaclass(type):
         cls.states_map = {s.value: s for s in cls.states}
 
 
-class Model(object):
-    state = None
+class Model(Generic[V]):
+
+    def __init__(self):
+        self.state = None  # type: Optional[V]
 
     def __repr__(self):
         return 'Model(state={})'.format(self.state)
@@ -264,7 +274,12 @@ class Model(object):
 
 class BaseStateMachine(object):
 
+    transitions = None  # type: List[Transition]
+    states = None  # type: List[State]
+    states_map = None  # type: Dict[Any, State]
+
     def __init__(self, model=None, state_field='state', start_value=None):
+        # type: (Any, str, Optional[V]) -> None
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
@@ -321,17 +336,25 @@ class BaseStateMachine(object):
 
     @property
     def current_state_value(self):
-        return getattr(self.model, self.state_field, None)
+        # type: () -> V
+        value = getattr(self.model, self.state_field, None)  # type: V
+        return value
 
     @current_state_value.setter
     def current_state_value(self, value):
+        # type: (V) -> None
         if value not in self.states_map:
             raise InvalidStateValue(value)
         setattr(self.model, self.state_field, value)
 
     @property
     def current_state(self):
+        # type: () -> State
         return self.states_map[self.current_state_value]
+
+    @current_state.setter
+    def current_state(self, value):
+        self.current_state_value = value.value
 
     @property
     def allowed_transitions(self):
@@ -340,10 +363,6 @@ class BaseStateMachine(object):
             getattr(self, t.identifier)
             for t in self.current_state.transitions if t._can_run(self)
         ]
-
-    @current_state.setter
-    def current_state(self, value):
-        self.current_state_value = value.value
 
     def _activate(self, transition, *args, **kwargs):
         bounded_on_event = getattr(self, 'on_{}'.format(transition.identifier), None)
@@ -382,7 +401,8 @@ class BaseStateMachine(object):
         return result
 
     def get_transition(self, transition_identifier):
-        transition = getattr(self, transition_identifier, None)
+        # type: (Text) -> CallableInstance
+        transition = getattr(self, transition_identifier, None)  # type: CallableInstance
         if not hasattr(transition, 'source') or not callable(transition):
             raise InvalidTransitionIdentifier(transition_identifier)
         return transition
