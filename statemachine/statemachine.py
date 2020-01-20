@@ -249,6 +249,11 @@ class StateMachineMetaclass(type):
         registry.register(cls)
         cls.states = []
         cls.transitions = []
+        for base in bases:
+            if hasattr(base, 'states'):
+                cls.states += base.states
+            if hasattr(base, 'transitions'):
+                cls.transitions += base.transitions
         for key, value in sorted(attrs.items(), key=lambda v: v[0]):
             if isinstance(value, State):
                 value.__contribute_to_class__(cls, key)
