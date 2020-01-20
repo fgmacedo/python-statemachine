@@ -71,7 +71,7 @@ State('Green', identifier='green', value='green', initial=True)
 >>> traffic_light.current_state == TrafficLightMachine.green == traffic_light.green
 True
 
-For each state, there's a dinamically created property in the form ``is_<state.identifier>``, that
+For each state, there's a dynamically created property in the form ``is_<state.identifier>``, that
 returns ``True`` if the current status matches the query:
 
 >>> traffic_light.is_green
