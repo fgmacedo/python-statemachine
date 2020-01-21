@@ -10,6 +10,7 @@ History
 * State machine names should now be fully qualified for mixins, simple names are deprecated and
   will no longer be supported on a future version.
 * Development: Adding mypy linter.
+* Add support for State machine inheritance.
 
 
 0.7.1 (2019-01-18)

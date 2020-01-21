@@ -80,10 +80,6 @@ class Transition(object):
     def __or__(self, other):
         return CombinedTransition(self, other, identifier=self.identifier)
 
-    def __contribute_to_class__(self, managed, identifier):
-        self.managed = managed
-        self.identifier = identifier
-
     def __get__(self, machine, owner):
         def transition_callback(*args, **kwargs):
             return self._run(machine, *args, **kwargs)
@@ -98,6 +94,9 @@ class Transition(object):
             raise StateMachineError('Transitions can only be called as method decorators.')
         self.on_execute = f
         return self
+
+    def _set_identifier(self, identifier):
+        self.identifier = identifier
 
     def _can_run(self, machine):
         if machine.current_state == self.source:
@@ -180,10 +179,10 @@ class CombinedTransition(Transition):
         self._right.on_execute = self.on_execute
         return result
 
-    def __contribute_to_class__(self, managed, identifier):
-        super(CombinedTransition, self).__contribute_to_class__(managed, identifier)
-        self._left.__contribute_to_class__(managed, identifier)
-        self._right.__contribute_to_class__(managed, identifier)
+    def _set_identifier(self, identifier):
+        super(CombinedTransition, self)._set_identifier(identifier)
+        self._left._set_identifier(identifier)
+        self._right._set_identifier(identifier)
 
     def _can_run(self, machine):
         return self._left._can_run(machine) or self._right._can_run(machine)
@@ -209,6 +208,11 @@ class State(object):
             type(self).__name__, self.name, self.identifier, self.value, self.initial
         )
 
+    def _set_identifier(self, identifier):
+        self.identifier = identifier
+        if not self.value:
+            self.value = identifier
+
     @property
     def to(self):
         def to_method(*states):
@@ -221,12 +225,6 @@ class State(object):
 
         to_method.itself = to_itself
         return to_method
-
-    def __contribute_to_class__(self, managed, identifier):
-        self.managed = managed
-        self.identifier = identifier
-        if not self.value:
-            self.value = identifier
 
     @property
     def initial(self):
@@ -249,23 +247,35 @@ class StateMachineMetaclass(type):
         registry.register(cls)
         cls.states = []
         cls.transitions = []
-        for base in bases:
-            if hasattr(base, 'states'):
-                cls.states += base.states
-            if hasattr(base, 'transitions'):
-                cls.transitions += base.transitions
-        for key, value in sorted(attrs.items(), key=lambda v: v[0]):
-            if isinstance(value, State):
-                value.__contribute_to_class__(cls, key)
-                cls.states.append(value)
-            elif isinstance(value, Transition):
-                value.__contribute_to_class__(cls, key)
-                cls.transitions.append(value)
+        cls.states_map = {}
+        cls.add_inherited(bases)
+        cls.add_from_attributes(attrs)
 
         for state in cls.states:
             setattr(cls, 'is_{}'.format(state.identifier), check_state_factory(state))
 
-        cls.states_map = {s.value: s for s in cls.states}
+    def add_inherited(cls, bases):
+        for base in bases:
+            for state in getattr(base, 'states', []):
+                cls.add_state(state.identifier, state)
+            for transition in getattr(base, 'transitions', []):
+                cls.add_transition(transition.identifier, transition)
+
+    def add_from_attributes(cls, attrs):
+        for key, value in sorted(attrs.items(), key=lambda pair: pair[0]):
+            if isinstance(value, State):
+                cls.add_state(key, value)
+            elif isinstance(value, Transition):
+                cls.add_transition(key, value)
+
+    def add_state(cls, identifier, state):
+        state._set_identifier(identifier)
+        cls.states.append(state)
+        cls.states_map[state.value] = state
+
+    def add_transition(cls, identifier, transition):
+        transition._set_identifier(identifier)
+        cls.transitions.append(transition)
 
 
 class Model(Generic[V]):
@@ -279,9 +289,9 @@ class Model(Generic[V]):
 
 class BaseStateMachine(object):
 
-    transitions = None  # type: List[Transition]
-    states = None  # type: List[State]
-    states_map = None  # type: Dict[Any, State]
+    transitions = []  # type: List[Transition]
+    states = []  # type: List[State]
+    states_map = {}  # type: Dict[Any, State]
 
     def __init__(self, model=None, state_field='state', start_value=None):
         # type: (Any, str, Optional[V]) -> None
