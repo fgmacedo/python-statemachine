@@ -2,7 +2,7 @@ History
 =======
 
 0.8.0 (2020-01-23)
-------------------------
+------------------
 
 * Add support for Python 3.7 and 3.8 (adding to test matrix).
 * Update development requirements.
@@ -13,6 +13,8 @@ History
 * Add support for reverse transitions: ``transition = state_a.from_(state_b)``.
   Thanks @romulorosa.
 * Fix current state equal to destination on enter events. Thanks @robnils and @joshuacc1.
+* Check: StateMachine now validates if it's states/transitions graph has only one component.
+  Thanks @rafaelrds.
 
 Breaking changes:
 
