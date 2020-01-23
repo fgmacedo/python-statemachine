@@ -1,7 +1,7 @@
 History
 =======
 
-1.0.0 (not released yet)
+0.8.0 (2020-01-23)
 ------------------------
 
 * Add support for Python 3.7 and 3.8 (adding to test matrix).
