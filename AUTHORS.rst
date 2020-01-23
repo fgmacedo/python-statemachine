@@ -12,6 +12,7 @@ Contributors
 
 * Guilherme Nepomuceno <piercio@loggi.com>
 * Rafael Rêgo <crafards@gmail.com>
+* Raphael Schrader <raphael@schradercloud.de>
 
 
 Credits
