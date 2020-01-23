@@ -419,21 +419,22 @@ class BaseStateMachine(object):
         if callable(bounded_on_exit_state_event):
             bounded_on_exit_state_event(self.current_state)
 
-        bounded_on_enter_state_event = getattr(self, 'on_enter_state', None)
-        if callable(bounded_on_enter_state_event):
-            bounded_on_enter_state_event(destination)
-
         bounded_on_exit_specific_state_event = getattr(
             self, 'on_exit_{}'.format(self.current_state.identifier), None)
         if callable(bounded_on_exit_specific_state_event):
             bounded_on_exit_specific_state_event()
+
+        self.current_state = destination
+
+        bounded_on_enter_state_event = getattr(self, 'on_enter_state', None)
+        if callable(bounded_on_enter_state_event):
+            bounded_on_enter_state_event(destination)
 
         bounded_on_enter_specific_state_event = getattr(
             self, 'on_enter_{}'.format(destination.identifier), None)
         if callable(bounded_on_enter_specific_state_event):
             bounded_on_enter_specific_state_event()
 
-        self.current_state = destination
         return result
 
     def get_transition(self, transition_identifier):
