@@ -69,10 +69,26 @@ def traffic_light_machine():
         def go(self, *args, **kwargs):
             return args, kwargs
 
-        def on_cicle(self, *args, **kwargs):
+        def on_cycle(self, *args, **kwargs):
             return args, kwargs
 
     return TrafficLightMachine
+
+
+@pytest.fixture
+def reverse_traffic_light_machine():
+    from statemachine import StateMachine, State
+
+    class ReverseTrafficLightMachine(StateMachine):
+        "A traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        red = State('Red')
+
+        stop = red.from_(yellow, green, red)
+        cycle = green.from_(red) | yellow.from_(green) | red.from_(yellow) | red.from_.itself()
+
+    return ReverseTrafficLightMachine
 
 
 @pytest.fixture
