@@ -213,18 +213,39 @@ class State(object):
         if not self.value:
             self.value = identifier
 
+    def _to_(self, *states):
+        transition = Transition(self, *states)
+        self.transitions.append(transition)
+        return transition
+
+    def _from_(self, *states):
+        combined = None
+        for origin in states:
+            transition = Transition(origin, self)
+            origin.transitions.append(transition)
+            if combined is None:
+                combined = transition
+            else:
+                combined |= transition
+        return combined
+
+    def _get_proxy_method_to_itself(self, method):
+        def proxy(*states):
+            return method(*states)
+
+        def proxy_to_itself():
+            return proxy(self)
+
+        proxy.itself = proxy_to_itself
+        return proxy
+
     @property
     def to(self):
-        def to_method(*states):
-            transition = Transition(self, *states)
-            self.transitions.append(transition)
-            return transition
+        return self._get_proxy_method_to_itself(self._to_)
 
-        def to_itself():
-            return to_method(self)
-
-        to_method.itself = to_itself
-        return to_method
+    @property
+    def from_(self):
+        return self._get_proxy_method_to_itself(self._from_)
 
     @property
     def initial(self):

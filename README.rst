@@ -231,10 +231,12 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
         draft = State('Draft', initial=True, value=1)
         producing = State('Being produced', value=2)
         closed = State('Closed', value=3)
+        cancelled = State('Cancelled', value=4)
 
         add_job = draft.to.itself() | producing.to.itself()
         produce = draft.to(producing)
         deliver = producing.to(closed)
+        cancel = cancelled.from_(draft, producing)
 
 
     class MyModel(MachineMixin):
@@ -253,3 +255,6 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
     assert isinstance(model.statemachine, campaign_machine)
     assert model.state == 'draft'
     assert model.statemachine.current_state == model.statemachine.draft
+
+    model.statemachine.cancel()
+    assert model.state == 'cancelled'
