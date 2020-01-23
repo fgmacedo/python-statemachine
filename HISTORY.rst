@@ -12,6 +12,7 @@ History
 * Add support for State machine inheritance. Thanks @rschrader.
 * Add support for reverse transitions: ``transition = state_a.from_(state_b)``.
   Thanks @romulorosa.
+* Fix current state equal to destination on enter events. Thanks @robnils and @joshuacc1.
 
 Breaking changes:
 
