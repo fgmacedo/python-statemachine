@@ -6,11 +6,11 @@ Python State Machine
 .. image:: https://img.shields.io/pypi/v/python-statemachine.svg
         :target: https://pypi.python.org/pypi/python-statemachine
 
-.. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg?branch=master
+.. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg
         :target: https://travis-ci.org/fgmacedo/python-statemachine
         :alt: Build status
 
-.. image:: https://codecov.io/gh/fgmacedo/python-statemachine/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/fgmacedo/python-statemachine/branch/develop/graph/badge.svg
         :target: https://codecov.io/gh/fgmacedo/python-statemachine
         :alt: Coverage report
 
@@ -106,7 +106,7 @@ True
 >>> traffic_light.slowdown()
 Traceback (most recent call last):
 ...
-LookupError: Can't slowdown when in Yellow.
+TransitionNotAllowed: Can't slowdown when in Yellow.
 
 You can also trigger events in an alternative way, calling the ``run(<transition.identificer>)`` method:
 
