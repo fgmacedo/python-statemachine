@@ -23,6 +23,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+.mypy_cache
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -65,3 +66,4 @@ target/
 # IDEs and editors
 *.sublime*
 .idea/
+.vscode/

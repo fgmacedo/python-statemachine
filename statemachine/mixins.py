@@ -1,5 +1,6 @@
 # coding: utf-8
 from __future__ import unicode_literals, absolute_import
+from typing import Text
 
 try:
     from django.utils.translation import ugettext as _
@@ -10,9 +11,9 @@ from . import registry
 
 
 class MachineMixin(object):
-    state_field_name = 'state'
-    state_machine_name = None
-    state_machine_attr = 'statemachine'
+    state_field_name = 'state'  # type: Text
+    state_machine_name = None  # type: Text
+    state_machine_attr = 'statemachine'  # type: Text
 
     def __init__(self, *args, **kwargs):
         super(MachineMixin, self).__init__(*args, **kwargs)

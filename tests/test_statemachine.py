@@ -298,3 +298,47 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
     with pytest.raises(exceptions.InvalidDefinition):
         NoTransitionsMachine()
+
+
+def test_perfectly_fine_machine_should_be_connected(traffic_light_machine):
+    model = MyModel()
+    machine = traffic_light_machine(model)
+    initial_state = [s for s in traffic_light_machine.states if s.initial][0]
+    disconnected_states = machine._disconnected_states(initial_state)
+    assert len(disconnected_states) == 0
+
+
+def test_should_not_create_disconnected_machine():
+    class BrokenTrafficLightMachine(StateMachine):
+        "A broken traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        blue = State('Blue')  # This state is unreachable
+
+        cycle = green.to(yellow) | yellow.to(green)
+
+    with pytest.raises(exceptions.InvalidDefinition) as e:
+        BrokenTrafficLightMachine()
+        assert 'Blue' in e.message
+        assert 'Green' not in e.message
+
+
+def test_should_not_create_big_disconnected_machine():
+    class BrokenTrafficLightMachine(StateMachine):
+        "A broken traffic light machine"
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        magenta = State('Magenta')  # This state is unreachable
+        red = State('Red')
+        cyan = State('Cyan')
+        blue = State('Blue')  # This state is also unreachable
+
+        cycle = green.to(yellow)
+        diverge = green.to(cyan) | cyan.to(red)
+        validate = yellow.to(green)
+
+    with pytest.raises(exceptions.InvalidDefinition) as e:
+        BrokenTrafficLightMachine()
+        assert 'Magenta' in e.message
+        assert 'Blue' in e.message
+        assert 'Cyan' not in e.message

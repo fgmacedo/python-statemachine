@@ -1,6 +1,24 @@
 History
 =======
 
+0.8.0 (2020-01-23)
+------------------------
+
+* Add support for Python 3.7 and 3.8 (adding to test matrix).
+* Update development requirements.
+* State machine names should now be fully qualified for mixins, simple names are deprecated and
+  will no longer be supported on a future version.
+* Development: Adding mypy linter.
+* Add support for State machine inheritance. Thanks @rschrader.
+* Add support for reverse transitions: ``transition = state_a.from_(state_b)``.
+  Thanks @romulorosa.
+* Fix current state equal to destination on enter events. Thanks @robnils and @joshuacc1.
+
+Breaking changes:
+
+* Drop official support for Python 3.4 (removing from test matrix, code may still work).
+
+
 0.7.1 (2019-01-18)
 ------------------
 

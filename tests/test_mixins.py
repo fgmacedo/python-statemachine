@@ -5,7 +5,7 @@ from statemachine.mixins import MachineMixin
 
 
 class MyModel(MachineMixin):
-    state_machine_name = 'CampaignMachine'
+    state_machine_name = 'tests.conftest.CampaignMachine'
 
     def __init__(self, **kwargs):
         for k, v in kwargs.items():

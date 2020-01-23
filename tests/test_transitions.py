@@ -31,8 +31,13 @@ def test_transition_as_decorator_should_call_method_before_activating_state(traf
     assert machine.current_state == machine.yellow
 
 
-def test_cycle_transitions(traffic_light_machine):
-    machine = traffic_light_machine()
+@pytest.mark.parametrize('machine_name', [
+    'traffic_light_machine',
+    'reverse_traffic_light_machine',
+])
+def test_cycle_transitions(request, machine_name):
+    machine_class = request.getfixturevalue(machine_name)
+    machine = machine_class()
     expected_states = ['green', 'yellow', 'red'] * 2
     for expected_state in expected_states:
         assert machine.current_state.identifier == expected_state
@@ -91,6 +96,7 @@ def test_can_run_combined_transitions():
         closed = State('Closed')
 
         abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+        produce = draft.to(producing)
 
     machine = CampaignMachine()
 
@@ -108,9 +114,26 @@ def test_transitions_to_the_same_estate_as_itself():
 
         update = draft.to.itself()
         abort = draft.to(closed) | producing.to(closed) | closed.to.itself()
+        produce = draft.to(producing)
 
     machine = CampaignMachine()
 
     machine.update()
 
     assert machine.is_draft
+
+
+class TestReverseTransition(object):
+
+    @pytest.mark.parametrize('initial_state', [
+        'green',
+        'yellow',
+        'red',
+    ])
+    def test_reverse_transition(self, reverse_traffic_light_machine, initial_state):
+        machine = reverse_traffic_light_machine(start_value=initial_state)
+        assert machine.current_state.identifier == initial_state
+
+        machine.stop()
+
+        assert machine.is_red

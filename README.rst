@@ -6,11 +6,11 @@ Python State Machine
 .. image:: https://img.shields.io/pypi/v/python-statemachine.svg
         :target: https://pypi.python.org/pypi/python-statemachine
 
-.. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg?branch=master
+.. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg
         :target: https://travis-ci.org/fgmacedo/python-statemachine
         :alt: Build status
 
-.. image:: https://codecov.io/gh/fgmacedo/python-statemachine/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/fgmacedo/python-statemachine/branch/develop/graph/badge.svg
         :target: https://codecov.io/gh/fgmacedo/python-statemachine
         :alt: Coverage report
 
@@ -71,7 +71,7 @@ State('Green', identifier='green', value='green', initial=True)
 >>> traffic_light.current_state == TrafficLightMachine.green == traffic_light.green
 True
 
-For each state, there's a dinamically created property in the form ``is_<state.identifier>``, that
+For each state, there's a dynamically created property in the form ``is_<state.identifier>``, that
 returns ``True`` if the current status matches the query:
 
 >>> traffic_light.is_green
@@ -106,7 +106,7 @@ True
 >>> traffic_light.slowdown()
 Traceback (most recent call last):
 ...
-LookupError: Can't slowdown when in Yellow.
+TransitionNotAllowed: Can't slowdown when in Yellow.
 
 You can also trigger events in an alternative way, calling the ``run(<transition.identificer>)`` method:
 
@@ -231,14 +231,16 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
         draft = State('Draft', initial=True, value=1)
         producing = State('Being produced', value=2)
         closed = State('Closed', value=3)
+        cancelled = State('Cancelled', value=4)
 
         add_job = draft.to.itself() | producing.to.itself()
         produce = draft.to(producing)
         deliver = producing.to(closed)
+        cancel = cancelled.from_(draft, producing)
 
 
     class MyModel(MachineMixin):
-        state_machine_name = 'CampaignMachine'
+        state_machine_name = 'CampaignMachineWithKeys'
 
         def __init__(self, **kwargs):
             for k, v in kwargs.items():
@@ -253,3 +255,6 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
     assert isinstance(model.statemachine, campaign_machine)
     assert model.state == 'draft'
     assert model.statemachine.current_state == model.statemachine.draft
+
+    model.statemachine.cancel()
+    assert model.state == 'cancelled'

@@ -2,24 +2,21 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import io
 from setuptools import setup
 
-with open('README.rst') as readme_file:
+with io.open('README.rst', encoding='utf-8') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with io.open('HISTORY.rst', encoding='utf-8') as history_file:
     history = history_file.read()
 
 long_description = readme + '\n\n' + history
 
 
-requirements = []
-
-test_requirements = []
-
 setup(
     name='python-statemachine',
-    version='0.7.1',
+    version='0.8.0',
     description="Python Finite State Machines made easy.",
     long_description=long_description,
     author="Fernando Macedo",
@@ -31,23 +28,22 @@ setup(
     package_dir={'statemachine':
                  'statemachine'},
     include_package_data=True,
-    install_requires=requirements,
     license="MIT license",
     zip_safe=False,
     keywords='statemachine',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         "Programming Language :: Python :: 2",
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Software Development :: Libraries',
     ],
-    test_suite='tests',
-    tests_require=test_requirements
+    test_suite='tests'
 )
