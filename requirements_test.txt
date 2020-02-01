@@ -1,5 +1,5 @@
 mock==3.0.5
-pytest==4.6.5  # latest 2.7 support
+pytest==5.3.5  # latest 2.7 support
 pytest-cov==2.8.1
 pytest-flake8==1.0.4
 pytest-watch==4.2.0
