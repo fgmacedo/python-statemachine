@@ -1,5 +1,5 @@
 # deploy stuff
-pip==19.3.1
+pip==20.1
 bumpversion==0.5.3
 wheel==0.33.6
 cryptography==2.8
