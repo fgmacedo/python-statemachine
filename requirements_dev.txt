@@ -2,7 +2,7 @@
 pip==20.1
 bumpversion==0.5.3
 wheel==0.34.2
-cryptography==2.8
+cryptography==2.9.2
 PyYAML==5.2
 tox==3.14.2
 mypy==0.761
