@@ -3,6 +3,6 @@ pytest==5.4.1  # latest 2.7 support
 pytest-cov==2.8.1
 pytest-flake8==1.0.5
 pytest-watch==4.2.0
-pytest-sugar==0.9.2
+pytest-sugar==0.9.3
 Sphinx==1.8.5  # latest 2.7 support
 sphinx_rtd_theme==0.4.3
