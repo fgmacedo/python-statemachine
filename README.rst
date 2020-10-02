@@ -6,7 +6,7 @@ Python State Machine
 .. image:: https://img.shields.io/pypi/v/python-statemachine.svg
         :target: https://pypi.python.org/pypi/python-statemachine
 
-.. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg
+.. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg?branch=develop
         :target: https://travis-ci.org/fgmacedo/python-statemachine
         :alt: Build status
 
