@@ -342,3 +342,18 @@ def test_should_not_create_big_disconnected_machine():
         assert 'Magenta' in e.message
         assert 'Blue' in e.message
         assert 'Cyan' not in e.message
+
+
+def test_state_value_is_correct():
+    STATE_NEW = 0
+    STATE_DRAFT = 1
+
+    class ValueTestModel(StateMachine):
+        new = State(STATE_NEW, value=STATE_NEW, initial=True)
+        draft = State(STATE_DRAFT, value=STATE_DRAFT)
+
+        write = new.to(draft)
+
+    model = ValueTestModel()
+    assert model.new.value == STATE_NEW
+    assert model.draft.value == STATE_DRAFT

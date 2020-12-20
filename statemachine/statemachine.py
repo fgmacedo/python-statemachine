@@ -210,7 +210,7 @@ class State(object):
 
     def _set_identifier(self, identifier):
         self.identifier = identifier
-        if not self.value:
+        if self.value is None:
             self.value = identifier
 
     def _to_(self, *states):
