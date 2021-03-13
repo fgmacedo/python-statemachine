@@ -6,6 +6,7 @@ History
 
 * This is the last release supporting Python2.X series.
 * Doctesting all documentation including README (with issues on examples fixed).
+* Fix state value misjudged when state value is an "boolean False value" (tks @the5fire)
 
 0.8.0 (2020-01-23)
 ------------------
