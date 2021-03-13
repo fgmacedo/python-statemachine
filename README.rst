@@ -6,6 +6,9 @@ Python State Machine
 .. image:: https://img.shields.io/pypi/v/python-statemachine.svg
         :target: https://pypi.python.org/pypi/python-statemachine
 
+.. image:: https://img.shields.io/pypi/dm/python-statemachine.svg
+        :target: https://pypi.python.org/pypi/python-statemachine
+
 .. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg?branch=develop
         :target: https://travis-ci.org/fgmacedo/python-statemachine
         :alt: Build status
@@ -17,14 +20,6 @@ Python State Machine
 .. image:: https://readthedocs.org/projects/python-statemachine/badge/?version=latest
         :target: https://python-statemachine.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
-
-.. image:: https://pyup.io/repos/github/fgmacedo/python-statemachine/shield.svg
-        :target: https://pyup.io/repos/github/fgmacedo/python-statemachine/
-        :alt: Updates
-
-.. image:: https://badges.gitter.im/fgmacedo/python-statemachine.svg
-        :alt: Join the chat at https://gitter.im/fgmacedo/python-statemachine
-        :target: https://gitter.im/fgmacedo/python-statemachine
 
 
 Python `finite-state machines <https://en.wikipedia.org/wiki/Finite-state_machine>`_ made easy.
