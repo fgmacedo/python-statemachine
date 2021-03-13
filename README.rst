@@ -43,21 +43,18 @@ To install Python State Machine, run this command in your terminal:
 
     $ pip install python-statemachine
 
-
 Define your state machine:
 
-.. code-block:: python
+>>> from statemachine import StateMachine, State
 
-    from statemachine import StateMachine, State
-
-    class TrafficLightMachine(StateMachine):
-        green = State('Green', initial=True)
-        yellow = State('Yellow')
-        red = State('Red')
-
-        slowdown = green.to(yellow)
-        stop = yellow.to(red)
-        go = red.to(green)
+>>> class TrafficLightMachine(StateMachine):
+...    green = State('Green', initial=True)
+...    yellow = State('Yellow')
+...    red = State('Red')
+...
+...    slowdown = green.to(yellow)
+...    stop = yellow.to(red)
+...    go = red.to(green)
 
 
 You can now create an instance:
@@ -83,9 +80,9 @@ False
 
 Query about metadata:
 
->>> [s.identifier for s in m.states]
+>>> [s.identifier for s in traffic_light.states]
 ['green', 'red', 'yellow']
->>> [t.identifier for t in m.transitions]
+>>> [t.identifier for t in traffic_light.transitions]
 ['go', 'slowdown', 'stop']
 
 Call a transition:
@@ -106,7 +103,7 @@ True
 >>> traffic_light.slowdown()
 Traceback (most recent call last):
 ...
-TransitionNotAllowed: Can't slowdown when in Yellow.
+statemachine.exceptions.TransitionNotAllowed: Can't slowdown when in Yellow.
 
 You can also trigger events in an alternative way, calling the ``run(<transition.identificer>)`` method:
 
@@ -155,28 +152,27 @@ Callbacks
 
 Callbacks when running events:
 
-.. code-block:: python
 
-    from statemachine import StateMachine, State
+>>> from statemachine import StateMachine, State
 
-    class TrafficLightMachine(StateMachine):
-        "A traffic light machine"
-        green = State('Green', initial=True)
-        yellow = State('Yellow')
-        red = State('Red')
-
-        slowdown = green.to(yellow)
-        stop = yellow.to(red)
-        go = red.to(green)
-
-        def on_slowdown(self):
-            print('Calma, lá!')
-
-        def on_stop(self):
-            print('Parou.')
-
-        def on_go(self):
-            print('Valendo!')
+>>> class TrafficLightMachine(StateMachine):
+...     "A traffic light machine"
+...     green = State('Green', initial=True)
+...     yellow = State('Yellow')
+...     red = State('Red')
+...
+...     slowdown = green.to(yellow)
+...     stop = yellow.to(red)
+...     go = red.to(green)
+...
+...     def on_slowdown(self):
+...         print('Calma, lá!')
+...
+...     def on_stop(self):
+...         print('Parou.')
+...
+...     def on_go(self):
+...         print('Valendo!')
 
 
 >>> stm = TrafficLightMachine()
@@ -190,26 +186,24 @@ Valendo!
 
 Or when entering/exiting states:
 
-.. code-block:: python
+>>> from statemachine import StateMachine, State
 
-    from statemachine import StateMachine, State
-
-    class TrafficLightMachine(StateMachine):
-        "A traffic light machine"
-        green = State('Green', initial=True)
-        yellow = State('Yellow')
-        red = State('Red')
-
-        cycle = green.to(yellow) | yellow.to(red) | red.to(green)
-
-        def on_enter_green(self):
-            print('Valendo!')
-
-        def on_enter_yellow(self):
-            print('Calma, lá!')
-
-        def on_enter_red(self):
-            print('Parou.')
+>>> class TrafficLightMachine(StateMachine):
+...    "A traffic light machine"
+...    green = State('Green', initial=True)
+...    yellow = State('Yellow')
+...    red = State('Red')
+...
+...    cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+...
+...    def on_enter_green(self):
+...        print('Valendo!')
+...
+...    def on_enter_yellow(self):
+...        print('Calma, lá!')
+...
+...    def on_enter_red(self):
+...        print('Parou.')
 
 >>> stm = TrafficLightMachine()
 >>> stm.cycle()
@@ -224,37 +218,36 @@ Mixins
 
 Your model can inherited from a custom mixin to auto-instantiate a state machine.
 
-.. code-block:: python
+>>> from statemachine.mixins import MachineMixin
 
-    class CampaignMachineWithKeys(StateMachine):
-        "A workflow machine"
-        draft = State('Draft', initial=True, value=1)
-        producing = State('Being produced', value=2)
-        closed = State('Closed', value=3)
-        cancelled = State('Cancelled', value=4)
-
-        add_job = draft.to.itself() | producing.to.itself()
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
-        cancel = cancelled.from_(draft, producing)
-
-
-    class MyModel(MachineMixin):
-        state_machine_name = 'CampaignMachineWithKeys'
-
-        def __init__(self, **kwargs):
-            for k, v in kwargs.items():
-                setattr(self, k, v)
-            super(MyModel, self).__init__()
-
-        def __repr__(self):
-            return "{}({!r})".format(type(self).__name__, self.__dict__)
+>>> class CampaignMachineWithKeys(StateMachine):
+...     "A workflow machine"
+...     draft = State('Draft', initial=True, value=1)
+...     producing = State('Being produced', value=2)
+...     closed = State('Closed', value=3)
+...     cancelled = State('Cancelled', value=4)
+...
+...     add_job = draft.to.itself() | producing.to.itself()
+...     produce = draft.to(producing)
+...     deliver = producing.to(closed)
+...     cancel = cancelled.from_(draft, producing)
 
 
-    model = MyModel(state='draft')
-    assert isinstance(model.statemachine, campaign_machine)
-    assert model.state == 'draft'
-    assert model.statemachine.current_state == model.statemachine.draft
+>>> class MyModel(MachineMixin):
+...     state_machine_name = 'CampaignMachineWithKeys'
+...
+...     def __init__(self, **kwargs):
+...         for k, v in kwargs.items():
+...             setattr(self, k, v)
+...         super(MyModel, self).__init__()
+...
+...     def __repr__(self):
+...         return "{}({!r})".format(type(self).__name__, self.__dict__)
 
-    model.statemachine.cancel()
-    assert model.state == 'cancelled'
+>>> model = MyModel(state=1)
+>>> assert isinstance(model.statemachine, CampaignMachineWithKeys)
+>>> assert model.state == 1
+>>> assert model.statemachine.current_state == model.statemachine.draft
+>>> model.statemachine.cancel()
+>>> assert model.state == 4
+>>> assert model.statemachine.current_state == model.statemachine.cancelled

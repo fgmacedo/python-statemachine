@@ -1,6 +1,12 @@
 History
 =======
 
+0.9.0 (future)
+--------------
+
+* This is the last release supporting Python2.X series.
+* Doctesting all documentation including README (with issues on examples fixed).
+
 0.8.0 (2020-01-23)
 ------------------
 
