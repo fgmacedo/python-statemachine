@@ -102,7 +102,6 @@ You can't run a transition from an invalid state:
 True
 >>> traffic_light.slowdown()
 Traceback (most recent call last):
-...
 statemachine.exceptions.TransitionNotAllowed: Can't slowdown when in Yellow.
 
 You can also trigger events in an alternative way, calling the ``run(<transition.identificer>)`` method:
