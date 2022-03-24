@@ -245,3 +245,19 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
 >>> model.statemachine.cancel()
 >>> assert model.state == 4
 >>> assert model.statemachine.current_state == model.statemachine.cancelled
+
+Diagrams
+------
+
+There is possibility to generate basic state diagrams in
+`DOT <https://en.wikipedia.org/wiki/DOT_(graph_description_language)>`_ format as string.
+
+>>> from statemachine.diagram import dot_data_from_machine
+>>> dot_data = dot_data_from_machine(TrafficLightMachine)
+
+To visualize generated diagrams you can use one of available tools:
+`pydot <https://pypi.org/project/pydot/>`_, `graphviz <https://pypi.org/project/graphviz/>`_, ...::
+
+    import pydot
+    graph = pydot.graph_from_dot_data(dot_data)[0]
+    graph.write_png("output.png")
