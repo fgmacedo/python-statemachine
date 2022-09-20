@@ -13,9 +13,9 @@ def test_transition_representation(campaign_machine):
     print(s)
     assert s == (
         "Transition("
-        "State('Draft', identifier='draft', value='draft', initial=True), "
+        "State('Draft', identifier='draft', value='draft', initial=True, final=False), "
         "(State('Being produced', identifier='producing', value='producing', "
-        "initial=False),), identifier='produce')"
+        "initial=False, final=False),), identifier='produce')"
     )
 
 

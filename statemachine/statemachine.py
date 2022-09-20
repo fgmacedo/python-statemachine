@@ -205,8 +205,8 @@ class State(object):
         self._final = final
 
     def __repr__(self):
-        return "{}({!r}, identifier={!r}, value={!r}, initial={!r})".format(
-            type(self).__name__, self.name, self.identifier, self.value, self.initial
+        return "{}({!r}, identifier={!r}, value={!r}, initial={!r}, final={!r})".format(
+            type(self).__name__, self.name, self.identifier, self.value, self.initial, self.final
         )
 
     def _set_identifier(self, identifier):
