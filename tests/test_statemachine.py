@@ -120,6 +120,19 @@ def test_call_to_transition_that_is_not_in_the_current_state_should_raise_except
         machine.run(transition)
 
 
+@pytest.mark.parametrize('current_state, transition', [('closed', 'add_job')])
+def test_call_to_transition_from_final_state_should_raise_exception(
+        campaign_machine_with_invalid_final_state_transition, current_state, transition):
+
+    model = MyModel(state=current_state)
+    machine = campaign_machine_with_invalid_final_state_transition(model)
+
+    assert machine.current_state.value == current_state
+
+    with pytest.raises(exceptions.TransitionNotAllowed):
+        machine.run(transition)
+
+
 def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_machine):
 
     model = MyModel()
@@ -357,3 +370,11 @@ def test_state_value_is_correct():
     model = ValueTestModel()
     assert model.new.value == STATE_NEW
     assert model.draft.value == STATE_DRAFT
+
+
+def test_final_states(campaign_machine_with_invalid_final_state_transition):
+    model = MyModel()
+    machine = campaign_machine_with_invalid_final_state_transition(model)
+    final_states = machine.final_states
+    assert len(final_states) == 1
+    assert final_states[0].name == "Closed"
