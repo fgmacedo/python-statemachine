@@ -30,6 +30,12 @@ class CampaignMachine(StateMachine):
     def on_exit_draft(self, **kwargs):
         pass
 
+    def on_enter_closed(self):
+        pass
+
+    def on_exit_producing(self):
+        pass
+
 
 @pytest.fixture()
 def on_enter_mock():
@@ -43,7 +49,24 @@ def on_exit_mock():
         yield m
 
 
-def test_run_transition_pass_arguments_to_sub_transitions(on_enter_mock, on_exit_mock):
+@pytest.fixture()
+def on_enter_backwards_mock():
+    with mock.patch.object(CampaignMachine, "on_enter_closed") as m:
+        yield m
+
+
+@pytest.fixture()
+def on_exit_backwards_mock():
+    with mock.patch.object(CampaignMachine, "on_exit_producing") as m:
+        yield m
+
+
+def test_run_transition_pass_arguments_to_sub_transitions(
+    on_enter_mock,
+    on_exit_mock,
+    on_enter_backwards_mock,
+    on_exit_backwards_mock,
+):
     model = MyModel(state="draft")
     machine = CampaignMachine(model)
 
@@ -52,3 +75,9 @@ def test_run_transition_pass_arguments_to_sub_transitions(on_enter_mock, on_exit
     assert model.state == "producing"
     on_enter_mock.assert_called_with(param1="value1", param2="value2")
     on_exit_mock.assert_called_with(param1="value1", param2="value2")
+
+    machine.run("deliver", param3="value3")
+
+    # backwards compatibility
+    on_enter_backwards_mock.assert_called_with(param3="value3")
+    on_exit_backwards_mock.assert_called_with(param3="value3")
