@@ -1,5 +1,5 @@
 # coding: utf-8
-
+import inspect
 from typing import Any, List, Dict, Optional, TypeVar, Text, Generic
 
 from . import registry
@@ -17,6 +17,21 @@ from .utils import ugettext as _
 
 
 V = TypeVar('V')
+
+
+def is_callable_with(f, *args, **kwargs):
+    try:
+        inspect.signature(f).bind(*args, **kwargs)
+        return True
+    except TypeError:
+        return False
+
+
+def call_with_args(f, *args, **kwargs):
+    if is_callable_with(f, *args, **kwargs):
+        f(*args, **kwargs)
+    else:
+        f()
 
 
 class CallableInstance(object):
@@ -417,23 +432,24 @@ class BaseStateMachine(object):
 
         bounded_on_exit_state_event = getattr(self, 'on_exit_state', None)
         if callable(bounded_on_exit_state_event):
-            bounded_on_exit_state_event(self.current_state, *args, **kwargs)
+            bounded_on_exit_state_event(self.current_state)
 
         bounded_on_exit_specific_state_event = getattr(
             self, 'on_exit_{}'.format(self.current_state.identifier), None)
+
         if callable(bounded_on_exit_specific_state_event):
-            bounded_on_exit_specific_state_event(*args, **kwargs)
+            call_with_args(bounded_on_exit_specific_state_event, *args, **kwargs)
 
         self.current_state = destination
 
         bounded_on_enter_state_event = getattr(self, 'on_enter_state', None)
         if callable(bounded_on_enter_state_event):
-            bounded_on_enter_state_event(destination, *args, **kwargs)
+            bounded_on_enter_state_event(destination)
 
         bounded_on_enter_specific_state_event = getattr(
             self, 'on_enter_{}'.format(destination.identifier), None)
         if callable(bounded_on_enter_specific_state_event):
-            bounded_on_enter_specific_state_event(*args, **kwargs)
+            call_with_args(bounded_on_enter_specific_state_event, *args, **kwargs)
 
         return result
 

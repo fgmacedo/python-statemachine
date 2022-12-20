@@ -15,69 +15,51 @@ class MyModel(object):
         return "{}({!r})".format(type(self).__name__, self.__dict__)
 
 
-class CampaignMachine(StateMachine):
-    draft = State("Draft", initial=True)
-    producing = State("Being produced")
-    closed = State("Closed")
-
-    add_job = draft.to(draft) | producing.to(producing)
-    produce = draft.to(producing)
-    deliver = producing.to(closed)
-
-    def on_enter_producing(self, **kwargs):
-        pass
-
-    def on_exit_draft(self, **kwargs):
-        pass
-
-    def on_enter_closed(self):
-        pass
-
-    def on_exit_producing(self):
-        pass
+@pytest.fixture
+def event_mock():
+    return mock.MagicMock()
 
 
-@pytest.fixture()
-def on_enter_mock():
-    with mock.patch.object(CampaignMachine, "on_enter_producing") as m:
-        yield m
+@pytest.fixture
+def state_machine(event_mock):
+    class CampaignMachine(StateMachine):
+        draft = State("Draft", initial=True)
+        producing = State("Being produced")
+        closed = State("Closed")
 
+        add_job = draft.to(draft) | producing.to(producing)
+        produce = draft.to(producing)
+        deliver = producing.to(closed)
 
-@pytest.fixture()
-def on_exit_mock():
-    with mock.patch.object(CampaignMachine, "on_exit_draft") as m:
-        yield m
+        def on_enter_producing(self, **kwargs):
+            event_mock.on_enter_producing(**kwargs)
 
+        def on_exit_draft(self, **kwargs):
+            event_mock.on_exit_draft(**kwargs)
 
-@pytest.fixture()
-def on_enter_backwards_mock():
-    with mock.patch.object(CampaignMachine, "on_enter_closed") as m:
-        yield m
+        def on_enter_closed(self):
+            event_mock.on_enter_closed()
 
+        def on_exit_producing(self):
+            event_mock.on_exit_producing()
 
-@pytest.fixture()
-def on_exit_backwards_mock():
-    with mock.patch.object(CampaignMachine, "on_exit_producing") as m:
-        yield m
+    return CampaignMachine
 
 
 def test_run_transition_pass_arguments_to_sub_transitions(
-    on_enter_mock,
-    on_exit_mock,
-    on_enter_backwards_mock,
-    on_exit_backwards_mock,
+    state_machine,
+    event_mock,
 ):
     model = MyModel(state="draft")
-    machine = CampaignMachine(model)
+    machine = state_machine(model)
 
     machine.run("produce", param1="value1", param2="value2")
 
     assert model.state == "producing"
-    on_enter_mock.assert_called_with(param1="value1", param2="value2")
-    on_exit_mock.assert_called_with(param1="value1", param2="value2")
+    event_mock.on_enter_producing.assert_called_with(param1="value1", param2="value2")
+    event_mock.on_exit_draft.assert_called_with(param1="value1", param2="value2")
 
     machine.run("deliver", param3="value3")
 
-    # backwards compatibility
-    on_enter_backwards_mock.assert_called_with(param3="value3")
-    on_exit_backwards_mock.assert_called_with(param3="value3")
+    event_mock.on_enter_closed.assert_called_with()
+    event_mock.on_exit_producing.assert_called_with()
