@@ -369,9 +369,8 @@ class BaseStateMachine(object):
                                     'The statemachine graph should have a single component. '
                                       'Disconnected states: [{}]'.format(disconnected_states)))
 
-        finals = self.final_states
         final_state_with_invalid_transitions = [
-            state for state in finals if state.transitions
+            state for state in self.final_states if state.transitions
         ]
 
         if final_state_with_invalid_transitions:
