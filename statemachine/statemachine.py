@@ -148,7 +148,12 @@ class Transition(object):
             if num < 2:
                 return result, destination
 
-            if isinstance(result[-1], State):
+            try:
+                last_item = result[-1]
+            except (AttributeError, TypeError, IndexError, KeyError):
+                last_item = None
+
+            if isinstance(last_item, State):
                 result, destination = result[:-1], result[-1]
                 if len(result) == 1:
                     result = result[0]
