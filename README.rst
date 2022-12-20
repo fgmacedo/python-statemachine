@@ -247,7 +247,7 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
 >>> assert model.statemachine.current_state == model.statemachine.cancelled
 
 Final States
-------
+------------
 
 You can explicitly set final states.
 Transitions from these states are not allowed and will raise exception.

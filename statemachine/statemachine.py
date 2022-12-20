@@ -208,7 +208,7 @@ class CombinedTransition(Transition):
 class State(object):
 
     def __init__(self, name, value=None, initial=False, final=False):
-        # type: (Text, Optional[V], bool) -> None
+        # type: (Text, Optional[V], bool, bool) -> None
         self.name = name
         self.value = value
         self._initial = initial
