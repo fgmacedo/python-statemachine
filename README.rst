@@ -59,7 +59,7 @@ You can now create an instance:
 And inspect about the current state:
 
 >>> traffic_light.current_state
-State('Green', identifier='green', value='green', initial=True)
+State('Green', identifier='green', value='green', initial=True, final=False)
 >>> traffic_light.current_state == TrafficLightMachine.green == traffic_light.green
 True
 
@@ -87,7 +87,7 @@ Call a transition:
 And check for the current status:
 
 >>> traffic_light.current_state
-State('Yellow', identifier='yellow', value='yellow', initial=False)
+State('Yellow', identifier='yellow', value='yellow', initial=False, final=False)
 >>> traffic_light.is_yellow
 True
 
@@ -245,3 +245,46 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
 >>> model.statemachine.cancel()
 >>> assert model.state == 4
 >>> assert model.statemachine.current_state == model.statemachine.cancelled
+
+Final States
+------
+
+You can explicitly set final states.
+Transitions from these states are not allowed and will raise exception.
+
+>>> class CampaignMachine(StateMachine):
+...     "A workflow machine"
+...     draft = State('Draft', initial=True, value=1)
+...     producing = State('Being produced', value=2)
+...     closed = State('Closed', final=True, value=3)
+...
+...     add_job = draft.to.itself() | producing.to.itself() | closed.to(producing)
+...     produce = draft.to(producing)
+...     deliver = producing.to(closed)
+
+
+>>> from statemachine.exceptions import InvalidDefinition
+>>> try:
+...     machine = CampaignMachine(model)
+... except InvalidDefinition as err:
+...     print(err)
+Final state does not should have defined transitions starting from that state
+
+
+You can retrieve all final states.
+
+>>> class CampaignMachine(StateMachine):
+...     "A workflow machine"
+...     draft = State('Draft', initial=True, value=1)
+...     producing = State('Being produced', value=2)
+...     closed = State('Closed', final=True, value=3)
+...
+...     add_job = draft.to.itself() | producing.to.itself()
+...     produce = draft.to(producing)
+...     deliver = producing.to(closed)
+
+>>> model = MyModel(state=3)
+>>> machine = CampaignMachine(model)
+>>> machine.final_states
+[State('Closed', identifier='closed', value=3, initial=False, final=True)]
+

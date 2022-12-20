@@ -207,17 +207,18 @@ class CombinedTransition(Transition):
 
 class State(object):
 
-    def __init__(self, name, value=None, initial=False):
+    def __init__(self, name, value=None, initial=False, final=False):
         # type: (Text, Optional[V], bool) -> None
         self.name = name
         self.value = value
         self._initial = initial
         self.identifier = None  # type: Optional[Text]
         self.transitions = []  # type: List[Transition]
+        self._final = final
 
     def __repr__(self):
-        return "{}({!r}, identifier={!r}, value={!r}, initial={!r})".format(
-            type(self).__name__, self.name, self.identifier, self.value, self.initial
+        return "{}({!r}, identifier={!r}, value={!r}, initial={!r}, final={!r})".format(
+            type(self).__name__, self.name, self.identifier, self.value, self.initial, self.final
         )
 
     def _set_identifier(self, identifier):
@@ -262,6 +263,10 @@ class State(object):
     @property
     def initial(self):
         return self._initial
+
+    @property
+    def final(self):
+        return self._final
 
 
 def check_state_factory(state):
@@ -376,11 +381,23 @@ class BaseStateMachine(object):
                                     'The statemachine graph should have a single component. '
                                       'Disconnected states: [{}]'.format(disconnected_states)))
 
+        final_state_with_invalid_transitions = [
+            state for state in self.final_states if state.transitions
+        ]
+
+        if final_state_with_invalid_transitions:
+            raise InvalidDefinition(_('Final state does not should have defined '
+                                      'transitions starting from that state'))
+
         if self.current_state_value is None:
             if self.start_value:
                 self.current_state_value = self.start_value
             else:
                 self.current_state_value = self.initial_state.value
+
+    @property
+    def final_states(self):
+        return [state for state in self.states if state.final]
 
     @property
     def current_state_value(self):
