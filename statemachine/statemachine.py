@@ -99,7 +99,7 @@ class Transition(object):
         self.identifier = identifier
 
     def _can_run(self, machine):
-        if machine.current_state == self.source and not self.source.final:
+        if machine.current_state == self.source:
             return self
 
     def _verify_can_run(self, machine):
@@ -368,6 +368,15 @@ class BaseStateMachine(object):
             raise InvalidDefinition(_('There are unreachable states. '
                                     'The statemachine graph should have a single component. '
                                       'Disconnected states: [{}]'.format(disconnected_states)))
+
+        finals = self.final_states
+        final_state_with_invalid_transitions = [
+            state for state in finals if state.transitions
+        ]
+
+        if final_state_with_invalid_transitions:
+            raise InvalidDefinition(_('Final state does not should have defined '
+                                      'transitions starting from that state'))
 
         if self.current_state_value is None:
             if self.start_value:

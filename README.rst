@@ -263,19 +263,28 @@ Transitions from these states are not allowed and will raise exception.
 ...     deliver = producing.to(closed)
 
 
->>> from statemachine.exceptions import TransitionNotAllowed
->>> model = MyModel(state=3)
->>> machine = CampaignMachine(model)
+>>> from statemachine.exceptions import InvalidDefinition
 >>> try:
-...     machine.run("add_job")
-... except TransitionNotAllowed as err:
+...     machine = CampaignMachine(model)
+... except InvalidDefinition as err:
 ...     print(err)
-Can't add_job when in Closed.
-
+Final state does not should have defined transitions starting from that state
 
 
 You can retrieve all final states.
 
+>>> class CampaignMachine(StateMachine):
+...     "A workflow machine"
+...     draft = State('Draft', initial=True, value=1)
+...     producing = State('Being produced', value=2)
+...     closed = State('Closed', final=True, value=3)
+...
+...     add_job = draft.to.itself() | producing.to.itself()
+...     produce = draft.to(producing)
+...     deliver = producing.to(closed)
+
+>>> model = MyModel(state=3)
+>>> machine = CampaignMachine(model)
 >>> machine.final_states
 [State('Closed', identifier='closed', value=3, initial=False, final=True)]
 
