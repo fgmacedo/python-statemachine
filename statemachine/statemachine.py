@@ -19,16 +19,13 @@ from .utils import ugettext as _
 V = TypeVar('V')
 
 
-def is_callable_with(f, *args, **kwargs):
-    try:
-        inspect.signature(f).bind(*args, **kwargs)
-        return True
-    except TypeError:
-        return False
+def is_callable_with_kwargs(f):
+    # python 3 variant -> return inspect.getfullargspec(f).varkw is not None
+    return inspect.getargspec(f).keywords is not None
 
 
 def call_with_args(f, *args, **kwargs):
-    if is_callable_with(f, *args, **kwargs):
+    if is_callable_with_kwargs(f):
         f(*args, **kwargs)
     else:
         f()
