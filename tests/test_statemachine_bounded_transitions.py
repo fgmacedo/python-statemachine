@@ -31,8 +31,8 @@ def state_machine(event_mock):
         produce = draft.to(producing)
         deliver = producing.to(closed)
 
-        def on_enter_producing(self, **kwargs):
-            event_mock.on_enter_producing(**kwargs)
+        def on_enter_producing(self, *args, **kwargs):
+            event_mock.on_enter_producing(*args, **kwargs)
 
         def on_exit_draft(self, **kwargs):
             event_mock.on_exit_draft(**kwargs)
