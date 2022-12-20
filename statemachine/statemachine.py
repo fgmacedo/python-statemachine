@@ -1,5 +1,5 @@
 # coding: utf-8
-
+import inspect
 from typing import Any, List, Dict, Optional, TypeVar, Text, Generic
 
 from . import registry
@@ -17,6 +17,18 @@ from .utils import ugettext as _
 
 
 V = TypeVar('V')
+
+
+def is_callable_with_kwargs(f):
+    # python 3 variant -> return inspect.getfullargspec(f).varkw is not None
+    return inspect.getargspec(f).keywords is not None
+
+
+def call_with_args(f, *args, **kwargs):
+    if is_callable_with_kwargs(f):
+        f(*args, **kwargs)
+    else:
+        f()
 
 
 class CallableInstance(object):
@@ -421,8 +433,9 @@ class BaseStateMachine(object):
 
         bounded_on_exit_specific_state_event = getattr(
             self, 'on_exit_{}'.format(self.current_state.identifier), None)
+
         if callable(bounded_on_exit_specific_state_event):
-            bounded_on_exit_specific_state_event()
+            call_with_args(bounded_on_exit_specific_state_event, *args, **kwargs)
 
         self.current_state = destination
 
@@ -433,7 +446,7 @@ class BaseStateMachine(object):
         bounded_on_enter_specific_state_event = getattr(
             self, 'on_enter_{}'.format(destination.identifier), None)
         if callable(bounded_on_enter_specific_state_event):
-            bounded_on_enter_specific_state_event()
+            call_with_args(bounded_on_enter_specific_state_event, *args, **kwargs)
 
         return result
 
