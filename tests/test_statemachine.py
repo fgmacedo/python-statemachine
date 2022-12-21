@@ -50,6 +50,14 @@ def test_machine_should_only_allow_only_one_initial_state():
         CampaignMachine(model)
 
 
+def test_machine_should_not_allow_transitions_from_final_state(
+    campaign_machine_with_invalid_final_state_transition
+):
+    with pytest.raises(exceptions.InvalidDefinition):
+        model = MyModel()
+        campaign_machine_with_invalid_final_state_transition(model)
+
+
 def test_should_change_state(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)
@@ -357,3 +365,11 @@ def test_state_value_is_correct():
     model = ValueTestModel()
     assert model.new.value == STATE_NEW
     assert model.draft.value == STATE_DRAFT
+
+
+def test_final_states(campaign_machine_with_final_state):
+    model = MyModel()
+    machine = campaign_machine_with_final_state(model)
+    final_states = machine.final_states
+    assert len(final_states) == 1
+    assert final_states[0].name == "Closed"

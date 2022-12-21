@@ -6,6 +6,9 @@ Python State Machine
 .. image:: https://img.shields.io/pypi/v/python-statemachine.svg
         :target: https://pypi.python.org/pypi/python-statemachine
 
+.. image:: https://img.shields.io/pypi/dm/python-statemachine.svg
+        :target: https://pypi.python.org/pypi/python-statemachine
+
 .. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg?branch=develop
         :target: https://travis-ci.org/fgmacedo/python-statemachine
         :alt: Build status
@@ -17,14 +20,6 @@ Python State Machine
 .. image:: https://readthedocs.org/projects/python-statemachine/badge/?version=latest
         :target: https://python-statemachine.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
-
-.. image:: https://pyup.io/repos/github/fgmacedo/python-statemachine/shield.svg
-        :target: https://pyup.io/repos/github/fgmacedo/python-statemachine/
-        :alt: Updates
-
-.. image:: https://badges.gitter.im/fgmacedo/python-statemachine.svg
-        :alt: Join the chat at https://gitter.im/fgmacedo/python-statemachine
-        :target: https://gitter.im/fgmacedo/python-statemachine
 
 
 Python `finite-state machines <https://en.wikipedia.org/wiki/Finite-state_machine>`_ made easy.
@@ -64,7 +59,7 @@ You can now create an instance:
 And inspect about the current state:
 
 >>> traffic_light.current_state
-State('Green', identifier='green', value='green', initial=True)
+State('Green', identifier='green', value='green', initial=True, final=False)
 >>> traffic_light.current_state == TrafficLightMachine.green == traffic_light.green
 True
 
@@ -92,7 +87,7 @@ Call a transition:
 And check for the current status:
 
 >>> traffic_light.current_state
-State('Yellow', identifier='yellow', value='yellow', initial=False)
+State('Yellow', identifier='yellow', value='yellow', initial=False, final=False)
 >>> traffic_light.is_yellow
 True
 
@@ -250,3 +245,46 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
 >>> model.statemachine.cancel()
 >>> assert model.state == 4
 >>> assert model.statemachine.current_state == model.statemachine.cancelled
+
+Final States
+------------
+
+You can explicitly set final states.
+Transitions from these states are not allowed and will raise exception.
+
+>>> class CampaignMachine(StateMachine):
+...     "A workflow machine"
+...     draft = State('Draft', initial=True, value=1)
+...     producing = State('Being produced', value=2)
+...     closed = State('Closed', final=True, value=3)
+...
+...     add_job = draft.to.itself() | producing.to.itself() | closed.to(producing)
+...     produce = draft.to(producing)
+...     deliver = producing.to(closed)
+
+
+>>> from statemachine.exceptions import InvalidDefinition
+>>> try:
+...     machine = CampaignMachine(model)
+... except InvalidDefinition as err:
+...     print(err)
+Final state does not should have defined transitions starting from that state
+
+
+You can retrieve all final states.
+
+>>> class CampaignMachine(StateMachine):
+...     "A workflow machine"
+...     draft = State('Draft', initial=True, value=1)
+...     producing = State('Being produced', value=2)
+...     closed = State('Closed', final=True, value=3)
+...
+...     add_job = draft.to.itself() | producing.to.itself()
+...     produce = draft.to(producing)
+...     deliver = producing.to(closed)
+
+>>> model = MyModel(state=3)
+>>> machine = CampaignMachine(model)
+>>> machine.final_states
+[State('Closed', identifier='closed', value=3, initial=False, final=True)]
+

@@ -28,6 +28,42 @@ def campaign_machine():
 
 
 @pytest.fixture
+def campaign_machine_with_invalid_final_state_transition():
+    "Define a new class for each test"
+    from statemachine import State, StateMachine
+
+    class CampaignMachine(StateMachine):
+        "A workflow machine"
+        draft = State('Draft', initial=True)
+        producing = State('Being produced')
+        closed = State('Closed', final=True)
+
+        add_job = draft.to(draft) | producing.to(producing) | closed.to(draft)
+        produce = draft.to(producing)
+        deliver = producing.to(closed)
+
+    return CampaignMachine
+
+
+@pytest.fixture
+def campaign_machine_with_final_state():
+    "Define a new class for each test"
+    from statemachine import State, StateMachine
+
+    class CampaignMachine(StateMachine):
+        "A workflow machine"
+        draft = State('Draft', initial=True)
+        producing = State('Being produced')
+        closed = State('Closed', final=True)
+
+        add_job = draft.to(draft) | producing.to(producing)
+        produce = draft.to(producing)
+        deliver = producing.to(closed)
+
+    return CampaignMachine
+
+
+@pytest.fixture
 def campaign_machine_with_values():
     "Define a new class for each test"
     from statemachine import State, StateMachine

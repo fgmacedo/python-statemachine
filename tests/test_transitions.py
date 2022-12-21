@@ -13,9 +13,9 @@ def test_transition_representation(campaign_machine):
     print(s)
     assert s == (
         "Transition("
-        "State('Draft', identifier='draft', value='draft', initial=True), "
+        "State('Draft', identifier='draft', value='draft', initial=True, final=False), "
         "(State('Being produced', identifier='producing', value='producing', "
-        "initial=False),), identifier='produce')"
+        "initial=False, final=False),), identifier='produce')"
     )
 
 
@@ -137,3 +137,30 @@ class TestReverseTransition(object):
         machine.stop()
 
         assert machine.is_red
+
+
+def test_should_transition_with_a_dict_as_return():
+    "regression test that verifies if a dict can be used as return"
+
+    expected_result = {
+        "a": 1,
+        "b": 2,
+        "c": 3,
+    }
+
+    class ApprovalMachine(StateMachine):
+        "A workflow"
+        requested = State('Requested', initial=True)
+        accepted = State('Accepted')
+        rejected = State('Rejected')
+
+        accept = requested.to(accepted)
+        reject = requested.to(rejected)
+
+        def on_accept(self):
+            return expected_result
+
+    machine = ApprovalMachine()
+
+    result = machine.run("accept")
+    assert result == expected_result

@@ -84,13 +84,19 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
 
    To get flake8 and tox, just pip install them into your virtualenv.
 
-6. Commit your changes and push your branch to GitHub::
+.. note::
+
+    In order to get the tox working for all versions, I usually run pyenv enabling shell for those versions:
+
+    $ pyenv shell 3.8.1/envs/python-statemachine 3.7.6 3.6.10 3.5.9 2.7.17
+
+1. Commit your changes and push your branch to GitHub::
 
     $ git add .
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 
-7. Submit a pull request through the GitHub website.
+2. Submit a pull request through the GitHub website.
 
 Pull Request Guidelines
 -----------------------
