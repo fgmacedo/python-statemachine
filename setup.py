@@ -16,7 +16,7 @@ long_description = readme + '\n\n' + history
 
 setup(
     name='python-statemachine',
-    version='0.8.0',
+    version='0.9.0',
     description="Python Finite State Machines made easy.",
     long_description=long_description,
     author="Fernando Macedo",

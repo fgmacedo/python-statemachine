@@ -1,12 +1,16 @@
 History
 =======
 
-0.9.0 (future)
---------------
+0.9.0 (2022-12-21)
+------------------
 
 * This is the last release supporting Python2.X series.
 * Doctesting all documentation including README (with issues on examples fixed).
 * Fix state value misjudged when state value is an "boolean False value" (tks @the5fire)
+* Fix returning dict as result of transitions callback.
+* State machine declarations now with final states.
+* Args and kwargs now are passed to bounded transitions.
+
 
 0.8.0 (2020-01-23)
 ------------------
