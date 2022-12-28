@@ -5,18 +5,46 @@ from __future__ import absolute_import, unicode_literals
 import pytest
 import mock
 
-from statemachine import Transition, State, exceptions, StateMachine
+from statemachine import Transition, State, StateMachine
 
 
 def test_transition_representation(campaign_machine):
-    s = repr([t for t in campaign_machine.transitions if t.identifier == 'produce'][0])
+    s = repr([t for t in campaign_machine.draft.transitions if t.trigger == 'produce'][0])
     print(s)
     assert s == (
         "Transition("
         "State('Draft', identifier='draft', value='draft', initial=True, final=False), "
-        "(State('Being produced', identifier='producing', value='producing', "
-        "initial=False, final=False),), identifier='produce')"
+        "State('Being produced', identifier='producing', value='producing', "
+        "initial=False, final=False), trigger='produce')"
     )
+
+
+def test_list_machine_transitions(classic_traffic_light_machine):
+    machine = classic_traffic_light_machine()
+    transitions = [t.identifier for t in machine.transitions]
+    assert transitions == ['go', 'slowdown', 'stop']
+
+
+def test_list_state_transitions(classic_traffic_light_machine):
+    machine = classic_traffic_light_machine()
+    transitions = [t.identifier for t in machine.green.transitions]
+    assert transitions == ['slowdown']
+
+
+def test_list_transitions_validators(classic_traffic_light_machine):
+    machine = classic_traffic_light_machine()
+
+    def custom_validator(*args, **kwargs):
+        if 'weapon' not in kwargs:
+            raise LookupError('Weapon not found.')
+
+    machine.slowdown.validators = [custom_validator]
+
+    validators = [
+        validator
+        for validator in machine.slowdown.validators
+    ]
+    assert validators == [custom_validator]
 
 
 def test_transition_should_accept_decorator_syntax(traffic_light_machine):
@@ -48,7 +76,7 @@ def test_transition_call_can_only_be_used_as_decorator():
     source, dest = State('Source'), State('Destination')
     transition = Transition(source, dest)
 
-    with pytest.raises(exceptions.StateMachineError):
+    with pytest.raises(TypeError):
         transition('not a callable')
 
 
