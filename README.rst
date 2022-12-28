@@ -21,6 +21,9 @@ Python State Machine
         :target: https://python-statemachine.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
+.. image:: https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/main/develop
+   :alt: GitHub commits since last release (main)
+
 
 Python `finite-state machines <https://en.wikipedia.org/wiki/Finite-state_machine>`_ made easy.
 

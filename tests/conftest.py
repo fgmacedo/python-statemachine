@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import pytest
 from datetime import datetime
 
@@ -112,6 +110,22 @@ def traffic_light_machine():
 
 
 @pytest.fixture
+def classic_traffic_light_machine():
+    from statemachine import StateMachine, State
+
+    class TrafficLightMachine(StateMachine):
+        green = State('Green', initial=True)
+        yellow = State('Yellow')
+        red = State('Red')
+
+        slowdown = green.to(yellow)
+        stop = yellow.to(red)
+        go = red.to(green)
+
+    return TrafficLightMachine
+
+
+@pytest.fixture
 def reverse_traffic_light_machine():
     from statemachine import StateMachine, State
 
@@ -139,14 +153,16 @@ def approval_machine(current_time):
 
         completed = State('Completed')
 
-        @requested.to(accepted, rejected)
+        validate = requested.to(accepted, conditions="is_ok") | requested.to(rejected)
+
+        @validate
         def validate(self, *args, **kwargs):
             if self.model.is_ok():
                 self.model.accepted_at = current_time
-                return self.model, self.accepted
+                return self.model
             else:
                 self.model.rejected_at = current_time
-                return self.model, self.rejected
+                return self.model
 
         @accepted.to(completed)
         def complete(self):

@@ -45,7 +45,7 @@ def test_transition_should_choose_final_state_on_multiple_possibilities(
     assert machine.is_accepted
 
 
-def test_should_raise_error_if_not_define_callback_in_multiple_destinations():
+def test_transition_to_first_that_executes_if_multiple_destinations():
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State('Requested', initial=True)
@@ -56,80 +56,55 @@ def test_should_raise_error_if_not_define_callback_in_multiple_destinations():
 
     machine = ApprovalMachine()
 
-    with pytest.raises(exceptions.MultipleStatesFound) as e:
-        machine.validate()
-
-        assert 'desired state' in e.message
-
-
-@pytest.mark.parametrize('return_value, expected_exception', [
-    (None, exceptions.MultipleStatesFound),
-    (1, exceptions.MultipleStatesFound),
-    ((2, 3), exceptions.MultipleStatesFound),
-    ((4, 5, 6), exceptions.MultipleStatesFound),
-    (((7, 8), 9), exceptions.MultipleStatesFound),
-    ('requested', exceptions.InvalidDestinationState),
-    ('rejected', None),
-])
-def test_should_raise_error_if_not_inform_state_in_multiple_destinations(
-        return_value, expected_exception):
-    class ApprovalMachine(StateMachine):
-        "A workflow"
-        requested = State('Requested', initial=True)
-        accepted = State('Accepted')
-        rejected = State('Rejected')
-
-        @requested.to(accepted, rejected)
-        def validate(self):
-            "tries to get an attr (like a desired state), failsback to the `return_value` itself"
-            return getattr(self, str(return_value), return_value)
-
-    machine = ApprovalMachine()
-
-    if expected_exception is not None:
-        with pytest.raises(expected_exception) as e:
-            machine.validate()
-
-            assert 'desired state' in e.message
-    else:
-        machine.validate()
-
-
-@pytest.mark.parametrize('callback', ['single', 'multiple'])
-@pytest.mark.parametrize('with_return_value', [True, False], ids=['with_return', 'without_return'])
-@pytest.mark.parametrize('return_value', [None, 'spam'])
-def test_should_transition_to_the_state_returned_by_callback(
-        callback, with_return_value, return_value):
-    class ApprovalMachine(StateMachine):
-        "A workflow"
-        requested = State('Requested', initial=True)
-        accepted = State('Accepted')
-        rejected = State('Rejected')
-
-        @requested.to(accepted)
-        def transition_with_single_destination(self):
-            if with_return_value:
-                return return_value, self.accepted
-            else:
-                return self.accepted
-
-        @requested.to(accepted, rejected)
-        def transition_with_multiple_destination(self):
-            if with_return_value:
-                return return_value, self.accepted
-            else:
-                return self.accepted
-
-    machine = ApprovalMachine()
-
-    transition = 'transition_with_{}_destination'.format(callback)
-
-    result = machine.run(transition)
-    if with_return_value:
-        assert result == return_value
-    else:
-        assert result is None
+    machine.validate()
     assert machine.is_accepted
+
+
+def test_do_not_transition_if_multiple_destinations_with_guard():
+
+    def never_will_pass(event_data):
+        return False
+
+    class ApprovalMachine(StateMachine):
+        "A workflow"
+        requested = State('Requested', initial=True)
+        accepted = State('Accepted')
+        rejected = State('Rejected')
+
+        validate = (
+            requested.to(accepted, conditions=never_will_pass) |
+            requested.to(rejected, conditions="also_never_will_pass") |
+            requested.to(requested, conditions="this_also_never_will_pass")
+        )
+
+        @property
+        def also_never_will_pass(self):
+            return False
+
+        def this_also_never_will_pass(self, event_data):
+            return False
+
+    machine = ApprovalMachine()
+
+    machine.validate()
+    assert machine.is_requested
+
+
+def test_check_invalid_reference_to_conditions():
+
+    class ApprovalMachine(StateMachine):
+        "A workflow"
+        requested = State('Requested', initial=True)
+        accepted = State('Accepted')
+        rejected = State('Rejected')
+
+        validate = (
+            requested.to(accepted, conditions="not_found_condition") |
+            requested.to(rejected)
+        )
+
+    with pytest.raises(exceptions.InvalidDefinition):
+        ApprovalMachine()
 
 
 def test_should_change_to_returned_state_on_multiple_destination_with_combined_transitions():
@@ -140,17 +115,15 @@ def test_should_change_to_returned_state_on_multiple_destination_with_combined_t
         rejected = State('Rejected')
         completed = State('Completed')
 
-        validate = requested.to(accepted, rejected) | accepted.to(completed)
+        validate = (
+            requested.to(accepted, conditions="is_ok") |
+            requested.to(rejected) |
+            accepted.to(completed)
+        )
         retry = rejected.to(requested)
 
-        @validate
-        def do_validate(self):
-            if not self.is_accepted:
-                if self.model.is_ok():
-                    return self.accepted
-                else:
-                    return self.rejected
-            else:
+        def on_validate(self):
+            if self.is_accepted and self.model.is_ok():
                 return 'congrats!'
 
     # given
@@ -226,8 +199,72 @@ def test_multiple_values_returned_with_multiple_destinations():
 
         @requested.to(accepted, denied)
         def validate(self):
-            return 1, 2, self.accepted
+            return 1, 2
 
     machine = ApprovalMachine()
 
     assert machine.validate() == (1, 2, )
+
+
+@pytest.mark.parametrize("payment_failed, expected_state", [
+    (False, 'paid'),
+    (True, 'failed'),
+])
+def test_multiple_destinations_using_or_starting_from_same_origin(payment_failed, expected_state):
+
+    class InvoiceStateMachine(StateMachine):
+        unpaid = State('unpaid', initial=True)
+        paid = State('paid')
+        failed = State('failed')
+
+        pay = unpaid.to(paid, unless="payment_success") | failed.to(paid) | unpaid.to(failed)
+
+        def payment_success(self, event_data):
+            return payment_failed
+
+    invoice_fsm = InvoiceStateMachine()
+    invoice_fsm.pay()
+    assert invoice_fsm.current_state.identifier == expected_state
+
+
+def test_order_control():
+
+    class OrderControl(StateMachine):
+        waiting_for_payment = State('Waiting for payment', initial=True)
+        processing = State('Processing')
+        shipping = State('Shipping')
+        completed = State('Completed')
+
+        add_to_order = waiting_for_payment.to(waiting_for_payment)
+        receive_payment = waiting_for_payment.to(processing)
+        process_order = processing.to(shipping)
+        ship_order = shipping.to(completed)
+
+        def __init__(self):
+            self.order_total = 0
+            self.payment_received = False
+            super(OrderControl, self).__init__()
+
+        def on_enter_waiting_for_payment(self):
+            self.payment_received = False
+
+        def on_add_to_order(self, amount):
+            self.order_total += amount
+
+        def on_receive_payment(self, amount):
+            if amount < self.order_total:
+                raise Exception('Payment amount is less than the order total')
+            self.payment_received = True
+
+        def on_process_order(self):
+            if not self.payment_received:
+                raise Exception('Cannot process order without payment')
+
+    # Example usage
+
+    control = OrderControl()
+    control.add_to_order(10)
+    control.receive_payment(10)
+    control.process_order()
+    control.ship_order()
+    assert control.is_completed
