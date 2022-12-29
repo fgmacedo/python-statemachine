@@ -212,21 +212,17 @@ class State(object):
             self.value = identifier
 
     def _to_(self, *states, **kwargs):
-        conditions = kwargs.get("conditions", None)
-        unless = kwargs.get("unless", None)
         transitions = TransitionList(
-            Transition(self, state, conditions=conditions, unless=unless)
+            Transition(self, state, **kwargs)
             for state in states
         )
         self.transitions.add_transitions(transitions)
         return transitions
 
     def _from_(self, *states, **kwargs):
-        conditions = kwargs.get("conditions", None)
-        unless = kwargs.get("unless", None)
         transitions = TransitionList()
         for origin in states:
-            transition = Transition(origin, self, conditions=conditions, unless=unless)
+            transition = Transition(origin, self, **kwargs)
             origin.transitions.add_transitions(transition)
             transitions.add_transitions(transition)
         return transitions
