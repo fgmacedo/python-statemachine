@@ -163,7 +163,7 @@ Callbacks when running events:
 ...     go = red.to(green)
 ...
 ...     def on_slowdown(self):
-...         print('Calma, lá!')
+...         print('Calma, la!')
 ...
 ...     def on_stop(self):
 ...         print('Parou.')
@@ -174,7 +174,7 @@ Callbacks when running events:
 
 >>> stm = TrafficLightMachine()
 >>> stm.slowdown()
-Calma, lá!
+Calma, la!
 >>> stm.stop()
 Parou.
 >>> stm.go()
@@ -197,14 +197,14 @@ Or when entering/exiting states:
 ...        print('Valendo!')
 ...
 ...    def on_enter_yellow(self):
-...        print('Calma, lá!')
+...        print('Calma, la!')
 ...
 ...    def on_enter_red(self):
 ...        print('Parou.')
 
 >>> stm = TrafficLightMachine()
 >>> stm.cycle()
-Calma, lá!
+Calma, la!
 >>> stm.cycle()
 Parou.
 >>> stm.cycle()

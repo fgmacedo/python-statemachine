@@ -176,6 +176,11 @@ class TransitionList(object):
 
 
 class State(object):
+    """
+    A state in a state machine describes a particular behaviour of the machine.
+    When we say that a machine is “in” a state, it means that the machine behaves
+    in the way that state describes.
+    """
     def __init__(self, name, value=None, initial=False, final=False):
         # type: (Text, Optional[V], bool, bool) -> None
         self.name = name
@@ -238,6 +243,13 @@ class State(object):
 
     @property
     def to(self):
+        """Create transitions to the given destination states.
+
+        .. code::
+
+            <origin_state>.to(*<destination_state>)
+
+        """
         return self._get_proxy_method_to_itself(self._to_)
 
     @property

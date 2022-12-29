@@ -5,7 +5,8 @@ from __future__ import absolute_import, unicode_literals
 import pytest
 import mock
 
-from statemachine import Transition, State, StateMachine
+from statemachine import State, StateMachine
+from statemachine.statemachine import Transition
 
 
 def test_transition_representation(campaign_machine):
@@ -56,7 +57,7 @@ def test_transition_as_decorator_should_call_method_before_activating_state(
 ):
     machine = traffic_light_machine()
     assert machine.current_state == machine.green
-    assert machine.slowdown(1, 2, number=3, text="x") == (
+    assert machine.cycle(1, 2, number=3, text="x") == (
         (1, 2),
         {"number": 3, "text": "x"},
     )
@@ -64,7 +65,7 @@ def test_transition_as_decorator_should_call_method_before_activating_state(
 
 
 @pytest.mark.parametrize(
-    "machine_name", ["traffic_light_machine", "reverse_traffic_light_machine",]
+    "machine_name", ["traffic_light_machine", "reverse_traffic_light_machine", ]
 )
 def test_cycle_transitions(request, machine_name):
     machine_class = request.getfixturevalue(machine_name)
@@ -159,7 +160,7 @@ def test_transitions_to_the_same_estate_as_itself():
 
 
 class TestReverseTransition(object):
-    @pytest.mark.parametrize("initial_state", ["green", "yellow", "red",])
+    @pytest.mark.parametrize("initial_state", ["green", "yellow", "red", ])
     def test_reverse_transition(self, reverse_traffic_light_machine, initial_state):
         machine = reverse_traffic_light_machine(start_value=initial_state)
         assert machine.current_state.identifier == initial_state

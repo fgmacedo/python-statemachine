@@ -81,32 +81,13 @@ def campaign_machine_with_values():
 
 @pytest.fixture
 def traffic_light_machine():
-    from statemachine import StateMachine, State
-
-    class TrafficLightMachine(StateMachine):
-        "A traffic light machine"
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        red = State("Red")
-
-        cycle = green.to(yellow) | yellow.to(red) | red.to(green)
-
-        @green.to(yellow)
-        def slowdown(self, *args, **kwargs):
-            return args, kwargs
-
-        @yellow.to(red)
-        def stop(self, *args, **kwargs):
-            return args, kwargs
-
-        @red.to(green)
-        def go(self, *args, **kwargs):
-            return args, kwargs
-
-        def on_cycle(self, *args, **kwargs):
-            return args, kwargs
-
+    from tests.examples.traffic_light_machine import TrafficLightMachine
     return TrafficLightMachine
+
+
+@pytest.fixture(autouse=True)
+def add_machines_to_doctest(doctest_namespace, traffic_light_machine):
+    doctest_namespace["TrafficLightMachine"] = traffic_light_machine
 
 
 @pytest.fixture
