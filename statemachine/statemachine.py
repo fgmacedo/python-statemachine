@@ -15,7 +15,7 @@ from .utils import ugettext as _, ensure_iterable, call_with_args
 from .graph import visit_connected_states
 
 
-V = TypeVar('V')
+V = TypeVar("V")
 
 
 class CallableInstance(object):
@@ -35,10 +35,11 @@ class CallableInstance(object):
 
     And you can customize/override any attr by defining **kwargs.
     """
+
     def __init__(self, target, func, **kwargs):
-        self.__dict__['target'] = target
-        self.__dict__['func'] = func
-        self.__dict__['kwargs'] = kwargs
+        self.__dict__["target"] = target
+        self.__dict__["func"] = func
+        self.__dict__["kwargs"] = kwargs
         for k, v in kwargs.items():
             self.__dict__[k] = v
 
@@ -50,10 +51,7 @@ class CallableInstance(object):
 
     def __repr__(self):
         return "{}({}, func={!r}, **{!r})".format(
-            type(self).__name__,
-            repr(self.target),
-            self.func,
-            self.kwargs,
+            type(self).__name__, repr(self.target), self.func, self.kwargs,
         )
 
     def __call__(self, *args, **kwargs):
@@ -61,7 +59,6 @@ class CallableInstance(object):
 
 
 class ConditionWrapper(object):
-
     def __init__(self, func, expected_value=True):
         self.func = func
         self.expected_value = expected_value
@@ -79,7 +76,16 @@ class Transition(object):
     A transition holds reference to the source and destination state.
     """
 
-    def __init__(self, source, destination, trigger=None, validators=None, conditions=None, unless=None, on_execute=None):  # noqa
+    def __init__(
+        self,
+        source,
+        destination,
+        trigger=None,
+        validators=None,
+        conditions=None,
+        unless=None,
+        on_execute=None,
+    ):
         self.source = source
         self.destination = destination
         self.trigger = trigger
@@ -93,11 +99,14 @@ class Transition(object):
         if conditions is not None:
             conditions = ensure_iterable(conditions)
             for predicate in conditions:
-                self.conditions.append(ConditionWrapper(predicate, expected_value=expected_value))
+                self.conditions.append(
+                    ConditionWrapper(predicate, expected_value=expected_value)
+                )
 
     def __repr__(self):
         return "{}({!r}, {!r}, trigger={!r})".format(
-            type(self).__name__, self.source, self.destination, self.trigger)
+            type(self).__name__, self.source, self.destination, self.trigger
+        )
 
     def __eq__(self, other):
         params = ["source", "destination", "trigger"]
@@ -117,7 +126,9 @@ class Transition(object):
 
     @property
     def identifier(self):
-        warnings.warn("identifier is deprecated. Use `trigger` instead", DeprecationWarning)
+        warnings.warn(
+            "identifier is deprecated. Use `trigger` instead", DeprecationWarning
+        )
         return self.trigger
 
     def execute(self, event_data):
@@ -131,14 +142,11 @@ class Transition(object):
 
 
 class TransitionList(object):
-
     def __init__(self, *transitions):
         self.transitions = list(*transitions)
 
     def __repr__(self):
-        return "{}({!r})".format(
-            type(self).__name__, self.transitions
-        )
+        return "{}({!r})".format(type(self).__name__, self.transitions)
 
     def __or__(self, other):
         self.add_transitions(other)
@@ -168,7 +176,6 @@ class TransitionList(object):
 
 
 class State(object):
-
     def __init__(self, name, value=None, initial=False, final=False):
         # type: (Text, Optional[V], bool, bool) -> None
         self.name = name
@@ -180,7 +187,12 @@ class State(object):
 
     def __repr__(self):
         return "{}({!r}, identifier={!r}, value={!r}, initial={!r}, final={!r})".format(
-            type(self).__name__, self.name, self.identifier, self.value, self.initial, self.final
+            type(self).__name__,
+            self.name,
+            self.identifier,
+            self.value,
+            self.initial,
+            self.final,
         )
 
     def __get__(self, machine, owner):
@@ -198,7 +210,8 @@ class State(object):
         conditions = kwargs.get("conditions", None)
         unless = kwargs.get("unless", None)
         transitions = TransitionList(
-            Transition(self, state, conditions=conditions, unless=unless) for state in states
+            Transition(self, state, conditions=conditions, unless=unless)
+            for state in states
         )
         self.transitions.add_transitions(transitions)
         return transitions
@@ -242,15 +255,16 @@ class State(object):
 
 def check_state_factory(state):
     "Return a property that checks if the current state is the desired state"
+
     @property
     def is_in_state(self):
         # type: (BaseStateMachine) -> bool
         return bool(self.current_state == state)
+
     return is_in_state
 
 
 class EventData(object):
-
     def __init__(self, machine, event, *args, **kwargs):
         self.machine = machine
         self.event = event
@@ -266,9 +280,7 @@ class EventData(object):
         self.result = None
 
     def __repr__(self):
-        return "{}({!r})".format(
-            type(self).__name__, self.__dict__
-        )
+        return "{}({!r})".format(type(self).__name__, self.__dict__)
 
 
 class OrderedDefaultDict(OrderedDict):  # python <= 3.5 compat layer
@@ -280,7 +292,6 @@ class OrderedDefaultDict(OrderedDict):  # python <= 3.5 compat layer
 
 
 class Event(object):
-
     def __init__(self, name):
         self.name = name
         self._transitions = OrderedDefaultDict()
@@ -310,21 +321,29 @@ class Event(object):
 
     @property
     def identifier(self):
-        warnings.warn("identifier is deprecated. Use `name` instead", DeprecationWarning)
+        warnings.warn(
+            "identifier is deprecated. Use `name` instead", DeprecationWarning
+        )
         return self.name
 
     @property
     def validators(self):
-        warnings.warn("`validators` is deprecated. Use `conditions` instead", DeprecationWarning)
-        return list({
-            validator
-            for transition in self.transitions
-            for validator in transition.validators
-        })
+        warnings.warn(
+            "`validators` is deprecated. Use `conditions` instead", DeprecationWarning
+        )
+        return list(
+            {
+                validator
+                for transition in self.transitions
+                for validator in transition.validators
+            }
+        )
 
     @validators.setter
     def validators(self, value):
-        warnings.warn("`validators` is deprecated. Use `conditions` instead", DeprecationWarning)
+        warnings.warn(
+            "`validators` is deprecated. Use `conditions` instead", DeprecationWarning
+        )
         for transition in self.transitions:
             transition.validators = value
 
@@ -372,7 +391,6 @@ class Event(object):
 
 
 class StateMachineMetaclass(type):
-
     def __init__(cls, name, bases, attrs):
         super(StateMachineMetaclass, cls).__init__(name, bases, attrs)
         registry.register(cls)
@@ -383,14 +401,14 @@ class StateMachineMetaclass(type):
         cls.add_from_attributes(attrs)
 
         for state in cls.states:
-            setattr(cls, 'is_{}'.format(state.identifier), check_state_factory(state))
+            setattr(cls, "is_{}".format(state.identifier), check_state_factory(state))
 
     def add_inherited(cls, bases):
         for base in bases:
-            for state in getattr(base, 'states', []):
+            for state in getattr(base, "states", []):
                 cls.add_state(state.identifier, state)
 
-            events = getattr(base, '_events', {})
+            events = getattr(base, "_events", {})
             for event in events.values():
                 cls.add_event(event.name, event.transitions)
 
@@ -421,18 +439,17 @@ class StateMachineMetaclass(type):
     def transitions(self):
         warnings.warn(
             "Class level property `transitions` is deprecated. Use `events` instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return list(self._events.values())
 
 
 class Model(Generic[V]):
-
     def __init__(self):
         self.state = None  # type: Optional[V]
 
     def __repr__(self):
-        return 'Model(state={})'.format(self.state)
+        return "Model(state={})".format(self.state)
 
 
 class BaseStateMachine(object):
@@ -441,7 +458,7 @@ class BaseStateMachine(object):
     states = []  # type: List[State]
     states_map = {}  # type: Dict[Any, State]
 
-    def __init__(self, model=None, state_field='state', start_value=None):
+    def __init__(self, model=None, state_field="state", start_value=None):
         # type: (Any, str, Optional[V]) -> None
         self.model = model if model else Model()
         self.state_field = state_field
@@ -451,7 +468,9 @@ class BaseStateMachine(object):
 
     def __repr__(self):
         return "{}(model={!r}, state_field={!r}, current_state={!r})".format(
-            type(self).__name__, self.model, self.state_field,
+            type(self).__name__,
+            self.model,
+            self.state_field,
             self.current_state.identifier,
         )
 
@@ -466,15 +485,19 @@ class BaseStateMachine(object):
 
     def check(self):
         if not self.states:
-            raise InvalidDefinition(_('There are no states.'))
+            raise InvalidDefinition(_("There are no states."))
 
         if not self._events:
-            raise InvalidDefinition(_('There are no events.'))
+            raise InvalidDefinition(_("There are no events."))
 
         initials = [s for s in self.states if s.initial]
         if len(initials) != 1:
-            raise InvalidDefinition(_('There should be one and only one initial state. '
-                                      'Your currently have these: {!r}'.format(initials)))
+            raise InvalidDefinition(
+                _(
+                    "There should be one and only one initial state. "
+                    "Your currently have these: {!r}".format(initials)
+                )
+            )
         self.initial_state = initials[0]
 
         if self.current_state_value is None:
@@ -484,10 +507,14 @@ class BaseStateMachine(object):
                 self.current_state_value = self.initial_state.value
 
         disconnected_states = self._disconnected_states(self.initial_state)
-        if (disconnected_states):
-            raise InvalidDefinition(_('There are unreachable states. '
-                                    'The statemachine graph should have a single component. '
-                                      'Disconnected states: [{}]'.format(disconnected_states)))
+        if disconnected_states:
+            raise InvalidDefinition(
+                _(
+                    "There are unreachable states. "
+                    "The statemachine graph should have a single component. "
+                    "Disconnected states: [{}]".format(disconnected_states)
+                )
+            )
 
         self._check_transitions()
 
@@ -496,8 +523,12 @@ class BaseStateMachine(object):
         ]
 
         if final_state_with_invalid_transitions:
-            raise InvalidDefinition(_('Final state does not should have defined '
-                                      'transitions starting from that state'))
+            raise InvalidDefinition(
+                _(
+                    "Final state does not should have defined "
+                    "transitions starting from that state"
+                )
+            )
 
     def ensure_callable(self, attr):
         """ Ensure that `attr` is a callable, if not, tries to retrieve one from model or machine.
@@ -516,8 +547,10 @@ class BaseStateMachine(object):
                 _("Did not found name '{}' from model or statemachine".format(attr))
             )
         if not callable(func):
+
             def wrapper(*args, **kwargs):
                 return func
+
             return wrapper
 
         return func
@@ -552,17 +585,14 @@ class BaseStateMachine(object):
     def transitions(self):
         warnings.warn(
             "Property `transitions` is deprecated. Use `events` instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.__class__.transitions
 
     @property
     def allowed_transitions(self):
         "get the callable proxy of the current allowed transitions"
-        return [
-            getattr(self, t.trigger)
-            for t in self.current_state.transitions
-        ]
+        return [getattr(self, t.trigger) for t in self.current_state.transitions]
 
     def _process(self, trigger):
         """This method will also handle execution queue"""
@@ -572,7 +602,7 @@ class BaseStateMachine(object):
         transition = event_data.transition
         args = event_data.args
         kwargs = event_data.kwargs
-        bounded_on_event = getattr(self, 'on_{}'.format(transition.trigger), None)
+        bounded_on_event = getattr(self, "on_{}".format(transition.trigger), None)
         on_event = transition.on_execute
 
         if bounded_on_event and on_event and bounded_on_event != on_event:
@@ -586,24 +616,26 @@ class BaseStateMachine(object):
 
         destination = transition.destination
 
-        bounded_on_exit_state_event = getattr(self, 'on_exit_state', None)
+        bounded_on_exit_state_event = getattr(self, "on_exit_state", None)
         if callable(bounded_on_exit_state_event):
             bounded_on_exit_state_event(self.current_state)
 
         bounded_on_exit_specific_state_event = getattr(
-            self, 'on_exit_{}'.format(self.current_state.identifier), None)
+            self, "on_exit_{}".format(self.current_state.identifier), None
+        )
 
         if callable(bounded_on_exit_specific_state_event):
             call_with_args(bounded_on_exit_specific_state_event, *args, **kwargs)
 
         self.current_state = destination
 
-        bounded_on_enter_state_event = getattr(self, 'on_enter_state', None)
+        bounded_on_enter_state_event = getattr(self, "on_enter_state", None)
         if callable(bounded_on_enter_state_event):
             bounded_on_enter_state_event(destination)
 
         bounded_on_enter_specific_state_event = getattr(
-            self, 'on_enter_{}'.format(destination.identifier), None)
+            self, "on_enter_{}".format(destination.identifier), None
+        )
         if callable(bounded_on_enter_specific_state_event):
             call_with_args(bounded_on_enter_specific_state_event, *args, **kwargs)
 
@@ -621,4 +653,4 @@ class BaseStateMachine(object):
         return event(*args, **kwargs)
 
 
-StateMachine = StateMachineMetaclass('StateMachine', (BaseStateMachine, ), {})
+StateMachine = StateMachineMetaclass("StateMachine", (BaseStateMachine,), {})

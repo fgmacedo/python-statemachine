@@ -10,8 +10,8 @@ def BaseMachine():
     from statemachine import StateMachine, State
 
     class BaseMachine(StateMachine):
-        state_1 = State('1', initial=True)
-        state_2 = State('2')
+        state_1 = State("1", initial=True)
+        state_2 = State("2")
         trans_1_2 = state_1.to(state_2)
 
     return BaseMachine
@@ -30,7 +30,7 @@ def ExtendedClass(BaseMachine):
     from statemachine import State
 
     class ExtendedClass(BaseMachine):
-        state_3 = State('3')
+        state_3 = State("3")
         trans_2_3 = BaseMachine.state_2.to(state_3)
 
     return ExtendedClass
@@ -41,7 +41,7 @@ def OverridedClass(BaseMachine):
     from statemachine import State
 
     class OverridedClass(BaseMachine):
-        state_2 = State('2', value='state_2')
+        state_2 = State("2", value="state_2")
 
     return OverridedClass
 
@@ -51,7 +51,7 @@ def OverridedTransitionClass(BaseMachine):
     from statemachine import State
 
     class OverridedTransitionClass(BaseMachine):
-        state_3 = State('3')
+        state_3 = State("3")
         trans_1_2 = BaseMachine.state_1.to(state_3)
 
     return OverridedTransitionClass
@@ -76,7 +76,9 @@ def test_should_extend_states_and_transitions(BaseMachine, ExtendedClass):
     ]
 
     base_events = [(e.name, e.transitions) for e in BaseMachine.transitions]
-    expected = base_events + [(ExtendedClass.trans_2_3.name, ExtendedClass.trans_2_3.transitions)]
+    expected = base_events + [
+        (ExtendedClass.trans_2_3.name, ExtendedClass.trans_2_3.transitions)
+    ]
     actual = [(e.name, e.transitions) for e in ExtendedClass.transitions]
     assert actual == expected
 

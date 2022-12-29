@@ -26,7 +26,7 @@ class InvalidTransitionIdentifier(InvalidDefinition):
 
     def __init__(self, identifier):
         self.identifier = identifier
-        msg = _('{!r} is not a valid transition identifier').format(identifier)
+        msg = _("{!r} is not a valid transition identifier").format(identifier)
         super(InvalidTransitionIdentifier, self).__init__(msg)
 
 
@@ -37,8 +37,7 @@ class TransitionNotAllowed(StateMachineError):
         self.transition = transition
         self.state = state
         msg = _("Can't {} when in {}.").format(
-            self.transition.identifier,
-            self.state.name
+            self.transition.identifier, self.state.name
         )
         super(TransitionNotAllowed, self).__init__(msg)
 
@@ -47,8 +46,11 @@ class MultipleTransitionCallbacksFound(InvalidDefinition):
     """
     You have defined multiple callbacks ``on_execute`` for the same transition.
     """
+
     def __init__(self, transition):
         self.transition = transition
-        msg = _('Multiple callbacks found, you must choose between a callback in the transition'
-                'or a bouded method in the state machine class.')
+        msg = _(
+            "Multiple callbacks found, you must choose between a callback in the transition"
+            "or a bouded method in the state machine class."
+        )
         super(MultipleTransitionCallbacksFound, self).__init__(msg)

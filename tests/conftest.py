@@ -14,9 +14,9 @@ def campaign_machine():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State('Draft', initial=True)
-        producing = State('Being produced')
-        closed = State('Closed')
+        draft = State("Draft", initial=True)
+        producing = State("Being produced")
+        closed = State("Closed")
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -32,9 +32,9 @@ def campaign_machine_with_invalid_final_state_transition():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State('Draft', initial=True)
-        producing = State('Being produced')
-        closed = State('Closed', final=True)
+        draft = State("Draft", initial=True)
+        producing = State("Being produced")
+        closed = State("Closed", final=True)
 
         add_job = draft.to(draft) | producing.to(producing) | closed.to(draft)
         produce = draft.to(producing)
@@ -50,9 +50,9 @@ def campaign_machine_with_final_state():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State('Draft', initial=True)
-        producing = State('Being produced')
-        closed = State('Closed', final=True)
+        draft = State("Draft", initial=True)
+        producing = State("Being produced")
+        closed = State("Closed", final=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -68,9 +68,9 @@ def campaign_machine_with_values():
 
     class CampaignMachineWithKeys(StateMachine):
         "A workflow machine"
-        draft = State('Draft', initial=True, value=1)
-        producing = State('Being produced', value=2)
-        closed = State('Closed', value=3)
+        draft = State("Draft", initial=True, value=1)
+        producing = State("Being produced", value=2)
+        closed = State("Closed", value=3)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -85,9 +85,9 @@ def traffic_light_machine():
 
     class TrafficLightMachine(StateMachine):
         "A traffic light machine"
-        green = State('Green', initial=True)
-        yellow = State('Yellow')
-        red = State('Red')
+        green = State("Green", initial=True)
+        yellow = State("Yellow")
+        red = State("Red")
 
         cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
@@ -114,9 +114,9 @@ def classic_traffic_light_machine():
     from statemachine import StateMachine, State
 
     class TrafficLightMachine(StateMachine):
-        green = State('Green', initial=True)
-        yellow = State('Yellow')
-        red = State('Red')
+        green = State("Green", initial=True)
+        yellow = State("Yellow")
+        red = State("Red")
 
         slowdown = green.to(yellow)
         stop = yellow.to(red)
@@ -131,12 +131,17 @@ def reverse_traffic_light_machine():
 
     class ReverseTrafficLightMachine(StateMachine):
         "A traffic light machine"
-        green = State('Green', initial=True)
-        yellow = State('Yellow')
-        red = State('Red')
+        green = State("Green", initial=True)
+        yellow = State("Yellow")
+        red = State("Red")
 
         stop = red.from_(yellow, green, red)
-        cycle = green.from_(red) | yellow.from_(green) | red.from_(yellow) | red.from_.itself()
+        cycle = (
+            green.from_(red)
+            | yellow.from_(green)
+            | red.from_(yellow)
+            | red.from_.itself()
+        )
 
     return ReverseTrafficLightMachine
 
@@ -147,11 +152,11 @@ def approval_machine(current_time):
 
     class ApprovalMachine(StateMachine):
         "A workflow machine"
-        requested = State('Requested', initial=True)
-        accepted = State('Accepted')
-        rejected = State('Rejected')
+        requested = State("Requested", initial=True)
+        accepted = State("Accepted")
+        rejected = State("Rejected")
 
-        completed = State('Completed')
+        completed = State("Completed")
 
         validate = requested.to(accepted, conditions="is_ok") | requested.to(rejected)
 
