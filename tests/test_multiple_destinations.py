@@ -2,21 +2,27 @@
 from __future__ import absolute_import, unicode_literals
 
 import pytest
-import mock
 
 from statemachine import StateMachine, State, exceptions
+
+
+class Request(object):
+    def __init__(self, state="requested"):
+        self.state = None
+        self._is_ok = False
+
+    def is_ok(self):
+        return self._is_ok
 
 
 def test_transition_should_choose_final_state_on_multiple_possibilities(
     approval_machine, current_time
 ):
     # given
-    model = mock.MagicMock(
-        state="requested", accepted_at=None, rejected_at=None, completed_at=None,
-    )
+    model = Request()
     machine = approval_machine(model)
 
-    model.is_ok.return_value = False
+    model._is_ok = False
 
     # when
     assert machine.validate() == model
@@ -26,7 +32,7 @@ def test_transition_should_choose_final_state_on_multiple_possibilities(
     assert machine.is_rejected
 
     # given
-    model.is_ok.return_value = True
+    model._is_ok = True
 
     # when
     assert machine.retry() == model
@@ -83,7 +89,8 @@ def test_do_not_transition_if_multiple_destinations_with_guard():
 
     machine = ApprovalMachine()
 
-    machine.validate()
+    with pytest.raises(exceptions.TransitionNotAllowed):
+        machine.validate()
     assert machine.is_requested
 
 
@@ -122,10 +129,10 @@ def test_should_change_to_returned_state_on_multiple_destination_with_combined_t
                 return "congrats!"
 
     # given
-    model = mock.MagicMock(state="requested")
+    model = Request()
     machine = ApprovalMachine(model)
 
-    model.is_ok.return_value = False
+    model._is_ok = False
 
     # when
     assert machine.validate() is None
@@ -135,7 +142,7 @@ def test_should_change_to_returned_state_on_multiple_destination_with_combined_t
     # given
     assert machine.retry() is None
     assert machine.is_requested
-    model.is_ok.return_value = True
+    model._is_ok = True
 
     # when
     assert machine.validate() is None
@@ -156,35 +163,16 @@ def test_transition_on_execute_should_be_called_with_run_syntax(
     approval_machine, current_time
 ):
     # given
-    model = mock.MagicMock(state="requested", accepted_at=None,)
+    model = Request()
     machine = approval_machine(model)
 
-    model.is_ok.return_value = True
+    model._is_ok = True
 
     # when
     assert machine.run("validate") == model
     # then
     assert model.accepted_at == current_time
     assert machine.is_accepted
-
-
-def test_multiple_transition_callbacks():
-    class ApprovalMachine(StateMachine):
-        "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-
-        @requested.to(accepted)
-        def validate(self):
-            return self.accepted
-
-        def on_validate(self):
-            return self.accepted
-
-    machine = ApprovalMachine()
-
-    with pytest.raises(exceptions.MultipleTransitionCallbacksFound):
-        machine.validate()
 
 
 def test_multiple_values_returned_with_multiple_destinations():
@@ -235,7 +223,7 @@ def test_order_control():
         shipping = State("Shipping")
         completed = State("Completed")
 
-        add_to_order = waiting_for_payment.to(waiting_for_payment)
+        add_to_order = waiting_for_payment.to(waiting_for_payment, before="log_amount")
         receive_payment = waiting_for_payment.to(processing)
         process_order = processing.to(shipping)
         ship_order = shipping.to(completed)
@@ -243,6 +231,7 @@ def test_order_control():
         def __init__(self):
             self.order_total = 0
             self.payment_received = False
+            self.ammont_added = {}
             super(OrderControl, self).__init__()
 
         def on_enter_waiting_for_payment(self):
@@ -250,6 +239,7 @@ def test_order_control():
 
         def on_add_to_order(self, amount):
             self.order_total += amount
+            return self.order_total
 
         def on_receive_payment(self, amount):
             if amount < self.order_total:
@@ -260,11 +250,21 @@ def test_order_control():
             if not self.payment_received:
                 raise Exception("Cannot process order without payment")
 
+        def log_amount(self, amount, event_data):
+            self.ammont_added.setdefault(event_data.event.name, []).append(amount)
+            return self.ammont_added
+
     # Example usage
 
     control = OrderControl()
-    control.add_to_order(10)
+    composed_result = control.add_to_order(3)
+    assert composed_result == [{"add_to_order": [3]}, 3]
+
+    composed_result = control.add_to_order(7)
+    assert composed_result == [{"add_to_order": [3, 7]}, 10]
+
     control.receive_payment(10)
     control.process_order()
     control.ship_order()
     assert control.is_completed
+    assert control.ammont_added == {"add_to_order": [3, 7]}

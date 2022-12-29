@@ -22,11 +22,11 @@ def traffic_light_machine(event_mock):
 
         cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
-        def on_enter_state(self, state):
-            event_mock.on_enter_state(state)
+        def on_enter_state(self, event_data):
+            event_mock.on_enter_state(event_data.transition.destination)
 
-        def on_exit_state(self, state):
-            event_mock.on_exit_state(state)
+        def on_exit_state(self, event_data):
+            event_mock.on_exit_state(event_data.state)
 
         def on_enter_green(self):
             event_mock.on_enter_green(self)
