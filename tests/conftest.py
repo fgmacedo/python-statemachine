@@ -82,6 +82,7 @@ def campaign_machine_with_values():
 @pytest.fixture
 def traffic_light_machine():
     from tests.examples.traffic_light_machine import TrafficLightMachine
+
     return TrafficLightMachine
 
 
@@ -142,7 +143,7 @@ def approval_machine(current_time):
         validate = requested.to(accepted, conditions="is_ok") | requested.to(rejected)
 
         @validate
-        def validate(self, *args, **kwargs):
+        def do_validate(self, *args, **kwargs):
             if self.model.is_ok():
                 self.model.accepted_at = current_time
                 return self.model

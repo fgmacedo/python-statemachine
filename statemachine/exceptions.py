@@ -30,6 +30,10 @@ class InvalidTransitionIdentifier(InvalidDefinition):
         super(InvalidTransitionIdentifier, self).__init__(msg)
 
 
+class AttrNotFound(InvalidDefinition):
+    "There's no method or property with the given name"
+
+
 class TransitionNotAllowed(StateMachineError):
     "The transition can't run from the current state."
 
@@ -40,17 +44,3 @@ class TransitionNotAllowed(StateMachineError):
             self.transition.identifier, self.state.name
         )
         super(TransitionNotAllowed, self).__init__(msg)
-
-
-class MultipleTransitionCallbacksFound(InvalidDefinition):
-    """
-    You have defined multiple callbacks ``on_execute`` for the same transition.
-    """
-
-    def __init__(self, transition):
-        self.transition = transition
-        msg = _(
-            "Multiple callbacks found, you must choose between a callback in the transition"
-            "or a bouded method in the state machine class."
-        )
-        super(MultipleTransitionCallbacksFound, self).__init__(msg)

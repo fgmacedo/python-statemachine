@@ -1,6 +1,12 @@
 History
 =======
 
+1.0.0 (2022-12-30)
+------------------
+
+* Drop support for monkey-patching add callbacks at machine runtime.
+
+
 0.9.0 (2022-12-21)
 ------------------
 

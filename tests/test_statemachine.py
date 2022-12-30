@@ -220,19 +220,6 @@ def test_should_allow_validate_data_for_transition(campaign_machine):
     assert model.state == "producing"
 
 
-def test_should_allow_plug_an_event_on_running_a_transition(campaign_machine):
-    model = MyModel()
-    machine = campaign_machine(model)
-
-    def double(self, *args, **kwargs):
-        return kwargs.get("value", 0) * 2
-
-    campaign_machine.on_add_job = double
-
-    assert machine.add_job() == 0
-    assert machine.add_job(value=2) == 4
-
-
 def test_should_check_if_is_in_status(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)

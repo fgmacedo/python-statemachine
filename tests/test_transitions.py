@@ -1,19 +1,18 @@
 # coding: utf-8
 from __future__ import absolute_import, unicode_literals
 
-
 import pytest
-import mock
 
 from statemachine import State, StateMachine
 from statemachine.statemachine import Transition
+
+from .models import MyModel
 
 
 def test_transition_representation(campaign_machine):
     s = repr(
         [t for t in campaign_machine.draft.transitions if t.trigger == "produce"][0]
     )
-    print(s)
     assert s == (
         "Transition("
         "State('Draft', identifier='draft', value='draft', initial=True, final=False), "
@@ -57,9 +56,8 @@ def test_transition_as_decorator_should_call_method_before_activating_state(
 ):
     machine = traffic_light_machine()
     assert machine.current_state == machine.green
-    assert machine.cycle(1, 2, number=3, text="x") == (
-        (1, 2),
-        {"number": 3, "text": "x"},
+    assert (
+        machine.cycle(1, 2, number=3, text="x") == "Running cycle from green to yellow"
     )
     assert machine.current_state == machine.yellow
 
@@ -96,7 +94,7 @@ def transition_callback_machine(request):
             validate = requested.to(accepted)
 
             def on_validate(self):
-                self.model("on_validate")
+                self.model.calls.append("on_validate")
                 return "accepted"
 
     elif request.param == "unbounded":
@@ -108,7 +106,7 @@ def transition_callback_machine(request):
 
             @requested.to(accepted)
             def validate(self):
-                self.model("on_validate")
+                self.model.calls.append("on_validate")
                 return "accepted"
 
     else:
@@ -118,10 +116,10 @@ def transition_callback_machine(request):
 
 
 def test_statemachine_transition_callback(transition_callback_machine):
-    model = mock.Mock(state="requested")
+    model = MyModel(state="requested", calls=[])
     machine = transition_callback_machine(model)
     assert machine.validate() == "accepted"
-    model.assert_called_once_with("on_validate")
+    assert model.calls == ["on_validate"]
 
 
 def test_can_run_combined_transitions():

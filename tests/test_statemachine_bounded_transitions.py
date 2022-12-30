@@ -4,15 +4,7 @@ import mock
 import pytest
 
 from statemachine import StateMachine, State
-
-
-class MyModel(object):
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-    def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.__dict__)
+from .models import MyModel
 
 
 @pytest.fixture
@@ -31,11 +23,11 @@ def state_machine(event_mock):
         produce = draft.to(producing)
         deliver = producing.to(closed)
 
-        def on_enter_producing(self, *args, **kwargs):
-            event_mock.on_enter_producing(*args, **kwargs)
+        def on_enter_producing(self, param1=None, param2=None):
+            event_mock.on_enter_producing(param1=param1, param2=param2)
 
-        def on_exit_draft(self, **kwargs):
-            event_mock.on_exit_draft(**kwargs)
+        def on_exit_draft(self, param1=None, param2=None):
+            event_mock.on_exit_draft(param1=param1, param2=param2)
 
         def on_enter_closed(self):
             event_mock.on_enter_closed()

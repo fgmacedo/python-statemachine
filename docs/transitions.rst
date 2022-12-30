@@ -89,12 +89,14 @@ By direct calling the event:
 
 >>> machine = TrafficLightMachine()
 >>> machine.cycle()
+'Running cycle from green to yellow'
 >>> machine.current_state.identifier
 'yellow'
 
 In a running (interpreted) machine, events are `sent`:
 
 >>> machine.run("cycle")
+'Running cycle from yellow to red'
 >>> machine.current_state.identifier
 'red'
 
@@ -114,8 +116,8 @@ can also raise an exception at this point to stop a transition to occur.
 
 >>> machine.current_state.identifier
 'red'
->>> machine.cycle(1, 2, text="x")
-((1, 2), {'text': 'x'})
+>>> machine.cycle()
+'Running cycle from red to green'
 >>> machine.current_state.identifier
 'green'
 
@@ -168,4 +170,20 @@ Consider this example:
 
 
 Reference: `Statecharts <https://statecharts.dev/>`_.
+
+
+
+
+State:
+
+`on_enter_<x>`
+`on_exit_<x>`
+
+Transition:
+
+`on_<x>`
+`before_<x>`
+`after_<x>`
+`on_before_<x>`
+`on_after_<x>`
 

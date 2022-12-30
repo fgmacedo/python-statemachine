@@ -1,6 +1,9 @@
 # coding: utf-8
 import warnings
 from collections import OrderedDict
+from functools import wraps
+from weakref import ref
+
 from typing import Any, List, Dict, Optional, TypeVar, Text, Generic
 
 from . import registry
@@ -9,11 +12,10 @@ from .exceptions import (
     InvalidStateValue,
     InvalidTransitionIdentifier,
     TransitionNotAllowed,
-    MultipleTransitionCallbacksFound,
 )
-from .utils import ugettext as _, ensure_iterable, call_with_args
+from .utils import ugettext as _, ensure_iterable
 from .graph import visit_connected_states
-
+from .callbacks import Callbacks, ConditionWrapper, resolver_factory, methodcaller
 
 V = TypeVar("V")
 
@@ -58,19 +60,6 @@ class CallableInstance(object):
         return self.func(*args, **kwargs)
 
 
-class ConditionWrapper(object):
-    def __init__(self, func, expected_value=True):
-        self.func = func
-        self.expected_value = expected_value
-        self._predicate = None
-
-    def check(self, machine):
-        self._predicate = machine.ensure_callable(self.func)
-
-    def __call__(self, event_data):
-        return self._predicate(event_data) == self.expected_value
-
-
 class Transition(object):
     """
     A transition holds reference to the source and destination state.
@@ -85,23 +74,21 @@ class Transition(object):
         conditions=None,
         unless=None,
         on_execute=None,
+        before=None,
+        after=None,
     ):
         self.source = source
         self.destination = destination
         self.trigger = trigger
         self.validators = validators if validators is not None else []
-        self.on_execute = on_execute
-        self.conditions = []
-        self._add_conditions(conditions)
-        self._add_conditions(unless, expected_value=False)
-
-    def _add_conditions(self, conditions, expected_value=True):
-        if conditions is not None:
-            conditions = ensure_iterable(conditions)
-            for predicate in conditions:
-                self.conditions.append(
-                    ConditionWrapper(predicate, expected_value=expected_value)
-                )
+        self.before = Callbacks().add(on_execute).add(before)
+        self.after = Callbacks().add(after)
+        self.conditions = (
+            Callbacks(factory=ConditionWrapper)
+            .add(conditions)
+            .add(unless, expected_value=False)
+        )
+        self.machine = None
 
     def __repr__(self):
         return "{}({!r}, {!r}, trigger={!r})".format(
@@ -112,10 +99,34 @@ class Transition(object):
         params = ["source", "destination", "trigger"]
         return all(getattr(self, attr) == getattr(other, attr) for attr in params)
 
-    def _check(self, machine):
-        """Validate configuracions"""
-        for condition in self.conditions:
-            condition.check(machine)
+    def _get_promisse_to_machine(self, func):
+
+        decorated = methodcaller(func)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return decorated(self.machine(), *args, **kwargs)
+
+        return wrapper
+
+    def setup(self, machine):
+        self.machine = ref(machine)
+        resolver = resolver_factory(machine, machine.model)
+        self.before.setup(resolver)
+        self.after.setup(resolver)
+        self.conditions.setup(resolver)
+
+        self.before.add(
+            [
+                "before_transition",
+                "before_{}".format(self.trigger),
+                "on_{}".format(self.trigger),
+            ],
+            resolver,
+        )
+        self.after.add(
+            ["after_transition", "after_{}".format(self.trigger)], resolver,
+        )
 
     def _validate(self, *args, **kwargs):
         for validator in self.validators:
@@ -171,7 +182,8 @@ class TransitionList(object):
 
     def __call__(self, f):
         for transition in self.transitions:
-            transition.on_execute = f
+            func = transition._get_promisse_to_machine(f)
+            transition.before.add(func)
         return self
 
 
@@ -181,14 +193,31 @@ class State(object):
     When we say that a machine is “in” a state, it means that the machine behaves
     in the way that state describes.
     """
-    def __init__(self, name, value=None, initial=False, final=False):
-        # type: (Text, Optional[V], bool, bool) -> None
+
+    def __init__(
+        self, name, value=None, initial=False, final=False, enter=None, exit=None
+    ):
+        # type: (Text, Optional[V], bool, bool, Optional[Any], Optional[Any]) -> None
         self.name = name
         self.value = value
         self._initial = initial
         self.identifier = None  # type: Optional[Text]
         self.transitions = TransitionList()
         self._final = final
+        self.enter = Callbacks().add(enter)
+        self.exit = Callbacks().add(exit)
+
+    def setup(self, machine):
+        resolver = resolver_factory(machine, machine.model)
+        self.enter.setup(resolver)
+        self.exit.setup(resolver)
+
+        self.enter.add(
+            ["on_enter_state", "on_enter_{}".format(self.identifier)], resolver,
+        )
+        self.exit.add(
+            ["on_exit_state", "on_exit_{}".format(self.identifier)], resolver,
+        )
 
     def __repr__(self):
         return "{}({!r}, identifier={!r}, value={!r}, initial={!r}, final={!r})".format(
@@ -213,8 +242,7 @@ class State(object):
 
     def _to_(self, *states, **kwargs):
         transitions = TransitionList(
-            Transition(self, state, **kwargs)
-            for state in states
+            Transition(self, state, **kwargs) for state in states
         )
         self.transitions.add_transitions(transitions)
         return transitions
@@ -396,6 +424,8 @@ class Event(object):
             if transition.execute(event_data):
                 event_data.executed = True
                 break
+        else:
+            raise TransitionNotAllowed(self, event_data.state)
 
 
 class StateMachineMetaclass(type):
@@ -486,10 +516,11 @@ class BaseStateMachine(object):
         visitable_states = set(visit_connected_states(starting_state))
         return set(self.states) - visitable_states
 
-    def _check_transitions(self):
+    def _check_states_and_transitions(self):
         for state in self.states:
+            state.setup(self)
             for transition in state.transitions:
-                transition._check(self)
+                transition.setup(self)
 
     def check(self):
         if not self.states:
@@ -524,7 +555,7 @@ class BaseStateMachine(object):
                 )
             )
 
-        self._check_transitions()
+        self._check_states_and_transitions()
 
         final_state_with_invalid_transitions = [
             state for state in self.final_states if state.transitions
@@ -537,31 +568,6 @@ class BaseStateMachine(object):
                     "transitions starting from that state"
                 )
             )
-
-    def ensure_callable(self, attr):
-        """ Ensure that `attr` is a callable, if not, tries to retrieve one from model or machine.
-        Args:
-            attr (str or callable): A property/method name or a callable.
-        """
-        if callable(attr) or isinstance(attr, property):
-            return attr
-
-        func = getattr(self, attr, None)
-        if func is None:
-            func = getattr(self.model, attr, None)
-
-        if func is None:
-            raise InvalidDefinition(
-                _("Did not found name '{}' from model or statemachine".format(attr))
-            )
-        if not callable(func):
-
-            def wrapper(*args, **kwargs):
-                return func
-
-            return wrapper
-
-        return func
 
     @property
     def final_states(self):
@@ -608,44 +614,27 @@ class BaseStateMachine(object):
 
     def _activate(self, event_data):
         transition = event_data.transition
-        args = event_data.args
-        kwargs = event_data.kwargs
-        bounded_on_event = getattr(self, "on_{}".format(transition.trigger), None)
-        on_event = transition.on_execute
-
-        if bounded_on_event and on_event and bounded_on_event != on_event:
-            raise MultipleTransitionCallbacksFound(transition)
-
-        result = None
-        if callable(bounded_on_event):
-            result = bounded_on_event(*args, **kwargs)
-        elif callable(on_event):
-            result = on_event(self, *args, **kwargs)
-
+        source = event_data.state
         destination = transition.destination
 
-        bounded_on_exit_state_event = getattr(self, "on_exit_state", None)
-        if callable(bounded_on_exit_state_event):
-            bounded_on_exit_state_event(self.current_state)
+        args = event_data.args
+        kwargs = event_data.kwargs.copy()
+        kwargs["event_data"] = event_data
+        kwargs["state"] = source
 
-        bounded_on_exit_specific_state_event = getattr(
-            self, "on_exit_{}".format(self.current_state.identifier), None
-        )
-
-        if callable(bounded_on_exit_specific_state_event):
-            call_with_args(bounded_on_exit_specific_state_event, *args, **kwargs)
+        result = transition.before(*args, **kwargs)
+        source.exit(*args, **kwargs)
 
         self.current_state = destination
 
-        bounded_on_enter_state_event = getattr(self, "on_enter_state", None)
-        if callable(bounded_on_enter_state_event):
-            bounded_on_enter_state_event(destination)
+        kwargs["state"] = destination
+        destination.enter(*args, **kwargs)
+        transition.after(*args, **kwargs)
 
-        bounded_on_enter_specific_state_event = getattr(
-            self, "on_enter_{}".format(destination.identifier), None
-        )
-        if callable(bounded_on_enter_specific_state_event):
-            call_with_args(bounded_on_enter_specific_state_event, *args, **kwargs)
+        if len(result) == 0:
+            result = None
+        elif len(result) == 1:
+            result = result[0]
 
         return result
 
