@@ -133,7 +133,7 @@ would trigger, then the guard (if any) is checked.  If the guard is true
 then the transition does happen. If the guard is false, the transition
 is ignored.
 
-When transitions have guards, then it’s possible to define two or more
+When transitions have guards, then it's possible to define two or more
 transitions for the same event from the same state, i.e. that a state has
 two (or more) transitions for the same event.  When the event happens, then
 the guarded transitions are checked, one by one, and the first transition
@@ -144,10 +144,21 @@ evaluated synchronously — A guard can for example not wait for a future or
 promise to resolve — and should return immediately.
 
 A guard function must not have any side effects.  Side effects are reserved
-for actions.  Likewise, a unit test that verifies a statechart’s behaviour
-should not require a guard function to be called; but simply set up guard
-functions (or variables) so that they might be called and return the values
-as defined in the test itself.
+for actions.
+
+
+**conditions**
+
+A list of conditions, acting like predicates. A transition is only allowed to occur if
+all conditions evaluates to ``True``.
+
+**unless**
+
+Same as conditions, but the transition is allowed if they evaluates fo ``False``.
+
+
+Example
+.......
 
 Consider this example:
 
@@ -170,20 +181,3 @@ Consider this example:
 
 
 Reference: `Statecharts <https://statecharts.dev/>`_.
-
-
-
-
-State:
-
-`on_enter_<x>`
-`on_exit_<x>`
-
-Transition:
-
-`on_<x>`
-`before_<x>`
-`after_<x>`
-`on_before_<x>`
-`on_after_<x>`
-

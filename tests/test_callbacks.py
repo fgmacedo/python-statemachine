@@ -1,14 +1,4 @@
 # coding: utf-8
-"""
-TODO: on_enter_state()  (genérico)
-TODO: on_exit_state()  (genérico)
-TODO: on_enter_<state>()
-TODO: on_exit_<state>()
-TODO: before_transition() (genérico)
-TODO: after_transition() (genérico)
-TODO: before_<transition>()
-TODO: after_<transition>()
-"""
 
 import pytest
 import mock
