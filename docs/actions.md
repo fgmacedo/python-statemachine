@@ -22,14 +22,14 @@ when something changes and are not bounded to a specific state or event:
 - `on_exit_state(event_data)`
 - `after_transition(event_data)`
 
-## State
+## State actions
 
 For each defined state, you can register `on_enter_<state>` and `on_exit_<state>` callbacks.
 
-- `on_enter_<state>(event_data)`
-- `on_exit_<state>(event_data)`
+- `on_enter_<state_identifier>(event_data)`
+- `on_exit_<state_identifier>(event_data)`
 
-## Event
+## Event actions
 
 For each event trigger, you can register `before_<event>` and `after_<event>`
 
@@ -42,19 +42,20 @@ For each event trigger, you can register `before_<event>` and `after_<event>`
 Actions will be executed in the following order:
 
 - `before_transition(event_data)`
-- `before_<transition>(event_data)`
-- `on_enter_state(event_data)`
-- `on_enter_<state>(event_data)`
-- `on_exit_<state>(event_data)`
+- `before_<event>(event_data)`
 - `on_exit_state(event_data)`
+- `on_exit_<state_identifier>(event_data)`
+- `on_enter_state(event_data)`
+- `on_enter_<state_identifier>(event_data)`
+- `after_<event>(event_data)`
 - `after_transition(event_data)`
-- `after_<transition>(event_data)`
 
 
 ## Example
 
-```{literalinclude} ../tests/examples/traffic_light_machine.py
+See this test for a complete example of order resolution of callbacks.
+
+```{literalinclude} ../tests/test_actions.py
 :language: python
 :linenos:
-:emphasize-lines: 10
 ```

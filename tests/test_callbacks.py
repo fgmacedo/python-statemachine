@@ -1,18 +1,8 @@
 # coding: utf-8
-"""
-TODO: on_enter_state()  (genérico)
-TODO: on_exit_state()  (genérico)
-TODO: on_enter_<state>()
-TODO: on_exit_<state>()
-TODO: before_transition() (genérico)
-TODO: after_transition() (genérico)
-TODO: before_<transition>()
-TODO: after_<transition>()
-"""
 
 import pytest
 import mock
-from statemachine.callbacks import Callbacks, ensure_callable
+from statemachine.callbacks import Callbacks, ensure_callable, resolver_factory
 from statemachine.exceptions import InvalidDefinition
 
 
@@ -83,6 +73,17 @@ class TestCallbacksMachinery:
         callbacks.add(method_names)
 
         assert [c.func for c in callbacks] == method_names
+
+    @pytest.mark.parametrize("suppress_errors", [False, True])
+    def test_raise_error_if_didnt_found_attr(self, suppress_errors):
+        callbacks = Callbacks()
+
+        resolver = resolver_factory(object())
+        if suppress_errors:
+            callbacks.add("this_does_no_exist", resolver, suppress_errors=suppress_errors)
+        else:
+            with pytest.raises(InvalidDefinition):
+                callbacks.add("this_does_no_exist", resolver, suppress_errors=suppress_errors)
 
     def test_collect_results(self):
         callbacks = Callbacks()

@@ -8,9 +8,11 @@ Contents:
 
    readme
    installation
-   usage
+   states
    transitions
    actions
+   mixins
+   integrations
    api
    contributing
    authors

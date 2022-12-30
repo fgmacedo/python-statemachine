@@ -55,7 +55,10 @@ class TestStateCallbacks(object):
     ):
         machine = traffic_light_machine()
         machine.cycle()
-        event_mock.on_enter_state.assert_called_once_with(machine.yellow)
+        event_mock.on_enter_state.call_args_list == [
+            mock.call(machine.green),
+            mock.call(machine.yellow),
+        ]
 
     def test_should_call_on_exit_generic_state(self, event_mock, traffic_light_machine):
         machine = traffic_light_machine()

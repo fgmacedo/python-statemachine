@@ -81,7 +81,8 @@ class Transition(object):
         self.destination = destination
         self.trigger = trigger
         self.validators = validators if validators is not None else []
-        self.before = Callbacks().add(on_execute).add(before)
+        self.before = Callbacks() \
+            .add("before_transition", suppress_errors=True).add(before).add(on_execute)
         self.after = Callbacks().add(after)
         self.conditions = (
             Callbacks(factory=ConditionWrapper)
@@ -94,10 +95,6 @@ class Transition(object):
         return "{}({!r}, {!r}, trigger={!r})".format(
             type(self).__name__, self.source, self.destination, self.trigger
         )
-
-    def __eq__(self, other):
-        params = ["source", "destination", "trigger"]
-        return all(getattr(self, attr) == getattr(other, attr) for attr in params)
 
     def _get_promisse_to_machine(self, func):
 
@@ -118,14 +115,16 @@ class Transition(object):
 
         self.before.add(
             [
-                "before_transition",
                 "before_{}".format(self.trigger),
                 "on_{}".format(self.trigger),
             ],
             resolver,
+            suppress_errors=True,
         )
         self.after.add(
-            ["after_transition", "after_{}".format(self.trigger)], resolver,
+            ["after_{}".format(self.trigger), "after_transition"],
+            resolver,
+            suppress_errors=True,
         )
 
     def _validate(self, *args, **kwargs):
@@ -133,7 +132,10 @@ class Transition(object):
             validator(*args, **kwargs)
 
     def _eval_conditions(self, event_data):
-        return all(condition(event_data) for condition in self.conditions)
+        return all(
+            condition(*event_data.args, **event_data.extended_kwargs)
+            for condition in self.conditions
+        )
 
     @property
     def identifier(self):
@@ -169,8 +171,7 @@ class TransitionList(object):
         transitions = ensure_iterable(transition)
 
         for transition in transitions:
-            if transition not in self.transitions:
-                self.transitions.append(transition)
+            self.transitions.append(transition)
 
         return self
 
@@ -213,10 +214,14 @@ class State(object):
         self.exit.setup(resolver)
 
         self.enter.add(
-            ["on_enter_state", "on_enter_{}".format(self.identifier)], resolver,
+            ["on_enter_state", "on_enter_{}".format(self.identifier)],
+            resolver,
+            suppress_errors=True,
         )
         self.exit.add(
-            ["on_exit_state", "on_exit_{}".format(self.identifier)], resolver,
+            ["on_exit_state", "on_exit_{}".format(self.identifier)],
+            resolver,
+            suppress_errors=True,
         )
 
     def __repr__(self):
@@ -304,6 +309,7 @@ class EventData(object):
     def __init__(self, machine, event, *args, **kwargs):
         self.machine = machine
         self.event = event
+        self.source = None
         self.state = None
         self.model = None
         self.transition = None
@@ -317,6 +323,17 @@ class EventData(object):
 
     def __repr__(self):
         return "{}({!r})".format(type(self).__name__, self.__dict__)
+
+    @property
+    def extended_kwargs(self):
+        kwargs = self.kwargs.copy()
+        kwargs["event_data"] = self
+        kwargs["event"] = self.event
+        kwargs["source"] = self.source
+        kwargs["state"] = self.state
+        kwargs["model"] = self.model
+        kwargs["transition"] = self.transition
+        return kwargs
 
 
 class OrderedDefaultDict(OrderedDict):  # python <= 3.5 compat layer
@@ -405,6 +422,7 @@ class Event(object):
         return machine._process(trigger_wrapper)
 
     def _trigger(self, event_data):
+        event_data.source = event_data.machine.current_state
         event_data.state = event_data.machine.current_state
         event_data.model = event_data.machine.model
 
@@ -479,6 +497,10 @@ class StateMachineMetaclass(type):
             "Class level property `transitions` is deprecated. Use `events` instead.",
             DeprecationWarning,
         )
+        return self.events
+
+    @property
+    def events(self):
         return list(self._events.values())
 
 
@@ -522,6 +544,26 @@ class BaseStateMachine(object):
             for transition in state.transitions:
                 transition.setup(self)
 
+    def _activate_initial_state(self, initials):
+
+        current_state_value = self.start_value if self.start_value else self.initial_state.value
+        if self.current_state_value is None:
+
+            try:
+                initial_state = self.states_map[current_state_value]
+            except KeyError:
+                raise InvalidStateValue(current_state_value)
+
+            # trigger an one-time event `__initial__` to enter the current state.
+            # current_state = self.current_state
+            event = Event("__initial__")
+            transition = Transition(None, initial_state)
+            transition.setup(self)
+            transition.before.clear()
+            transition.after.clear()
+            event.add_transition(transition)
+            event.trigger(self)
+
     def check(self):
         if not self.states:
             raise InvalidDefinition(_("There are no states."))
@@ -538,12 +580,6 @@ class BaseStateMachine(object):
                 )
             )
         self.initial_state = initials[0]
-
-        if self.current_state_value is None:
-            if self.start_value:
-                self.current_state_value = self.start_value
-            else:
-                self.current_state_value = self.initial_state.value
 
         disconnected_states = self._disconnected_states(self.initial_state)
         if disconnected_states:
@@ -569,6 +605,8 @@ class BaseStateMachine(object):
                 )
             )
 
+        self._activate_initial_state(initials)
+
     @property
     def final_states(self):
         return [state for state in self.states if state.final]
@@ -588,8 +626,8 @@ class BaseStateMachine(object):
 
     @property
     def current_state(self):
-        # type: () -> State
-        return self.states_map[self.current_state_value]
+        # type: () -> Optional[State]
+        return self.states_map.get(self.current_state_value, None)
 
     @current_state.setter
     def current_state(self, value):
@@ -601,6 +639,10 @@ class BaseStateMachine(object):
             "Property `transitions` is deprecated. Use `events` instead.",
             DeprecationWarning,
         )
+        return self.events
+
+    @property
+    def events(self):
         return self.__class__.transitions
 
     @property
@@ -617,19 +659,15 @@ class BaseStateMachine(object):
         source = event_data.state
         destination = transition.destination
 
-        args = event_data.args
-        kwargs = event_data.kwargs.copy()
-        kwargs["event_data"] = event_data
-        kwargs["state"] = source
-
-        result = transition.before(*args, **kwargs)
-        source.exit(*args, **kwargs)
+        result = transition.before(*event_data.args, **event_data.extended_kwargs)
+        if source is not None:
+            source.exit(*event_data.args, **event_data.extended_kwargs)
 
         self.current_state = destination
 
-        kwargs["state"] = destination
-        destination.enter(*args, **kwargs)
-        transition.after(*args, **kwargs)
+        event_data.state = destination
+        destination.enter(*event_data.args, **event_data.extended_kwargs)
+        transition.after(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:
             result = None

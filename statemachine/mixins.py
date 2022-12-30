@@ -14,9 +14,18 @@ from . import registry
 
 
 class MachineMixin(object):
+    """This mixing allows a model to automatically instantiate and assign an
+    ``StateMachine``.
+    """
+
     state_field_name = "state"  # type: Text
+    """The model's state field name that will hold the state value."""
+
     state_machine_name = None  # type: Text
+    """A fully qualified name of the class, where it can be imported."""
+
     state_machine_attr = "statemachine"  # type: Text
+    """Name of the model's attribute that will hold the machine instance."""
 
     def __init__(self, *args, **kwargs):
         super(MachineMixin, self).__init__(*args, **kwargs)
