@@ -96,9 +96,9 @@ class Callbacks(object):
             if func in self.items:
                 continue
             callback = self.factory(func, **kwargs)
-            if resolver is not None:
-                if not callback.setup(resolver):
-                    continue
+
+            if resolver is not None and not callback.setup(resolver):
+                continue
 
             self.items.append(callback)
 
