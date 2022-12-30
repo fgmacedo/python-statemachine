@@ -123,9 +123,12 @@ class Transition(object):
                 "on_{}".format(self.trigger),
             ],
             resolver,
+            suppress_errors=True,
         )
         self.after.add(
-            ["after_transition", "after_{}".format(self.trigger)], resolver,
+            ["after_transition", "after_{}".format(self.trigger)],
+            resolver,
+            suppress_errors=True,
         )
 
     def _validate(self, *args, **kwargs):
@@ -133,7 +136,10 @@ class Transition(object):
             validator(*args, **kwargs)
 
     def _eval_conditions(self, event_data):
-        return all(condition(event_data) for condition in self.conditions)
+        return all(
+            condition(*event_data.args, **event_data.extended_kwargs)
+            for condition in self.conditions
+        )
 
     @property
     def identifier(self):
@@ -169,8 +175,7 @@ class TransitionList(object):
         transitions = ensure_iterable(transition)
 
         for transition in transitions:
-            if transition not in self.transitions:
-                self.transitions.append(transition)
+            self.transitions.append(transition)
 
         return self
 
@@ -213,10 +218,14 @@ class State(object):
         self.exit.setup(resolver)
 
         self.enter.add(
-            ["on_enter_state", "on_enter_{}".format(self.identifier)], resolver,
+            ["on_enter_state", "on_enter_{}".format(self.identifier)],
+            resolver,
+            suppress_errors=True,
         )
         self.exit.add(
-            ["on_exit_state", "on_exit_{}".format(self.identifier)], resolver,
+            ["on_exit_state", "on_exit_{}".format(self.identifier)],
+            resolver,
+            suppress_errors=True,
         )
 
     def __repr__(self):
@@ -304,6 +313,7 @@ class EventData(object):
     def __init__(self, machine, event, *args, **kwargs):
         self.machine = machine
         self.event = event
+        self.source = None
         self.state = None
         self.model = None
         self.transition = None
@@ -317,6 +327,17 @@ class EventData(object):
 
     def __repr__(self):
         return "{}({!r})".format(type(self).__name__, self.__dict__)
+
+    @property
+    def extended_kwargs(self):
+        kwargs = self.kwargs.copy()
+        kwargs["event_data"] = self
+        kwargs["event"] = self.event
+        kwargs["source"] = self.source
+        kwargs["state"] = self.state
+        kwargs["model"] = self.model
+        kwargs["transition"] = self.transition
+        return kwargs
 
 
 class OrderedDefaultDict(OrderedDict):  # python <= 3.5 compat layer
@@ -405,6 +426,7 @@ class Event(object):
         return machine._process(trigger_wrapper)
 
     def _trigger(self, event_data):
+        event_data.source = event_data.machine.current_state
         event_data.state = event_data.machine.current_state
         event_data.model = event_data.machine.model
 
@@ -479,6 +501,10 @@ class StateMachineMetaclass(type):
             "Class level property `transitions` is deprecated. Use `events` instead.",
             DeprecationWarning,
         )
+        return self.events
+
+    @property
+    def events(self):
         return list(self._events.values())
 
 
@@ -601,6 +627,10 @@ class BaseStateMachine(object):
             "Property `transitions` is deprecated. Use `events` instead.",
             DeprecationWarning,
         )
+        return self.events
+
+    @property
+    def events(self):
         return self.__class__.transitions
 
     @property
@@ -617,19 +647,14 @@ class BaseStateMachine(object):
         source = event_data.state
         destination = transition.destination
 
-        args = event_data.args
-        kwargs = event_data.kwargs.copy()
-        kwargs["event_data"] = event_data
-        kwargs["state"] = source
-
-        result = transition.before(*args, **kwargs)
-        source.exit(*args, **kwargs)
+        result = transition.before(*event_data.args, **event_data.extended_kwargs)
+        source.exit(*event_data.args, **event_data.extended_kwargs)
 
         self.current_state = destination
 
-        kwargs["state"] = destination
-        destination.enter(*args, **kwargs)
-        transition.after(*args, **kwargs)
+        event_data.state = destination
+        destination.enter(*event_data.args, **event_data.extended_kwargs)
+        transition.after(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:
             result = None

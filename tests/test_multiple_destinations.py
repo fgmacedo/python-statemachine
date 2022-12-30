@@ -216,55 +216,19 @@ def test_multiple_destinations_using_or_starting_from_same_origin(
     assert invoice_fsm.current_state.identifier == expected_state
 
 
-def test_order_control():
-    class OrderControl(StateMachine):
-        waiting_for_payment = State("Waiting for payment", initial=True)
-        processing = State("Processing")
-        shipping = State("Shipping")
-        completed = State("Completed")
-
-        add_to_order = waiting_for_payment.to(waiting_for_payment, before="log_amount")
-        receive_payment = waiting_for_payment.to(processing)
-        process_order = processing.to(shipping)
-        ship_order = shipping.to(completed)
-
-        def __init__(self):
-            self.order_total = 0
-            self.payment_received = False
-            self.ammont_added = {}
-            super(OrderControl, self).__init__()
-
-        def on_enter_waiting_for_payment(self):
-            self.payment_received = False
-
-        def on_add_to_order(self, amount):
-            self.order_total += amount
-            return self.order_total
-
-        def on_receive_payment(self, amount):
-            if amount < self.order_total:
-                raise Exception("Payment amount is less than the order total")
-            self.payment_received = True
-
-        def on_process_order(self):
-            if not self.payment_received:
-                raise Exception("Cannot process order without payment")
-
-        def log_amount(self, amount, event_data):
-            self.ammont_added.setdefault(event_data.event.name, []).append(amount)
-            return self.ammont_added
-
-    # Example usage
-
+def test_order_control(OrderControl):
     control = OrderControl()
-    composed_result = control.add_to_order(3)
-    assert composed_result == [{"add_to_order": [3]}, 3]
+    assert control.add_to_order(3) == 3
+    assert control.add_to_order(7) == 10
 
-    composed_result = control.add_to_order(7)
-    assert composed_result == [{"add_to_order": [3, 7]}, 10]
+    control.receive_payment(4)
+    with pytest.raises(exceptions.TransitionNotAllowed):
+        control.process_order()
 
-    control.receive_payment(10)
+    control.receive_payment(6)
     control.process_order()
+
     control.ship_order()
+    assert control.order_total == 10
+    assert control.payments == [4, 6]
     assert control.is_completed
-    assert control.ammont_added == {"add_to_order": [3, 7]}

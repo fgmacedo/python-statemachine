@@ -78,7 +78,7 @@ class Callbacks(object):
     def __iter__(self):
         return iter(self.items)
 
-    def add(self, callbacks, resolver=None, **kwargs):
+    def add(self, callbacks, resolver=None, suppress_errors=False, **kwargs):
         if callbacks is None:
             return self
 
@@ -91,7 +91,10 @@ class Callbacks(object):
                 try:
                     callback.setup(resolver)
                 except AttrNotFound:
+                    if not suppress_errors:
+                        raise
                     continue
+
             self.items.append(callback)
 
         return self
