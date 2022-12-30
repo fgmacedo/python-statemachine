@@ -202,6 +202,12 @@ def test_machine_should_use_and_model_attr_other_than_state(campaign_machine):
     assert machine.current_state == machine.closed
 
 
+def test_cant_assign_an_invalid_state_directly(campaign_machine):
+    machine = campaign_machine()
+    with pytest.raises(exceptions.InvalidStateValue):
+        machine.current_state_value = "non existing state"
+
+
 def test_should_allow_validate_data_for_transition(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)

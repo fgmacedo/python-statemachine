@@ -81,7 +81,8 @@ class Transition(object):
         self.destination = destination
         self.trigger = trigger
         self.validators = validators if validators is not None else []
-        self.before = Callbacks().add(on_execute).add(before)
+        self.before = Callbacks() \
+            .add("before_transition", suppress_errors=True).add(before).add(on_execute)
         self.after = Callbacks().add(after)
         self.conditions = (
             Callbacks(factory=ConditionWrapper)
@@ -94,10 +95,6 @@ class Transition(object):
         return "{}({!r}, {!r}, trigger={!r})".format(
             type(self).__name__, self.source, self.destination, self.trigger
         )
-
-    def __eq__(self, other):
-        params = ["source", "destination", "trigger"]
-        return all(getattr(self, attr) == getattr(other, attr) for attr in params)
 
     def _get_promisse_to_machine(self, func):
 
@@ -118,7 +115,6 @@ class Transition(object):
 
         self.before.add(
             [
-                "before_transition",
                 "before_{}".format(self.trigger),
                 "on_{}".format(self.trigger),
             ],
@@ -126,7 +122,7 @@ class Transition(object):
             suppress_errors=True,
         )
         self.after.add(
-            ["after_transition", "after_{}".format(self.trigger)],
+            ["after_{}".format(self.trigger), "after_transition"],
             resolver,
             suppress_errors=True,
         )
@@ -548,6 +544,26 @@ class BaseStateMachine(object):
             for transition in state.transitions:
                 transition.setup(self)
 
+    def _activate_initial_state(self, initials):
+
+        current_state_value = self.start_value if self.start_value else self.initial_state.value
+        if self.current_state_value is None:
+
+            try:
+                initial_state = self.states_map[current_state_value]
+            except KeyError:
+                raise InvalidStateValue(current_state_value)
+
+            # trigger an one-time event `__initial__` to enter the current state.
+            # current_state = self.current_state
+            event = Event("__initial__")
+            transition = Transition(None, initial_state)
+            transition.setup(self)
+            transition.before.clear()
+            transition.after.clear()
+            event.add_transition(transition)
+            event.trigger(self)
+
     def check(self):
         if not self.states:
             raise InvalidDefinition(_("There are no states."))
@@ -564,12 +580,6 @@ class BaseStateMachine(object):
                 )
             )
         self.initial_state = initials[0]
-
-        if self.current_state_value is None:
-            if self.start_value:
-                self.current_state_value = self.start_value
-            else:
-                self.current_state_value = self.initial_state.value
 
         disconnected_states = self._disconnected_states(self.initial_state)
         if disconnected_states:
@@ -595,6 +605,8 @@ class BaseStateMachine(object):
                 )
             )
 
+        self._activate_initial_state(initials)
+
     @property
     def final_states(self):
         return [state for state in self.states if state.final]
@@ -614,8 +626,8 @@ class BaseStateMachine(object):
 
     @property
     def current_state(self):
-        # type: () -> State
-        return self.states_map[self.current_state_value]
+        # type: () -> Optional[State]
+        return self.states_map.get(self.current_state_value, None)
 
     @current_state.setter
     def current_state(self, value):
@@ -648,7 +660,8 @@ class BaseStateMachine(object):
         destination = transition.destination
 
         result = transition.before(*event_data.args, **event_data.extended_kwargs)
-        source.exit(*event_data.args, **event_data.extended_kwargs)
+        if source is not None:
+            source.exit(*event_data.args, **event_data.extended_kwargs)
 
         self.current_state = destination
 

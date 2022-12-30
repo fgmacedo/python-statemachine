@@ -17,8 +17,9 @@ class CallbackWrapper(object):
     call is performed, to allow the proper callback resolution.
     """
 
-    def __init__(self, func):
+    def __init__(self, func, suppress_errors=False):
         self.func = func
+        self.suppress_errors = suppress_errors
         self._callback = None
 
     def __repr__(self):
@@ -35,7 +36,13 @@ class CallbackWrapper(object):
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
-        self._callback = resolver(self.func)
+        try:
+            self._callback = resolver(self.func)
+            return True
+        except AttrNotFound:
+            if not self.suppress_errors:
+                raise
+            return False
 
     def __call__(self, *args, **kwargs):
         if self._callback is None:
@@ -46,8 +53,8 @@ class CallbackWrapper(object):
 
 
 class ConditionWrapper(CallbackWrapper):
-    def __init__(self, func, expected_value=True):
-        super(ConditionWrapper, self).__init__(func)
+    def __init__(self, func, suppress_errors=False, expected_value=True):
+        super(ConditionWrapper, self).__init__(func, suppress_errors)
         self.expected_value = expected_value
 
     def __call__(self, *args, **kwargs):
@@ -69,8 +76,7 @@ class Callbacks(object):
 
     def setup(self, resolver):
         """Validate configuracions"""
-        for callback in self.items:
-            callback.setup(resolver)
+        self.items = [callback for callback in self.items if callback.setup(resolver)]
 
     def __call__(self, *args, **kwargs):
         return [callback(*args, **kwargs) for callback in self.items]
@@ -78,7 +84,10 @@ class Callbacks(object):
     def __iter__(self):
         return iter(self.items)
 
-    def add(self, callbacks, resolver=None, suppress_errors=False, **kwargs):
+    def clear(self):
+        self.items = []
+
+    def add(self, callbacks, resolver=None, **kwargs):
         if callbacks is None:
             return self
 
@@ -88,11 +97,7 @@ class Callbacks(object):
                 continue
             callback = self.factory(func, **kwargs)
             if resolver is not None:
-                try:
-                    callback.setup(resolver)
-                except AttrNotFound:
-                    if not suppress_errors:
-                        raise
+                if not callback.setup(resolver):
                     continue
 
             self.items.append(callback)
