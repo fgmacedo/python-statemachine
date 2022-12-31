@@ -98,7 +98,7 @@ You can now create an instance:
 
 >>> traffic_light = TrafficLightMachine()
 
-Them start sending events:
+Then start sending events:
 
 >>> traffic_light.cycle()
 'Running cycle from green to yellow'

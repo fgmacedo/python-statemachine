@@ -28,6 +28,9 @@ class CallbackWrapper(object):
     def __eq__(self, other):
         return self.func == getattr(other, "func", other)
 
+    def __hash__(self):
+        return hash(repr(self))
+
     def setup(self, resolver):
         """
         Resolves the `func` into a usable callable.
@@ -65,8 +68,9 @@ class ConditionWrapper(CallbackWrapper):
 
 
 class Callbacks(object):
-    def __init__(self, factory=CallbackWrapper):
+    def __init__(self, resolver=None, factory=CallbackWrapper):
         self.items = []
+        self._resolver = resolver
         self.factory = factory
 
     def __repr__(self):
@@ -76,7 +80,10 @@ class Callbacks(object):
 
     def setup(self, resolver):
         """Validate configuracions"""
-        self.items = [callback for callback in self.items if callback.setup(resolver)]
+        self._resolver = resolver
+        self.items = [
+            callback for callback in self.items if callback.setup(self._resolver)
+        ]
 
     def __call__(self, *args, **kwargs):
         return [callback(*args, **kwargs) for callback in self.items]
@@ -87,7 +94,7 @@ class Callbacks(object):
     def clear(self):
         self.items = []
 
-    def add(self, callbacks, resolver=None, **kwargs):
+    def add(self, callbacks, **kwargs):
         if callbacks is None:
             return self
 
@@ -97,7 +104,7 @@ class Callbacks(object):
                 continue
             callback = self.factory(func, **kwargs)
 
-            if resolver is not None and not callback.setup(resolver):
+            if self._resolver is not None and not callback.setup(self._resolver):
                 continue
 
             self.items.append(callback)

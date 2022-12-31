@@ -53,9 +53,6 @@ class Event(object):
 
     @property
     def validators(self):
-        warnings.warn(
-            "`validators` is deprecated. Use `conditions` instead", DeprecationWarning
-        )
         return list(
             {
                 validator
@@ -66,11 +63,8 @@ class Event(object):
 
     @validators.setter
     def validators(self, value):
-        warnings.warn(
-            "`validators` is deprecated. Use `conditions` instead", DeprecationWarning
-        )
         for transition in self.transitions:
-            transition.validators = value
+            transition.validators.add(value)
 
     @property
     def transitions(self):

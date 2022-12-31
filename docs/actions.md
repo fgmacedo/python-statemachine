@@ -37,10 +37,29 @@ For each event trigger, you can register `before_<event>` and `after_<event>`
 - `after_<event>(event_data)`
 
 
+## Validators and conditions
+
+
+Validations and Guards are checked before an transition is started. They are meant to stop a
+transition to occur.
+
+The main difference, is that validators raise exceptions to stop the flow, and Guards act like
+predicates that should resolve for ``boolean``.
+
+There are two variations of Guard clauses available:
+
+- `conditions` : Should evaluate to `True`.
+- `unless` : Should evaluate to `False`.
+
+
+
 ## Ordering
 
-Actions will be executed in the following order:
+Actions and Guards will be executed in the following order:
 
+- `validators(event_data)`  (attached to the transition)
+- `conditions(event_data)`  (attached to the transition)
+- `unless(event_data)`  (attached to the transition)
 - `before_transition(event_data)`
 - `before_<event>(event_data)`
 - `on_exit_state(event_data)`
@@ -49,6 +68,45 @@ Actions will be executed in the following order:
 - `on_enter_<state_identifier>(event_data)`
 - `after_<event>(event_data)`
 - `after_transition(event_data)`
+
+
+## Dynamic dispatch
+
+python-statemachine implements a custom dispatch mechanism on all those available Actions and
+Guards, this means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
+library will to it's best to match your method signature of what's expect to receive with the
+provided arguments.
+
+In other words, if you implement a method to handle an event and don't declare any parameter,
+you'll be fine, if you declare an expected parameter, you'll also be covered.
+
+For your convenience, all these parameters are available for you on any Action or Guard:
+
+* `*args`: All positional arguments provided on the {ref}`Event` trigger.
+* `**kwargs`: All keyword arguments provided on the {ref}`Event` trigger.
+* `event_data`: A reference to `EventData` instance.
+* `event`: The {ref}`Event` that was triggered.
+* `source`: The {ref}`State` the statemachine was when the {ref}`Event` started.
+* `state`: The current {ref}`State` of the statemachine.
+* `model`: A reference to the underlying model that holds the current {ref}`State`.
+* `transition`: The {ref}`Transition` instance that was activated by the {ref}`Event`.
+
+So, you can implement Actions and Guards like these:
+
+```py
+def action_or_guard_method_name(self):
+    pass
+
+def action_or_guard_method_name(self, model):
+    pass
+
+def action_or_guard_method_name(self, event):
+    pass
+
+def action_or_guard_method_name(self, *args, event_data, event, source, state, model, **kwargs):
+    pass
+
+```
 
 
 ## Example
