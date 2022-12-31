@@ -16,13 +16,23 @@ class TestActions:
 
             go = initial.to(
                 final,
+                validators=["validation_1", "validation_2"],
                 conditions=["condition_1", "condition_2"],
+                unless=["unless_1", "unless_2"],
                 on_execute=["on_execute_1", "on_execute_2"],
                 before=["before_go_inline_1", "before_go_inline_2"],
                 after=["after_go_inline_1", "after_go_inline_2"],
             )
 
-            # conditions
+            # validations and conditions
+
+            def validation_1(self):
+                # this method may raise an exception
+                return spy("validation_1")
+
+            def validation_2(self):
+                # this method may raise an exception
+                return spy("validation_2")
 
             def condition_1(self):
                 spy("condition_1")
@@ -31,6 +41,14 @@ class TestActions:
             def condition_2(self):
                 spy("condition_2")
                 return True
+
+            def unless_1(self):
+                spy("unless_1")
+                return False
+
+            def unless_2(self):
+                spy("unless_2")
+                return False
 
             # generics state
 
@@ -109,8 +127,12 @@ class TestActions:
         assert spy.call_args_list == [
             mock.call("on_enter_state"),
             mock.call("on_enter_initial"),
+            mock.call("validation_1"),
+            mock.call("validation_2"),
             mock.call("condition_1"),
             mock.call("condition_2"),
+            mock.call("unless_1"),
+            mock.call("unless_2"),
             mock.call("before_transition"),
             mock.call("before_go_inline_1"),
             mock.call("before_go_inline_2"),

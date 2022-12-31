@@ -79,18 +79,13 @@ class TestCallbacksMachinery:
 
     @pytest.mark.parametrize("suppress_errors", [False, True])
     def test_raise_error_if_didnt_found_attr(self, suppress_errors):
-        callbacks = Callbacks()
+        callbacks = Callbacks(resolver_factory(object()))
 
-        resolver = resolver_factory(object())
         if suppress_errors:
-            callbacks.add(
-                "this_does_no_exist", resolver, suppress_errors=suppress_errors
-            )
+            callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add(
-                    "this_does_no_exist", resolver, suppress_errors=suppress_errors
-                )
+                callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
 
     def test_collect_results(self):
         callbacks = Callbacks()

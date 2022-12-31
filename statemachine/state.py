@@ -33,12 +33,10 @@ class State(object):
 
         self.enter.add(
             ["on_enter_state", "on_enter_{}".format(self.identifier)],
-            resolver,
             suppress_errors=True,
         )
         self.exit.add(
             ["on_exit_state", "on_exit_{}".format(self.identifier)],
-            resolver,
             suppress_errors=True,
         )
 

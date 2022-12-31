@@ -26,7 +26,7 @@ class Transition(object):
         self.source = source
         self.destination = destination
         self.trigger = trigger
-        self.validators = validators if validators is not None else []
+        self.validators = Callbacks().add(validators)
         self.before = (
             Callbacks()
             .add("before_transition", suppress_errors=True)
@@ -59,6 +59,7 @@ class Transition(object):
     def setup(self, machine):
         self.machine = ref(machine)
         resolver = resolver_factory(machine, machine.model)
+        self.validators.setup(resolver)
         self.before.setup(resolver)
         self.after.setup(resolver)
         self.conditions.setup(resolver)
@@ -68,18 +69,12 @@ class Transition(object):
                 "before_{}".format(self.trigger),
                 "on_{}".format(self.trigger),
             ],
-            resolver,
             suppress_errors=True,
         )
         self.after.add(
             ["after_{}".format(self.trigger), "after_transition"],
-            resolver,
             suppress_errors=True,
         )
-
-    def _validate(self, *args, **kwargs):
-        for validator in self.validators:
-            validator(*args, **kwargs)
 
     def _eval_conditions(self, event_data):
         return all(
@@ -95,7 +90,7 @@ class Transition(object):
         return self.trigger
 
     def execute(self, event_data):
-        self._validate(*event_data.args, **event_data.kwargs)
+        self.validators(*event_data.args, **event_data.extended_kwargs)
         if not self._eval_conditions(event_data):
             return False
 
