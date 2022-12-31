@@ -188,11 +188,18 @@ def test_multiple_values_returned_with_multiple_destinations():
 
     machine = ApprovalMachine()
 
-    assert machine.validate() == (1, 2,)
+    assert machine.validate() == (
+        1,
+        2,
+    )
 
 
 @pytest.mark.parametrize(
-    "payment_failed, expected_state", [(False, "paid"), (True, "failed"), ]
+    "payment_failed, expected_state",
+    [
+        (False, "paid"),
+        (True, "failed"),
+    ],
 )
 def test_multiple_destinations_using_or_starting_from_same_origin(
     payment_failed, expected_state

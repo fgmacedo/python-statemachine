@@ -9,7 +9,7 @@ def _qualname(cls):
     """
     Returns a fully qualified name of the class, to avoid name collisions.
     """
-    return u".".join([cls.__module__, cls.__name__])
+    return ".".join([cls.__module__, cls.__name__])
 
 
 def register(cls):

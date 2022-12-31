@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import mock
 
-from statemachine.statemachine import CallableInstance
+from statemachine.callable_proxy import CallableInstance
 
 
 def test_callable_should_override_kwargs():

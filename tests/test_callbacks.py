@@ -50,7 +50,10 @@ class TestCallbacksMachinery:
         callbacks(1, 2, 3, a="x", b="y")
 
         resolver.assert_has_calls(
-            [mock.call("my_method"), mock.call("other_method"), ]
+            [
+                mock.call("my_method"),
+                mock.call("other_method"),
+            ]
         )
         assert func.call_args_list == [
             mock.call(1, 2, 3, a="x", b="y"),
@@ -80,10 +83,14 @@ class TestCallbacksMachinery:
 
         resolver = resolver_factory(object())
         if suppress_errors:
-            callbacks.add("this_does_no_exist", resolver, suppress_errors=suppress_errors)
+            callbacks.add(
+                "this_does_no_exist", resolver, suppress_errors=suppress_errors
+            )
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add("this_does_no_exist", resolver, suppress_errors=suppress_errors)
+                callbacks.add(
+                    "this_does_no_exist", resolver, suppress_errors=suppress_errors
+                )
 
     def test_collect_results(self):
         callbacks = Callbacks()

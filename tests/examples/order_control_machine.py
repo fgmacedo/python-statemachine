@@ -8,10 +8,9 @@ class OrderControl(StateMachine):  # type: ignore
     completed = State("Completed", final=True)
 
     add_to_order = waiting_for_payment.to(waiting_for_payment)
-    receive_payment = (
-        waiting_for_payment.to(processing, conditions="payments_enough")
-        | waiting_for_payment.to(waiting_for_payment, unless="payments_enough")
-    )
+    receive_payment = waiting_for_payment.to(
+        processing, conditions="payments_enough"
+    ) | waiting_for_payment.to(waiting_for_payment, unless="payments_enough")
     process_order = processing.to(shipping, conditions="payment_received")
     ship_order = shipping.to(completed)
 

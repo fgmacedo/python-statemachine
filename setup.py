@@ -22,7 +22,9 @@ setup(
     author="Fernando Macedo",
     author_email="fgmacedo@gmail.com",
     url="https://github.com/fgmacedo/python-statemachine",
-    packages=["statemachine", ],
+    packages=[
+        "statemachine",
+    ],
     package_dir={"statemachine": "statemachine"},
     include_package_data=True,
     license="MIT license",
