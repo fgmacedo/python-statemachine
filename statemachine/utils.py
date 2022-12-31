@@ -21,3 +21,13 @@ def ensure_iterable(obj):
         return iter(obj)
     except TypeError:
         return [obj]
+
+
+def check_state_factory(state):
+    "Return a property that checks if the current state is the desired state"
+
+    @property
+    def is_in_state(self):
+        return bool(self.current_state == state)
+
+    return is_in_state

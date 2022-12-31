@@ -126,7 +126,11 @@ def test_should_change_state_with_multiple_machine_instances(campaign_machine):
 
 
 @pytest.mark.parametrize(
-    "current_state, transition", [("draft", "deliver"), ("closed", "add_job"), ]
+    "current_state, transition",
+    [
+        ("draft", "deliver"),
+        ("closed", "add_job"),
+    ],
 )
 def test_call_to_transition_that_is_not_in_the_current_state_should_raise_exception(
     campaign_machine, current_state, transition

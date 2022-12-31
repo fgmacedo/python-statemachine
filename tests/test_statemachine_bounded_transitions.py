@@ -39,7 +39,8 @@ def state_machine(event_mock):
 
 
 def test_run_transition_pass_arguments_to_sub_transitions(
-    state_machine, event_mock,
+    state_machine,
+    event_mock,
 ):
     model = MyModel(state="draft")
     machine = state_machine(model)

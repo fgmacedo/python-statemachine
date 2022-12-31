@@ -66,8 +66,8 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"Python State Machine"
-copyright = u"2022, Fernando Macedo"
+project = "Python State Machine"
+copyright = "2022, Fernando Macedo"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -220,8 +220,8 @@ latex_documents = [
     (
         "index",
         "statemachine.tex",
-        u"Python State Machine Documentation",
-        u"Fernando Macedo",
+        "Python State Machine Documentation",
+        "Fernando Macedo",
         "manual",
     ),
 ]
@@ -255,8 +255,8 @@ man_pages = [
     (
         "index",
         "statemachine",
-        u"Python State Machine Documentation",
-        [u"Fernando Macedo"],
+        "Python State Machine Documentation",
+        ["Fernando Macedo"],
         1,
     )
 ]
@@ -274,8 +274,8 @@ texinfo_documents = [
     (
         "index",
         "statemachine",
-        u"Python State Machine Documentation",
-        u"Fernando Macedo",
+        "Python State Machine Documentation",
+        "Fernando Macedo",
         "statemachine",
         "One line description of project.",
         "Miscellaneous",
