@@ -5,6 +5,8 @@ History
 ------------------
 
 * Drop support for monkey-patching add callbacks at machine runtime.
+* Fixed mypy complaining about incorrect type for ``StateMachine`` class.
+* Added support for diagrams.
 
 
 0.9.0 (2022-12-21)

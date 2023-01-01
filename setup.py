@@ -13,6 +13,7 @@ with io.open("HISTORY.rst", encoding="utf-8") as history_file:
 
 long_description = readme + "\n\n" + history
 
+extras_require = {'diagrams': ['pydot']}
 
 setup(
     name="python-statemachine",
@@ -26,6 +27,7 @@ setup(
         "statemachine",
     ],
     package_dir={"statemachine": "statemachine"},
+    extras_require=extras_require,
     include_package_data=True,
     license="MIT license",
     zip_safe=False,

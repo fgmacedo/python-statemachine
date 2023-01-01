@@ -1,0 +1,11 @@
+{
+    "LiteBuildConfig": {
+        "federated_extensions": [
+            "https://files.pythonhosted.org/packages/ea/76/75b1bb82e9bad3e3d656556eaa353d8cd17c4254393b08ec9786ac8ed273/pydot-1.4.2-py2.py3-none-any.whl",
+        ],
+        "ignore_sys_prefix": true,
+        "piplite_urls": [
+            "https://files.pythonhosted.org/packages/ea/76/75b1bb82e9bad3e3d656556eaa353d8cd17c4254393b08ec9786ac8ed273/pydot-1.4.2-py2.py3-none-any.whl",
+        ]
+    }
+}

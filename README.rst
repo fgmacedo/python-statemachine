@@ -61,6 +61,12 @@ To install Python State Machine, run this command in your terminal:
 
     $ pip install python-statemachine
 
+To generate diagrams from your machines, you'll also need ``pydot`` and ``Graphviz``. You can
+install this library already with ``pydot`` dependency using the `extras` install option. See
+our docs for more details.
+
+    $ pip install python-statemachine[diagrams]
+
 Define your state machine:
 
 >>> from statemachine import StateMachine, State

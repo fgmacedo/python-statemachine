@@ -13,6 +13,7 @@ Contents:
    actions
    mixins
    integrations
+   diagram
    api
    contributing
    authors

@@ -93,6 +93,13 @@ def OrderControl():
     return OrderControl
 
 
+@pytest.fixture
+def AllActionsMachine():
+    from tests.examples.all_actions_machine import AllActionsMachine
+
+    return AllActionsMachine
+
+
 @pytest.fixture(autouse=True)
 def add_machines_to_doctest(doctest_namespace, traffic_light_machine):
     doctest_namespace["TrafficLightMachine"] = traffic_light_machine

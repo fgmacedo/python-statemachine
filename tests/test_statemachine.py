@@ -46,21 +46,18 @@ def test_machine_should_be_at_start_state(campaign_machine):
 
 
 def test_machine_should_only_allow_only_one_initial_state():
-    class CampaignMachine(StateMachine):
-        "A workflow machine"
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
-        closed = State(
-            "Closed", initial=True
-        )  # Should raise an Exception when instantiated
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
-
     with pytest.raises(exceptions.InvalidDefinition):
-        model = MyModel()
-        CampaignMachine(model)
+        class CampaignMachine(StateMachine):
+            "A workflow machine"
+            draft = State("Draft", initial=True)
+            producing = State("Being produced")
+            closed = State(
+                "Closed", initial=True
+            )  # Should raise an Exception when instantiated
+
+            add_job = draft.to(draft) | producing.to(producing)
+            produce = draft.to(producing)
+            deliver = producing.to(closed)
 
 
 def test_machine_should_not_allow_transitions_from_final_state(
@@ -321,7 +318,7 @@ def test_should_not_create_instance_of_machine_without_states():
 def test_should_not_create_instance_of_machine_without_transitions():
     class NoTransitionsMachine(StateMachine):
         "A machine without transitions"
-        initial = State("initial")
+        initial = State("initial", initial=True)
 
     with pytest.raises(exceptions.InvalidDefinition):
         NoTransitionsMachine()

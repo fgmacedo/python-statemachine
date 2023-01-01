@@ -7,9 +7,4 @@ PyYAML==5.4
 tox==3.14.2
 mypy==0.761
 
-# docs
-Sphinx==5.3.0
-sphinx_rtd_theme==0.4.3
-sphinx-markdown-builder==0.5.5
-myst-parser==0.18.1
-sphinxcontrib-mermaid==0.7.1
+-r docs/requirements.txt

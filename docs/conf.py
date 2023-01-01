@@ -46,11 +46,11 @@ extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
-    "pytest_doctestplus.sphinx.doctestplus",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinxcontrib.mermaid",
     "sphinx.ext.autosectionlabel",
+    "jupyterlite_sphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -296,3 +296,20 @@ texinfo_documents = [
 
 # Markdown (MyST) configs
 myst_heading_anchors = 3
+
+
+# JupyterLite
+jupyterlite_config = "jupyterlite_config.json"
+
+
+# Github
+
+html_context = {
+    "display_github": True, # Integrate GitHub
+    "github_user": "fgmacedo", # Username
+    "github_repo": "python-statemachine", # Repo name
+    "github_version": "develop", # Version
+    "conf_py_path": "/docs/", # Path in the checkout to the docs root
+}
+
+# html_theme_options = {}
