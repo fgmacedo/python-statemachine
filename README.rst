@@ -224,7 +224,7 @@ A more useful example
 A simple didactic state machine for controlling an ``Order``:
 
 
->>> class OrderControl(StateMachine):  # type: ignore
+>>> class OrderControl(StateMachine):
 ...     waiting_for_payment = State("Waiting for payment", initial=True)
 ...     processing = State("Processing")
 ...     shipping = State("Shipping")

@@ -1,7 +1,7 @@
 from statemachine import StateMachine, State
 
 
-class TrafficLightMachine(StateMachine):  # type: ignore
+class TrafficLightMachine(StateMachine):
     "A traffic light machine"
     green = State("Green", initial=True)
     yellow = State("Yellow")
