@@ -1,19 +1,15 @@
 # coding: utf-8
 import warnings
 
+from .utils import qualname
+
+
 _REGISTRY = {}
 _initialized = False
 
 
-def _qualname(cls):
-    """
-    Returns a fully qualified name of the class, to avoid name collisions.
-    """
-    return ".".join([cls.__module__, cls.__name__])
-
-
 def register(cls):
-    _REGISTRY[_qualname(cls)] = cls
+    _REGISTRY[qualname(cls)] = cls
     _REGISTRY[cls.__name__] = cls
     return cls
 

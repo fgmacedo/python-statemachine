@@ -10,6 +10,13 @@ except Exception:
         return text
 
 
+def qualname(cls):
+    """
+    Returns a fully qualified name of the class, to avoid name collisions.
+    """
+    return ".".join([cls.__module__, cls.__name__])
+
+
 def _is_string(obj):
     return isinstance(obj, (str, type("")))  # type(u""") is a small hack for Python2
 

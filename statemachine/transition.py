@@ -56,7 +56,7 @@ class Transition(object):
 
         return wrapper
 
-    def setup(self, machine):
+    def _setup(self, machine):
         self.machine = ref(machine)
         resolver = resolver_factory(machine, machine.model)
         self.validators.setup(resolver)

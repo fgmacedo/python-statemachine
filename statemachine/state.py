@@ -26,7 +26,7 @@ class State(object):
         self.enter = Callbacks().add(enter)
         self.exit = Callbacks().add(exit)
 
-    def setup(self, machine):
+    def _setup(self, machine):
         resolver = resolver_factory(machine, machine.model)
         self.enter.setup(resolver)
         self.exit.setup(resolver)

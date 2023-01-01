@@ -4,7 +4,8 @@ from collections import OrderedDict
 from . import registry
 from .event import Event
 from .exceptions import InvalidDefinition
-from .utils import ugettext as _, check_state_factory
+from .graph import visit_connected_states
+from .utils import ugettext as _, check_state_factory, qualname
 from .state import State
 from .transition import Transition
 from .transition_list import TransitionList
@@ -23,9 +24,10 @@ class StateMachineMetaclass(type):
         for state in cls.states:
             setattr(cls, "is_{}".format(state.identifier), check_state_factory(state))
 
-        cls._set_initial_state()
+        cls._set_special_states()
+        cls._check()
 
-    def _set_initial_state(cls):
+    def _set_special_states(cls):
         if not cls.states:
             return
         initials = [s for s in cls.states if s.initial]
@@ -37,6 +39,49 @@ class StateMachineMetaclass(type):
                 )
             )
         cls.initial_state = initials[0]
+        cls.final_states = [state for state in cls.states if state.final]
+
+    def _disconnected_states(cls, starting_state):
+        visitable_states = set(visit_connected_states(starting_state))
+        return set(cls.states) - visitable_states
+
+    def _check(cls):
+
+        # do not validate the base class
+        name = qualname(cls)
+        if name in (
+            "statemachine.factory_2.StateMachine",
+            "statemachine.factory_3.StateMachine",
+        ):
+            return
+
+        if not cls.states:
+            raise InvalidDefinition(_("There are no states."))
+
+        if not cls._events:
+            raise InvalidDefinition(_("There are no events."))
+
+        disconnected_states = cls._disconnected_states(cls.initial_state)
+        if disconnected_states:
+            raise InvalidDefinition(
+                _(
+                    "There are unreachable states. "
+                    "The statemachine graph should have a single component. "
+                    "Disconnected states: [{}]".format(disconnected_states)
+                )
+            )
+
+        final_state_with_invalid_transitions = [
+            state for state in cls.final_states if state.transitions
+        ]
+
+        if final_state_with_invalid_transitions:
+            raise InvalidDefinition(
+                _(
+                    "Final state does not should have defined "
+                    "transitions starting from that state"
+                )
+            )
 
     def add_inherited(cls, bases):
         for base in bases:

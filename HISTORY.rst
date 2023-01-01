@@ -7,6 +7,8 @@ History
 * Drop support for monkey-patching add callbacks at machine runtime.
 * Fixed mypy complaining about incorrect type for ``StateMachine`` class.
 * Added support for diagrams.
+* statemachine integrity checks are performed at import time instead of when
+  instance creation. This allows early feedback on invalid definitions.
 
 
 0.9.0 (2022-12-21)

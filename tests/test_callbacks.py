@@ -126,7 +126,7 @@ class TestCallbacksMachinery:
 
     def test_callbacks_values_resolution(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
-        assert x.callbacks(xablau=True) == [42, 'statemachine', ((), {"xablau": True})]
+        assert x.callbacks(xablau=True) == [42, "statemachine", ((), {"xablau": True})]
 
 
 class TestEnsureCallable:

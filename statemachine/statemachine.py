@@ -7,13 +7,10 @@ from typing import Any, List, Dict, Optional
 
 from .event import Event
 from .exceptions import (
-    InvalidDefinition,
     InvalidStateValue,
     InvalidTransitionIdentifier,
 )
-from .graph import visit_connected_states
 from .model import Model
-from .utils import ugettext as _
 from .state import State
 from .transition import Transition
 
@@ -39,16 +36,6 @@ class BaseStateMachine(object):
             self.current_state.identifier,
         )
 
-    def _disconnected_states(self, starting_state):
-        visitable_states = set(visit_connected_states(starting_state))
-        return set(self.states) - visitable_states
-
-    def _check_states_and_transitions(self):
-        for state in self.states:
-            state.setup(self)
-            for transition in state.transitions:
-                transition.setup(self)
-
     def _activate_initial_state(self):
 
         current_state_value = (
@@ -65,53 +52,26 @@ class BaseStateMachine(object):
             # current_state = self.current_state
             event = Event("__initial__")
             transition = Transition(None, initial_state)
-            transition.setup(self)
+            transition._setup(self)
             transition.before.clear()
             transition.after.clear()
             event.add_transition(transition)
             event.trigger(self)
 
+    def _setup(self):
+        for state in self.states:
+            state._setup(self)
+            for transition in state.transitions:
+                transition._setup(self)
+
     def check(self):
-        if not self.states:
-            raise InvalidDefinition(_("There are no states."))
-
-        if not self._events:
-            raise InvalidDefinition(_("There are no events."))
-
-        disconnected_states = self._disconnected_states(self.initial_state)
-        if disconnected_states:
-            raise InvalidDefinition(
-                _(
-                    "There are unreachable states. "
-                    "The statemachine graph should have a single component. "
-                    "Disconnected states: [{}]".format(disconnected_states)
-                )
-            )
-
-        self._check_states_and_transitions()
-
-        final_state_with_invalid_transitions = [
-            state for state in self.final_states if state.transitions
-        ]
-
-        if final_state_with_invalid_transitions:
-            raise InvalidDefinition(
-                _(
-                    "Final state does not should have defined "
-                    "transitions starting from that state"
-                )
-            )
-
+        self._setup()
         self._activate_initial_state()
 
     def _repr_svg_(self):
         from .contrib.diagram import DotGraphMachine
 
         return DotGraphMachine(self).get_graph().create_svg().decode()
-
-    @property
-    def final_states(self):
-        return [state for state in self.states if state.final]
 
     @property
     def current_state_value(self):

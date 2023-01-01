@@ -26,12 +26,9 @@ Transitions from these states are not allowed and will raise exception.
 ...     add_job = draft.to.itself() | producing.to.itself() | closed.to(producing)
 ...     produce = draft.to(producing)
 ...     deliver = producing.to(closed)
-
->>> try:
-...     machine = CampaignMachine()
-... except InvalidDefinition as err:
-...     print(err)
-Final state does not should have defined transitions starting from that state
+Traceback (most recent call last):
+...
+InvalidDefinition: Final state does not should have defined transitions starting from that state
 
 ```
 

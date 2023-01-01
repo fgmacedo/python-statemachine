@@ -61,12 +61,18 @@ def test_machine_should_only_allow_only_one_initial_state():
             deliver = producing.to(closed)
 
 
-def test_machine_should_not_allow_transitions_from_final_state(
-    campaign_machine_with_invalid_final_state_transition,
-):
+def test_machine_should_not_allow_transitions_from_final_state():
     with pytest.raises(exceptions.InvalidDefinition):
-        model = MyModel()
-        campaign_machine_with_invalid_final_state_transition(model)
+
+        class CampaignMachine(StateMachine):
+            "A workflow machine"
+            draft = State("Draft", initial=True)
+            producing = State("Being produced")
+            closed = State("Closed", final=True)
+
+            add_job = draft.to(draft) | producing.to(producing) | closed.to(draft)
+            produce = draft.to(producing)
+            deliver = producing.to(closed)
 
 
 def test_should_change_state(campaign_machine):
@@ -308,62 +314,55 @@ def test_state_machine_with_a_invalid_start_value(
 
 
 def test_should_not_create_instance_of_machine_without_states():
-    class EmptyMachine(StateMachine):
-        "An empty machine"
-        pass
 
     with pytest.raises(exceptions.InvalidDefinition):
-        EmptyMachine()
+
+        class EmptyMachine(StateMachine):
+            "An empty machine"
+            pass
 
 
 def test_should_not_create_instance_of_machine_without_transitions():
-    class NoTransitionsMachine(StateMachine):
-        "A machine without transitions"
-        initial = State("initial", initial=True)
 
     with pytest.raises(exceptions.InvalidDefinition):
-        NoTransitionsMachine()
 
-
-def test_perfectly_fine_machine_should_be_connected(traffic_light_machine):
-    model = MyModel()
-    machine = traffic_light_machine(model)
-    initial_state = [s for s in traffic_light_machine.states if s.initial][0]
-    disconnected_states = machine._disconnected_states(initial_state)
-    assert len(disconnected_states) == 0
+        class NoTransitionsMachine(StateMachine):
+            "A machine without transitions"
+            initial = State("initial", initial=True)
 
 
 def test_should_not_create_disconnected_machine():
-    class BrokenTrafficLightMachine(StateMachine):
-        "A broken traffic light machine"
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        blue = State("Blue")  # This state is unreachable
-
-        cycle = green.to(yellow) | yellow.to(green)
 
     with pytest.raises(exceptions.InvalidDefinition) as e:
-        BrokenTrafficLightMachine()
+
+        class BrokenTrafficLightMachine(StateMachine):
+            "A broken traffic light machine"
+            green = State("Green", initial=True)
+            yellow = State("Yellow")
+            blue = State("Blue")  # This state is unreachable
+
+            cycle = green.to(yellow) | yellow.to(green)
+
         assert "Blue" in e.message
         assert "Green" not in e.message
 
 
 def test_should_not_create_big_disconnected_machine():
-    class BrokenTrafficLightMachine(StateMachine):
-        "A broken traffic light machine"
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        magenta = State("Magenta")  # This state is unreachable
-        red = State("Red")
-        cyan = State("Cyan")
-        blue = State("Blue")  # This state is also unreachable
-
-        cycle = green.to(yellow)
-        diverge = green.to(cyan) | cyan.to(red)
-        validate = yellow.to(green)
-
     with pytest.raises(exceptions.InvalidDefinition) as e:
-        BrokenTrafficLightMachine()
+
+        class BrokenTrafficLightMachine(StateMachine):
+            "A broken traffic light machine"
+            green = State("Green", initial=True)
+            yellow = State("Yellow")
+            magenta = State("Magenta")  # This state is unreachable
+            red = State("Red")
+            cyan = State("Cyan")
+            blue = State("Blue")  # This state is also unreachable
+
+            cycle = green.to(yellow)
+            diverge = green.to(cyan) | cyan.to(red)
+            validate = yellow.to(green)
+
         assert "Magenta" in e.message
         assert "Blue" in e.message
         assert "Cyan" not in e.message
