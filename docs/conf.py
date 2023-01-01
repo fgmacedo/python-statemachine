@@ -305,11 +305,11 @@ jupyterlite_config = "jupyterlite_config.json"
 # Github
 
 html_context = {
-    "display_github": True, # Integrate GitHub
-    "github_user": "fgmacedo", # Username
-    "github_repo": "python-statemachine", # Repo name
-    "github_version": "develop", # Version
-    "conf_py_path": "/docs/", # Path in the checkout to the docs root
+    "display_github": True,  # Integrate GitHub
+    "github_user": "fgmacedo",  # Username
+    "github_repo": "python-statemachine",  # Repo name
+    "github_version": "develop",  # Version
+    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
 
 # html_theme_options = {}

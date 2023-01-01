@@ -15,6 +15,26 @@ class Person(object):
         return "{} {}".format(self.first_name, self.last_name)
 
 
+@pytest.fixture
+def ObjectWithCallbacks():
+    class ObjectWithCallbacks(object):
+        def __init__(self):
+            super(ObjectWithCallbacks, self).__init__()
+            self.name = "statemachine"
+            self.callbacks = Callbacks(resolver=resolver_factory(self)).add(
+                ["life_meaning", "name", "a_method"]
+            )
+
+        @property
+        def life_meaning(self):
+            return 42
+
+        def a_method(self, *args, **kwargs):
+            return args, kwargs
+
+    return ObjectWithCallbacks
+
+
 class TestCallbacksMachinery:
     def test_raises_exception_without_setup_phase(self):
         func = mock.Mock()
@@ -103,6 +123,10 @@ class TestCallbacksMachinery:
             ("a", True),
             {"key": "value"},
         ]
+
+    def test_callbacks_values_resolution(self, ObjectWithCallbacks):
+        x = ObjectWithCallbacks()
+        assert x.callbacks(xablau=True) == [42, 'statemachine', ((), {"xablau": True})]
 
 
 class TestEnsureCallable:

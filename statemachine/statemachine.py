@@ -106,6 +106,7 @@ class BaseStateMachine(object):
 
     def _repr_svg_(self):
         from .contrib.diagram import DotGraphMachine
+
         return DotGraphMachine(self).get_graph().create_svg().decode()
 
     @property

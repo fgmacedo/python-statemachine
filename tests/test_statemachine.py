@@ -47,6 +47,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
 
 def test_machine_should_only_allow_only_one_initial_state():
     with pytest.raises(exceptions.InvalidDefinition):
+
         class CampaignMachine(StateMachine):
             "A workflow machine"
             draft = State("Draft", initial=True)

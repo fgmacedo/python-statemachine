@@ -22,8 +22,8 @@ class DotGraphMachine(object):
 
     def _get_graph(self):
         return pydot.Dot(
-            'list',
-            graph_type='digraph',
+            "list",
+            graph_type="digraph",
             label=self.machine.__class__.__name__,
             fontsize=self.state_font_size,
             rankdir=self.graph_rankdir,
@@ -32,7 +32,7 @@ class DotGraphMachine(object):
     def _initial_node(self):
         node = pydot.Node(
             "i",
-            shape='circle',
+            shape="circle",
             style="filled",
             fontsize="1pt",
             fixedsize="true",
@@ -47,26 +47,24 @@ class DotGraphMachine(object):
             "i",
             self.machine.initial_state.identifier,
             label="",
-            color='blue',
+            color="blue",
             fontsize=self.transition_font_size,
         )
 
     def _state_actions(self, state):
-        entry = ", ".join([
-            getattr(action.func, "__name__", action.func)
-            for action in state.enter
-        ])
-        exit = ", ".join([
-            getattr(action.func, "__name__", action.func)
-            for action in state.exit
-        ])
+        entry = ", ".join(
+            [getattr(action.func, "__name__", action.func) for action in state.enter]
+        )
+        exit = ", ".join(
+            [getattr(action.func, "__name__", action.func) for action in state.exit]
+        )
 
         if entry:
-            entry = 'entry / {}'.format(entry)
+            entry = "entry / {}".format(entry)
         if exit:
-            exit = 'exit / {}'.format(exit)
+            exit = "exit / {}".format(exit)
 
-        actions = '\n'.join(x for x in [entry, exit] if x)
+        actions = "\n".join(x for x in [entry, exit] if x)
 
         if actions:
             actions = "\n{}".format(actions)
@@ -79,7 +77,7 @@ class DotGraphMachine(object):
         node = pydot.Node(
             state.identifier,
             label="{}{}".format(state.name, actions),
-            shape='rectangle',
+            shape="rectangle",
             style="rounded, filled",
             fontsize=self.state_font_size,
         )
@@ -91,17 +89,19 @@ class DotGraphMachine(object):
         return node
 
     def _transition_as_edge(self, transition):
-        conditions = ", ".join([
-            getattr(cond.func, "__name__", cond.func)
-            for cond in transition.conditions
-        ])
+        conditions = ", ".join(
+            [
+                getattr(cond.func, "__name__", cond.func)
+                for cond in transition.conditions
+            ]
+        )
         if conditions:
             conditions = "\n[{}]".format(conditions)
         return pydot.Edge(
             transition.source.identifier,
             transition.destination.identifier,
             label="{}{}".format(transition.trigger, conditions),
-            color='blue',
+            color="blue",
             fontsize=self.transition_font_size,
         )
 
