@@ -78,7 +78,8 @@ class Transition(object):
                 pattern.format(event)
                 for pattern in ["after_{}"]
                 for event in self._events
-            ] + ["after_transition"],
+            ]
+            + ["after_transition"],
             suppress_errors=True,
         )
 

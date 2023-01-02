@@ -10,9 +10,7 @@ from .models import MyModel
 
 
 def test_transition_representation(campaign_machine):
-    s = repr(
-        [t for t in campaign_machine.draft.transitions if t.event == "produce"][0]
-    )
+    s = repr([t for t in campaign_machine.draft.transitions if t.event == "produce"][0])
     assert s == (
         "Transition("
         "State('Draft', identifier='draft', value='draft', initial=True, final=False), "

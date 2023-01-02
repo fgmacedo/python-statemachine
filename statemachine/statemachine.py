@@ -48,7 +48,7 @@ class BaseStateMachine(object):
 
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
-            transition = Transition(None, initial_state, event='__initial__')
+            transition = Transition(None, initial_state, event="__initial__")
             transition._setup(self)
             transition.before.clear()
             transition.after.clear()
@@ -113,12 +113,18 @@ class BaseStateMachine(object):
             "`allowed_transitions` is deprecated. Use `allowed_events` instead.",
             DeprecationWarning,
         )
-        return [getattr(self, event) for event in self.current_state.transitions.unique_events]
+        return [
+            getattr(self, event)
+            for event in self.current_state.transitions.unique_events
+        ]
 
     @property
     def allowed_events(self):
         "get the callable proxy of the current allowed transitions"
-        return [getattr(self, event) for event in self.current_state.transitions.unique_events]
+        return [
+            getattr(self, event)
+            for event in self.current_state.transitions.unique_events
+        ]
 
     def _process(self, trigger):
         """This method will also handle execution queue"""

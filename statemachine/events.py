@@ -10,7 +10,7 @@ class Events(object):
         self.items = []
 
     def __repr__(self):
-        sep = ' ' if len(self.items) > 1 else ''
+        sep = " " if len(self.items) > 1 else ""
         return sep.join(item for item in self.items)
 
     def __iter__(self):

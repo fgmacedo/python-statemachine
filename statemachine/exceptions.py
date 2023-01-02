@@ -31,7 +31,5 @@ class TransitionNotAllowed(StateMachineError):
     def __init__(self, event, state):
         self.event = event
         self.state = state
-        msg = _("Can't {} when in {}.").format(
-            self.event, self.state.name
-        )
+        msg = _("Can't {} when in {}.").format(self.event, self.state.name)
         super(TransitionNotAllowed, self).__init__(msg)

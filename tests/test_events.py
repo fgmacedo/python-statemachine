@@ -1,9 +1,7 @@
-
 from statemachine import StateMachine, State
 
 
 def test_assign_events_on_transitions():
-
     class TrafficLightMachine(StateMachine):
         "A traffic light machine"
         green = State("Green", initial=True)
