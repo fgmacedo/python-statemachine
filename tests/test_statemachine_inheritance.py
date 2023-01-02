@@ -65,8 +65,8 @@ def test_should_inherit_states_and_transitions(BaseMachine, InheritedClass):
         BaseMachine.state_2,
     ]
 
-    expected = [(e.name, e.transitions) for e in BaseMachine.transitions]
-    actual = [(e.name, e.transitions) for e in InheritedClass.transitions]
+    expected = [e.name for e in BaseMachine.transitions]
+    actual = [e.name for e in InheritedClass.transitions]
     assert actual == expected
 
 
@@ -77,11 +77,9 @@ def test_should_extend_states_and_transitions(BaseMachine, ExtendedClass):
         ExtendedClass.state_3,
     ]
 
-    base_events = [(e.name, e.transitions) for e in BaseMachine.transitions]
-    expected = base_events + [
-        (ExtendedClass.trans_2_3.name, ExtendedClass.trans_2_3.transitions)
-    ]
-    actual = [(e.name, e.transitions) for e in ExtendedClass.transitions]
+    base_events = [e.name for e in BaseMachine.events]
+    expected = base_events + [ExtendedClass.trans_2_3.name]
+    actual = [e.name for e in ExtendedClass.events]
     assert actual == expected
 
 

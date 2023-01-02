@@ -192,7 +192,7 @@ def test_machine_should_raise_an_exception_if_a_transition_by_his_key_is_not_fou
 
     assert model.state == "draft"
 
-    with pytest.raises(exceptions.InvalidTransitionIdentifier):
+    with pytest.raises(exceptions.TransitionNotAllowed):
         machine.run("go_horse")
 
 
@@ -216,20 +216,14 @@ def test_cant_assign_an_invalid_state_directly(campaign_machine):
         machine.current_state_value = "non existing state"
 
 
-def test_should_allow_validate_data_for_transition(campaign_machine):
+def test_should_allow_validate_data_for_transition(campaign_machine_with_validator):
     model = MyModel()
-    machine = campaign_machine(model)
-
-    def custom_validator(*args, **kwargs):
-        if "weapon" not in kwargs:
-            raise LookupError("Weapon not found.")
-
-    campaign_machine.produce.validators = [custom_validator]
+    machine = campaign_machine_with_validator(model)
 
     with pytest.raises(LookupError):
         machine.produce()
 
-    machine.produce(weapon="sword")
+    machine.produce(goods="something")
 
     assert model.state == "producing"
 

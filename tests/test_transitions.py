@@ -33,17 +33,12 @@ def test_list_state_transitions(classic_traffic_light_machine):
     assert transitions == ["slowdown"]
 
 
-def test_list_transitions_validators(classic_traffic_light_machine):
-    machine = classic_traffic_light_machine()
+def test_cannot_list_transitions_validators(campaign_machine_with_validator):
+    # read / write validators from events is deprecated
+    machine = campaign_machine_with_validator()
 
-    def custom_validator(*args, **kwargs):
-        if "weapon" not in kwargs:
-            raise LookupError("Weapon not found.")
-
-    machine.slowdown.validators = [custom_validator]
-
-    validators = [validator for validator in machine.slowdown.validators]
-    assert validators == [custom_validator]
+    validators = [validator for validator in machine.produce.validators]
+    assert validators == []
 
 
 def test_transition_should_accept_decorator_syntax(traffic_light_machine):

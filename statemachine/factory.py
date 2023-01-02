@@ -90,7 +90,7 @@ class StateMachineMetaclass(type):
 
             events = getattr(base, "_events", {})
             for event in events.values():
-                cls.add_event(event.name, event.transitions)
+                cls.add_event(event.name)
 
     def add_from_attributes(cls, attrs):
         for key, value in sorted(attrs.items(), key=lambda pair: pair[0]):
@@ -104,16 +104,16 @@ class StateMachineMetaclass(type):
         cls.states.append(state)
         cls.states_map[state.value] = state
 
-    def add_event(cls, trigger, transitions):
+    def add_event(cls, trigger, transitions=None):
+        if transitions is not None:
+            transitions.add_trigger(trigger)
+
         if trigger not in cls._events:
             event = Event(trigger)
             cls._events[trigger] = event
-            setattr(cls, trigger, event)  # bind event to the class
-        else:
-            event = cls._events[trigger]
+            setattr(cls, trigger, event)
 
-        event.add_transitions(transitions)
-        return event
+        return cls._events[trigger]
 
     @property
     def transitions(self):

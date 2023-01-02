@@ -37,10 +37,10 @@ class AttrNotFound(InvalidDefinition):
 class TransitionNotAllowed(StateMachineError):
     "The transition can't run from the current state."
 
-    def __init__(self, transition, state):
-        self.transition = transition
+    def __init__(self, event, state):
+        self.event = event
         self.state = state
         msg = _("Can't {} when in {}.").format(
-            self.transition.identifier, self.state.name
+            self.event, self.state.name
         )
         super(TransitionNotAllowed, self).__init__(msg)

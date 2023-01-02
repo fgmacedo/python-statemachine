@@ -3,9 +3,8 @@ from collections import OrderedDict
 
 from .callable_proxy import CallableInstance
 from .event_data import EventData
-from .exceptions import TransitionNotAllowed
+from .exceptions import TransitionNotAllowed, InvalidDefinition
 from .transition_list import TransitionList
-from .utils import ensure_iterable
 
 
 class OrderedDefaultDict(OrderedDict):  # python <= 3.5 compat layer
@@ -19,11 +18,10 @@ class OrderedDefaultDict(OrderedDict):  # python <= 3.5 compat layer
 class Event(object):
     def __init__(self, name):
         self.name = name
-        self._transitions = OrderedDefaultDict()
 
     def __repr__(self):
-        return "{}({!r}, {!r})".format(
-            type(self).__name__, self.name, self._transitions
+        return "{}({!r})".format(
+            type(self).__name__, self.name
         )
 
     def __get__(self, machine, owner):
@@ -35,51 +33,11 @@ class Event(object):
     def __set__(self, instance, value):
         "does nothing (not allow overriding)"
 
-    def add_transition(self, transition):
-        transition.trigger = self.name
-        self._transitions[transition.source].add_transitions(transition)
-
-    def add_transitions(self, transitions):
-        transitions = ensure_iterable(transitions)
-        for transition in transitions:
-            self.add_transition(transition)
-
-    @property
-    def identifier(self):
-        warnings.warn(
-            "identifier is deprecated. Use `name` instead", DeprecationWarning
-        )
-        return self.name
-
-    @property
-    def validators(self):
-        return list(
-            {
-                validator
-                for transition in self.transitions
-                for validator in transition.validators
-            }
-        )
-
-    @validators.setter
-    def validators(self, value):
-        for transition in self.transitions:
-            transition.validators.add(value)
-
-    @property
-    def transitions(self):
-        return [
-            transition
-            for transition_list in self._transitions.values()
-            for transition in transition_list
-        ]
-
-    def _check_is_valid_source(self, state):
-        if state not in self._transitions:
-            raise TransitionNotAllowed(self, state)
+    def __call__(self, machine, *args, **kwargs):
+        return self.trigger(machine, *args, **kwargs)
 
     def trigger(self, machine, *args, **kwargs):
-        event_data = EventData(machine, self, *args, **kwargs)
+        event_data = EventData(machine, self.name, *args, **kwargs)
 
         def trigger_wrapper():
             """Wrapper that captures event_data as closure."""
@@ -93,7 +51,6 @@ class Event(object):
         event_data.model = event_data.machine.model
 
         try:
-            self._check_is_valid_source(event_data.state)
             self._process(event_data)
         except Exception as error:
             event_data.error = error
@@ -103,10 +60,30 @@ class Event(object):
         return event_data.result
 
     def _process(self, event_data):
-        for transition in self._transitions[event_data.state]:
+        for transition in event_data.source.transitions:
+            if not transition.match(event_data.event):
+                continue
             event_data.transition = transition
             if transition.execute(event_data):
                 event_data.executed = True
                 break
         else:
-            raise TransitionNotAllowed(self, event_data.state)
+            raise TransitionNotAllowed(event_data.event, event_data.state)
+
+    @property
+    def identifier(self):
+        warnings.warn(
+            "identifier is deprecated. Use `name` instead", DeprecationWarning
+        )
+        return self.name
+
+    @property
+    def validators(self):
+        warnings.warn(
+            "validators from `Event` is deprecated. Use at machine", DeprecationWarning
+        )
+        return []
+
+    @validators.setter
+    def validators(self, value):
+        raise InvalidDefinition("Cannot assign a validator from an event")

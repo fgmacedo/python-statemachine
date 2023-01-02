@@ -87,7 +87,7 @@ Define your state machine:
 ...         message = event_data.kwargs.get("message", "")
 ...         message = ". " + message if message else ""
 ...         return "Running {} from {} to {}{}".format(
-...             event_data.event.name,
+...             event_data.event,
 ...             event_data.transition.source.identifier,
 ...             event_data.transition.destination.identifier,
 ...             message,

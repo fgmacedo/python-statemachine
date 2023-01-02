@@ -2,10 +2,10 @@ class EventData(object):
     def __init__(self, machine, event, *args, **kwargs):
         self.machine = machine
         self.event = event
-        self.source = None
-        self.state = None
-        self.model = None
-        self.transition = None
+        self.source = kwargs.get("source", None)
+        self.state = kwargs.get("state", None)
+        self.model = kwargs.get("model", None)
+        self.transition = kwargs.get("transition", None)
         self.executed = False
 
         # runtime and error

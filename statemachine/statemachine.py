@@ -10,6 +10,7 @@ from .exceptions import (
     InvalidStateValue,
     InvalidTransitionIdentifier,
 )
+from .event_data import EventData
 from .model import Model
 from .state import State
 from .transition import Transition
@@ -50,13 +51,16 @@ class BaseStateMachine(object):
 
             # trigger an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
-            event = Event("__initial__")
-            transition = Transition(None, initial_state)
+            transition = Transition(None, initial_state, trigger='__initial__')
             transition._setup(self)
             transition.before.clear()
             transition.after.clear()
-            event.add_transition(transition)
-            event.trigger(self)
+            event_data = EventData(
+                self,
+                transition.trigger,
+                transition=transition,
+            )
+            self._activate(event_data)
 
     def _setup(self):
         for state in self.states:
@@ -143,8 +147,8 @@ class BaseStateMachine(object):
         return event
 
     def run(self, trigger, *args, **kwargs):
-        event = self.get_event(trigger)
-        return event(*args, **kwargs)
+        event = Event(trigger)
+        return event(self, *args, **kwargs)
 
 
 # Python 2

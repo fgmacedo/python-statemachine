@@ -33,3 +33,7 @@ class TransitionList(object):
             func = transition._get_promisse_to_machine(f)
             transition.before.add(func)
         return self
+
+    def add_trigger(self, trigger):
+        for transition in self.transitions:
+            transition.add_trigger(trigger)

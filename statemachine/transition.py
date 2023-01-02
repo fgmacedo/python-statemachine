@@ -4,6 +4,7 @@ from functools import wraps
 from weakref import ref
 
 from .callbacks import Callbacks, ConditionWrapper, methodcaller, resolver_factory
+from .trigger import Triggers
 
 
 class Transition(object):
@@ -25,7 +26,7 @@ class Transition(object):
     ):
         self.source = source
         self.destination = destination
-        self.trigger = trigger
+        self._triggers = Triggers().add(trigger)
         self.validators = Callbacks().add(validators)
         self.before = (
             Callbacks()
@@ -66,13 +67,18 @@ class Transition(object):
 
         self.before.add(
             [
-                "before_{}".format(self.trigger),
-                "on_{}".format(self.trigger),
+                pattern.format(trigger)
+                for pattern in ["before_{}", "on_{}"]
+                for trigger in self._triggers
             ],
             suppress_errors=True,
         )
         self.after.add(
-            ["after_{}".format(self.trigger), "after_transition"],
+            [
+                pattern.format(trigger)
+                for pattern in ["after_{}"]
+                for trigger in self._triggers
+            ] + ["after_transition"],
             suppress_errors=True,
         )
 
@@ -82,12 +88,22 @@ class Transition(object):
             for condition in self.conditions
         )
 
+    def match(self, event):
+        return self._triggers.match(event)
+
     @property
     def identifier(self):
         warnings.warn(
             "identifier is deprecated. Use `trigger` instead", DeprecationWarning
         )
         return self.trigger
+
+    @property
+    def trigger(self):
+        return str(self._triggers)
+
+    def add_trigger(self, value):
+        self._triggers.add(value)
 
     def execute(self, event_data):
         self.validators(*event_data.args, **event_data.extended_kwargs)
