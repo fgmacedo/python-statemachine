@@ -100,7 +100,7 @@ class DotGraphMachine(object):
         return pydot.Edge(
             transition.source.identifier,
             transition.destination.identifier,
-            label="{}{}".format(transition.trigger, conditions),
+            label="{}{}".format(transition.event, conditions),
             color="blue",
             fontsize=self.transition_font_size,
         )

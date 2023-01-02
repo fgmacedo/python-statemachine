@@ -146,7 +146,7 @@ def test_call_to_transition_that_is_not_in_the_current_state_should_raise_except
     assert machine.current_state.value == current_state
 
     with pytest.raises(exceptions.TransitionNotAllowed):
-        machine.run(transition)
+        machine.send(transition)
 
 
 def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_machine):
@@ -175,11 +175,11 @@ def test_machine_should_run_a_transition_by_his_key(campaign_machine):
 
     assert model.state == "draft"
 
-    machine.run("add_job")
+    machine.send("add_job")
     assert model.state == "draft"
     assert machine.current_state == machine.draft
 
-    machine.run("produce")
+    machine.send("produce")
     assert model.state == "producing"
     assert machine.current_state == machine.producing
 
@@ -193,7 +193,7 @@ def test_machine_should_raise_an_exception_if_a_transition_by_his_key_is_not_fou
     assert model.state == "draft"
 
     with pytest.raises(exceptions.TransitionNotAllowed):
-        machine.run("go_horse")
+        machine.send("go_horse")
 
 
 def test_machine_should_use_and_model_attr_other_than_state(campaign_machine):
@@ -226,6 +226,14 @@ def test_should_allow_validate_data_for_transition(campaign_machine_with_validat
     machine.produce(goods="something")
 
     assert model.state == "producing"
+
+
+def test_cannot_assing_validators_on_transition(campaign_machine_with_validator):
+    def new_validator(*args, **kwargs):
+        pass
+
+    with pytest.raises(exceptions.InvalidDefinition):
+        campaign_machine_with_validator.produce.validators = [new_validator]
 
 
 def test_should_check_if_is_in_status(campaign_machine):

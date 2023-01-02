@@ -104,16 +104,20 @@ class StateMachineMetaclass(type):
         cls.states.append(state)
         cls.states_map[state.value] = state
 
-    def add_event(cls, trigger, transitions=None):
+        # also register all events associated directly with transitions
+        for event in state.transitions.unique_events:
+            cls.add_event(event)
+
+    def add_event(cls, event, transitions=None):
         if transitions is not None:
-            transitions.add_trigger(trigger)
+            transitions.add_event(event)
 
-        if trigger not in cls._events:
-            event = Event(trigger)
-            cls._events[trigger] = event
-            setattr(cls, trigger, event)
+        if event not in cls._events:
+            event_instance = Event(event)
+            cls._events[event] = event_instance
+            setattr(cls, event, event_instance)
 
-        return cls._events[trigger]
+        return cls._events[event]
 
     @property
     def transitions(self):

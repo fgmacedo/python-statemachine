@@ -28,9 +28,6 @@ class CallbackWrapper(object):
     def __eq__(self, other):
         return self.func == getattr(other, "func", other)
 
-    def __hash__(self):
-        return hash(repr(self))
-
     def setup(self, resolver):
         """
         Resolves the `func` into a usable callable.

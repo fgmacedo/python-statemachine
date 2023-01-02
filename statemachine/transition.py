@@ -4,7 +4,7 @@ from functools import wraps
 from weakref import ref
 
 from .callbacks import Callbacks, ConditionWrapper, methodcaller, resolver_factory
-from .trigger import Triggers
+from .events import Events
 
 
 class Transition(object):
@@ -16,7 +16,7 @@ class Transition(object):
         self,
         source,
         destination,
-        trigger=None,
+        event=None,
         validators=None,
         conditions=None,
         unless=None,
@@ -26,7 +26,7 @@ class Transition(object):
     ):
         self.source = source
         self.destination = destination
-        self._triggers = Triggers().add(trigger)
+        self._events = Events().add(event)
         self.validators = Callbacks().add(validators)
         self.before = (
             Callbacks()
@@ -43,8 +43,8 @@ class Transition(object):
         self.machine = None
 
     def __repr__(self):
-        return "{}({!r}, {!r}, trigger={!r})".format(
-            type(self).__name__, self.source, self.destination, self.trigger
+        return "{}({!r}, {!r}, event={!r})".format(
+            type(self).__name__, self.source, self.destination, self.event
         )
 
     def _get_promisse_to_machine(self, func):
@@ -67,17 +67,17 @@ class Transition(object):
 
         self.before.add(
             [
-                pattern.format(trigger)
+                pattern.format(event)
                 for pattern in ["before_{}", "on_{}"]
-                for trigger in self._triggers
+                for event in self._events
             ],
             suppress_errors=True,
         )
         self.after.add(
             [
-                pattern.format(trigger)
+                pattern.format(event)
                 for pattern in ["after_{}"]
-                for trigger in self._triggers
+                for event in self._events
             ] + ["after_transition"],
             suppress_errors=True,
         )
@@ -89,21 +89,25 @@ class Transition(object):
         )
 
     def match(self, event):
-        return self._triggers.match(event)
+        return self._events.match(event)
 
     @property
     def identifier(self):
         warnings.warn(
-            "identifier is deprecated. Use `trigger` instead", DeprecationWarning
+            "identifier is deprecated. Use `event` instead", DeprecationWarning
         )
-        return self.trigger
+        return self.event
 
     @property
-    def trigger(self):
-        return str(self._triggers)
+    def event(self):
+        return str(self._events)
 
-    def add_trigger(self, value):
-        self._triggers.add(value)
+    @property
+    def events(self):
+        return self._events
+
+    def add_event(self, value):
+        self._events.add(value)
 
     def execute(self, event_data):
         self.validators(*event_data.args, **event_data.extended_kwargs)

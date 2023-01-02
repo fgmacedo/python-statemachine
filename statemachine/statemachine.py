@@ -6,10 +6,7 @@ import warnings
 from typing import Any, List, Dict, Optional
 
 from .event import Event
-from .exceptions import (
-    InvalidStateValue,
-    InvalidTransitionIdentifier,
-)
+from .exceptions import InvalidStateValue
 from .event_data import EventData
 from .model import Model
 from .state import State
@@ -49,15 +46,15 @@ class BaseStateMachine(object):
             except KeyError:
                 raise InvalidStateValue(current_state_value)
 
-            # trigger an one-time event `__initial__` to enter the current state.
+            # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
-            transition = Transition(None, initial_state, trigger='__initial__')
+            transition = Transition(None, initial_state, event='__initial__')
             transition._setup(self)
             transition.before.clear()
             transition.after.clear()
             event_data = EventData(
                 self,
-                transition.trigger,
+                transition.event,
                 transition=transition,
             )
             self._activate(event_data)
@@ -112,7 +109,7 @@ class BaseStateMachine(object):
     @property
     def allowed_transitions(self):
         "get the callable proxy of the current allowed transitions"
-        return [getattr(self, t.trigger) for t in self.current_state.transitions]
+        return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
     def _process(self, trigger):
         """This method will also handle execution queue"""
@@ -140,19 +137,21 @@ class BaseStateMachine(object):
 
         return result
 
-    def get_event(self, trigger):
-        event = getattr(self, trigger, None)
-        if trigger not in self._events or event is None:
-            raise InvalidTransitionIdentifier(trigger)
-        return event
+    def run(self, event, *args, **kwargs):
+        warnings.warn(
+            "`run` is deprecated. Use `send` instead.",
+            DeprecationWarning,
+        )
+        event = Event(event)
+        return event(self, *args, **kwargs)
 
-    def run(self, trigger, *args, **kwargs):
-        event = Event(trigger)
+    def send(self, event, *args, **kwargs):
+        event = Event(event)
         return event(self, *args, **kwargs)
 
 
 # Python 2
-if sys.version_info[0] == 2:  # noqa
+if sys.version_info[0] == 2:  # pragma: no cover
     from .factory_2 import StateMachine  # noqa
 else:
     from .factory_3 import StateMachine  # noqa

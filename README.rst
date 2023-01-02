@@ -155,9 +155,9 @@ Call an event by it's name:
 Don't move.
 'Running cycle from yellow to red'
 
-Or sending an trigger with the event name:
+Or sending an event with the event name:
 
->>> traffic_light.run('cycle')
+>>> traffic_light.send('cycle')
 Go ahead!
 'Running cycle from red to green'
 

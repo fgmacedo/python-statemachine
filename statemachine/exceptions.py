@@ -21,15 +21,6 @@ class InvalidStateValue(InvalidDefinition):
         super(InvalidStateValue, self).__init__(msg)
 
 
-class InvalidTransitionIdentifier(InvalidDefinition):
-    "There's no transition with the given identifier."
-
-    def __init__(self, identifier):
-        self.identifier = identifier
-        msg = _("{!r} is not a valid transition identifier").format(identifier)
-        super(InvalidTransitionIdentifier, self).__init__(msg)
-
-
 class AttrNotFound(InvalidDefinition):
     "There's no method or property with the given name"
 

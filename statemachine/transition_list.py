@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from .utils import ensure_iterable
 
 
@@ -34,6 +35,16 @@ class TransitionList(object):
             transition.before.add(func)
         return self
 
-    def add_trigger(self, trigger):
+    def add_event(self, event):
         for transition in self.transitions:
-            transition.add_trigger(trigger)
+            transition.add_event(event)
+
+    @property
+    def unique_events(self):
+        # Compat Python2.7: Using OrderedDict to get a unique ordered list
+        tmp_list = OrderedDict()
+        for transition in self.transitions:
+            for event in transition.events:
+                tmp_list[event] = True
+
+        return list(tmp_list.keys())

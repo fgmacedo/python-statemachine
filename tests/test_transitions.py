@@ -11,13 +11,13 @@ from .models import MyModel
 
 def test_transition_representation(campaign_machine):
     s = repr(
-        [t for t in campaign_machine.draft.transitions if t.trigger == "produce"][0]
+        [t for t in campaign_machine.draft.transitions if t.event == "produce"][0]
     )
     assert s == (
         "Transition("
         "State('Draft', identifier='draft', value='draft', initial=True, final=False), "
         "State('Being produced', identifier='producing', value='producing', "
-        "initial=False, final=False), trigger='produce')"
+        "initial=False, final=False), event='produce')"
     )
 
 
@@ -197,5 +197,5 @@ def test_should_transition_with_a_dict_as_return():
 
     machine = ApprovalMachine()
 
-    result = machine.run("accept")
+    result = machine.send("accept")
     assert result == expected_result

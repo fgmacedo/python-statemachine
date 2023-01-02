@@ -1,18 +1,8 @@
 import warnings
-from collections import OrderedDict
 
 from .callable_proxy import CallableInstance
 from .event_data import EventData
 from .exceptions import TransitionNotAllowed, InvalidDefinition
-from .transition_list import TransitionList
-
-
-class OrderedDefaultDict(OrderedDict):  # python <= 3.5 compat layer
-    factory = TransitionList
-
-    def __missing__(self, key):
-        self[key] = value = self.factory()
-        return value
 
 
 class Event(object):
