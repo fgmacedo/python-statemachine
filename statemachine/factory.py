@@ -2,7 +2,7 @@ import warnings
 from collections import OrderedDict
 
 from . import registry
-from .event import Event
+from .event import Event, trigger_event_factory
 from .exceptions import InvalidDefinition
 from .graph import visit_connected_states
 from .utils import ugettext as _, check_state_factory, qualname
@@ -90,7 +90,7 @@ class StateMachineMetaclass(type):
 
             events = getattr(base, "_events", {})
             for event in events.values():
-                cls.add_event(event.name, event.transitions)
+                cls.add_event(event.name)
 
     def add_from_attributes(cls, attrs):
         for key, value in sorted(attrs.items(), key=lambda pair: pair[0]):
@@ -104,16 +104,21 @@ class StateMachineMetaclass(type):
         cls.states.append(state)
         cls.states_map[state.value] = state
 
-    def add_event(cls, trigger, transitions):
-        if trigger not in cls._events:
-            event = Event(trigger)
-            cls._events[trigger] = event
-            setattr(cls, trigger, event)  # bind event to the class
-        else:
-            event = cls._events[trigger]
+        # also register all events associated directly with transitions
+        for event in state.transitions.unique_events:
+            cls.add_event(event)
 
-        event.add_transitions(transitions)
-        return event
+    def add_event(cls, event, transitions=None):
+        if transitions is not None:
+            transitions.add_event(event)
+
+        if event not in cls._events:
+            event_instance = Event(event)
+            cls._events[event] = event_instance
+            event_trigger = trigger_event_factory(event)
+            setattr(cls, event, event_trigger)
+
+        return cls._events[event]
 
     @property
     def transitions(self):

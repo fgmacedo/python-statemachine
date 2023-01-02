@@ -146,7 +146,7 @@ def test_call_to_transition_that_is_not_in_the_current_state_should_raise_except
     assert machine.current_state.value == current_state
 
     with pytest.raises(exceptions.TransitionNotAllowed):
-        machine.run(transition)
+        machine.send(transition)
 
 
 def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_machine):
@@ -155,17 +155,18 @@ def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_m
     machine = campaign_machine(model)
 
     assert model.state == "draft"
-    assert [t.identifier for t in machine.allowed_transitions] == ["add_job", "produce"]
+    assert [t.identifier for t in machine.allowed_events] == ["add_job", "produce"]
 
     machine.produce()
     assert model.state == "producing"
-    assert [t.identifier for t in machine.allowed_transitions] == ["add_job", "deliver"]
+    assert [t.identifier for t in machine.allowed_events] == ["add_job", "deliver"]
 
-    deliver = machine.allowed_transitions[1]
+    deliver = machine.allowed_events[1]
 
     deliver()
     assert model.state == "closed"
-    assert machine.allowed_transitions == []
+    assert machine.allowed_events == []
+    assert machine.allowed_transitions == []  # deprecated
 
 
 def test_machine_should_run_a_transition_by_his_key(campaign_machine):
@@ -175,11 +176,11 @@ def test_machine_should_run_a_transition_by_his_key(campaign_machine):
 
     assert model.state == "draft"
 
-    machine.run("add_job")
+    machine.send("add_job")
     assert model.state == "draft"
     assert machine.current_state == machine.draft
 
-    machine.run("produce")
+    machine.send("produce")
     assert model.state == "producing"
     assert machine.current_state == machine.producing
 
@@ -192,8 +193,8 @@ def test_machine_should_raise_an_exception_if_a_transition_by_his_key_is_not_fou
 
     assert model.state == "draft"
 
-    with pytest.raises(exceptions.InvalidTransitionIdentifier):
-        machine.run("go_horse")
+    with pytest.raises(exceptions.TransitionNotAllowed):
+        machine.send("go_horse")
 
 
 def test_machine_should_use_and_model_attr_other_than_state(campaign_machine):
@@ -216,20 +217,14 @@ def test_cant_assign_an_invalid_state_directly(campaign_machine):
         machine.current_state_value = "non existing state"
 
 
-def test_should_allow_validate_data_for_transition(campaign_machine):
+def test_should_allow_validate_data_for_transition(campaign_machine_with_validator):
     model = MyModel()
-    machine = campaign_machine(model)
-
-    def custom_validator(*args, **kwargs):
-        if "weapon" not in kwargs:
-            raise LookupError("Weapon not found.")
-
-    campaign_machine.produce.validators = [custom_validator]
+    machine = campaign_machine_with_validator(model)
 
     with pytest.raises(LookupError):
         machine.produce()
 
-    machine.produce(weapon="sword")
+    machine.produce(goods="something")
 
     assert model.state == "producing"
 

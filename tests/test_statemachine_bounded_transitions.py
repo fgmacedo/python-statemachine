@@ -45,13 +45,13 @@ def test_run_transition_pass_arguments_to_sub_transitions(
     model = MyModel(state="draft")
     machine = state_machine(model)
 
-    machine.run("produce", param1="value1", param2="value2")
+    machine.send("produce", param1="value1", param2="value2")
 
     assert model.state == "producing"
     event_mock.on_enter_producing.assert_called_with(param1="value1", param2="value2")
     event_mock.on_exit_draft.assert_called_with(param1="value1", param2="value2")
 
-    machine.run("deliver", param3="value3")
+    machine.send("deliver", param3="value3")
 
     event_mock.on_enter_closed.assert_called_with()
     event_mock.on_exit_producing.assert_called_with()

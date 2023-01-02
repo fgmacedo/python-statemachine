@@ -169,7 +169,7 @@ def test_transition_on_execute_should_be_called_with_run_syntax(
     model._is_ok = True
 
     # when
-    assert machine.run("validate") == model
+    assert machine.send("validate") == model
     # then
     assert model.accepted_at == current_time
     assert machine.is_accepted

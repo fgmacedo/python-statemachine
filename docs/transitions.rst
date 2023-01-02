@@ -15,7 +15,7 @@ An event is an external signal that something has happened.
 They are sent to a state machine, and allow the state machine to react.
 
 
-An event triggers a :ref:`transition`, can be thought of as a "cause" that
+An event start a :ref:`transition`, can be thought of as a "cause" that
 initiates a change in the state of the system.
 
 In python-statemachine, an event is specified as an attribute of the

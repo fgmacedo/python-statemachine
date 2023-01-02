@@ -26,6 +26,28 @@ def campaign_machine():
 
 
 @pytest.fixture
+def campaign_machine_with_validator():
+    "Define a new class for each test"
+    from statemachine import State, StateMachine
+
+    class CampaignMachine(StateMachine):
+        "A workflow machine"
+        draft = State("Draft", initial=True)
+        producing = State("Being produced")
+        closed = State("Closed")
+
+        add_job = draft.to(draft) | producing.to(producing)
+        produce = draft.to(producing, validators="can_produce")
+        deliver = producing.to(closed)
+
+        def can_produce(*args, **kwargs):
+            if "goods" not in kwargs:
+                raise LookupError("Goods not found.")
+
+    return CampaignMachine
+
+
+@pytest.fixture
 def campaign_machine_with_final_state():
     "Define a new class for each test"
     from statemachine import State, StateMachine

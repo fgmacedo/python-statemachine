@@ -21,15 +21,6 @@ class InvalidStateValue(InvalidDefinition):
         super(InvalidStateValue, self).__init__(msg)
 
 
-class InvalidTransitionIdentifier(InvalidDefinition):
-    "There's no transition with the given identifier."
-
-    def __init__(self, identifier):
-        self.identifier = identifier
-        msg = _("{!r} is not a valid transition identifier").format(identifier)
-        super(InvalidTransitionIdentifier, self).__init__(msg)
-
-
 class AttrNotFound(InvalidDefinition):
     "There's no method or property with the given name"
 
@@ -37,10 +28,10 @@ class AttrNotFound(InvalidDefinition):
 class TransitionNotAllowed(StateMachineError):
     "The transition can't run from the current state."
 
-    def __init__(self, transition, state):
-        self.transition = transition
+    def __init__(self, event, state):
+        self.event = event
         self.state = state
         msg = _("Can't {} when in {}.").format(
-            self.transition.identifier, self.state.name
+            self.event, self.state.name
         )
         super(TransitionNotAllowed, self).__init__(msg)

@@ -9,6 +9,10 @@ History
 * Added support for diagrams.
 * statemachine integrity checks are performed at import time instead of when
   instance creation. This allows early feedback on invalid definitions.
+* Drop support for adding `validators` as assigment to `Event`.
+* `TransitionNotAllowed` changed internal attr from `transition` to `event`.
+* `StateMachine.run` is deprecated in favor of `StateMachine.send`.
+* `StateMachine.allowed_transitions` is deprecated in favor of `allowed_events`.
 
 
 0.9.0 (2022-12-21)
