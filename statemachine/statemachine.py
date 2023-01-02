@@ -104,10 +104,19 @@ class BaseStateMachine(object):
 
     @property
     def events(self):
-        return self.__class__.transitions
+        return self.__class__.events
 
     @property
     def allowed_transitions(self):
+        "get the callable proxy of the current allowed transitions"
+        warnings.warn(
+            "`allowed_transitions` is deprecated. Use `allowed_events` instead.",
+            DeprecationWarning,
+        )
+        return [getattr(self, event) for event in self.current_state.transitions.unique_events]
+
+    @property
+    def allowed_events(self):
         "get the callable proxy of the current allowed transitions"
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 

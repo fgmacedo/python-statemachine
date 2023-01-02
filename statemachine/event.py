@@ -1,8 +1,7 @@
 import warnings
 
-from .callable_proxy import CallableInstance
 from .event_data import EventData
-from .exceptions import TransitionNotAllowed, InvalidDefinition
+from .exceptions import TransitionNotAllowed
 
 
 class Event(object):
@@ -13,15 +12,6 @@ class Event(object):
         return "{}({!r})".format(
             type(self).__name__, self.name
         )
-
-    def __get__(self, machine, owner):
-        def trigger_callback(*args, **kwargs):
-            return self.trigger(machine, *args, **kwargs)
-
-        return CallableInstance(self, func=trigger_callback)
-
-    def __set__(self, instance, value):
-        "does nothing (not allow overriding)"
 
     def __call__(self, machine, *args, **kwargs):
         return self.trigger(machine, *args, **kwargs)
@@ -67,13 +57,15 @@ class Event(object):
         )
         return self.name
 
-    @property
-    def validators(self):
-        warnings.warn(
-            "validators from `Event` is deprecated. Use at machine", DeprecationWarning
-        )
-        return []
 
-    @validators.setter
-    def validators(self, value):
-        raise InvalidDefinition("Cannot assign a validator from an event")
+def trigger_event_factory(event):
+    """Build a method that sends specific `event` to the machine"""
+    event_instance = Event(event)
+
+    def trigger_event(self, *args, **kwargs):
+        return event_instance(self, *args, **kwargs)
+
+    trigger_event.name = event
+    trigger_event.identifier = event
+
+    return trigger_event

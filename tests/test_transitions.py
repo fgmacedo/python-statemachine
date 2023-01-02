@@ -33,14 +33,6 @@ def test_list_state_transitions(classic_traffic_light_machine):
     assert transitions == ["slowdown"]
 
 
-def test_cannot_list_transitions_validators(campaign_machine_with_validator):
-    # read / write validators from events is deprecated
-    machine = campaign_machine_with_validator()
-
-    validators = [validator for validator in machine.produce.validators]
-    assert validators == []
-
-
 def test_transition_should_accept_decorator_syntax(traffic_light_machine):
     machine = traffic_light_machine()
     assert machine.current_state == machine.green

@@ -2,7 +2,7 @@ import warnings
 from collections import OrderedDict
 
 from . import registry
-from .event import Event
+from .event import Event, trigger_event_factory
 from .exceptions import InvalidDefinition
 from .graph import visit_connected_states
 from .utils import ugettext as _, check_state_factory, qualname
@@ -115,7 +115,8 @@ class StateMachineMetaclass(type):
         if event not in cls._events:
             event_instance = Event(event)
             cls._events[event] = event_instance
-            setattr(cls, event, event_instance)
+            event_trigger = trigger_event_factory(event)
+            setattr(cls, event, event_trigger)
 
         return cls._events[event]
 

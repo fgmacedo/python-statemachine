@@ -155,17 +155,18 @@ def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_m
     machine = campaign_machine(model)
 
     assert model.state == "draft"
-    assert [t.identifier for t in machine.allowed_transitions] == ["add_job", "produce"]
+    assert [t.identifier for t in machine.allowed_events] == ["add_job", "produce"]
 
     machine.produce()
     assert model.state == "producing"
-    assert [t.identifier for t in machine.allowed_transitions] == ["add_job", "deliver"]
+    assert [t.identifier for t in machine.allowed_events] == ["add_job", "deliver"]
 
-    deliver = machine.allowed_transitions[1]
+    deliver = machine.allowed_events[1]
 
     deliver()
     assert model.state == "closed"
-    assert machine.allowed_transitions == []
+    assert machine.allowed_events == []
+    assert machine.allowed_transitions == []  # deprecated
 
 
 def test_machine_should_run_a_transition_by_his_key(campaign_machine):
@@ -226,14 +227,6 @@ def test_should_allow_validate_data_for_transition(campaign_machine_with_validat
     machine.produce(goods="something")
 
     assert model.state == "producing"
-
-
-def test_cannot_assing_validators_on_transition(campaign_machine_with_validator):
-    def new_validator(*args, **kwargs):
-        pass
-
-    with pytest.raises(exceptions.InvalidDefinition):
-        campaign_machine_with_validator.produce.validators = [new_validator]
 
 
 def test_should_check_if_is_in_status(campaign_machine):
