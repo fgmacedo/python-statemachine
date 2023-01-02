@@ -12,7 +12,7 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
     :undoc-members:
 ```
 
-### Example
+### Mixins example
 
 Given a statemachine definition:
 

@@ -1,3 +1,4 @@
+(diagrams)=
 # Diagrams
 
 You can generate diagrams from your statemachine.
@@ -29,7 +30,7 @@ Graphviz. For example, on Debian-based systems (such as Ubuntu), you can use the
 
 ```
 
-### How to generate a diagram
+## How to generate a diagram
 
 
 ```py

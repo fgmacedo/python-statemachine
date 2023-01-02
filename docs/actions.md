@@ -42,7 +42,9 @@ For each event, you can register `before_<event>` and `after_<event>`
 - `after_<event>(event_data)`
 
 
-## Validators and conditions
+(validators-and-guards)=
+
+## Validators and Guards
 
 
 Validations and Guards are checked before an transition is started. They are meant to stop a
