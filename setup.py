@@ -8,10 +8,7 @@ from setuptools import setup
 with io.open("README.rst", encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
-with io.open("HISTORY.rst", encoding="utf-8") as history_file:
-    history = history_file.read()
-
-long_description = readme + "\n\n" + history
+long_description = readme
 
 extras_require = {"diagrams": ["pydot"]}
 
