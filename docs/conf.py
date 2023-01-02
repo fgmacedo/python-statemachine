@@ -294,9 +294,30 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
 
+# Napoleon settings (Google format )
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = True
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+napoleon_preprocess_types = False
+napoleon_type_aliases = None
+napoleon_attr_annotations = True
+
 # Markdown (MyST) configs
 myst_heading_anchors = 3
+myst_enable_extensions = ["deflist", "substitution"]
 
+myst_substitutions = {
+    "state": "{ref}`state`",
+    "event": "{ref}`event`",
+}
 
 # JupyterLite
 jupyterlite_config = "jupyterlite_config.json"
@@ -313,3 +334,8 @@ html_context = {
 }
 
 # html_theme_options = {}
+
+
+rst_prolog = """
+.. |psf| replace:: Python Software Foundation
+"""

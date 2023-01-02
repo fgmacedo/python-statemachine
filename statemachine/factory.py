@@ -78,8 +78,9 @@ class StateMachineMetaclass(type):
         if final_state_with_invalid_transitions:
             raise InvalidDefinition(
                 _(
-                    "Final state does not should have defined "
-                    "transitions starting from that state"
+                    "Cannot declare transitions from final state. Invalid state(s): {}".format(
+                        [s.identifier for s in final_state_with_invalid_transitions]
+                    )
                 )
             )
 

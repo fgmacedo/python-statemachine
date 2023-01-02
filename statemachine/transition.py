@@ -10,6 +10,15 @@ from .events import Events
 class Transition(object):
     """
     A transition holds reference to the source and destination state.
+
+    Args:
+        source (State): The origin {ref}`State` of the transition.
+        destination (State): The destination {ref}`State` of the transition.
+        event (Optional[Union[str, List[str]]]): List of designators of events that trigger this
+            transition.
+
+            Can be either a list of strings, or a space-separated string list of event
+            descriptors.
     """
 
     def __init__(
@@ -24,6 +33,7 @@ class Transition(object):
         before=None,
         after=None,
     ):
+
         self.source = source
         self.destination = destination
         self._events = Events().add(event)

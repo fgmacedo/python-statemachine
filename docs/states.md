@@ -1,12 +1,20 @@
 
 # States
 
-A state in a state machine describes a particular behaviour of the machine.  When we say that
-a machine is “in” a state, it means that the machine behaves in the way that state describes.
+State, as the name sais, holds the representation of a state in a statemachine.
 
 
+(state)=
+## State
 
-## Final States
+```{eval-rst}
+.. autoclass:: statemachine.state.State
+    :members:
+```
+
+
+(final-state)=
+### Final state
 
 
 You can explicitly set final states.
@@ -14,8 +22,6 @@ Transitions from these states are not allowed and will raise exception.
 
 ```py
 >>> from statemachine import StateMachine, State
-
->>> from statemachine.exceptions import InvalidDefinition
 
 >>> class CampaignMachine(StateMachine):
 ...     "A workflow machine"
@@ -28,7 +34,7 @@ Transitions from these states are not allowed and will raise exception.
 ...     deliver = producing.to(closed)
 Traceback (most recent call last):
 ...
-InvalidDefinition: Final state does not should have defined transitions starting from that state
+InvalidDefinition: Cannot declare transitions from final state. Invalid state(s): ['closed']
 
 ```
 
