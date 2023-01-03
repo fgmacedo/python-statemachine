@@ -41,7 +41,7 @@
 <path fill="none" stroke="#0000ff" d="M91.1904,-59.2576C85.8447,-76.4023 89.2813,-95 101.5,-95 111.3323,-95 115.4779,-82.9576 113.9368,-69.3202"/>
 <polygon fill="#0000ff" stroke="#0000ff" points="117.3022,-68.3175 111.8096,-59.2576 110.4536,-69.7653 117.3022,-68.3175"/>
 <text text-anchor="middle" x="101.5" y="-107.8" font-family="Times,serif" font-size="9.00" fill="#000000">receive_payment</text>
-<text text-anchor="middle" x="101.5" y="-97.8" font-family="Times,serif" font-size="9.00" fill="#000000">[payments_enough]</text>
+<text text-anchor="middle" x="101.5" y="-97.8" font-family="Times,serif" font-size="9.00" fill="#000000">[!payments_enough]</text>
 </g>
 <!-- processing -->
 <g id="node4" class="node">
