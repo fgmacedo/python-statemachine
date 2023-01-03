@@ -45,21 +45,14 @@ For each event, you can register `before_<event>` and `after_<event>`
 
 (validators-and-guards)=
 
-## Validators and Guards
+## Other callbacks
 
+In addition to {ref}`actions`, you can specify {ref}`validators-and-guards` that are checked
+before an transition is started. They are meant to stop a transition to occur.
 
-Validations and Guards are checked before an transition is started. They are meant to stop a
-transition to occur.
-
-The main difference, is that validators raise exceptions to stop the flow, and Guards act like
-predicates that should resolve for ``boolean``.
-
-There are two variations of Guard clauses available:
-
-- `conditions` : Should evaluate to `True`.
-
-- `unless` : Should evaluate to `False`.
-
+```{seealso}
+See {ref}`guards` and {ref}`validators`.
+```
 
 
 ## Ordering

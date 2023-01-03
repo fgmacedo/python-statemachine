@@ -15,6 +15,8 @@ class DotGraphMachine(object):
     state_active_penwidth = 2
     """Active state external line width"""
 
+    state_active_fillcolor = "turquoise"
+
     transition_font_size = "9pt"
     """Transition font size"""
 
@@ -83,18 +85,24 @@ class DotGraphMachine(object):
             shape="rectangle",
             style="rounded, filled",
             fontsize=self.state_font_size,
+            peripheries=2 if state.final else 1,
         )
         if state == self.machine.current_state:
             node.set_penwidth(self.state_active_penwidth)
-            node.set_fillcolor("turquoise")
+            node.set_fillcolor(self.state_active_fillcolor)
         else:
             node.set_fillcolor("white")
         return node
 
     def _transition_as_edge(self, transition):
+
+        def _get_condition_repr(cond):
+            name = getattr(cond.func, "__name__", cond.func)
+            return name if cond.expected_value else "!{}".format(name)
+
         conditions = ", ".join(
             [
-                getattr(cond.func, "__name__", cond.func)
+                _get_condition_repr(cond)
                 for cond in transition.conditions
             ]
         )
