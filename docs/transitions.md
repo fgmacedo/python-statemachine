@@ -90,10 +90,10 @@ This statemachine could be expressed in python-statemachine as:
 ```{literalinclude} ../tests/examples/traffic_light_machine.py
 :language: python
 :linenos:
-:emphasize-lines: 10
+:emphasize-lines: 18
 ```
 
-At line 10, you can say that this code defines three transitions:
+At line 18, you can say that this code defines three transitions:
 
 * `green.to(yellow)`
 * `yellow.to(red)`
@@ -112,8 +112,7 @@ When an {{event}} is sent to a stamemachine:
    atached to the `on_<event>` and `before_<event>` callbacks.
 
 
-Triggering events
------------------
+## Triggering events
 
 
 By direct calling the event:
@@ -167,9 +166,18 @@ can also raise an exception at this point to stop a transition to occur.
 
 ```
 
-## Guards
+(validators-and-guards)=
+## Validators and guards
 
-Also known as Conditional transition
+Validations and Guards are checked before an transition is started. They are meant to stop a
+transition to occur.
+
+The main difference, is that {ref}`validators` raise exceptions to stop the flow, and ()[#guards]
+act like predicates that should resolve for ``boolean``.
+
+### Guards
+
+Also known as **Conditional transition**.
 
 A guard is a condition that may be checked when a statechart wants to handle
 an event. A guard is declared on the transition, and when that transition
@@ -190,6 +198,8 @@ promise to resolve — and should return immediately.
 A guard function must not have any side effects.  Side effects are reserved
 for actions.
 
+There are two variations of Guard clauses available:
+
 
 Conditions
 : A list of conditions, acting like predicates. A transition is only allowed to occur if
@@ -198,7 +208,7 @@ all conditions evaluates to ``True``.
 Unless
 : Same as conditions, but the transition is allowed if they evaluates fo ``False``.
 
-## Validators
+### Validators
 
 
 Are like {ref}`guards`, but instead of evaluating to boolean, they are expected to raise an
@@ -206,7 +216,7 @@ exception to stop the flow. It may be useful for imperative style programming, w
 wanna to continue evaluating other possible transitions.
 
 
-## Example
+### Example
 
 
 Consider this example:

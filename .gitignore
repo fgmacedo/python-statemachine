@@ -71,3 +71,7 @@ target/
 *.sublime*
 .idea/
 .vscode/
+
+# Sphinx-galery
+docs/auto_examples/sg_execution_times.*
+docs/auto_examples/*.pickle
