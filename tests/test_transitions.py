@@ -13,8 +13,8 @@ def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.draft.transitions if t.event == "produce"][0])
     assert s == (
         "Transition("
-        "State('Draft', identifier='draft', value='draft', initial=True, final=False), "
-        "State('Being produced', identifier='producing', value='producing', "
+        "State('Draft', id='draft', value='draft', initial=True, final=False), "
+        "State('Being produced', id='producing', value='producing', "
         "initial=False, final=False), event='produce')"
     )
 
@@ -59,7 +59,7 @@ def test_cycle_transitions(request, machine_name):
     machine = machine_class()
     expected_states = ["green", "yellow", "red"] * 2
     for expected_state in expected_states:
-        assert machine.current_state.identifier == expected_state
+        assert machine.current_state.id == expected_state
         machine.cycle()
 
 
@@ -157,7 +157,7 @@ class TestReverseTransition(object):
     )
     def test_reverse_transition(self, reverse_traffic_light_machine, initial_state):
         machine = reverse_traffic_light_machine(start_value=initial_state)
-        assert machine.current_state.identifier == initial_state
+        assert machine.current_state.id == initial_state
 
         machine.stop()
 

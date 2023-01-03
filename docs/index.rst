@@ -15,6 +15,7 @@ Contents:
    integrations
    diagram
    api
+   auto_examples/index
    contributing
    authors
    releases/index

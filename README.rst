@@ -88,8 +88,8 @@ Define your state machine:
 ...         message = ". " + message if message else ""
 ...         return "Running {} from {} to {}{}".format(
 ...             event_data.event,
-...             event_data.transition.source.identifier,
-...             event_data.transition.destination.identifier,
+...             event_data.transition.source.id,
+...             event_data.transition.destination.id,
 ...             message,
 ...         )
 ...
@@ -111,13 +111,13 @@ Then start sending events:
 
 You can inspect about the current state:
 
->>> traffic_light.current_state.identifier
+>>> traffic_light.current_state.id
 'yellow'
 
 Or get a complete state repr for debugging purposes:
 
 >>> traffic_light.current_state
-State('Yellow', identifier='yellow', value='yellow', initial=False, final=False)
+State('Yellow', id='yellow', value='yellow', initial=False, final=False)
 
 The ``State`` instance can also be checked by equality:
 
@@ -127,7 +127,7 @@ True
 >>> traffic_light.current_state == traffic_light.yellow
 True
 
-But for your convenience, a dynamically property ``is_<state.identifier>`` is created for each state,
+But for your convenience, a dynamically property ``is_<state.id>`` is created for each state,
 so you can easily check if a machine is at a specific state at any time:
 
 >>> traffic_light.is_green
@@ -141,7 +141,7 @@ False
 
 Easily iterate over all states:
 
->>> [s.identifier for s in traffic_light.states]
+>>> [s.id for s in traffic_light.states]
 ['green', 'red', 'yellow']
 
 Or over events:
@@ -276,7 +276,7 @@ You can use this machine as follows.
 >>> control.receive_payment(4)
 [4]
 
->>> control.current_state.identifier
+>>> control.current_state.id
 'waiting_for_payment'
 
 >>> control.process_order()
@@ -287,7 +287,7 @@ statemachine.exceptions.TransitionNotAllowed: Can't process_order when in Waitin
 >>> control.receive_payment(6)
 [4, 6]
 
->>> control.current_state.identifier
+>>> control.current_state.id
 'processing'
 
 >>> control.process_order()

@@ -1,9 +1,12 @@
 # coding: utf-8
 from typing import Any, Optional, Text
+import warnings
 
+from .exceptions import StateMachineError
 from .callbacks import Callbacks, resolver_factory
 from .transition_list import TransitionList
 from .transition import Transition
+from .utils import ugettext as _
 
 
 class State(object):
@@ -65,7 +68,9 @@ class State(object):
     You can even pass a list of destination states to declare at once all transitions starting
     from the same state.
 
-    >>> [(t.source.name, t.destination.name) for t in draft.to(draft, producing, closed)]
+    >>> transitions = draft.to(draft, producing, closed)
+
+    >>> [(t.source.name, t.destination.name) for t in transitions]
     [('Draft', 'Draft'), ('Draft', 'Producing'), ('Draft', 'Closed')]
 
     """
@@ -76,8 +81,8 @@ class State(object):
         # type: (Text, Optional[Any], bool, bool, Optional[Any], Optional[Any]) -> None
         self.name = name
         self.value = value
+        self._id = None  # type: Optional[Text]
         self._initial = initial
-        self.identifier = None  # type: Optional[Text]
         self.transitions = TransitionList()
         self._final = final
         self.enter = Callbacks().add(enter)
@@ -89,19 +94,19 @@ class State(object):
         self.exit.setup(resolver)
 
         self.enter.add(
-            ["on_enter_state", "on_enter_{}".format(self.identifier)],
+            ["on_enter_state", "on_enter_{}".format(self.id)],
             suppress_errors=True,
         )
         self.exit.add(
-            ["on_exit_state", "on_exit_{}".format(self.identifier)],
+            ["on_exit_state", "on_exit_{}".format(self.id)],
             suppress_errors=True,
         )
 
     def __repr__(self):
-        return "{}({!r}, identifier={!r}, value={!r}, initial={!r}, final={!r})".format(
+        return "{}({!r}, id={!r}, value={!r}, initial={!r}, final={!r})".format(
             type(self).__name__,
             self.name,
-            self.identifier,
+            self.id,
             self.value,
             self.initial,
             self.final,
@@ -111,11 +116,24 @@ class State(object):
         return self
 
     def __set__(self, instance, value):
-        # does nothing (not allow overriding)
-        pass
+        raise StateMachineError(
+            _("State overriding is not allowed. Trying to add '{}' to {}".format(value, self.id))
+        )
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def identifier(self):
+        warnings.warn(
+            "`State.identifier` is deprecated. Use `State.id` instead.",
+            DeprecationWarning,
+        )
+        return self.id
 
     def _set_identifier(self, identifier):
-        self.identifier = identifier
+        self._id = identifier
         if self.value is None:
             self.value = identifier
 

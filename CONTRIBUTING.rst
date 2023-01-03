@@ -76,17 +76,39 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
+5. When you're done making changes, check that your changes pass flake8 and the tests, including
+   testing other Python versions with tox::
 
     $ flake8 statemachine tests
-    $ python setup.py test or py.test
+    $ py.test
     $ tox
 
    To get flake8 and tox, just pip install them into your virtualenv.
 
+6. To build the documentation locally, run::
+
+    $ sphinx-build docs docs/_build/html
+
+   Now you can serve the local documentation using a webserver, like the built-in included
+   with python::
+
+    $ python -m http.server --directory docs/_build/html
+
+   And access your browser at http://localhost:8000/
+
+   If you're specially writting documentation, I strongly recommend using ``sphinx-autobuild``
+   as it improves the workflow watching for file changes and with live reloading::
+
+    $ sphinx-autobuild docs docs/_build/html --re-ignore "auto_examples/.*"
+
+   Sometimes you need a full fresh of the files being build for docs, you can use::
+
+    $ rm -rf docs/_build/ docs/auto_examples
+
 .. note::
 
-    In order to get the tox working for all versions, I usually run pyenv enabling shell for those versions:
+    In order to get the tox working for all versions, I usually run pyenv enabling shell for
+    those versions::
 
     $ pyenv shell 3.8.1/envs/python-statemachine 3.7.6 3.6.10 3.5.9 2.7.17
 

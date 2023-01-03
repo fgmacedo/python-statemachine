@@ -50,6 +50,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinxcontrib.mermaid",
     "sphinx.ext.autosectionlabel",
+    "sphinx_gallery.gen_gallery",
     "jupyterlite_sphinx",
 ]
 
@@ -67,7 +68,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Python State Machine"
-copyright = "2022, Fernando Macedo"
+copyright = "2023, Fernando Macedo"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -154,6 +155,10 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # static files, so a file named "default.css" will overwrite the builtin
 # "default.css".
 html_static_path = ["_static"]
+
+html_css_files = [
+    'custom_machine.css',
+]
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
@@ -321,7 +326,8 @@ myst_substitutions = {
 
 # JupyterLite
 jupyterlite_config = "jupyterlite_config.json"
-
+jupyterlite_contents = ["./examples", "./auto_examples"]
+jupyterlite_dir = "./auto_examples"
 
 # Github
 
@@ -335,7 +341,21 @@ html_context = {
 
 # html_theme_options = {}
 
+from tests.scrape_images import MachineScraper
 
-rst_prolog = """
-.. |psf| replace:: Python Software Foundation
-"""
+
+# Sphinx Galery
+sphinx_gallery_conf = {
+    'examples_dirs':  ['../tests/examples',],   # path to your example scripts
+    'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+    'capture_repr': ('_repr_html_', '__repr__'),
+    'filename_pattern': r'/.*\_machine.py',
+    'download_all_examples': False,
+    "show_signature": False,
+    "min_reported_time": 9999,
+
+    'thumbnail_size': (400, 280),
+    'image_scrapers': ('matplotlib', MachineScraper()),
+
+    # "first_notebook_cell": "",
+}
