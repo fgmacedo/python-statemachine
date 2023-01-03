@@ -15,6 +15,7 @@ class StateMachineMetaclass(type):
     def __init__(cls, name, bases, attrs):
         super(StateMachineMetaclass, cls).__init__(name, bases, attrs)
         registry.register(cls)
+        cls._abstract = True
         cls.states = []
         cls._events = OrderedDict()
         cls.states_map = {}
@@ -54,6 +55,8 @@ class StateMachineMetaclass(type):
             "statemachine.factory_3.StateMachine",
         ):
             return
+
+        cls._abstract = False
 
         if not cls.states:
             raise InvalidDefinition(_("There are no states."))

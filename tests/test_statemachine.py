@@ -384,3 +384,12 @@ def test_final_states(campaign_machine_with_final_state):
     final_states = machine.final_states
     assert len(final_states) == 1
     assert final_states[0].name == "Closed"
+
+
+def test_should_not_override_states_properties(campaign_machine):
+
+    machine = campaign_machine()
+    with pytest.raises(exceptions.StateMachineError) as e:
+        machine.draft = "something else"
+
+    assert "State overriding is not allowed. Trying to add 'something else' to draft" in str(e)
