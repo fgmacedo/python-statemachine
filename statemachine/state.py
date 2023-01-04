@@ -3,7 +3,7 @@ from typing import Any, Optional, Text
 import warnings
 
 from .exceptions import StateMachineError
-from .callbacks import Callbacks, resolver_factory
+from .callbacks import Callbacks
 from .transition_list import TransitionList
 from .transition import Transition
 from .utils import ugettext as _
@@ -88,8 +88,7 @@ class State(object):
         self.enter = Callbacks().add(enter)
         self.exit = Callbacks().add(exit)
 
-    def _setup(self, machine):
-        resolver = resolver_factory(machine, machine.model)
+    def _setup(self, resolver):
         self.enter.setup(resolver)
         self.exit.setup(resolver)
 
@@ -117,7 +116,7 @@ class State(object):
 
     def __set__(self, instance, value):
         raise StateMachineError(
-            _("State overriding is not allowed. Trying to add '{}' to {}".format(value, self.id))
+            _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
         )
 
     @property

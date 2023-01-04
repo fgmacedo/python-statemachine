@@ -11,10 +11,10 @@ Contents:
    states
    transitions
    actions
+   guards
    mixins
    integrations
    diagram
-   api
    auto_examples/index
    contributing
    authors

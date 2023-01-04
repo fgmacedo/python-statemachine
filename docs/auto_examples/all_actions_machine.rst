@@ -23,18 +23,7 @@ All actions machine
 
 A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
-.. GENERATED FROM PYTHON SOURCE LINES 8-118
-
-
-
-.. image-sg:: /auto_examples/images/sphx_glr_all_actions_machine_001.svg
-   :alt: all actions machine
-   :srcset: /auto_examples/images/sphx_glr_all_actions_machine_001.svg
-   :class: sphx-glr-single-img
-
-
-
-
+.. GENERATED FROM PYTHON SOURCE LINES 8-120
 
 .. code-block:: default
 
@@ -148,6 +137,108 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
         def on_exit_final(self):
             "hopefully this will not be called"
             return self.spy("on_exit_final")
+
+
+
+
+
+.. image-sg:: /auto_examples/images/sphx_glr_all_actions_machine_001.svg
+   :alt: all actions machine
+   :srcset: /auto_examples/images/sphx_glr_all_actions_machine_001.svg
+   :class: sphx-glr-single-img
+
+
+
+
+
+.. GENERATED FROM PYTHON SOURCE LINES 121-123
+
+Testing
+-------
+
+.. GENERATED FROM PYTHON SOURCE LINES 123-128
+
+.. code-block:: default
+
+
+    machine = AllActionsMachine()
+    spy = machine.spy
+
+
+
+
+
+
+
+
+
+.. GENERATED FROM PYTHON SOURCE LINES 129-130
+
+Only before actions have their result collected.
+
+.. GENERATED FROM PYTHON SOURCE LINES 130-142
+
+.. code-block:: default
+
+
+    result = machine.go()
+    assert result == [
+        "before_transition",
+        "before_go_inline_1",
+        "before_go_inline_2",
+        "on_execute_1",
+        "on_execute_2",
+        "before_go",
+        "on_go",
+    ]
+
+
+
+
+
+
+
+
+.. GENERATED FROM PYTHON SOURCE LINES 143-144
+
+Checking the method resolution order
+
+.. GENERATED FROM PYTHON SOURCE LINES 144-170
+
+.. code-block:: default
+
+
+    assert spy.call_args_list == [
+        mock.call("on_enter_state"),
+        mock.call("on_enter_initial"),
+        mock.call("validation_1"),
+        mock.call("validation_2"),
+        mock.call("condition_1"),
+        mock.call("condition_2"),
+        mock.call("unless_1"),
+        mock.call("unless_2"),
+        mock.call("before_transition"),
+        mock.call("before_go_inline_1"),
+        mock.call("before_go_inline_2"),
+        mock.call("on_execute_1"),
+        mock.call("on_execute_2"),
+        mock.call("before_go"),
+        mock.call("on_go"),
+        mock.call("on_exit_state"),
+        mock.call("on_exit_initial"),
+        mock.call("on_enter_state"),
+        mock.call("on_enter_final"),
+        mock.call("after_go_inline_1"),
+        mock.call("after_go_inline_2"),
+        mock.call("after_go"),
+        mock.call("after_transition"),
+    ]
+
+
+
+
+
+
 
 
 .. _sphx_glr_download_auto_examples_all_actions_machine.py:

@@ -48,6 +48,23 @@ Below is a gallery of StateMachine examples.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="An StateMachine that demonstrates Actions being used on a rich model.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_order_control_rich_model_machine_thumb.svg
+    :alt: Order control machine (rich model)
+
+  :ref:`sphx_glr_auto_examples_order_control_rich_model_machine.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Order control machine (rich model)</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="A StateMachine that exercices all possible Actions and Guards.">
 
 .. only:: html
@@ -73,5 +90,6 @@ Below is a gallery of StateMachine examples.
 
    /auto_examples/traffic_light_machine
    /auto_examples/order_control_machine
+   /auto_examples/order_control_rich_model_machine
    /auto_examples/all_actions_machine
 

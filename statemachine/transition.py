@@ -1,9 +1,8 @@
 # coding: utf-8
 import warnings
-from functools import wraps
-from weakref import ref
 
-from .callbacks import Callbacks, ConditionWrapper, methodcaller, resolver_factory
+from .callbacks import Callbacks, ConditionWrapper
+
 from .events import Events
 
 
@@ -50,26 +49,13 @@ class Transition(object):
             .add(conditions)
             .add(unless, expected_value=False)
         )
-        self.machine = None
 
     def __repr__(self):
         return "{}({!r}, {!r}, event={!r})".format(
             type(self).__name__, self.source, self.destination, self.event
         )
 
-    def _get_promisse_to_machine(self, func):
-
-        decorated = methodcaller(func)
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return decorated(self.machine(), *args, **kwargs)
-
-        return wrapper
-
-    def _setup(self, machine):
-        self.machine = ref(machine)
-        resolver = resolver_factory(machine, machine.model)
+    def _setup(self, resolver):
         self.validators.setup(resolver)
         self.before.setup(resolver)
         self.after.setup(resolver)

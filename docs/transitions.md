@@ -102,13 +102,13 @@ At line 18, you can say that this code defines three transitions:
 And these transitions are assigned to the {ref}`event` `cycle` defined at
 class level.
 
-When an {{event}} is sent to a stamemachine:
+When an {ref}`event`is sent to a stamemachine:
 
-1. Uses the current {{state}} to check for available transitions.
+1. Uses the current {ref}`state` to check for available transitions.
 1. For each possible transition, it checks for those that matches the received {ref}`event`.
 1. The destination state, if the transition succeeds, is determined by a transisition
    that an event matches and;
-1. All {ref}`validations` and {ref}`guards` passes, including {ref}`actions`
+1. All {ref}`validators-and-guards`, including {ref}`actions`
    atached to the `on_<event>` and `before_<event>` callbacks.
 
 
@@ -165,79 +165,3 @@ can also raise an exception at this point to stop a transition to occur.
 'green'
 
 ```
-
-(validators-and-guards)=
-## Validators and guards
-
-Validations and Guards are checked before an transition is started. They are meant to stop a
-transition to occur.
-
-The main difference, is that {ref}`validators` raise exceptions to stop the flow, and ()[#guards]
-act like predicates that should resolve for ``boolean``.
-
-### Guards
-
-Also known as **Conditional transition**.
-
-A guard is a condition that may be checked when a statechart wants to handle
-an event. A guard is declared on the transition, and when that transition
-would trigger, then the guard (if any) is checked.  If the guard is true
-then the transition does happen. If the guard is false, the transition
-is ignored.
-
-When transitions have guards, then it's possible to define two or more
-transitions for the same event from the same state, i.e. that a state has
-two (or more) transitions for the same event.  When the event happens, then
-the guarded transitions are checked, one by one, and the first transition
-whose guard is true will be used, the others will be ignored.
-
-A guard is generally a boolean function or boolean variable.  It must be
-evaluated synchronously — A guard can for example not wait for a future or
-promise to resolve — and should return immediately.
-
-A guard function must not have any side effects.  Side effects are reserved
-for actions.
-
-There are two variations of Guard clauses available:
-
-
-Conditions
-: A list of conditions, acting like predicates. A transition is only allowed to occur if
-all conditions evaluates to ``True``.
-
-Unless
-: Same as conditions, but the transition is allowed if they evaluates fo ``False``.
-
-### Validators
-
-
-Are like {ref}`guards`, but instead of evaluating to boolean, they are expected to raise an
-exception to stop the flow. It may be useful for imperative style programming, when you don't
-wanna to continue evaluating other possible transitions.
-
-
-### Example
-
-
-Consider this example:
-
-```py
-
-class InvoiceStateMachine(StateMachine):
-    unpaid = State("unpaid", initial=True)
-    paid = State("paid")
-    failed = State("failed")
-
-    pay = (
-        unpaid.to(paid, conditions="payment_success")
-        | failed.to(paid)
-        | unpaid.to(failed)
-    )
-
-    def payment_success(self, event_data):
-        return <validation logic goes here>
-
-```
-
-
-Reference: [Statecharts](https://statecharts.dev/).

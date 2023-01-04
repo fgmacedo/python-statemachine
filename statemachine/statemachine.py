@@ -6,14 +6,17 @@ import warnings
 from typing import Any, List, Dict, Optional
 
 from .event import Event
-from .exceptions import InvalidStateValue
+from .exceptions import InvalidStateValue, TransitionNotAllowed
 from .event_data import EventData
 from .model import Model
 from .state import State
 from .transition import Transition
+from .dispatcher import resolver_factory, ObjectConfig
 
 
 class BaseStateMachine(object):
+
+    TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
 
     _events = {}  # type: Dict[Any, Any]
     states = []  # type: List[State]
@@ -24,7 +27,8 @@ class BaseStateMachine(object):
         self.state_field = state_field
         self.start_value = start_value
 
-        self.check()
+        self._setup()
+        self._activate_initial_state()
 
     def __repr__(self):
         return "{}(model={!r}, state_field={!r}, current_state={!r})".format(
@@ -49,7 +53,7 @@ class BaseStateMachine(object):
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
             transition = Transition(None, initial_state, event="__initial__")
-            transition._setup(self)
+            transition._setup(self._get_resolver())
             transition.before.clear()
             transition.after.clear()
             event_data = EventData(
@@ -59,15 +63,38 @@ class BaseStateMachine(object):
             )
             self._activate(event_data)
 
-    def _setup(self):
-        for state in self.states:
-            state._setup(self)
-            for transition in state.transitions:
-                transition._setup(self)
+    def _get_protected_attrs(self):
+        return (
+            {
+                "_abstract",
+                "model",
+                "state_field",
+                "start_value",
+                "initial_state",
+                "final_states",
+                "states",
+                "_events",
+                "states_map",
+                "send",
+            }
+            | {s.id for s in self.states}
+            | {e for e in self._events.keys()}
+        )
 
-    def check(self):
-        self._setup()
-        self._activate_initial_state()
+    def _get_resolver(self):
+        machine = ObjectConfig(self, skip_attrs=self._get_protected_attrs())
+        model = ObjectConfig(self.model, skip_attrs={self.state_field})
+        return resolver_factory(machine, model)
+
+    def _setup(self):
+        resolver = self._get_resolver()
+        for state in self.states:
+            state._setup(resolver)
+            for transition in state.transitions:
+                transition._setup(resolver)
+
+    def _repr_html_(self):
+        return '<div class="statemachine">{}</div>'.format(self._repr_svg_())
 
     def _repr_svg_(self):
         from .contrib.diagram import DotGraphMachine
