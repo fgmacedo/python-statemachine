@@ -1,4 +1,3 @@
-(diagrams)=
 # Diagrams
 
 You can generate diagrams from your statemachine.
@@ -22,7 +21,7 @@ Or to install `pydot` manually, you can use pip by running the following command
     pip install pydot
 
 
-To install Graphviz, you can visit the Graphviz website (https://graphviz.org/) and follow the
+To install Graphviz, you can visit the [Graphviz website](https://graphviz.org/) and follow the
 instructions for your operating system. Alternatively, you can use a package manager to install
 Graphviz. For example, on Debian-based systems (such as Ubuntu), you can use the following command:
 

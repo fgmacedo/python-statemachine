@@ -2,17 +2,9 @@
 
 import pytest
 import mock
-from statemachine.callbacks import Callbacks, ensure_callable, resolver_factory
+from statemachine.callbacks import Callbacks
+from statemachine.dispatcher import resolver_factory
 from statemachine.exceptions import InvalidDefinition
-
-
-class Person(object):
-    def __init__(self, first_name, last_name):
-        self.first_name = first_name
-        self.last_name = last_name
-
-    def get_full_name(self):
-        return "{} {}".format(self.first_name, self.last_name)
 
 
 @pytest.fixture
@@ -127,55 +119,3 @@ class TestCallbacksMachinery:
     def test_callbacks_values_resolution(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
         assert x.callbacks(xablau=True) == [42, "statemachine", ((), {"xablau": True})]
-
-
-class TestEnsureCallable:
-    @pytest.fixture(
-        params=[
-            pytest.param([], id="no-args"),
-            pytest.param([24, True, "Go!"], id="with-args"),
-        ]
-    )
-    def args(self, request):
-        return request.param
-
-    @pytest.fixture(
-        params=[
-            pytest.param(dict(), id="no-kwargs"),
-            pytest.param(dict(a="x", b="y"), id="with-kwargs"),
-        ]
-    )
-    def kwargs(self, request):
-        return request.param
-
-    def test_return_same_object_if_already_a_callable(self):
-        model = Person("Frodo", "Bolseiro")
-        expected = model.get_full_name
-        actual = ensure_callable(expected)
-        assert actual.__name__ == expected.__name__
-        assert actual.__doc__ == expected.__doc__
-
-    def test_retrieve_a_method_from_its_name(self, args, kwargs):
-        model = Person("Frodo", "Bolseiro")
-        expected = model.get_full_name
-        method = ensure_callable("get_full_name", model)
-
-        assert method.__name__ == expected.__name__
-        assert method.__doc__ == expected.__doc__
-        assert method(*args, **kwargs) == "Frodo Bolseiro"
-
-    def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
-        model = Person("Frodo", "Bolseiro")
-        method = ensure_callable("first_name", model)
-
-        assert method(*args, **kwargs) == "Frodo"
-
-    def test_retrieve_callable_from_a_property_name_that_should_keep_reference(
-        self, args, kwargs
-    ):
-        model = Person("Frodo", "Bolseiro")
-        method = ensure_callable("first_name", model)
-
-        model.first_name = "Bilbo"
-
-        assert method(*args, **kwargs) == "Bilbo"

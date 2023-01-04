@@ -1,5 +1,3 @@
-(actions)=
-
 # Actions
 
 
@@ -33,6 +31,9 @@ For each defined state, you can register `on_enter_<state>` and `on_exit_<state>
 - `on_enter_<state_identifier>(event_data)`
 
 - `on_exit_<state_identifier>(event_data)`
+
+
+The initial {ref}`state` is entered when the machine starts and the corresponding actions `on_enter_state` or `on_enter_<state>` are called if defined.
 
 ## Event actions
 
@@ -82,12 +83,17 @@ Actions and Guards will be executed in the following order:
 - `after_transition(event_data)`
 
 
+(dynamic-dispatch)=
 ## Dynamic dispatch
 
 python-statemachine implements a custom dispatch mechanism on all those available Actions and
 Guards, this means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
-library will to it's best to match your method signature of what's expect to receive with the
-provided arguments.
+library will match your method signature of what's expect to receive with the provided arguments.
+
+This means that if on your `on_enter_<state>()` or `on_execute_<event>()` method, you also
+need to know the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
+argument passed with the trigger, just add this parameter to the method and It will be passed
+by the dispatch mechanics.
 
 In other words, if you implement a method to handle an event and don't declare any parameter,
 you'll be fine, if you declare an expected parameter, you'll also be covered.
@@ -110,7 +116,8 @@ For your convenience, all these parameters are available for you on any Action o
 
 - `transition`: The {ref}`Transition` instance that was activated by the {ref}`Event`.
 
-So, you can implement Actions and Guards like these:
+So, you can implement Actions and Guards like these, but this list is not exaustive, it's only to give you a few examples...  any combination of parameters will work, including extra parameters
+that you may inform when triggering an {ref}`event`:
 
 ```py
 def action_or_guard_method_name(self):
@@ -127,12 +134,7 @@ def action_or_guard_method_name(self, *args, event_data, event, source, state, m
 
 ```
 
-
-## Example
-
-See this test for a complete example of order resolution of callbacks.
-
-```{literalinclude} ../tests/test_actions.py
-:language: python
-:linenos:
+```{seealso}
+See the example {ref}`sphx_glr_auto_examples_all_actions_machine.py` for a complete example of
+order resolution of callbacks.
 ```

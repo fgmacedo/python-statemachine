@@ -102,6 +102,14 @@ class StateMachineMetaclass(type):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
                 cls.add_event(key, value)
+            elif getattr(value, '_is_event', False):
+                cls._add_unbounded_callback(key, value)
+
+    def _add_unbounded_callback(cls, event, callback):
+        # bound unbounded attr to the class, using the assigned `_callback_attr`
+        setattr(cls, callback._callback_attr, callback)
+        callback._event = event  # to know what event originated
+        return cls.add_event(event, callback._transitions)
 
     def add_state(cls, identifier, state):
         state._set_identifier(identifier)
