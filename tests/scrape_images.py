@@ -39,7 +39,7 @@ class MachineScraper(object):
             if not isinstance(value, StateMachineMetaclass) or value._abstract:
                 continue
 
-            unique_key = f"{module_name}.{key}"
+            unique_key = "{}.{}".format(module_name, key)
 
             if unique_key in self.seen:
                 continue

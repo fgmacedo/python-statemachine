@@ -123,7 +123,7 @@ order.payments
 
 # %%
 
-control.is_completed
+control.completed.is_active
 
 # %%
 
@@ -133,4 +133,4 @@ control
 # %%
 assert order.order_total == 10
 assert order.payments == [4, 6]
-assert control.is_completed
+assert control.completed.is_active

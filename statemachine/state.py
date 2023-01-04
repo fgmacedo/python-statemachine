@@ -112,6 +112,7 @@ class State(object):
         )
 
     def __get__(self, machine, owner):
+        self.machine = machine
         return self
 
     def __set__(self, instance, value):
@@ -178,3 +179,7 @@ class State(object):
     @property
     def final(self):
         return self._final
+
+    @property
+    def is_active(self):
+        return self.machine.current_state == self

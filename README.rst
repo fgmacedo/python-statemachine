@@ -127,16 +127,15 @@ True
 >>> traffic_light.current_state == traffic_light.yellow
 True
 
-But for your convenience, a dynamically property ``is_<state.id>`` is created for each state,
-so you can easily check if a machine is at a specific state at any time:
+But for your convenience, can easily ask if a state is active at any time:
 
->>> traffic_light.is_green
+>>> traffic_light.green.is_active
 False
 
->>> traffic_light.is_yellow
+>>> traffic_light.yellow.is_active
 True
 
->>> traffic_light.is_red
+>>> traffic_light.red.is_active
 False
 
 Easily iterate over all states:
@@ -161,7 +160,7 @@ Or sending an event with the event name:
 Go ahead!
 'Running cycle from red to green'
 
->>> traffic_light.is_green
+>>> traffic_light.green.is_active
 True
 
 You can't run a transition from an invalid state:
@@ -172,7 +171,7 @@ statemachine.exceptions.TransitionNotAllowed: Can't go when in Green.
 
 Keeping the same state as expected:
 
->>> traffic_light.is_green
+>>> traffic_light.green.is_active
 True
 
 And you can pass arbitrary positional or keyword arguments to the event, and
@@ -198,7 +197,7 @@ to the ``StateMachine`` constructor:
 
 >>> traffic_light = TrafficLightMachine(obj)
 
->>> traffic_light.is_red
+>>> traffic_light.red.is_active
 True
 
 >>> obj.state
@@ -206,7 +205,7 @@ True
 
 >>> obj.state = 'green'
 
->>> traffic_light.is_green
+>>> traffic_light.green.is_active
 True
 
 >>> traffic_light.slowdown()
@@ -214,7 +213,7 @@ True
 >>> obj.state
 'yellow'
 
->>> traffic_light.is_yellow
+>>> traffic_light.yellow.is_active
 True
 
 
@@ -303,6 +302,6 @@ True
 >>> control.payments
 [4, 6]
 
->>> control.is_completed
+>>> control.completed.is_active
 True
 

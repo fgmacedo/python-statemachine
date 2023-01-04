@@ -65,6 +65,23 @@ Below is a gallery of StateMachine examples.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="An StateMachine for the well know game.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_guess_the_number_machine_thumb.svg
+    :alt: Guess the number machine
+
+  :ref:`sphx_glr_auto_examples_guess_the_number_machine.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Guess the number machine</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="A StateMachine that exercices all possible Actions and Guards.">
 
 .. only:: html
@@ -91,5 +108,6 @@ Below is a gallery of StateMachine examples.
    /auto_examples/traffic_light_machine
    /auto_examples/order_control_machine
    /auto_examples/order_control_rich_model_machine
+   /auto_examples/guess_the_number_machine
    /auto_examples/all_actions_machine
 
