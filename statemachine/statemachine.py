@@ -55,6 +55,7 @@ class BaseStateMachine(object):
             transition = Transition(None, initial_state, event="__initial__")
             transition._setup(self._get_resolver())
             transition.before.clear()
+            transition.on.clear()
             transition.after.clear()
             event_data = EventData(
                 self,
@@ -166,9 +167,11 @@ class BaseStateMachine(object):
         if source is not None:
             source.exit(*event_data.args, **event_data.extended_kwargs)
 
-        self.current_state = destination
+        result += transition.on(*event_data.args, **event_data.extended_kwargs)
 
+        self.current_state = destination
         event_data.state = destination
+
         destination.enter(*event_data.args, **event_data.extended_kwargs)
         transition.after(*event_data.args, **event_data.extended_kwargs)
 

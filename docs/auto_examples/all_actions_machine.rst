@@ -23,7 +23,7 @@ All actions machine
 
 A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
-.. GENERATED FROM PYTHON SOURCE LINES 8-120
+.. GENERATED FROM PYTHON SOURCE LINES 8-123
 
 .. code-block:: default
 
@@ -41,7 +41,7 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
         go = initial.to(
             final,
             validators=["validation_1", "validation_2"],
-            conditions=["condition_1", "condition_2"],
+            cond=["condition_1", "condition_2"],
             unless=["unless_1", "unless_2"],
             on_execute=["on_execute_1", "on_execute_2"],
             before=["before_go_inline_1", "before_go_inline_2"],
@@ -52,7 +52,7 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
             self.spy = mock.Mock(side_effect=lambda x: x)
             super(AllActionsMachine, self).__init__(*args, **kwargs)
 
-        # validations and conditions
+        # validators and guards
 
         def validation_1(self):
             # this method may raise an exception
@@ -91,16 +91,13 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
         def before_transition(self):
             return self.spy("before_transition")
 
+        def on_transition(self):
+            return self.spy("on_transition")
+
         def after_transition(self):
             return self.spy("after_transition")
 
         # before / after specific
-
-        def on_execute_1(self):
-            return self.spy("on_execute_1")
-
-        def on_execute_2(self):
-            return self.spy("on_execute_2")
 
         def before_go_inline_1(self):
             return self.spy("before_go_inline_1")
@@ -110,6 +107,12 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
         def before_go(self):
             return self.spy("before_go")
+
+        def on_execute_1(self):
+            return self.spy("on_execute_1")
+
+        def on_execute_2(self):
+            return self.spy("on_execute_2")
 
         def on_go(self):
             return self.spy("on_go")
@@ -151,12 +154,12 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 121-123
+.. GENERATED FROM PYTHON SOURCE LINES 124-126
 
 Testing
 -------
 
-.. GENERATED FROM PYTHON SOURCE LINES 123-128
+.. GENERATED FROM PYTHON SOURCE LINES 126-131
 
 .. code-block:: default
 
@@ -172,11 +175,11 @@ Testing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 129-130
+.. GENERATED FROM PYTHON SOURCE LINES 132-133
 
-Only before actions have their result collected.
+Only before/on actions have their result collected.
 
-.. GENERATED FROM PYTHON SOURCE LINES 130-142
+.. GENERATED FROM PYTHON SOURCE LINES 133-146
 
 .. code-block:: default
 
@@ -186,9 +189,10 @@ Only before actions have their result collected.
         "before_transition",
         "before_go_inline_1",
         "before_go_inline_2",
+        "before_go",
+        "on_transition",
         "on_execute_1",
         "on_execute_2",
-        "before_go",
         "on_go",
     ]
 
@@ -199,11 +203,11 @@ Only before actions have their result collected.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 143-144
+.. GENERATED FROM PYTHON SOURCE LINES 147-148
 
 Checking the method resolution order
 
-.. GENERATED FROM PYTHON SOURCE LINES 144-170
+.. GENERATED FROM PYTHON SOURCE LINES 148-183
 
 .. code-block:: default
 
@@ -211,23 +215,32 @@ Checking the method resolution order
     assert spy.call_args_list == [
         mock.call("on_enter_state"),
         mock.call("on_enter_initial"),
+
         mock.call("validation_1"),
         mock.call("validation_2"),
+
         mock.call("condition_1"),
         mock.call("condition_2"),
+
         mock.call("unless_1"),
         mock.call("unless_2"),
+
         mock.call("before_transition"),
         mock.call("before_go_inline_1"),
         mock.call("before_go_inline_2"),
-        mock.call("on_execute_1"),
-        mock.call("on_execute_2"),
         mock.call("before_go"),
-        mock.call("on_go"),
+
         mock.call("on_exit_state"),
         mock.call("on_exit_initial"),
+
+        mock.call("on_transition"),
+        mock.call("on_execute_1"),
+        mock.call("on_execute_2"),
+        mock.call("on_go"),
+
         mock.call("on_enter_state"),
         mock.call("on_enter_final"),
+
         mock.call("after_go_inline_1"),
         mock.call("after_go_inline_2"),
         mock.call("after_go"),

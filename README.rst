@@ -231,10 +231,10 @@ A simple didactic state machine for controlling an ``Order``:
 ...
 ...     add_to_order = waiting_for_payment.to(waiting_for_payment)
 ...     receive_payment = (
-...         waiting_for_payment.to(processing, conditions="payments_enough")
+...         waiting_for_payment.to(processing, cond="payments_enough")
 ...         | waiting_for_payment.to(waiting_for_payment, unless="payments_enough")
 ...     )
-...     process_order = processing.to(shipping, conditions="payment_received")
+...     process_order = processing.to(shipping, cond="payment_received")
 ...     ship_order = shipping.to(completed)
 ...
 ...     def __init__(self):

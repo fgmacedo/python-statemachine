@@ -14,8 +14,6 @@ A machine moves from state to state through transitions. These transitions are
 caused by events.
 
 
-(event)=
-
 ## Event
 
 An event is an external signal that something has happened.
@@ -29,8 +27,6 @@ In python-statemachine, an event is specified as an attribute of the
 statemachine class declaration, or diretly on the `event` parameter on
 a {ref}`transition`.
 
-
-(transition)=
 
 ## Transition
 
@@ -102,7 +98,7 @@ At line 18, you can say that this code defines three transitions:
 And these transitions are assigned to the {ref}`event` `cycle` defined at
 class level.
 
-When an {ref}`event`is sent to a stamemachine:
+When an {ref}`event` is sent to a stamemachine:
 
 1. Uses the current {ref}`state` to check for available transitions.
 1. For each possible transition, it checks for those that matches the received {ref}`event`.

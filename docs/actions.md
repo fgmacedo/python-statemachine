@@ -44,8 +44,6 @@ For each event, you can register `before_<event>` and `after_<event>`
 - `after_<event>(event_data)`
 
 
-(validators-and-guards)=
-
 ## Other callbacks
 
 In addition to {ref}`actions`, you can specify {ref}`validators-and-guards` that are checked
@@ -60,27 +58,32 @@ See {ref}`guards` and {ref}`validators`.
 
 Actions and Guards will be executed in the following order:
 
-- `validators(event_data)`  (attached to the transition)
+- `validators()`  (attached to the transition)
 
-- `conditions(event_data)`  (attached to the transition)
+- `conditions()`  (attached to the transition)
 
-- `unless(event_data)`  (attached to the transition)
+- `unless()`  (attached to the transition)
 
-- `before_transition(event_data)`
+- `before_transition()`
 
-- `before_<event>(event_data)`
+- `before_<event>()`
 
-- `on_exit_state(event_data)`
+- `on_exit_state()`
 
-- `on_exit_<state_identifier>(event_data)`
+- `on_exit_<state_identifier>()`
 
-- `on_enter_state(event_data)`
+- `on_transition()`
 
-- `on_enter_<state_identifier>(event_data)`
+- `on_<event>()`
 
-- `after_<event>(event_data)`
+- `on_enter_state()`
 
-- `after_transition(event_data)`
+- `on_enter_<state_identifier>()`
+
+- `after_<event>()`
+
+- `after_transition()`
+
 
 
 (dynamic-dispatch)=
@@ -90,8 +93,8 @@ python-statemachine implements a custom dispatch mechanism on all those availabl
 Guards, this means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
 library will match your method signature of what's expect to receive with the provided arguments.
 
-This means that if on your `on_enter_<state>()` or `on_execute_<event>()` method, you also
-need to know the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
+This means that if on your `on_enter_<state>()` or `on_execute_<event>()` method, you need to know
+the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
 argument passed with the trigger, just add this parameter to the method and It will be passed
 by the dispatch mechanics.
 
@@ -116,7 +119,8 @@ For your convenience, all these parameters are available for you on any Action o
 
 - `transition`: The {ref}`Transition` instance that was activated by the {ref}`Event`.
 
-So, you can implement Actions and Guards like these, but this list is not exaustive, it's only to give you a few examples...  any combination of parameters will work, including extra parameters
+So, you can implement Actions and Guards like these, but this list is not exaustive, it's only
+to give you a few examples...  any combination of parameters will work, including extra parameters
 that you may inform when triggering an {ref}`event`:
 
 ```py

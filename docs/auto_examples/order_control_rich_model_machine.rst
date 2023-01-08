@@ -66,9 +66,9 @@ An StateMachine that demonstrates :ref:`Actions` being used on a rich model.
 
         add_to_order = waiting_for_payment.to(waiting_for_payment, before="add_to_order")
         receive_payment = waiting_for_payment.to(
-            processing, conditions="payments_enough"
+            processing, cond="payments_enough"
         ) | waiting_for_payment.to(waiting_for_payment, unless="payments_enough")
-        process_order = processing.to(shipping, conditions="payment_received")
+        process_order = processing.to(shipping, cond="payment_received")
         ship_order = shipping.to(completed)
 
 

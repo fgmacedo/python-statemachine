@@ -1,3 +1,4 @@
+(validators-and-guards)=
 # Validators and guards
 
 Validations and Guards are checked before an transition is started. They are meant to stop a
@@ -15,7 +16,7 @@ for all the available callbacks, being validators and guards or {ref}`actions`.
 
 Also known as **Conditional transition**.
 
-A guard is a condition that may be checked when a statechart wants to handle
+A guard is a condition that may be checked when a statemachine wants to handle
 an {ref}`event`. A guard is declared on the {ref}`transition`, and when that transition
 would trigger, then the guard (if any) is checked.  If the guard is `True`
 then the transition does happen. If the guard is `False`, the transition
@@ -27,17 +28,18 @@ two (or more) transitions for the same event.  When the event happens, then
 the guarded transitions are checked, one by one, and the first transition
 whose guard is true will be used, the others will be ignored.
 
-A guard is generally a boolean function or boolean variable and must not have any side effects.  Side effects are reserved for {ref}`actions`.
+A guard is generally a boolean function or boolean variable and must not have any side effects.
+Side effects are reserved for {ref}`actions`.
 
 There are two variations of Guard clauses available:
 
 
-Conditions
+cond
 : A list of conditions, acting like predicates. A transition is only allowed to occur if
 all conditions evaluates to ``True``.
 
-Unless
-: Same as conditions, but the transition is allowed if they evaluates fo ``False``.
+unless
+: Same as `cond`, but the transition is allowed if they evaluates fo ``False``.
 
 ## Validators
 
@@ -57,7 +59,7 @@ class InvoiceStateMachine(StateMachine):
     failed = State("failed")
 
     pay = (
-        unpaid.to(paid, conditions="payment_success")
+        unpaid.to(paid, cond="payment_success")
         | failed.to(paid)
         | unpaid.to(failed)
     )

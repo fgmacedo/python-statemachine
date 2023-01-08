@@ -100,18 +100,18 @@ class DotGraphMachine(object):
             name = getattr(cond.func, "__name__", cond.func)
             return name if cond.expected_value else "!{}".format(name)
 
-        conditions = ", ".join(
+        cond = ", ".join(
             [
                 _get_condition_repr(cond)
-                for cond in transition.conditions
+                for cond in transition.cond
             ]
         )
-        if conditions:
-            conditions = "\n[{}]".format(conditions)
+        if cond:
+            cond = "\n[{}]".format(cond)
         return pydot.Edge(
             transition.source.identifier,
             transition.destination.identifier,
-            label="{}{}".format(transition.event, conditions),
+            label="{}{}".format(transition.event, cond),
             color="blue",
             fontsize=self.transition_font_size,
         )

@@ -158,7 +158,7 @@ def approval_machine(current_time):
 
         completed = State("Completed")
 
-        validate = requested.to(accepted, conditions="is_ok") | requested.to(rejected)
+        validate = requested.to(accepted, cond="is_ok") | requested.to(rejected)
 
         @validate
         def do_validate(self, *args, **kwargs):

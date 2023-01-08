@@ -75,9 +75,9 @@ def test_do_not_transition_if_multiple_destinations_with_guard():
         rejected = State("Rejected")
 
         validate = (
-            requested.to(accepted, conditions=never_will_pass)
-            | requested.to(rejected, conditions="also_never_will_pass")
-            | requested.to(requested, conditions="this_also_never_will_pass")
+            requested.to(accepted, cond=never_will_pass)
+            | requested.to(rejected, cond="also_never_will_pass")
+            | requested.to(requested, cond="this_also_never_will_pass")
         )
 
         @property
@@ -102,7 +102,7 @@ def test_check_invalid_reference_to_conditions():
         rejected = State("Rejected")
 
         validate = requested.to(
-            accepted, conditions="not_found_condition"
+            accepted, cond="not_found_condition"
         ) | requested.to(rejected)
 
     with pytest.raises(exceptions.InvalidDefinition):
@@ -118,7 +118,7 @@ def test_should_change_to_returned_state_on_multiple_destination_with_combined_t
         completed = State("Completed")
 
         validate = (
-            requested.to(accepted, conditions="is_ok")
+            requested.to(accepted, cond="is_ok")
             | requested.to(rejected)
             | accepted.to(completed)
         )

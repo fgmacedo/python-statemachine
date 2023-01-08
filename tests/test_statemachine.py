@@ -54,7 +54,7 @@ def test_machine_should_only_allow_only_one_initial_state():
             producing = State("Being produced")
             closed = State(
                 "Closed", initial=True
-            )  # Should raise an Exception when instantiated
+            )  # Should raise an Exception right after the class is defined
 
             add_job = draft.to(draft) | producing.to(producing)
             produce = draft.to(producing)

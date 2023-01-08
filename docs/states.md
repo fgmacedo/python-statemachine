@@ -4,7 +4,6 @@
 State, as the name sais, holds the representation of a state in a statemachine.
 
 
-(state)=
 ## State
 
 ```{eval-rst}

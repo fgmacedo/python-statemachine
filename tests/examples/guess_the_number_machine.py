@@ -21,10 +21,10 @@ class GuessTheNumberMachine(StateMachine):
     lose = State("Lose", final=True)
 
     guess = (
-        lose.from_(low, high, conditions="max_guesses_reached")
-        | won.from_(low, high, conditions="guess_is_equal")
-        | low.from_(low, high, start, conditions="guess_is_lower")
-        | high.from_(low, high, start, conditions="guess_is_higher")
+        lose.from_(low, high, cond="max_guesses_reached")
+        | won.from_(low, high, cond="guess_is_equal")
+        | low.from_(low, high, start, cond="guess_is_lower")
+        | high.from_(low, high, start, cond="guess_is_higher")
     )
 
     def __init__(self, max_attempts=5, lower=1, higher=5, seed=42):

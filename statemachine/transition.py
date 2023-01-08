@@ -11,8 +11,8 @@ class Transition(object):
     A transition holds reference to the source and destination state.
 
     Args:
-        source (State): The origin {ref}`State` of the transition.
-        destination (State): The destination {ref}`State` of the transition.
+        source (State): The origin :ref:`State` of the transition.
+        destination (State): The destination :ref:`State` of the transition.
         event (Optional[Union[str, List[str]]]): List of designators of events that trigger this
             transition.
 
@@ -26,7 +26,7 @@ class Transition(object):
         destination,
         event=None,
         validators=None,
-        conditions=None,
+        cond=None,
         unless=None,
         on_execute=None,
         before=None,
@@ -41,12 +41,16 @@ class Transition(object):
             Callbacks()
             .add("before_transition", suppress_errors=True)
             .add(before)
+        )
+        self.on = (
+            Callbacks()
+            .add("on_transition", suppress_errors=True)
             .add(on_execute)
         )
         self.after = Callbacks().add(after)
-        self.conditions = (
+        self.cond = (
             Callbacks(factory=ConditionWrapper)
-            .add(conditions)
+            .add(cond)
             .add(unless, expected_value=False)
         )
 
@@ -57,14 +61,23 @@ class Transition(object):
 
     def _setup(self, resolver):
         self.validators.setup(resolver)
+        self.cond.setup(resolver)
         self.before.setup(resolver)
+        self.on.setup(resolver)
         self.after.setup(resolver)
-        self.conditions.setup(resolver)
 
         self.before.add(
             [
                 pattern.format(event)
-                for pattern in ["before_{}", "on_{}"]
+                for pattern in ["before_{}"]
+                for event in self._events
+            ],
+            suppress_errors=True,
+        )
+        self.on.add(
+            [
+                pattern.format(event)
+                for pattern in ["on_{}"]
                 for event in self._events
             ],
             suppress_errors=True,
@@ -79,10 +92,10 @@ class Transition(object):
             suppress_errors=True,
         )
 
-    def _eval_conditions(self, event_data):
+    def _eval_cond(self, event_data):
         return all(
             condition(*event_data.args, **event_data.extended_kwargs)
-            for condition in self.conditions
+            for condition in self.cond
         )
 
     def match(self, event):
@@ -108,7 +121,7 @@ class Transition(object):
 
     def execute(self, event_data):
         self.validators(*event_data.args, **event_data.extended_kwargs)
-        if not self._eval_conditions(event_data):
+        if not self._eval_cond(event_data):
             return False
 
         result = event_data.machine._activate(event_data)

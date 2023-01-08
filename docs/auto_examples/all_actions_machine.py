@@ -19,7 +19,7 @@ class AllActionsMachine(StateMachine):
     go = initial.to(
         final,
         validators=["validation_1", "validation_2"],
-        conditions=["condition_1", "condition_2"],
+        cond=["condition_1", "condition_2"],
         unless=["unless_1", "unless_2"],
         on_execute=["on_execute_1", "on_execute_2"],
         before=["before_go_inline_1", "before_go_inline_2"],
@@ -30,7 +30,7 @@ class AllActionsMachine(StateMachine):
         self.spy = mock.Mock(side_effect=lambda x: x)
         super(AllActionsMachine, self).__init__(*args, **kwargs)
 
-    # validations and conditions
+    # validators and guards
 
     def validation_1(self):
         # this method may raise an exception
@@ -69,16 +69,13 @@ class AllActionsMachine(StateMachine):
     def before_transition(self):
         return self.spy("before_transition")
 
+    def on_transition(self):
+        return self.spy("on_transition")
+
     def after_transition(self):
         return self.spy("after_transition")
 
     # before / after specific
-
-    def on_execute_1(self):
-        return self.spy("on_execute_1")
-
-    def on_execute_2(self):
-        return self.spy("on_execute_2")
 
     def before_go_inline_1(self):
         return self.spy("before_go_inline_1")
@@ -88,6 +85,12 @@ class AllActionsMachine(StateMachine):
 
     def before_go(self):
         return self.spy("before_go")
+
+    def on_execute_1(self):
+        return self.spy("on_execute_1")
+
+    def on_execute_2(self):
+        return self.spy("on_execute_2")
 
     def on_go(self):
         return self.spy("on_go")
@@ -126,16 +129,17 @@ spy = machine.spy
 
 
 # %%
-# Only before actions have their result collected.
+# Only before/on actions have their result collected.
 
 result = machine.go()
 assert result == [
     "before_transition",
     "before_go_inline_1",
     "before_go_inline_2",
+    "before_go",
+    "on_transition",
     "on_execute_1",
     "on_execute_2",
-    "before_go",
     "on_go",
 ]
 
@@ -145,23 +149,32 @@ assert result == [
 assert spy.call_args_list == [
     mock.call("on_enter_state"),
     mock.call("on_enter_initial"),
+
     mock.call("validation_1"),
     mock.call("validation_2"),
+
     mock.call("condition_1"),
     mock.call("condition_2"),
+
     mock.call("unless_1"),
     mock.call("unless_2"),
+
     mock.call("before_transition"),
     mock.call("before_go_inline_1"),
     mock.call("before_go_inline_2"),
-    mock.call("on_execute_1"),
-    mock.call("on_execute_2"),
     mock.call("before_go"),
-    mock.call("on_go"),
+
     mock.call("on_exit_state"),
     mock.call("on_exit_initial"),
+
+    mock.call("on_transition"),
+    mock.call("on_execute_1"),
+    mock.call("on_execute_2"),
+    mock.call("on_go"),
+
     mock.call("on_enter_state"),
     mock.call("on_enter_final"),
+
     mock.call("after_go_inline_1"),
     mock.call("after_go_inline_2"),
     mock.call("after_go"),
