@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from uuid import uuid4
 
 from .utils import ensure_iterable
 
@@ -31,32 +30,27 @@ class TransitionList(object):
     def __len__(self):
         return len(self.transitions)
 
-    def __call__(self, f):
-        """`TransitionList` was called as decorator `@<event> = <transitions>` syntax.
-
-        This results in a colision of names, because the event trigger and the given `f`
-        callback cannot share the same attribute name on the class.
-
-        And if we assign ``f`` directly as callback on the ``transitions.before`` list,
-        this will result in an `unbounded method error`, with `f` expecting a parameter
-        ``self`` not defined.
-
-        The implemented solution is to resolve the colision giving the callback an unique
-        name. On the :func:`StateMachineMetaclass.add_from_attributes` the method
-        will be bounded to the class with his unique name ``_callback_attr``.
-
-        Args:
-
-            f (callable): The decorated method to add as a callback before the transitions
-                occurs.
-
-        """
-        f._is_event = True
-        f._callback_attr = "_before_{}".format(uuid4().hex)
-        f._transitions = self
+    def _add_callback(self, callback, name, is_event=False):
         for transition in self.transitions:
-            transition.before.add(f._callback_attr)
-        return f
+            list_obj = getattr(transition, name)
+            list_obj._add_unbounded_callback(
+                callback,
+                is_event=is_event,
+                transitions=self,
+            )
+        return callback
+
+    def __call__(self, f):
+        return self._add_callback(f, "on", is_event=True)
+
+    def before(self, f):
+        return self._add_callback(f, "before")
+
+    def after(self, f):
+        return self._add_callback(f, "after")
+
+    def on(self, f):
+        return self._add_callback(f, "on")
 
     def add_event(self, event):
         for transition in self.transitions:

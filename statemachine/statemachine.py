@@ -35,7 +35,7 @@ class BaseStateMachine(object):
             type(self).__name__,
             self.model,
             self.state_field,
-            self.current_state.identifier,
+            self.current_state.id if self.current_state else None,
         )
 
     def _activate_initial_state(self):
@@ -163,17 +163,17 @@ class BaseStateMachine(object):
         source = event_data.state
         destination = transition.destination
 
-        result = transition.before(*event_data.args, **event_data.extended_kwargs)
+        result = transition.before.call(*event_data.args, **event_data.extended_kwargs)
         if source is not None:
-            source.exit(*event_data.args, **event_data.extended_kwargs)
+            source.exit.call(*event_data.args, **event_data.extended_kwargs)
 
-        result += transition.on(*event_data.args, **event_data.extended_kwargs)
+        result += transition.on.call(*event_data.args, **event_data.extended_kwargs)
 
         self.current_state = destination
         event_data.state = destination
 
-        destination.enter(*event_data.args, **event_data.extended_kwargs)
-        transition.after(*event_data.args, **event_data.extended_kwargs)
+        destination.enter.call(*event_data.args, **event_data.extended_kwargs)
+        transition.after.call(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:
             result = None

@@ -91,15 +91,10 @@ class State(object):
     def _setup(self, resolver):
         self.enter.setup(resolver)
         self.exit.setup(resolver)
-
-        self.enter.add(
-            ["on_enter_state", "on_enter_{}".format(self.id)],
-            suppress_errors=True,
-        )
-        self.exit.add(
-            ["on_exit_state", "on_exit_{}".format(self.id)],
-            suppress_errors=True,
-        )
+        self.enter.add("on_enter_state", prepend=True, suppress_errors=True)
+        self.enter.add("on_enter_{}".format(self.id), suppress_errors=True)
+        self.exit.add("on_exit_state", prepend=True, suppress_errors=True)
+        self.exit.add("on_exit_{}".format(self.id), suppress_errors=True)
 
     def __repr__(self):
         return "{}({!r}, id={!r}, value={!r}, initial={!r}, final={!r})".format(

@@ -23,7 +23,7 @@ All actions machine
 
 A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
-.. GENERATED FROM PYTHON SOURCE LINES 8-123
+.. GENERATED FROM PYTHON SOURCE LINES 8-143
 
 .. code-block:: default
 
@@ -43,7 +43,7 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
             validators=["validation_1", "validation_2"],
             cond=["condition_1", "condition_2"],
             unless=["unless_1", "unless_2"],
-            on_execute=["on_execute_1", "on_execute_2"],
+            on=["on_inline_1", "on_inline_2"],
             before=["before_go_inline_1", "before_go_inline_2"],
             after=["after_go_inline_1", "after_go_inline_2"],
         )
@@ -99,6 +99,10 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
         # before / after specific
 
+        @go.before
+        def before_go_decor(self):
+            return self.spy("before_go_decor")
+
         def before_go_inline_1(self):
             return self.spy("before_go_inline_1")
 
@@ -108,14 +112,22 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
         def before_go(self):
             return self.spy("before_go")
 
-        def on_execute_1(self):
-            return self.spy("on_execute_1")
+        @go.on
+        def go_on_decor(self):
+            return self.spy("go_on_decor")
 
-        def on_execute_2(self):
-            return self.spy("on_execute_2")
+        def on_inline_1(self):
+            return self.spy("on_inline_1")
+
+        def on_inline_2(self):
+            return self.spy("on_inline_2")
 
         def on_go(self):
             return self.spy("on_go")
+
+        @go.after
+        def after_go_decor(self):
+            return self.spy("after_go_decor")
 
         def after_go_inline_1(self):
             return self.spy("after_go_inline_1")
@@ -128,8 +140,16 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
         # enter / exit specific
 
+        @initial.enter
+        def enter_initial_decor(self):
+            return self.spy("enter_initial_decor")
+
         def on_enter_initial(self):
             return self.spy("on_enter_initial")
+
+        @initial.exit
+        def exit_initial_decor(self):
+            return self.spy("exit_initial_decor")
 
         def on_exit_initial(self):
             return self.spy("on_exit_initial")
@@ -154,12 +174,12 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 124-126
+.. GENERATED FROM PYTHON SOURCE LINES 144-146
 
 Testing
 -------
 
-.. GENERATED FROM PYTHON SOURCE LINES 126-131
+.. GENERATED FROM PYTHON SOURCE LINES 146-151
 
 .. code-block:: default
 
@@ -175,11 +195,11 @@ Testing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 132-133
+.. GENERATED FROM PYTHON SOURCE LINES 152-153
 
 Only before/on actions have their result collected.
 
-.. GENERATED FROM PYTHON SOURCE LINES 133-146
+.. GENERATED FROM PYTHON SOURCE LINES 153-168
 
 .. code-block:: default
 
@@ -189,10 +209,12 @@ Only before/on actions have their result collected.
         "before_transition",
         "before_go_inline_1",
         "before_go_inline_2",
+        "before_go_decor",
         "before_go",
         "on_transition",
-        "on_execute_1",
-        "on_execute_2",
+        "on_inline_1",
+        "on_inline_2",
+        "go_on_decor",
         "on_go",
     ]
 
@@ -203,17 +225,18 @@ Only before/on actions have their result collected.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 147-148
+.. GENERATED FROM PYTHON SOURCE LINES 169-170
 
 Checking the method resolution order
 
-.. GENERATED FROM PYTHON SOURCE LINES 148-183
+.. GENERATED FROM PYTHON SOURCE LINES 170-210
 
 .. code-block:: default
 
 
     assert spy.call_args_list == [
         mock.call("on_enter_state"),
+        mock.call("enter_initial_decor"),
         mock.call("on_enter_initial"),
 
         mock.call("validation_1"),
@@ -228,14 +251,17 @@ Checking the method resolution order
         mock.call("before_transition"),
         mock.call("before_go_inline_1"),
         mock.call("before_go_inline_2"),
+        mock.call("before_go_decor"),
         mock.call("before_go"),
 
         mock.call("on_exit_state"),
+        mock.call("exit_initial_decor"),
         mock.call("on_exit_initial"),
 
         mock.call("on_transition"),
-        mock.call("on_execute_1"),
-        mock.call("on_execute_2"),
+        mock.call("on_inline_1"),
+        mock.call("on_inline_2"),
+        mock.call("go_on_decor"),
         mock.call("on_go"),
 
         mock.call("on_enter_state"),
@@ -243,6 +269,7 @@ Checking the method resolution order
 
         mock.call("after_go_inline_1"),
         mock.call("after_go_inline_2"),
+        mock.call("after_go_decor"),
         mock.call("after_go"),
         mock.call("after_transition"),
     ]

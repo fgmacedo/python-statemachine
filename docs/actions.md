@@ -1,8 +1,8 @@
 # Actions
 
-
-An action is the way a statemachine can cause things to happen in the
+An action is the way a StateMachine can cause things to happen in the
 outside world, and indeed they are the main reason why they exist at all.
+
 The main point of introducing a state machine is for the
 actions to be invoked at the right times, depending on the sequence of events
 and the state of the guards.
@@ -11,37 +11,266 @@ Actions are most commonly performed on entry or exit of a state, although
 it is possible to add them before / after a transition.
 
 There are several action callbacks that you can define to interact with a
-machine in execution.
+StateMachine in execution.
 
 There are callbacks that you can specify that are generic and will be called
 when something changes and are not bounded to a specific state or event:
 
-- `before_transition(event_data)`
+- `before_transition()`
 
-- `on_enter_state(event_data)`
+- `on_exit_state()`
 
-- `on_exit_state(event_data)`
+- `on_transition()`
 
-- `after_transition(event_data)`
+- `on_enter_state()`
+
+- `after_transition()`
+
+The follow example can get you an overview of the "generic" callbacks available:
+
+```py
+>>> from statemachine import StateMachine, State
+
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True)
+...     final = State("Final", final=True)
+...
+...     loop = initial.to.itself()
+...     go = initial.to(final)
+...
+...     def before_transition(self, event, state):
+...         print("Before '{}', on the '{}' state.".format(event, state.id))
+...         return "before_transition_return"
+...
+...     def on_transition(self, event, state):
+...         print("On '{}', on the '{}' state.".format(event, state.id))
+...         return "on_transition_return"
+...
+...     def on_exit_state(self, event, state):
+...         print("Exiting '{}' state from '{}' event.".format(state.id, event))
+...
+...     def on_enter_state(self, event, state):
+...         print("Entering '{}' state from '{}' event.".format(state.id, event))
+...
+...     def after_transition(self, event, state):
+...         print("After '{}', on the '{}' state.".format(event, state.id))
+
+
+>>> sm = ExampleStateMachine()  # On initialization, the machine run a special event `__initial__`
+Entering 'initial' state from '__initial__' event.
+
+>>> sm.loop()
+Before 'loop', on the 'initial' state.
+Exiting 'initial' state from 'loop' event.
+On 'loop', on the 'initial' state.
+Entering 'initial' state from 'loop' event.
+After 'loop', on the 'initial' state.
+['before_transition_return', 'on_transition_return']
+
+>>> sm.go()
+Before 'go', on the 'initial' state.
+Exiting 'initial' state from 'go' event.
+On 'go', on the 'initial' state.
+Entering 'final' state from 'go' event.
+After 'go', on the 'final' state.
+['before_transition_return', 'on_transition_return']
+
+```
+
+
+```{seealso}
+All actions and {ref}`guards` support multiple method signatures. They follow the
+{ref}`dynamic-dispatch` method calling implemented on this library.
+```
 
 ## State actions
 
-For each defined state, you can register `on_enter_<state>` and `on_exit_<state>` callbacks.
+For each defined {ref}`state`, you can declare `enter` and `exit` callbacks.
 
-- `on_enter_<state_identifier>(event_data)`
+### Declare state actions by name convention
 
-- `on_exit_<state_identifier>(event_data)`
+Callbacks by name convention will be searched on the StateMachine and on the
+model, using the patterns:
+
+- `on_enter_<state.id>()`
+
+- `on_exit_<state.id>()`
 
 
-The initial {ref}`state` is entered when the machine starts and the corresponding actions `on_enter_state` or `on_enter_<state>` are called if defined.
+```py
+>>> from statemachine import StateMachine, State
 
-## Event actions
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True)
+...
+...     loop = initial.to.itself()
+...
+...     def on_enter_initial(self):
+...         pass
+...
+...     def on_exit_initial(self):
+...         pass
 
-For each event, you can register `before_<event>` and `after_<event>`
+```
 
-- `before_<event>(event_data)`
+### Bind state actions using params
 
-- `after_<event>(event_data)`
+Use the `enter` or `exit` params available on the `State` constructor.
+
+```py
+>>> from statemachine import StateMachine, State
+
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True, enter="entering_initial", exit="leaving_initial")
+...
+...     loop = initial.to.itself()
+...
+...     def entering_initial(self):
+...         pass
+...
+...     def leaving_initial(self):
+...         pass
+
+```
+
+### Bind state actions using decorator syntax
+
+
+```py
+>>> from statemachine import StateMachine, State
+
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True)
+...
+...     loop = initial.to.itself()
+...
+...     @initial.enter
+...     def entering_initial(self):
+...         pass
+...
+...     @initial.exit
+...     def leaving_initial(self):
+...         pass
+
+```
+
+## Transition actions
+
+For each {ref}`event`, you can register `before`, `on` and `after` callbacks.
+
+### Declare transition actions by name convention
+
+The action will be registered for every {ref}`transition` associated with the event.
+
+Callbacks by name convention will be searched on the StateMachine and on the
+model, using the patterns:
+
+- `before_<event>()`
+
+- `on_<event>()`
+
+- `after_<event>()`
+
+
+```py
+>>> from statemachine import StateMachine, State
+
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True)
+...
+...     loop = initial.to.itself()
+...
+...     def before_loop(self):
+...         pass
+...
+...     def on_loop(self):
+...         pass
+...
+...     def after_loop(self):
+...         pass
+...
+
+```
+
+### Bind transition actions using params
+
+```py
+>>> from statemachine import StateMachine, State
+
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True)
+...
+...     loop = initial.to.itself(before="just_before", on="its_happening", after="loop_completed")
+...
+...     def just_before(self):
+...         pass
+...
+...     def its_happening(self):
+...         pass
+...
+...     def loop_completed(self):
+...         pass
+
+```
+
+### Bind event actions using decorator syntax
+
+The action will be registered for every {ref}`transition` associated with the event.
+
+
+```py
+>>> from statemachine import StateMachine, State
+
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True)
+...
+...     loop = initial.to.itself()
+...
+...     @loop.before
+...     def just_before(self):
+...         pass
+...
+...     @loop.on
+...     def its_happening(self):
+...         pass
+...
+...     @loop.after
+...     def loop_completed(self):
+...         pass
+
+```
+
+### Declare an event while also giving an "on" action using the decorator syntax
+
+You can also declare an event while also adding a callback:
+
+```py
+>>> from statemachine import StateMachine, State
+
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State("Initial", initial=True)
+...
+...     @initial.to.itself()
+...     def loop(self):
+...         print("On loop")
+...         return 42
+
+```
+
+Note that with this syntax, the result `loop` that is present on the `ExampleStateMachine.loop`
+namespacte is not a simple method, but an {ref}`event` trigger. So it only executes if the
+StateMachine is on the right state.
+
+So, you can use the event-oriented approach:
+
+```py
+>>> sm = ExampleStateMachine()
+
+>>> sm.send("loop")
+On loop
+42
+
+```
 
 
 ## Other callbacks
@@ -93,7 +322,7 @@ python-statemachine implements a custom dispatch mechanism on all those availabl
 Guards, this means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
 library will match your method signature of what's expect to receive with the provided arguments.
 
-This means that if on your `on_enter_<state>()` or `on_execute_<event>()` method, you need to know
+This means that if on your `on_enter_<state.id>()` or `on_execute_<event>()` method, you need to know
 the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
 argument passed with the trigger, just add this parameter to the method and It will be passed
 by the dispatch mechanics.
