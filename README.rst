@@ -65,6 +65,8 @@ To generate diagrams from your machines, you'll also need ``pydot`` and ``Graphv
 install this library already with ``pydot`` dependency using the `extras` install option. See
 our docs for more details.
 
+.. code-block:: console
+
     $ pip install python-statemachine[diagrams]
 
 Define your state machine:
