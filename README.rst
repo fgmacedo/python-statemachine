@@ -91,7 +91,7 @@ Define your state machine:
 ...         return "Running {} from {} to {}{}".format(
 ...             event_data.event,
 ...             event_data.transition.source.id,
-...             event_data.transition.destination.id,
+...             event_data.transition.target.id,
 ...             message,
 ...         )
 ...

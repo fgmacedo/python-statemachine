@@ -15,8 +15,8 @@ def test_assign_events_on_transitions():
         def on_cycle(self, event_data=None):
             return "Running {} from {} to {}".format(
                 event_data.event,
-                event_data.transition.source.identifier,
-                event_data.transition.destination.identifier,
+                event_data.transition.source.id,
+                event_data.transition.target.id,
             )
 
     sm = TrafficLightMachine()

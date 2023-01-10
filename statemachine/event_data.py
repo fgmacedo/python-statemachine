@@ -5,8 +5,8 @@ class EventData(object):
         self.source = kwargs.get("source", None)
         self.state = kwargs.get("state", None)
         self.model = kwargs.get("model", None)
-        self.transition = kwargs.get("transition", None)
         self.executed = False
+        self._set_transition(kwargs.get("transition", None))
 
         # runtime and error
         self.args = args
@@ -17,6 +17,10 @@ class EventData(object):
     def __repr__(self):
         return "{}({!r})".format(type(self).__name__, self.__dict__)
 
+    def _set_transition(self, transition):
+        self.transition = transition
+        self.target = getattr(transition, "target", None)
+
     @property
     def extended_kwargs(self):
         kwargs = self.kwargs.copy()
@@ -26,4 +30,5 @@ class EventData(object):
         kwargs["state"] = self.state
         kwargs["model"] = self.model
         kwargs["transition"] = self.transition
+        kwargs["target"] = self.target
         return kwargs

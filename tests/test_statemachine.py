@@ -35,7 +35,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
         "draft",
         "producing",
     ]
-    assert [t.identifier for t in campaign_machine.transitions] == [
+    assert [t.name for t in campaign_machine.events] == [
         "add_job",
         "deliver",
         "produce",
@@ -149,24 +149,23 @@ def test_call_to_transition_that_is_not_in_the_current_state_should_raise_except
         machine.send(transition)
 
 
-def test_machine_should_list_allowed_transitions_in_the_current_state(campaign_machine):
+def test_machine_should_list_allowed_events_in_the_current_state(campaign_machine):
 
     model = MyModel()
     machine = campaign_machine(model)
 
     assert model.state == "draft"
-    assert [t.identifier for t in machine.allowed_events] == ["add_job", "produce"]
+    assert [t.name for t in machine.allowed_events] == ["add_job", "produce"]
 
     machine.produce()
     assert model.state == "producing"
-    assert [t.identifier for t in machine.allowed_events] == ["add_job", "deliver"]
+    assert [t.name for t in machine.allowed_events] == ["add_job", "deliver"]
 
     deliver = machine.allowed_events[1]
 
     deliver()
     assert model.state == "closed"
     assert machine.allowed_events == []
-    assert machine.allowed_transitions == []  # deprecated
 
 
 def test_machine_should_run_a_transition_by_his_key(campaign_machine):
@@ -233,21 +232,21 @@ def test_should_check_if_is_in_status(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)
 
-    assert machine.is_draft
-    assert not machine.is_producing
-    assert not machine.is_closed
+    assert machine.draft.is_active
+    assert not machine.producing.is_active
+    assert not machine.closed.is_active
 
     machine.produce()
 
-    assert not machine.is_draft
-    assert machine.is_producing
-    assert not machine.is_closed
+    assert not machine.draft.is_active
+    assert machine.producing.is_active
+    assert not machine.closed.is_active
 
     machine.deliver()
 
-    assert not machine.is_draft
-    assert not machine.is_producing
-    assert machine.is_closed
+    assert not machine.draft.is_active
+    assert not machine.producing.is_active
+    assert machine.closed.is_active
 
 
 def test_defined_value_must_be_assigned_to_models(campaign_machine_with_values):
@@ -263,15 +262,15 @@ def test_defined_value_must_be_assigned_to_models(campaign_machine_with_values):
 
 def test_state_machine_without_model(campaign_machine):
     machine = campaign_machine()
-    assert machine.is_draft
-    assert not machine.is_producing
-    assert not machine.is_closed
+    assert machine.draft.is_active
+    assert not machine.producing.is_active
+    assert not machine.closed.is_active
 
     machine.produce()
 
-    assert not machine.is_draft
-    assert machine.is_producing
-    assert not machine.is_closed
+    assert not machine.draft.is_active
+    assert machine.producing.is_active
+    assert not machine.closed.is_active
 
 
 @pytest.mark.parametrize(
@@ -286,8 +285,8 @@ def test_state_machine_without_model(campaign_machine):
 def test_state_machine_with_a_start_value(request, model, machine_name, start_value):
     machine_cls = request.getfixturevalue(machine_name)
     machine = machine_cls(model, start_value=start_value)
-    assert not machine.is_draft
-    assert machine.is_producing
+    assert not machine.draft.is_active
+    assert machine.producing.is_active
     assert not model or model.state == start_value
 
 

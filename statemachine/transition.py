@@ -8,11 +8,11 @@ from .events import Events
 
 class Transition(object):
     """
-    A transition holds reference to the source and destination state.
+    A transition holds reference to the source and target state.
 
     Args:
         source (State): The origin :ref:`State` of the transition.
-        destination (State): The destination :ref:`State` of the transition.
+        target (State): The target :ref:`State` of the transition.
         event (Optional[Union[str, List[str]]]): List of designators of events that trigger this
             transition.
 
@@ -23,7 +23,7 @@ class Transition(object):
     def __init__(
         self,
         source,
-        destination,
+        target,
         event=None,
         validators=None,
         cond=None,
@@ -34,7 +34,7 @@ class Transition(object):
     ):
 
         self.source = source
-        self.destination = destination
+        self.target = target
         self._events = Events().add(event)
         self.validators = Callbacks().add(validators)
         self.before = (
@@ -56,7 +56,7 @@ class Transition(object):
 
     def __repr__(self):
         return "{}({!r}, {!r}, event={!r})".format(
-            type(self).__name__, self.source, self.destination, self.event
+            type(self).__name__, self.source, self.target, self.event
         )
 
     def _setup(self, resolver):

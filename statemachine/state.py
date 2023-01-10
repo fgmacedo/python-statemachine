@@ -54,7 +54,7 @@ class State(object):
 
     >>> transitions = draft.to(draft) | draft.to(producing)
 
-    >>> [(t.source.name, t.destination.name) for t in transitions]
+    >>> [(t.source.name, t.target.name) for t in transitions]
     [('Draft', 'Draft'), ('Draft', 'Producing')]
 
     There are handy shortcuts that you can use to express this same set of transitions.
@@ -65,12 +65,12 @@ class State(object):
     >>> draft.to.itself()
     TransitionList([Transition(State('Draft', ...
 
-    You can even pass a list of destination states to declare at once all transitions starting
+    You can even pass a list of target states to declare at once all transitions starting
     from the same state.
 
     >>> transitions = draft.to(draft, producing, closed)
 
-    >>> [(t.source.name, t.destination.name) for t in transitions]
+    >>> [(t.source.name, t.target.name) for t in transitions]
     [('Draft', 'Draft'), ('Draft', 'Producing'), ('Draft', 'Closed')]
 
     """
@@ -127,10 +127,10 @@ class State(object):
         )
         return self.id
 
-    def _set_identifier(self, identifier):
-        self._id = identifier
+    def _set_id(self, id):
+        self._id = id
         if self.value is None:
-            self.value = identifier
+            self.value = id
 
     def _to_(self, *states, **kwargs):
         transitions = TransitionList(
@@ -159,12 +159,12 @@ class State(object):
 
     @property
     def to(self):
-        """Create transitions to the given destination states."""
+        """Create transitions to the given target states."""
         return self._get_proxy_method_to_itself(self._to_)
 
     @property
     def from_(self):
-        """Create transitions from the given destination states (reversed)."""
+        """Create transitions from the given target states (reversed)."""
         return self._get_proxy_method_to_itself(self._from_)
 
     @property

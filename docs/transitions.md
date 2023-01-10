@@ -102,7 +102,7 @@ When an {ref}`event` is sent to a stamemachine:
 
 1. Uses the current {ref}`state` to check for available transitions.
 1. For each possible transition, it checks for those that matches the received {ref}`event`.
-1. The destination state, if the transition succeeds, is determined by a transisition
+1. The target state, if the transition succeeds, is determined by a transisition
    that an event matches and;
 1. All {ref}`validators-and-guards`, including {ref}`actions`
    atached to the `on_<event>` and `before_<event>` callbacks.
@@ -119,7 +119,7 @@ By direct calling the event:
 >>> machine.cycle()
 'Running cycle from green to yellow'
 
->>> machine.current_state.identifier
+>>> machine.current_state.id
 'yellow'
 
 ```
@@ -127,10 +127,10 @@ By direct calling the event:
 In a running (interpreted) machine, events are `sent`:
 
 ```py
->>> machine.run("cycle")
+>>> machine.send("cycle")
 'Running cycle from yellow to red'
 
->>> machine.current_state.identifier
+>>> machine.current_state.id
 'red'
 
 ```
@@ -151,13 +151,13 @@ This action is executed before the transition associated with `cycle` event is a
 can also raise an exception at this point to stop a transition to occur.
 
 ```py
->>> machine.current_state.identifier
+>>> machine.current_state.id
 'red'
 
 >>> machine.cycle()
 'Running cycle from red to green'
 
->>> machine.current_state.identifier
+>>> machine.current_state.id
 'green'
 
 ```

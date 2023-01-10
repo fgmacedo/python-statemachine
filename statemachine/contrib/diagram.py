@@ -50,7 +50,7 @@ class DotGraphMachine(object):
     def _initial_edge(self):
         return pydot.Edge(
             "i",
-            self.machine.initial_state.identifier,
+            self.machine.initial_state.id,
             label="",
             color="blue",
             fontsize=self.transition_font_size,
@@ -80,7 +80,7 @@ class DotGraphMachine(object):
         actions = self._state_actions(state)
 
         node = pydot.Node(
-            state.identifier,
+            state.id,
             label="{}{}".format(state.name, actions),
             shape="rectangle",
             style="rounded, filled",
@@ -109,8 +109,8 @@ class DotGraphMachine(object):
         if cond:
             cond = "\n[{}]".format(cond)
         return pydot.Edge(
-            transition.source.identifier,
-            transition.destination.identifier,
+            transition.source.id,
+            transition.target.id,
             label="{}{}".format(transition.event, cond),
             color="blue",
             fontsize=self.transition_font_size,

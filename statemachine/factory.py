@@ -24,7 +24,7 @@ class StateMachineMetaclass(type):
         cls.add_from_attributes(attrs)
 
         for state in cls.states:
-            setattr(cls, "is_{}".format(state.identifier), check_state_factory(state))
+            setattr(cls, "is_{}".format(state.id), check_state_factory(state))
 
         cls._set_special_states()
         cls._check()
@@ -83,7 +83,7 @@ class StateMachineMetaclass(type):
             raise InvalidDefinition(
                 _(
                     "Cannot declare transitions from final state. Invalid state(s): {}".format(
-                        [s.identifier for s in final_state_with_invalid_transitions]
+                        [s.id for s in final_state_with_invalid_transitions]
                     )
                 )
             )
@@ -91,7 +91,7 @@ class StateMachineMetaclass(type):
     def add_inherited(cls, bases):
         for base in bases:
             for state in getattr(base, "states", []):
-                cls.add_state(state.identifier, state)
+                cls.add_state(state.id, state)
 
             events = getattr(base, "_events", {})
             for event in events.values():
@@ -118,8 +118,8 @@ class StateMachineMetaclass(type):
         for ref in func._callbacks_to_update:
             ref(attr_name)
 
-    def add_state(cls, identifier, state):
-        state._set_identifier(identifier)
+    def add_state(cls, id, state):
+        state._set_id(id)
         cls.states.append(state)
         cls.states_map[state.value] = state
 

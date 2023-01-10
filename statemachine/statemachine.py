@@ -161,7 +161,7 @@ class BaseStateMachine(object):
     def _activate(self, event_data):
         transition = event_data.transition
         source = event_data.state
-        destination = transition.destination
+        target = transition.target
 
         result = transition.before.call(*event_data.args, **event_data.extended_kwargs)
         if source is not None:
@@ -169,10 +169,10 @@ class BaseStateMachine(object):
 
         result += transition.on.call(*event_data.args, **event_data.extended_kwargs)
 
-        self.current_state = destination
-        event_data.state = destination
+        self.current_state = target
+        event_data.state = target
 
-        destination.enter.call(*event_data.args, **event_data.extended_kwargs)
+        target.enter.call(*event_data.args, **event_data.extended_kwargs)
         transition.after.call(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:
