@@ -2,9 +2,10 @@
 
 import pytest
 import mock
-from statemachine.callbacks import Callbacks
+from statemachine.callbacks import Callbacks, CallbackWrapper
 from statemachine.dispatcher import resolver_factory
 from statemachine.exceptions import InvalidDefinition
+from statemachine import StateMachine, State
 
 
 @pytest.fixture
@@ -35,7 +36,7 @@ class TestCallbacksMachinery:
         callbacks.add(func)
 
         with pytest.raises(InvalidDefinition):
-            callbacks(1, 2, 3, a="x", b="y")
+            callbacks.call(1, 2, 3, a="x", b="y")
 
         func.assert_not_called()
 
@@ -46,9 +47,13 @@ class TestCallbacksMachinery:
         callbacks.add(func)
         callbacks.setup(lambda x: x)
 
-        callbacks(1, 2, 3, a="x", b="y")
+        callbacks.call(1, 2, 3, a="x", b="y")
 
         func.assert_called_once_with(1, 2, 3, a="x", b="y")
+
+    def test_callback_wrapper_is_hashable(self):
+        wrapper = CallbackWrapper("something")
+        set().add(wrapper)
 
     def test_can_add_callback_that_is_a_string(self):
         callbacks = Callbacks()
@@ -59,7 +64,7 @@ class TestCallbacksMachinery:
         callbacks.add("last_one")
         callbacks.setup(resolver)
 
-        callbacks(1, 2, 3, a="x", b="y")
+        callbacks.call(1, 2, 3, a="x", b="y")
 
         resolver.assert_has_calls(
             [
@@ -108,7 +113,7 @@ class TestCallbacksMachinery:
         callbacks.add([func1, func2, func3])
         callbacks.setup(lambda x: x)
 
-        results = callbacks(1, 2, 3, a="x", b="y")
+        results = callbacks.call(1, 2, 3, a="x", b="y")
 
         assert results == [
             10,
@@ -118,4 +123,70 @@ class TestCallbacksMachinery:
 
     def test_callbacks_values_resolution(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
-        assert x.callbacks(xablau=True) == [42, "statemachine", ((), {"xablau": True})]
+        assert x.callbacks.call(xablau=True) == [42, "statemachine", ((), {"xablau": True})]
+
+
+class TestCallbacksAsDecorator:
+
+    def test_decorate_unbounded_function(self, ObjectWithCallbacks):
+        x = ObjectWithCallbacks()
+
+        @x.callbacks
+        def hero_lowercase(hero):
+            return hero.lower()
+
+        @x.callbacks
+        def race_uppercase(race):
+            return race.upper()
+
+        assert x.callbacks.call(hero="Gandalf", race="Maia") == [
+            42, "statemachine", ((), {"hero": "Gandalf", "race": "Maia"}), "gandalf", "MAIA"
+        ]
+
+        assert race_uppercase("Hobbit") == "HOBBIT"
+
+    def test_decorate_unbounded_machine_methods(self):
+        class MiniHeroJourneyMachine(StateMachine):
+
+            ordinary_world = State('Ordinary World', initial=True)
+            call_to_adventure = State('Call to Adventure')
+            refusal_of_call = State('Refusal of the Call')
+
+            adventure_called = ordinary_world.to(call_to_adventure)
+
+            def __init__(self, *args, **kwargs):
+                self.spy = mock.Mock(side_effect=lambda *x: x)
+                super(MiniHeroJourneyMachine, self).__init__(*args, **kwargs)
+
+            @ordinary_world.enter
+            def enter_ordinary_world(self):
+                """This is the hero's life before they begin their journey. It is their "normal"
+                world, where they are comfortable and familiar.
+                """
+                self.spy("enter_ordinary_world")
+
+            @call_to_adventure.enter
+            def enter_call_to_adventure(self, request):
+                """Something happens that forces the hero to leave their ordinary world and embark
+                on a journey. This might be a direct call, like a prophecy or a request for help,
+                or it might be a more subtle nudge, like a feeling of restlessness or a sense of
+                something missing in their life."""
+                self.spy("call_to_adventure", request)
+
+            @ordinary_world.to(refusal_of_call)
+            def refuse_call(self, reason):
+                self.spy("refuse_call", reason)
+
+        sm = MiniHeroJourneyMachine()
+        sm.adventure_called(request="The darkness is comming")
+        assert sm.spy.call_args_list == [
+            mock.call("enter_ordinary_world"),
+            mock.call("call_to_adventure", "The darkness is comming"),
+        ]
+
+        sm = MiniHeroJourneyMachine()
+        sm.refuse_call(reason="Not prepared yet")
+        assert sm.spy.call_args_list == [
+            mock.call("enter_ordinary_world"),
+            mock.call("refuse_call", "Not prepared yet"),
+        ]

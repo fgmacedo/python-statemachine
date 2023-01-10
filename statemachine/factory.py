@@ -1,5 +1,6 @@
 import warnings
 from collections import OrderedDict
+from uuid import uuid4
 
 from . import registry
 from .event import Event, trigger_event_factory
@@ -102,14 +103,20 @@ class StateMachineMetaclass(type):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
                 cls.add_event(key, value)
-            elif getattr(value, '_is_event', False):
+            elif getattr(value, '_callbacks_to_update', None):
                 cls._add_unbounded_callback(key, value)
 
-    def _add_unbounded_callback(cls, event, callback):
-        # bound unbounded attr to the class, using the assigned `_callback_attr`
-        setattr(cls, callback._callback_attr, callback)
-        callback._event = event  # to know what event originated
-        return cls.add_event(event, callback._transitions)
+    def _add_unbounded_callback(cls, attr_name, func):
+        if func._is_event:
+            # if func is an event, the `attr_name` will be replaced by an event trigger,
+            # so we'll also give the ``func`` a new unique name to be used by the callback
+            # machinery.
+            cls.add_event(attr_name, func._transitions)
+            attr_name = "_{}_{}".format(attr_name, uuid4().hex)
+            setattr(cls, attr_name, func)
+
+        for ref in func._callbacks_to_update:
+            ref(attr_name)
 
     def add_state(cls, identifier, state):
         state._set_identifier(identifier)

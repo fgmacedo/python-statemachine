@@ -11,6 +11,14 @@ State, as the name sais, holds the representation of a state in a statemachine.
     :members:
 ```
 
+### Initial state
+
+A StateMachine should have one and only one `initial` state.
+
+
+The initial {ref}`state` is entered when the machine starts and the corresponding enterirng
+state {ref}`actions` are called if defined.
+
 
 (final-state)=
 ### Final state

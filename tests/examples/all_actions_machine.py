@@ -21,7 +21,7 @@ class AllActionsMachine(StateMachine):
         validators=["validation_1", "validation_2"],
         cond=["condition_1", "condition_2"],
         unless=["unless_1", "unless_2"],
-        on_execute=["on_execute_1", "on_execute_2"],
+        on=["on_inline_1", "on_inline_2"],
         before=["before_go_inline_1", "before_go_inline_2"],
         after=["after_go_inline_1", "after_go_inline_2"],
     )
@@ -77,6 +77,10 @@ class AllActionsMachine(StateMachine):
 
     # before / after specific
 
+    @go.before
+    def before_go_decor(self):
+        return self.spy("before_go_decor")
+
     def before_go_inline_1(self):
         return self.spy("before_go_inline_1")
 
@@ -86,14 +90,22 @@ class AllActionsMachine(StateMachine):
     def before_go(self):
         return self.spy("before_go")
 
-    def on_execute_1(self):
-        return self.spy("on_execute_1")
+    @go.on
+    def go_on_decor(self):
+        return self.spy("go_on_decor")
 
-    def on_execute_2(self):
-        return self.spy("on_execute_2")
+    def on_inline_1(self):
+        return self.spy("on_inline_1")
+
+    def on_inline_2(self):
+        return self.spy("on_inline_2")
 
     def on_go(self):
         return self.spy("on_go")
+
+    @go.after
+    def after_go_decor(self):
+        return self.spy("after_go_decor")
 
     def after_go_inline_1(self):
         return self.spy("after_go_inline_1")
@@ -106,8 +118,16 @@ class AllActionsMachine(StateMachine):
 
     # enter / exit specific
 
+    @initial.enter
+    def enter_initial_decor(self):
+        return self.spy("enter_initial_decor")
+
     def on_enter_initial(self):
         return self.spy("on_enter_initial")
+
+    @initial.exit
+    def exit_initial_decor(self):
+        return self.spy("exit_initial_decor")
 
     def on_exit_initial(self):
         return self.spy("on_exit_initial")
@@ -136,10 +156,12 @@ assert result == [
     "before_transition",
     "before_go_inline_1",
     "before_go_inline_2",
+    "before_go_decor",
     "before_go",
     "on_transition",
-    "on_execute_1",
-    "on_execute_2",
+    "on_inline_1",
+    "on_inline_2",
+    "go_on_decor",
     "on_go",
 ]
 
@@ -148,6 +170,7 @@ assert result == [
 
 assert spy.call_args_list == [
     mock.call("on_enter_state"),
+    mock.call("enter_initial_decor"),
     mock.call("on_enter_initial"),
 
     mock.call("validation_1"),
@@ -162,14 +185,17 @@ assert spy.call_args_list == [
     mock.call("before_transition"),
     mock.call("before_go_inline_1"),
     mock.call("before_go_inline_2"),
+    mock.call("before_go_decor"),
     mock.call("before_go"),
 
     mock.call("on_exit_state"),
+    mock.call("exit_initial_decor"),
     mock.call("on_exit_initial"),
 
     mock.call("on_transition"),
-    mock.call("on_execute_1"),
-    mock.call("on_execute_2"),
+    mock.call("on_inline_1"),
+    mock.call("on_inline_2"),
+    mock.call("go_on_decor"),
     mock.call("on_go"),
 
     mock.call("on_enter_state"),
@@ -177,6 +203,7 @@ assert spy.call_args_list == [
 
     mock.call("after_go_inline_1"),
     mock.call("after_go_inline_2"),
+    mock.call("after_go_decor"),
     mock.call("after_go"),
     mock.call("after_transition"),
 ]

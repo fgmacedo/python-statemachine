@@ -28,7 +28,7 @@ class Transition(object):
         validators=None,
         cond=None,
         unless=None,
-        on_execute=None,
+        on=None,
         before=None,
         after=None,
     ):
@@ -45,7 +45,7 @@ class Transition(object):
         self.on = (
             Callbacks()
             .add("on_transition", suppress_errors=True)
-            .add(on_execute)
+            .add(on)
         )
         self.after = Callbacks().add(after)
         self.cond = (
@@ -120,7 +120,7 @@ class Transition(object):
         self._events.add(value)
 
     def execute(self, event_data):
-        self.validators(*event_data.args, **event_data.extended_kwargs)
+        self.validators.call(*event_data.args, **event_data.extended_kwargs)
         if not self._eval_cond(event_data):
             return False
 

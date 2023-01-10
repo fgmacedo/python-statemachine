@@ -1,5 +1,4 @@
 # coding: utf-8
-
 from .utils import ugettext as _, ensure_iterable
 from .exceptions import InvalidDefinition, AttrNotFound
 
@@ -24,6 +23,12 @@ class CallbackWrapper(object):
 
     def __eq__(self, other):
         return self.func == getattr(other, "func", other)
+
+    def __hash__(self):
+        return id(self)
+
+    def _update_func(self, func):
+        self.func = func
 
     def setup(self, resolver):
         """
@@ -79,8 +84,40 @@ class Callbacks(object):
             callback for callback in self.items if callback.setup(self._resolver)
         ]
 
-    def __call__(self, *args, **kwargs):
-        return [callback(*args, **kwargs) for callback in self.items]
+    def _add_unbounded_callback(self, func, is_event=False, transitions=None):
+        """This list was a targed for adding a func using decorator
+        `@<state|event>[.on|before|after|enter|exit]` syntax.
+
+        If we assign ``func`` directly as callable on the ``items`` list,
+        this will result in an `unbounded method error`, with `func` expecting a parameter
+        ``self`` not defined.
+
+        The implemented solution is to resolve the colision giving the func a reference method.
+        To update It's callback when the name is resolved on the
+        :func:`StateMachineMetaclass.add_from_attributes`.
+        If the ``func`` is bounded It will be used directly, if not, it's ref will be replaced
+        by the given attr name and on `statemachine._setup()` the dynamic name will be resolved
+        properly.
+
+        Args:
+            func (callable): The decorated method to add on the transitions occurs.
+            is_event (bool): If the func is also an event, we'll create a trigger and link the
+                event name to the transitions.
+            transitions (TransitionList): If ``is_event``, the transitions to be attached to the
+                event.
+
+        """
+        callback = self._add(func)
+        if not getattr(func, "_callbacks_to_update", None):
+            func._callbacks_to_update = set()
+        func._callbacks_to_update.add(callback._update_func)
+        func._is_event = is_event
+        func._transitions = transitions
+
+        return func
+
+    def __call__(self, callback):
+        return self._add_unbounded_callback(callback)
 
     def __iter__(self):
         return iter(self.items)
@@ -88,19 +125,29 @@ class Callbacks(object):
     def clear(self):
         self.items = []
 
+    def call(self, *args, **kwargs):
+        return [callback(*args, **kwargs) for callback in self.items]
+
+    def _add(self, func, prepend=False, **kwargs):
+        if func in self.items:
+            return
+
+        callback = self.factory(func, **kwargs)
+        if self._resolver is not None and not callback.setup(self._resolver):
+            return
+
+        if prepend:
+            self.items.insert(0, callback)
+        else:
+            self.items.append(callback)
+        return callback
+
     def add(self, callbacks, **kwargs):
         if callbacks is None:
             return self
 
         unprepared = ensure_iterable(callbacks)
         for func in unprepared:
-            if func in self.items:
-                continue
-            callback = self.factory(func, **kwargs)
-
-            if self._resolver is not None and not callback.setup(self._resolver):
-                continue
-
-            self.items.append(callback)
+            self._add(func, **kwargs)
 
         return self
