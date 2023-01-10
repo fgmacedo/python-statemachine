@@ -299,7 +299,7 @@ Actions and Guards will be executed in the following order:
 
 - `on_exit_state()`
 
-- `on_exit_<state_identifier>()`
+- `on_exit_<state.id>()`
 
 - `on_transition()`
 
@@ -307,7 +307,7 @@ Actions and Guards will be executed in the following order:
 
 - `on_enter_state()`
 
-- `on_enter_<state_identifier>()`
+- `on_enter_<state.id>()`
 
 - `after_<event>()`
 

@@ -41,7 +41,7 @@ class Event(object):
         for transition in event_data.source.transitions:
             if not transition.match(event_data.event):
                 continue
-            event_data.transition = transition
+            event_data._set_transition(transition)
             if transition.execute(event_data):
                 event_data.executed = True
                 break

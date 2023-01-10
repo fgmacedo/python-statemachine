@@ -23,7 +23,7 @@ def traffic_light_machine(event_mock):
         cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
         def on_enter_state(self, event_data):
-            event_mock.on_enter_state(event_data.transition.destination)
+            event_mock.on_enter_state(event_data.transition.target)
 
         def on_exit_state(self, event_data):
             event_mock.on_exit_state(event_data.state)
@@ -88,7 +88,7 @@ class TestStateCallbacks(object):
             assert s.value == "green"
 
         def assert_is_green(m):
-            assert m.is_green
+            assert m.green.is_active
 
         event_mock.on_exit_state.side_effect = assert_is_green_from_state
         event_mock.on_exit_green.side_effect = assert_is_green
@@ -104,7 +104,7 @@ class TestStateCallbacks(object):
             assert s.value == "yellow"
 
         def assert_is_yellow(m):
-            assert m.is_yellow
+            assert m.yellow.is_active
 
         event_mock.on_enter_state.side_effect = assert_is_yellow_from_state
         event_mock.on_enter_yellow.side_effect = assert_is_yellow

@@ -19,16 +19,16 @@ def test_transition_representation(campaign_machine):
     )
 
 
-def test_list_machine_transitions(classic_traffic_light_machine):
+def test_list_machine_events(classic_traffic_light_machine):
     machine = classic_traffic_light_machine()
-    transitions = [t.identifier for t in machine.transitions]
+    transitions = [t.name for t in machine.events]
     assert transitions == ["go", "slowdown", "stop"]
 
 
 def test_list_state_transitions(classic_traffic_light_machine):
     machine = classic_traffic_light_machine()
-    transitions = [t.identifier for t in machine.green.transitions]
-    assert transitions == ["slowdown"]
+    events = [t.event for t in machine.green.transitions]
+    assert events == ["slowdown"]
 
 
 def test_transition_should_accept_decorator_syntax(traffic_light_machine):
@@ -125,7 +125,7 @@ def test_can_run_combined_transitions():
 
     machine.abort()
 
-    assert machine.is_closed
+    assert machine.closed.is_active
 
 
 def test_transitions_to_the_same_estate_as_itself():
@@ -143,7 +143,7 @@ def test_transitions_to_the_same_estate_as_itself():
 
     machine.update()
 
-    assert machine.is_draft
+    assert machine.draft.is_active
 
 
 class TestReverseTransition(object):
@@ -161,7 +161,7 @@ class TestReverseTransition(object):
 
         machine.stop()
 
-        assert machine.is_red
+        assert machine.red.is_active
 
 
 def test_should_transition_with_a_dict_as_return():

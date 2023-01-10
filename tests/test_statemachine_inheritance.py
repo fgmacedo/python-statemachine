@@ -65,8 +65,8 @@ def test_should_inherit_states_and_transitions(BaseMachine, InheritedClass):
         BaseMachine.state_2,
     ]
 
-    expected = [e.name for e in BaseMachine.transitions]
-    actual = [e.name for e in InheritedClass.transitions]
+    expected = [e.name for e in BaseMachine.events]
+    actual = [e.name for e in InheritedClass.events]
     assert actual == expected
 
 
@@ -88,7 +88,7 @@ def test_should_execute_transitions(ExtendedClass):
     instance.trans_1_2()
     instance.trans_2_3()
 
-    assert instance.is_state_3
+    assert instance.state_3.is_active
 
 
 @pytest.mark.xfail(reason="State overriding is not supported")
@@ -103,4 +103,4 @@ def test_support_override_transitions(OverridedTransitionClass):
     instance = OverridedTransitionClass()
 
     instance.trans_1_2()
-    assert instance.is_state_3
+    assert instance.state_3.is_active
