@@ -17,6 +17,7 @@ class StateMachineMetaclass(type):
         super(StateMachineMetaclass, cls).__init__(name, bases, attrs)
         registry.register(cls)
         cls._abstract = True
+        cls.name = cls.__name__
         cls.states = []
         cls._events = OrderedDict()
         cls.states_map = {}

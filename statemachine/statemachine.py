@@ -27,8 +27,9 @@ class BaseStateMachine(object):
         self.state_field = state_field
         self.start_value = start_value
 
-        self._setup()
-        self._activate_initial_state()
+        initial_transition = Transition(None, None, event="__initial__")
+        self._setup(initial_transition)
+        self._activate_initial_state(initial_transition)
 
     def __repr__(self):
         return "{}(model={!r}, state_field={!r}, current_state={!r})".format(
@@ -38,7 +39,7 @@ class BaseStateMachine(object):
             self.current_state.id if self.current_state else None,
         )
 
-    def _activate_initial_state(self):
+    def _activate_initial_state(self, initial_transition):
 
         current_state_value = (
             self.start_value if self.start_value else self.initial_state.value
@@ -52,15 +53,14 @@ class BaseStateMachine(object):
 
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
-            transition = Transition(None, initial_state, event="__initial__")
-            transition._setup(self._get_resolver())
-            transition.before.clear()
-            transition.on.clear()
-            transition.after.clear()
+            initial_transition.target = initial_state
+            initial_transition.before.clear()
+            initial_transition.on.clear()
+            initial_transition.after.clear()
             event_data = EventData(
                 self,
-                transition.event,
-                transition=transition,
+                initial_transition.event,
+                transition=initial_transition,
             )
             self._activate(event_data)
 
@@ -82,17 +82,25 @@ class BaseStateMachine(object):
             | {e for e in self._events.keys()}
         )
 
-    def _get_resolver(self):
+    def _visit_states_and_transitions(self, visitor):
+        for state in self.states:
+            visitor(state)
+            for transition in state.transitions:
+                visitor(transition)
+
+    def _setup(self, initial_transition):
         machine = ObjectConfig(self, skip_attrs=self._get_protected_attrs())
         model = ObjectConfig(self.model, skip_attrs={self.state_field})
-        return resolver_factory(machine, model)
+        default_resolver = resolver_factory(machine, model)
 
-    def _setup(self):
-        resolver = self._get_resolver()
-        for state in self.states:
-            state._setup(resolver)
-            for transition in state.transitions:
-                transition._setup(resolver)
+        initial_transition._setup(default_resolver)
+        self._visit_states_and_transitions(lambda x: x._setup(default_resolver))
+        self.add_observer(machine, model)
+
+    def add_observer(self, *observers):
+        resolvers = [resolver_factory(ObjectConfig.from_obj(o)) for o in observers]
+        self._visit_states_and_transitions(lambda x: x._add_observer(*resolvers))
+        return self
 
     def _repr_html_(self):
         return '<div class="statemachine">{}</div>'.format(self._repr_svg_())

@@ -18,8 +18,8 @@ class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs")):
 
     @classmethod
     def from_obj(cls, obj):
-        if isinstance(obj, (tuple, list)):
-            return cls(*obj)
+        if isinstance(obj, ObjectConfig):
+            return obj
         else:
             return cls(obj, set())
 
