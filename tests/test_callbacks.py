@@ -123,11 +123,14 @@ class TestCallbacksMachinery:
 
     def test_callbacks_values_resolution(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
-        assert x.callbacks.call(xablau=True) == [42, "statemachine", ((), {"xablau": True})]
+        assert x.callbacks.call(xablau=True) == [
+            42,
+            "statemachine",
+            ((), {"xablau": True}),
+        ]
 
 
 class TestCallbacksAsDecorator:
-
     def test_decorate_unbounded_function(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
 
@@ -140,7 +143,11 @@ class TestCallbacksAsDecorator:
             return race.upper()
 
         assert x.callbacks.call(hero="Gandalf", race="Maia") == [
-            42, "statemachine", ((), {"hero": "Gandalf", "race": "Maia"}), "gandalf", "MAIA"
+            42,
+            "statemachine",
+            ((), {"hero": "Gandalf", "race": "Maia"}),
+            "gandalf",
+            "MAIA",
         ]
 
         assert race_uppercase("Hobbit") == "HOBBIT"
@@ -148,9 +155,9 @@ class TestCallbacksAsDecorator:
     def test_decorate_unbounded_machine_methods(self):
         class MiniHeroJourneyMachine(StateMachine):
 
-            ordinary_world = State('Ordinary World', initial=True)
-            call_to_adventure = State('Call to Adventure')
-            refusal_of_call = State('Refusal of the Call')
+            ordinary_world = State("Ordinary World", initial=True)
+            call_to_adventure = State("Call to Adventure")
+            refusal_of_call = State("Refusal of the Call")
 
             adventure_called = ordinary_world.to(call_to_adventure)
 

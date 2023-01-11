@@ -156,7 +156,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 html_static_path = ["_static"]
 
 html_css_files = [
-    'custom_machine.css',
+    "custom_machine.css",
 ]
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
@@ -345,16 +345,16 @@ from tests.scrape_images import MachineScraper
 
 # Sphinx Galery
 sphinx_gallery_conf = {
-    'examples_dirs':  ['../tests/examples',],   # path to your example scripts
-    'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
-    'capture_repr': ('_repr_html_', '__repr__'),
-    'filename_pattern': r'/.*\_machine.py',
-    'download_all_examples': False,
+    "examples_dirs": [
+        "../tests/examples",
+    ],  # path to your example scripts
+    "gallery_dirs": "auto_examples",  # path to where to save gallery generated output
+    "capture_repr": ("_repr_html_", "__repr__"),
+    "filename_pattern": r"/.*\_machine.py",
+    "download_all_examples": False,
     "show_signature": False,
     "min_reported_time": 9999,
-
-    'thumbnail_size': (400, 280),
-    'image_scrapers': ('matplotlib', MachineScraper()),
-
+    "thumbnail_size": (400, 280),
+    "image_scrapers": ("matplotlib", MachineScraper()),
     # "first_notebook_cell": "",
 }

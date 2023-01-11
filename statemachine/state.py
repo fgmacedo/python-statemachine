@@ -94,10 +94,18 @@ class State(object):
 
     def _add_observer(self, *resolvers):
         for r in resolvers:
-            self.enter.add("on_enter_state", resolver=r, prepend=True, suppress_errors=True)
-            self.enter.add("on_enter_{}".format(self.id), resolver=r, suppress_errors=True)
-            self.exit.add("on_exit_state", resolver=r, prepend=True, suppress_errors=True)
-            self.exit.add("on_exit_{}".format(self.id), resolver=r, suppress_errors=True)
+            self.enter.add(
+                "on_enter_state", resolver=r, prepend=True, suppress_errors=True
+            )
+            self.enter.add(
+                "on_enter_{}".format(self.id), resolver=r, suppress_errors=True
+            )
+            self.exit.add(
+                "on_exit_state", resolver=r, prepend=True, suppress_errors=True
+            )
+            self.exit.add(
+                "on_exit_{}".format(self.id), resolver=r, suppress_errors=True
+            )
 
     def __repr__(self):
         return "{}({!r}, id={!r}, value={!r}, initial={!r}, final={!r})".format(
@@ -115,7 +123,9 @@ class State(object):
 
     def __set__(self, instance, value):
         raise StateMachineError(
-            _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
+            _("State overriding is not allowed. Trying to add '{}' to {}").format(
+                value, self.id
+            )
         )
 
     @property

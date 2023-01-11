@@ -391,4 +391,7 @@ def test_should_not_override_states_properties(campaign_machine):
     with pytest.raises(exceptions.StateMachineError) as e:
         machine.draft = "something else"
 
-    assert "State overriding is not allowed. Trying to add 'something else' to draft" in str(e)
+    assert (
+        "State overriding is not allowed. Trying to add 'something else' to draft"
+        in str(e)
+    )

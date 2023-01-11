@@ -77,13 +77,15 @@ class TestEnsureCallable:
 
 
 class TestResolverFactory:
-
-    @pytest.mark.parametrize("attr, expected_value", [
-        ("first_name", "Frodo"),
-        ("last_name", "Bolseiro"),
-        ("legal_document", "cnpj"),
-        ("get_full_name", "The Lord fo the Rings"),
-    ])
+    @pytest.mark.parametrize(
+        "attr, expected_value",
+        [
+            ("first_name", "Frodo"),
+            ("last_name", "Bolseiro"),
+            ("legal_document", "cnpj"),
+            ("get_full_name", "The Lord fo the Rings"),
+        ],
+    )
     def test_should_chain_resolutions(self, attr, expected_value):
         person = Person("Frodo", "Bolseiro", "cpf")
         org = Organization("The Lord fo the Rings", "cnpj")
@@ -92,12 +94,15 @@ class TestResolverFactory:
         resolved_method = resolver(attr)
         assert resolved_method() == expected_value
 
-    @pytest.mark.parametrize("attr, expected_value", [
-        ("first_name", "Frodo"),
-        ("last_name", "Bolseiro"),
-        ("legal_document", "cnpj"),
-        ("get_full_name", "Frodo Bolseiro"),
-    ])
+    @pytest.mark.parametrize(
+        "attr, expected_value",
+        [
+            ("first_name", "Frodo"),
+            ("last_name", "Bolseiro"),
+            ("legal_document", "cnpj"),
+            ("get_full_name", "Frodo Bolseiro"),
+        ],
+    )
     def test_should_ignore_list_of_attrs(self, attr, expected_value):
         person = Person("Frodo", "Bolseiro", "cpf")
         org = Organization("The Lord fo the Rings", "cnpj")

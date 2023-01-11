@@ -56,9 +56,11 @@ class GuessTheNumberMachine(StateMachine):
 
     def on_enter_start(self):
         print("(psss.. don't tell anyone the number is {})".format(self.number))
-        print("I'm thinking of a number between {} and {}. Can you guess what it is?".format(
-            self.lower, self.higher
-        ))
+        print(
+            "I'm thinking of a number between {} and {}. Can you guess what it is?".format(
+                self.lower, self.higher
+            )
+        )
 
     def on_enter_low(self):
         print("Too low. Try again.")
@@ -67,7 +69,11 @@ class GuessTheNumberMachine(StateMachine):
         print("Too high. Try again.")
 
     def on_enter_won(self):
-        print("Congratulations, you guessed the number in {} guesses!".format(self.guesses))
+        print(
+            "Congratulations, you guessed the number in {} guesses!".format(
+                self.guesses
+            )
+        )
 
     def on_enter_lose(self):
         print("Oh, no! You've spent all your {} attempts!".format(self.guesses))

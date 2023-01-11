@@ -101,9 +101,9 @@ def test_check_invalid_reference_to_conditions():
         accepted = State("Accepted")
         rejected = State("Rejected")
 
-        validate = requested.to(
-            accepted, cond="not_found_condition"
-        ) | requested.to(rejected)
+        validate = requested.to(accepted, cond="not_found_condition") | requested.to(
+            rejected
+        )
 
     with pytest.raises(exceptions.InvalidDefinition):
         ApprovalMachine()

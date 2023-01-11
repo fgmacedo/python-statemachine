@@ -1,7 +1,4 @@
-
-
 class TestDeprecatedAttrs:
-
     def test_event_identifier(self, campaign_machine):
         sm = campaign_machine()
         assert [e.identifier for e in sm.events] == [e.name for e in sm.events]
@@ -23,9 +20,9 @@ class TestDeprecatedAttrs:
         assert sm.allowed_transitions == sm.allowed_events
 
     def test_class_attr_transitions(self, campaign_machine):
-        assert sorted(t.identifier for t in campaign_machine.transitions) == sorted([
-            "add_job", "produce", "deliver"
-        ])
+        assert sorted(t.identifier for t in campaign_machine.transitions) == sorted(
+            ["add_job", "produce", "deliver"]
+        )
 
     def test_run(self, campaign_machine):
         sm = campaign_machine()

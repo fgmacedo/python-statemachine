@@ -110,6 +110,7 @@ class BaseStateMachine(object):
 
     def _graph(self):
         from .contrib.diagram import DotGraphMachine
+
         return DotGraphMachine(self).get_graph()
 
     @property

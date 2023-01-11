@@ -5,10 +5,18 @@ import pytest
 from statemachine.contrib.diagram import DotGraphMachine, main
 
 
-@pytest.fixture(params=[
-    ("_repr_svg_", '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg'),
-    ("_repr_html_", '<div class="statemachine"><?xml version="1.0" encoding="UTF-8" standalone=')
-])
+@pytest.fixture(
+    params=[
+        (
+            "_repr_svg_",
+            '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg',
+        ),
+        (
+            "_repr_html_",
+            '<div class="statemachine"><?xml version="1.0" encoding="UTF-8" standalone=',
+        ),
+    ]
+)
 def expected_reprs(request):
     return request.param
 
@@ -40,9 +48,8 @@ def test_machine_dot(OrderControl):
 
 
 class TestDiagramCmdLine:
-
     def test_generate_image(self, tmp_path):
-        out = tmp_path / 'sm.svg'
+        out = tmp_path / "sm.svg"
 
         main(["tests.examples.traffic_light_machine.TrafficLightMachine", str(out)])
 
@@ -51,9 +58,14 @@ class TestDiagramCmdLine:
         )
 
     def test_generate_complain_about_bad_sm_path(self, capsys, tmp_path):
-        out = tmp_path / 'sm.svg'
+        out = tmp_path / "sm.svg"
 
         with pytest.raises(ValueError) as e:
-            main(["tests.examples.traffic_light_machine.TrafficLightMachineXXX", str(out)])
+            main(
+                [
+                    "tests.examples.traffic_light_machine.TrafficLightMachineXXX",
+                    str(out),
+                ]
+            )
 
         assert e.match("TrafficLightMachineXXX is not a subclass of StateMachine")

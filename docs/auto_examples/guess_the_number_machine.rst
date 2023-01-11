@@ -25,7 +25,7 @@ An StateMachine for the well know game.
 
 Well leave the machine imagine a number and also play the game. Why not?
 
-.. GENERATED FROM PYTHON SOURCE LINES 10-76
+.. GENERATED FROM PYTHON SOURCE LINES 10-82
 
 .. code-block:: default
 
@@ -78,9 +78,11 @@ Well leave the machine imagine a number and also play the game. Why not?
 
         def on_enter_start(self):
             print("(psss.. don't tell anyone the number is {})".format(self.number))
-            print("I'm thinking of a number between {} and {}. Can you guess what it is?".format(
-                self.lower, self.higher
-            ))
+            print(
+                "I'm thinking of a number between {} and {}. Can you guess what it is?".format(
+                    self.lower, self.higher
+                )
+            )
 
         def on_enter_low(self):
             print("Too low. Try again.")
@@ -89,7 +91,11 @@ Well leave the machine imagine a number and also play the game. Why not?
             print("Too high. Try again.")
 
         def on_enter_won(self):
-            print("Congratulations, you guessed the number in {} guesses!".format(self.guesses))
+            print(
+                "Congratulations, you guessed the number in {} guesses!".format(
+                    self.guesses
+                )
+            )
 
         def on_enter_lose(self):
             print("Oh, no! You've spent all your {} attempts!".format(self.guesses))
@@ -107,13 +113,13 @@ Well leave the machine imagine a number and also play the game. Why not?
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 77-80
+.. GENERATED FROM PYTHON SOURCE LINES 83-86
 
 Playing
 -------
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-83
+.. GENERATED FROM PYTHON SOURCE LINES 86-89
 
 .. code-block:: default
 
@@ -134,7 +140,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 84-87
+.. GENERATED FROM PYTHON SOURCE LINES 90-93
 
 .. code-block:: default
 
@@ -155,7 +161,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 88-91
+.. GENERATED FROM PYTHON SOURCE LINES 94-97
 
 .. code-block:: default
 
@@ -318,7 +324,7 @@ Playing
     <br />
     <br />
 
-.. GENERATED FROM PYTHON SOURCE LINES 92-95
+.. GENERATED FROM PYTHON SOURCE LINES 98-101
 
 .. code-block:: default
 
@@ -339,7 +345,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 96-102
+.. GENERATED FROM PYTHON SOURCE LINES 102-108
 
 .. code-block:: default
 
@@ -512,7 +518,7 @@ Playing
     <br />
     <br />
 
-.. GENERATED FROM PYTHON SOURCE LINES 105-108
+.. GENERATED FROM PYTHON SOURCE LINES 111-114
 
 .. code-block:: default
 
@@ -533,7 +539,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 109-112
+.. GENERATED FROM PYTHON SOURCE LINES 115-118
 
 .. code-block:: default
 
@@ -554,7 +560,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 113-116
+.. GENERATED FROM PYTHON SOURCE LINES 119-122
 
 .. code-block:: default
 
@@ -717,7 +723,7 @@ Playing
     <br />
     <br />
 
-.. GENERATED FROM PYTHON SOURCE LINES 117-122
+.. GENERATED FROM PYTHON SOURCE LINES 123-128
 
 .. code-block:: default
 
