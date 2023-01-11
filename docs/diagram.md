@@ -29,7 +29,7 @@ Graphviz. For example, on Debian-based systems (such as Ubuntu), you can use the
 
 ```
 
-## How to generate a diagram
+## How to generate a diagram at runtime
 
 
 ```py
@@ -79,6 +79,37 @@ The current state is also highlighted:
 ```
 
 ![OrderControl](images/order_control_machine_processing.png)
+
+
+## Generate from the command line
+
+You can also generate a diagram from the command line using the `statemachine.contrib.diagram` as a module.
+
+```bash
+❯ python -m statemachine.contrib.diagram --help
+usage: diagram.py [OPTION] <classpath> <out>
+
+Generate diagrams for StateMachine classes.
+
+positional arguments:
+  classpath   A fully-qualified dotted path to the StateMachine class.
+  out         File to generate the image using extension as the output format.
+
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+Example:
+
+```bash
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine m.png
+```
+
+```{note}
+Supported formats include: `dia`, `dot`, `fig`, `gif`, `jpg`, `pdf`, `png`, `ps`, `svg` and many others.
+Please see [pydot](https://github.com/pydot/pydot) and [Graphviz](https://graphviz.org/) for a
+complete list.
+```
 
 
 ## JupyterLab / Jupyter integration
