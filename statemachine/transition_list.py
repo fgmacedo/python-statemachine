@@ -4,15 +4,14 @@ from .utils import ensure_iterable
 
 
 class TransitionList(object):
-    def __init__(self, *transitions):
-        self.transitions = list(*transitions)
+    def __init__(self, transitions=None):
+        self.transitions = list(transitions) if transitions else []
 
     def __repr__(self):
         return "{}({!r})".format(type(self).__name__, self.transitions)
 
     def __or__(self, other):
-        self.add_transitions(other)
-        return self
+        return TransitionList(self.transitions).add_transitions(other)
 
     def add_transitions(self, transition):
         if isinstance(transition, TransitionList):
