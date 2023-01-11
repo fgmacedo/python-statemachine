@@ -332,21 +332,34 @@ you'll be fine, if you declare an expected parameter, you'll also be covered.
 
 For your convenience, all these parameters are available for you on any Action or Guard:
 
-- `*args`: All positional arguments provided on the {ref}`Event`.
 
-- `**kwargs`: All keyword arguments provided on the {ref}`Event`.
+`*args`
+: All positional arguments provided on the {ref}`Event`.
 
-- `event_data`: A reference to `EventData` instance.
+`**kwargs`
+: All keyword arguments provided on the {ref}`Event`.
 
-- `event`: The {ref}`Event` that was triggered.
+`event_data`
+: A reference to `EventData` instance.
 
-- `source`: The {ref}`State` the statemachine was when the {ref}`Event` started.
+`event`
+: The {ref}`Event` that was triggered.
 
-- `state`: The current {ref}`State` of the statemachine.
+`source`
+: The {ref}`State` the statemachine was when the {ref}`Event` started.
 
-- `model`: A reference to the underlying model that holds the current {ref}`State`.
+`state`
+: The current {ref}`State` of the statemachine.
 
-- `transition`: The {ref}`Transition` instance that was activated by the {ref}`Event`.
+`target`
+: The destination {ref}`State` of the transition.
+
+`model`
+: A reference to the underlying model that holds the current {ref}`State`.
+
+`transition`
+: The {ref}`Transition` instance that was activated by the {ref}`Event`.
+
 
 So, you can implement Actions and Guards like these, but this list is not exaustive, it's only
 to give you a few examples...  any combination of parameters will work, including extra parameters

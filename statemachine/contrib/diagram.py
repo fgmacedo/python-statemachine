@@ -2,7 +2,6 @@ import sys
 import pydot
 import importlib
 
-from ..factory import StateMachineMetaclass
 from ..statemachine import BaseStateMachine
 
 
@@ -29,13 +28,10 @@ class DotGraphMachine(object):
 
     def _get_graph(self):
         machine = self.machine
-        sm_class = (
-            machine if isinstance(machine, StateMachineMetaclass) else machine.__class__
-        )
         return pydot.Dot(
             "list",
             graph_type="digraph",
-            label=sm_class.__name__,
+            label=machine.name,
             fontsize=self.state_font_size,
             rankdir=self.graph_rankdir,
         )

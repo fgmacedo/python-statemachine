@@ -128,12 +128,14 @@ class Callbacks(object):
     def call(self, *args, **kwargs):
         return [callback(*args, **kwargs) for callback in self.items]
 
-    def _add(self, func, prepend=False, **kwargs):
+    def _add(self, func, resolver=None, prepend=False, **kwargs):
         if func in self.items:
             return
 
+        resolver = resolver or self._resolver
+
         callback = self.factory(func, **kwargs)
-        if self._resolver is not None and not callback.setup(self._resolver):
+        if resolver is not None and not callback.setup(resolver):
             return
 
         if prepend:

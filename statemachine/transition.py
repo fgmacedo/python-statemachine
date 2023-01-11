@@ -1,5 +1,6 @@
 # coding: utf-8
 import warnings
+from functools import partial
 
 from .callbacks import Callbacks, ConditionWrapper
 
@@ -46,16 +47,8 @@ class Transition(object):
         self.target = target
         self._events = Events().add(event)
         self.validators = Callbacks().add(validators)
-        self.before = (
-            Callbacks()
-            .add("before_transition", suppress_errors=True)
-            .add(before)
-        )
-        self.on = (
-            Callbacks()
-            .add("on_transition", suppress_errors=True)
-            .add(on)
-        )
+        self.before = Callbacks().add(before)
+        self.on = Callbacks().add(on)
         self.after = Callbacks().add(after)
         self.cond = (
             Callbacks(factory=ConditionWrapper)
@@ -75,31 +68,21 @@ class Transition(object):
         self.on.setup(resolver)
         self.after.setup(resolver)
 
-        self.before.add(
-            [
-                pattern.format(event)
-                for pattern in ["before_{}"]
-                for event in self._events
-            ],
-            suppress_errors=True,
-        )
-        self.on.add(
-            [
-                pattern.format(event)
-                for pattern in ["on_{}"]
-                for event in self._events
-            ],
-            suppress_errors=True,
-        )
-        self.after.add(
-            [
-                pattern.format(event)
-                for pattern in ["after_{}"]
-                for event in self._events
-            ]
-            + ["after_transition"],
-            suppress_errors=True,
-        )
+    def _add_observer(self, *resolvers):
+        for r in resolvers:
+            before = partial(self.before.add, resolver=r, suppress_errors=True)
+            on = partial(self.on.add, resolver=r, suppress_errors=True)
+            after = partial(self.after.add, resolver=r, suppress_errors=True)
+
+            before("before_transition", prepend=True)
+            on("on_transition", prepend=True)
+
+            for event in self._events:
+                before("before_{}".format(event))
+                on("on_{}".format(event))
+                after("after_{}".format(event))
+
+            after("after_transition")
 
     def _eval_cond(self, event_data):
         return all(

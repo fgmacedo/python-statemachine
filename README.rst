@@ -307,3 +307,6 @@ True
 >>> control.completed.is_active
 True
 
+
+There's a lot more to cover, please take a look at our docs:
+https://python-statemachine.readthedocs.io.

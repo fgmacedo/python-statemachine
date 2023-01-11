@@ -12,6 +12,7 @@ Contents:
    transitions
    actions
    guards
+   observers
    mixins
    integrations
    diagram
