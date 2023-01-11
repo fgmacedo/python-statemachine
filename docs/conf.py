@@ -48,7 +48,6 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    "sphinxcontrib.mermaid",
     "sphinx.ext.autosectionlabel",
     "sphinx_gallery.gen_gallery",
     "jupyterlite_sphinx",

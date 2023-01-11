@@ -7,17 +7,26 @@ from .events import Events
 
 
 class Transition(object):
-    """
-    A transition holds reference to the source and target state.
+    """A transition holds reference to the source and target state.
 
     Args:
-        source (State): The origin :ref:`State` of the transition.
-        target (State): The target :ref:`State` of the transition.
+        source (State): The origin state of the transition.
+        target (State): The target state of the transition.
         event (Optional[Union[str, List[str]]]): List of designators of events that trigger this
-            transition.
-
-            Can be either a list of strings, or a space-separated string list of event
+            transition. Can be either a list of strings, or a space-separated string list of event
             descriptors.
+        validators (Optional[Union[str, Callable, List[Callable]]]): The validation callbacks to
+            be invoked before the transition is executed.
+        cond (Optional[Union[str, Callable, List[Callable]]]): The condition callbacks to be
+            invoked before the transition is executed that should evaluate to `True`.
+        unless (Optional[Union[str, Callable, List[Callable]]]): The condition callbacks to be
+            invoked if the `cond` is False before the transition is executed.
+        on (Optional[Union[str, Callable, List[Callable]]]): The callbacks to be invoked
+            when the transition is executed.
+        before (Optional[Union[str, Callable, List[Callable]]]): The callbacks to be invoked
+            before the transition is executed.
+        after (Optional[Union[str, Callable, List[Callable]]]): The callbacks to be invoked
+            after the transition is executed.
     """
 
     def __init__(

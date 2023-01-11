@@ -3,7 +3,6 @@ Sphinx<5.0.0
 sphinx_rtd_theme==1.1.1
 sphinx-markdown-builder==0.5.5
 myst-parser==0.18.1
-sphinxcontrib-mermaid==0.7.1
 jupyterlite-sphinx==0.7.2
 sphinx-gallery==0.11.1
 matplotlib==3.6.2

@@ -150,7 +150,7 @@ class BaseStateMachine(object):
 
     @property
     def allowed_events(self):
-        "get the callable proxy of the current allowed transitions"
+        "get the callable proxy of the current allowed events"
         return [
             getattr(self, event)
             for event in self.current_state.transitions.unique_events

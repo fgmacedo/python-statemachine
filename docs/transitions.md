@@ -64,17 +64,8 @@ TransitionList([Transition(State('Draft', ...
 
 Consider this traffic light machine as example:
 
-```{mermaid}
-:align: center
+![TrafficLightMachine](images/traffic_light_machine.png)
 
-stateDiagram-v2
-direction LR
-[*] --> green
-green --> yellow: cycle
-yellow --> red: cycle
-red --> green: cycle
-
-```
 
 There're tree transitions, one starting from green to yellow, another from
 yellow to red, and another from red back to green. All these transitions
