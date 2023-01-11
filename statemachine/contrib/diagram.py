@@ -1,5 +1,9 @@
+import sys
 import pydot
-from statemachine.factory import StateMachineMetaclass
+import importlib
+
+from ..factory import StateMachineMetaclass
+from ..statemachine import BaseStateMachine
 
 
 class DotGraphMachine(object):
@@ -25,7 +29,9 @@ class DotGraphMachine(object):
 
     def _get_graph(self):
         machine = self.machine
-        sm_class = machine if isinstance(machine, StateMachineMetaclass) else machine.__class__
+        sm_class = (
+            machine if isinstance(machine, StateMachineMetaclass) else machine.__class__
+        )
         return pydot.Dot(
             "list",
             graph_type="digraph",
@@ -95,17 +101,11 @@ class DotGraphMachine(object):
         return node
 
     def _transition_as_edge(self, transition):
-
         def _get_condition_repr(cond):
             name = getattr(cond.func, "__name__", cond.func)
             return name if cond.expected_value else "!{}".format(name)
 
-        cond = ", ".join(
-            [
-                _get_condition_repr(cond)
-                for cond in transition.cond
-            ]
-        )
+        cond = ", ".join([_get_condition_repr(cond) for cond in transition.cond])
         if cond:
             cond = "\n[{}]".format(cond)
         return pydot.Edge(
@@ -133,3 +133,52 @@ class DotGraphMachine(object):
 
     def __call__(self):
         return self.get_graph()
+
+
+def import_sm(qualname):
+    module_name, class_name = qualname.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    smclass = getattr(module, class_name, None)
+    if not smclass or not issubclass(smclass, BaseStateMachine):
+        raise ValueError("{} is not a subclass of StateMachine".format(class_name))
+
+    return smclass
+
+
+def write_image(qualname, out):
+    """
+    Given a `qualname`, that is the fully qualified dotted path to a StateMachine
+    classe, imports the class and generates a dot graph using the `pydot` lib.
+    Writes the graph representation to the filename 'out' that will
+    open/create and truncate such file and write on it a representation of
+    the graph defined by the statemachine, in the format specified by
+    the extension contained in the out path (out.ext).
+    """
+    smclass = import_sm(qualname)
+
+    graph = DotGraphMachine(smclass).get_graph()
+    out_extension = out.rsplit(".", 1)[1]
+    graph.write(out, format=out_extension)
+
+
+def main(argv=None):
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        usage="%(prog)s [OPTION] <classpath> <out>",
+        description="Generate diagrams for StateMachine classes.",
+    )
+    parser.add_argument(
+        "classpath", help="A fully-qualified dotted path to the StateMachine class."
+    )
+    parser.add_argument(
+        "out",
+        help="File to generate the image using extension as the output format.",
+    )
+
+    args = parser.parse_args(argv)
+    write_image(qualname=args.classpath, out=args.out)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main())
