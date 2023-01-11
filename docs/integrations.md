@@ -20,4 +20,3 @@ Supported module names for auto-discovery:
 ```{note}
 Your Django Model should include the [](mixins.md#machinemixin).
 ```
-

@@ -139,4 +139,3 @@ Tips
 To run a subset of tests::
 
 $ py.test tests.test_statemachine
-
