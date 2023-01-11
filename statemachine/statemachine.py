@@ -82,32 +82,24 @@ class BaseStateMachine(object):
             | {e for e in self._events.keys()}
         )
 
-    def _get_machine_config(self):
-        return ObjectConfig(self, skip_attrs=self._get_protected_attrs())
-
-    def _get_model_config(self):
-        return ObjectConfig(self.model, skip_attrs={self.state_field})
+    def _visit_states_and_transitions(self, visitor):
+        for state in self.states:
+            visitor(state)
+            for transition in state.transitions:
+                visitor(transition)
 
     def _setup(self, initial_transition):
-        machine = self._get_machine_config()
-        model = self._get_model_config()
+        machine = ObjectConfig(self, skip_attrs=self._get_protected_attrs())
+        model = ObjectConfig(self.model, skip_attrs={self.state_field})
         default_resolver = resolver_factory(machine, model)
 
         initial_transition._setup(default_resolver)
-        for state in self.states:
-            state._setup(default_resolver)
-            for transition in state.transitions:
-                transition._setup(default_resolver)
-
+        self._visit_states_and_transitions(lambda x: x._setup(default_resolver))
         self.add_observer(machine, model)
 
     def add_observer(self, *observers):
         resolvers = [resolver_factory(ObjectConfig.from_obj(o)) for o in observers]
-        for state in self.states:
-            state._add_observer(*resolvers)
-            for transition in state.transitions:
-                transition._add_observer(*resolvers)
-
+        self._visit_states_and_transitions(lambda x: x._add_observer(*resolvers))
         return self
 
     def _repr_html_(self):
