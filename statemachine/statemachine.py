@@ -98,9 +98,11 @@ class BaseStateMachine(object):
         return '<div class="statemachine">{}</div>'.format(self._repr_svg_())
 
     def _repr_svg_(self):
-        from .contrib.diagram import DotGraphMachine
+        return self._graph().create_svg().decode()
 
-        return DotGraphMachine(self).get_graph().create_svg().decode()
+    def _graph(self):
+        from .contrib.diagram import DotGraphMachine
+        return DotGraphMachine(self).get_graph()
 
     @property
     def current_state_value(self):
