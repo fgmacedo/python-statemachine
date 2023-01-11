@@ -1,11 +1,13 @@
 # coding: utf-8
-
-import pytest
 import mock
-from statemachine.callbacks import Callbacks, CallbackWrapper
+import pytest
+
+from statemachine import State
+from statemachine import StateMachine
+from statemachine.callbacks import Callbacks
+from statemachine.callbacks import CallbackWrapper
 from statemachine.dispatcher import resolver_factory
 from statemachine.exceptions import InvalidDefinition
-from statemachine import StateMachine, State
 
 
 @pytest.fixture

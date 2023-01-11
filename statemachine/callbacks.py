@@ -1,6 +1,8 @@
 # coding: utf-8
-from .utils import ugettext as _, ensure_iterable
-from .exceptions import InvalidDefinition, AttrNotFound
+from .exceptions import AttrNotFound
+from .exceptions import InvalidDefinition
+from .utils import ensure_iterable
+from .utils import ugettext as _
 
 
 class CallbackWrapper(object):

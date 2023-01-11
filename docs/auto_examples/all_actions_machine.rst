@@ -27,10 +27,10 @@ A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
 .. code-block:: default
 
-
     import mock
 
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
 
     class AllActionsMachine(StateMachine):

@@ -1,11 +1,11 @@
 # coding: utf-8
 import inspect
+from collections import namedtuple
 from functools import wraps
 from operator import attrgetter
-from collections import namedtuple
 
-from .utils import ugettext as _
 from .exceptions import AttrNotFound
+from .utils import ugettext as _
 
 
 class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs")):

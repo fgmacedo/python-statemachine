@@ -1,11 +1,13 @@
 # coding: utf-8
-from typing import Any, Optional, Text
 import warnings
+from typing import Any
+from typing import Optional
+from typing import Text
 
-from .exceptions import StateMachineError
 from .callbacks import Callbacks
-from .transition_list import TransitionList
+from .exceptions import StateMachineError
 from .transition import Transition
+from .transition_list import TransitionList
 from .utils import ugettext as _
 
 

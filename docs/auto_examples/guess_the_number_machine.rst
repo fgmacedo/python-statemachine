@@ -25,13 +25,14 @@ An StateMachine for the well know game.
 
 Well leave the machine imagine a number and also play the game. Why not?
 
-.. GENERATED FROM PYTHON SOURCE LINES 10-82
+.. GENERATED FROM PYTHON SOURCE LINES 10-83
 
 .. code-block:: default
 
-
     import random
-    from statemachine import StateMachine, State
+
+    from statemachine import State
+    from statemachine import StateMachine
 
 
     class GuessTheNumberMachine(StateMachine):
@@ -113,13 +114,13 @@ Well leave the machine imagine a number and also play the game. Why not?
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 83-86
+.. GENERATED FROM PYTHON SOURCE LINES 84-87
 
 Playing
 -------
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 86-89
+.. GENERATED FROM PYTHON SOURCE LINES 87-90
 
 .. code-block:: default
 
@@ -140,7 +141,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 90-93
+.. GENERATED FROM PYTHON SOURCE LINES 91-94
 
 .. code-block:: default
 
@@ -161,7 +162,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 94-97
+.. GENERATED FROM PYTHON SOURCE LINES 95-98
 
 .. code-block:: default
 
@@ -324,7 +325,7 @@ Playing
     <br />
     <br />
 
-.. GENERATED FROM PYTHON SOURCE LINES 98-101
+.. GENERATED FROM PYTHON SOURCE LINES 99-102
 
 .. code-block:: default
 
@@ -345,7 +346,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 102-108
+.. GENERATED FROM PYTHON SOURCE LINES 103-109
 
 .. code-block:: default
 
@@ -518,7 +519,7 @@ Playing
     <br />
     <br />
 
-.. GENERATED FROM PYTHON SOURCE LINES 111-114
+.. GENERATED FROM PYTHON SOURCE LINES 112-115
 
 .. code-block:: default
 
@@ -539,7 +540,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 115-118
+.. GENERATED FROM PYTHON SOURCE LINES 116-119
 
 .. code-block:: default
 
@@ -560,7 +561,7 @@ Playing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 119-122
+.. GENERATED FROM PYTHON SOURCE LINES 120-123
 
 .. code-block:: default
 
@@ -723,7 +724,7 @@ Playing
     <br />
     <br />
 
-.. GENERATED FROM PYTHON SOURCE LINES 123-128
+.. GENERATED FROM PYTHON SOURCE LINES 124-129
 
 .. code-block:: default
 

@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import io
+
 from setuptools import setup
 
 with io.open("README.rst", encoding="utf-8") as readme_file:

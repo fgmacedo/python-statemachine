@@ -1,10 +1,10 @@
 # coding: utf-8
-
 import mock
 import pytest
 
-from statemachine import StateMachine, State
 from .models import MyModel
+from statemachine import State
+from statemachine import StateMachine
 
 
 @pytest.fixture

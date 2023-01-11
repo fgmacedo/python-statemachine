@@ -2,8 +2,8 @@
 import warnings
 from functools import partial
 
-from .callbacks import Callbacks, ConditionWrapper
-
+from .callbacks import Callbacks
+from .callbacks import ConditionWrapper
 from .events import Events
 
 

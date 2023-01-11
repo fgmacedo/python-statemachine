@@ -1,8 +1,9 @@
 # coding: utf-8
-
 import pytest
 
-from statemachine.dispatcher import ensure_callable, resolver_factory, ObjectConfig
+from statemachine.dispatcher import ensure_callable
+from statemachine.dispatcher import ObjectConfig
+from statemachine.dispatcher import resolver_factory
 
 
 class Person(object):

@@ -5,8 +5,8 @@ Order control machine
 An StateMachine that demonstrates :ref:`Guards` being used to control the state flow.
 
 """
-
-from statemachine import StateMachine, State
+from statemachine import State
+from statemachine import StateMachine
 
 
 class OrderControl(StateMachine):

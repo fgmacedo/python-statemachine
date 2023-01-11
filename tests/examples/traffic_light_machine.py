@@ -5,8 +5,8 @@ Traffic light machine
 Demonstrates the concept of ``cycle`` states.
 
 """
-
-from statemachine import StateMachine, State
+from statemachine import State
+from statemachine import StateMachine
 
 
 class TrafficLightMachine(StateMachine):

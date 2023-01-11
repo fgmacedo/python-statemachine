@@ -1,6 +1,7 @@
-import sys
-import pydot
 import importlib
+import sys
+
+import pydot
 
 from ..statemachine import BaseStateMachine
 

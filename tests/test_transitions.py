@@ -1,12 +1,13 @@
 # coding: utf-8
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import pytest
 
-from statemachine import State, StateMachine
-from statemachine.statemachine import Transition
-
 from .models import MyModel
+from statemachine import State
+from statemachine import StateMachine
+from statemachine.statemachine import Transition
 
 
 def test_transition_representation(campaign_machine):

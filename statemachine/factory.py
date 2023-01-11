@@ -3,13 +3,16 @@ from collections import OrderedDict
 from uuid import uuid4
 
 from . import registry
-from .event import Event, trigger_event_factory
+from .event import Event
+from .event import trigger_event_factory
 from .exceptions import InvalidDefinition
 from .graph import visit_connected_states
-from .utils import ugettext as _, check_state_factory, qualname
 from .state import State
 from .transition import Transition
 from .transition_list import TransitionList
+from .utils import check_state_factory
+from .utils import qualname
+from .utils import ugettext as _
 
 
 class StateMachineMetaclass(type):

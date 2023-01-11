@@ -1,8 +1,8 @@
 # coding: utf-8
-
 import pytest
 
-from statemachine.contrib.diagram import DotGraphMachine, main
+from statemachine.contrib.diagram import DotGraphMachine
+from statemachine.contrib.diagram import main
 
 
 @pytest.fixture(

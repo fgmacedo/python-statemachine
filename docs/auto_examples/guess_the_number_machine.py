@@ -7,9 +7,10 @@ An StateMachine for the well know game.
 Well leave the machine imagine a number and also play the game. Why not?
 
 """
-
 import random
-from statemachine import StateMachine, State
+
+from statemachine import State
+from statemachine import StateMachine
 
 
 class GuessTheNumberMachine(StateMachine):

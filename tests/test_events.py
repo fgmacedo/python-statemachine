@@ -1,4 +1,5 @@
-from statemachine import StateMachine, State
+from statemachine import State
+from statemachine import StateMachine
 
 
 def test_assign_events_on_transitions():

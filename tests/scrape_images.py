@@ -1,8 +1,8 @@
 import importlib
 import re
 
-from statemachine.factory import StateMachineMetaclass
 from statemachine.contrib.diagram import DotGraphMachine
+from statemachine.factory import StateMachineMetaclass
 
 
 class MachineScraper(object):

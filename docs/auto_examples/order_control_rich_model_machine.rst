@@ -27,8 +27,8 @@ An StateMachine that demonstrates :ref:`Actions` being used on a rich model.
 
 .. code-block:: default
 
-
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
     from statemachine.exceptions import AttrNotFound
 
 

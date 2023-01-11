@@ -1,17 +1,20 @@
 # coding: utf-8
-
 import sys
 import warnings
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
-from typing import Any, List, Dict, Optional
-
+from .dispatcher import ObjectConfig
+from .dispatcher import resolver_factory
 from .event import Event
-from .exceptions import InvalidStateValue, TransitionNotAllowed
 from .event_data import EventData
+from .exceptions import InvalidStateValue
+from .exceptions import TransitionNotAllowed
 from .model import Model
 from .state import State
 from .transition import Transition
-from .dispatcher import resolver_factory, ObjectConfig
 
 
 class BaseStateMachine(object):

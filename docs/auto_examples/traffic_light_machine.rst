@@ -38,8 +38,8 @@ Demonstrates the concept of ``cycle`` states.
 
 .. code-block:: default
 
-
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
 
     class TrafficLightMachine(StateMachine):
