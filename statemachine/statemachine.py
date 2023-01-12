@@ -105,9 +105,6 @@ class BaseStateMachine(object):
         self._visit_states_and_transitions(lambda x: x._add_observer(*resolvers))
         return self
 
-    def _repr_html_(self):
-        return '<div class="statemachine">{}</div>'.format(self._repr_svg_())
-
     def _repr_svg_(self):
         return self._graph().create_svg().decode()
 

@@ -359,5 +359,6 @@ sphinx_gallery_conf = {
     "first_notebook_cell": (
         "# import piplite\n"
         "# await piplite.install('python-statemachine[diagrams]')\n"
+        "# import patch_repr_svg\n"
     ),
 }

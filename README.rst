@@ -55,6 +55,7 @@ A few reasons why you may consider using it:
 Getting started
 ===============
 
+
 To install Python State Machine, run this command in your terminal:
 
 .. code-block:: console

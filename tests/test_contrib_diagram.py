@@ -11,10 +11,6 @@ from statemachine.contrib.diagram import main
             "_repr_svg_",
             '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg',
         ),
-        (
-            "_repr_html_",
-            '<div class="statemachine"><?xml version="1.0" encoding="UTF-8" standalone=',
-        ),
     ]
 )
 def expected_reprs(request):
