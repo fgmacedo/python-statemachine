@@ -1,5 +1,6 @@
 # coding: utf-8
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import mock
 import pytest
@@ -16,17 +17,17 @@ def traffic_light_machine(event_mock):
 
     class TrafficLightMachineStateEvents(StateMachine):
         "A traffic light machine"
-        green = State('Green', initial=True)
-        yellow = State('Yellow')
-        red = State('Red')
+        green = State("Green", initial=True)
+        yellow = State("Yellow")
+        red = State("Red")
 
         cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
-        def on_enter_state(self, state):
-            event_mock.on_enter_state(state)
+        def on_enter_state(self, event_data):
+            event_mock.on_enter_state(event_data.transition.target)
 
-        def on_exit_state(self, state):
-            event_mock.on_exit_state(state)
+        def on_exit_state(self, event_data):
+            event_mock.on_exit_state(event_data.state)
 
         def on_enter_green(self):
             event_mock.on_enter_green(self)
@@ -50,49 +51,61 @@ def traffic_light_machine(event_mock):
 
 
 class TestStateCallbacks(object):
-
-    def test_should_call_on_enter_generic_state(self, event_mock, traffic_light_machine):
+    def test_should_call_on_enter_generic_state(
+        self, event_mock, traffic_light_machine
+    ):
         machine = traffic_light_machine()
         machine.cycle()
-        event_mock.on_enter_state.assert_called_once_with(machine.yellow)
+        event_mock.on_enter_state.call_args_list == [
+            mock.call(machine.green),
+            mock.call(machine.yellow),
+        ]
 
     def test_should_call_on_exit_generic_state(self, event_mock, traffic_light_machine):
         machine = traffic_light_machine()
         machine.cycle()
         event_mock.on_exit_state.assert_called_once_with(machine.green)
 
-    def test_should_call_on_enter_of_specific_state(self, event_mock, traffic_light_machine):
+    def test_should_call_on_enter_of_specific_state(
+        self, event_mock, traffic_light_machine
+    ):
         machine = traffic_light_machine()
         machine.cycle()
         event_mock.on_enter_yellow.assert_called_once_with(machine)
 
-    def test_should_call_on_exit_of_specific_state(self, event_mock, traffic_light_machine):
+    def test_should_call_on_exit_of_specific_state(
+        self, event_mock, traffic_light_machine
+    ):
         machine = traffic_light_machine()
         machine.cycle()
         event_mock.on_exit_green.assert_called_once_with(machine)
 
-    def test_should_be_on_the_previous_state_when_exiting(self, event_mock, traffic_light_machine):
+    def test_should_be_on_the_previous_state_when_exiting(
+        self, event_mock, traffic_light_machine
+    ):
         machine = traffic_light_machine()
 
         def assert_is_green_from_state(s):
-            assert s.value == 'green'
+            assert s.value == "green"
 
         def assert_is_green(m):
-            assert m.is_green
+            assert m.green.is_active
 
         event_mock.on_exit_state.side_effect = assert_is_green_from_state
         event_mock.on_exit_green.side_effect = assert_is_green
 
         machine.cycle()
 
-    def test_should_be_on_the_next_state_when_entering(self, event_mock, traffic_light_machine):
+    def test_should_be_on_the_next_state_when_entering(
+        self, event_mock, traffic_light_machine
+    ):
         machine = traffic_light_machine()
 
         def assert_is_yellow_from_state(s):
-            assert s.value == 'yellow'
+            assert s.value == "yellow"
 
         def assert_is_yellow(m):
-            assert m.is_yellow
+            assert m.yellow.is_active
 
         event_mock.on_enter_state.side_effect = assert_is_yellow_from_state
         event_mock.on_enter_yellow.side_effect = assert_is_yellow

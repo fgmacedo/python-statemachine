@@ -8,10 +8,18 @@ Contents:
 
    readme
    installation
-   usage
+   states
+   transitions
+   actions
+   guards
+   observers
+   mixins
+   integrations
+   diagram
+   auto_examples/index
    contributing
    authors
-   history
+   releases/index
 
 Indices and tables
 ==================

@@ -25,6 +25,10 @@ var/
 *.egg
 .mypy_cache
 
+# jupyter
+.ipynb_checkpoints/
+.jupyterlite.doit.db
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -67,3 +71,7 @@ target/
 *.sublime*
 .idea/
 .vscode/
+
+# Sphinx-galery
+docs/auto_examples/sg_execution_times.*
+docs/auto_examples/*.pickle

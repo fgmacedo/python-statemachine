@@ -1,0 +1,60 @@
+/* div.sphx-glr-download {
+    height: 0px;
+    visibility: hidden;
+} */
+
+@media only screen and (min-width: 650px) {
+
+    .sphx-glr-thumbnails {
+        grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)) !important;
+    }
+
+    .sphx-glr-thumbcontainer {
+        min-height: 320px !important;
+        margin: 20px !important;
+        justify-content: center;
+    }
+    .sphx-glr-thumbcontainer .figure {
+        width: 600px !important;
+    }
+    .sphx-glr-thumbcontainer img {
+        max-height: 250px !important;
+        max-width: 600px !important;
+        width: 100% !important;
+    }
+    .sphx-glr-thumbcontainer a.internal {
+        padding: 20px 10px 0 !important;
+    }
+
+}
+
+/* Gallery Donwload buttons */
+div.sphx-glr-download a {
+    color: #404040 !important;
+    background-color: #f3f6f6 !important;
+    background-image: none;
+    border-radius: 4px;
+    border: none;
+    color: #404040 !important;
+    display: inline-block;
+    font-weight: bold;
+    padding: 1ex;
+    text-align: center;
+  }
+
+  div.sphx-glr-download code.download {
+    display: inline-block;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+    /* border and background are given by the enclosing 'a' */
+    border: none;
+    background: none;
+  }
+
+  div.sphx-glr-download a:hover {
+    box-shadow: none;
+    text-decoration: none;
+    background-image: none;
+    background-color: #e5ebeb !important;
+  }
