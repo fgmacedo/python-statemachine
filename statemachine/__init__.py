@@ -7,6 +7,6 @@ from .statemachine import StateMachine
 
 __author__ = """Fernando Macedo"""
 __email__ = "fgmacedo@gmail.com"
-__version__ = "0.9.0"
+__version__ = "1.0.0"
 
 __all__ = ["StateMachine", "State"]

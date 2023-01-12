@@ -4,7 +4,9 @@ repos:
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
+        exclude: docs/auto_examples
     -   id: trailing-whitespace
+        exclude: docs/auto_examples
 -   repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
