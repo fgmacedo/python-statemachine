@@ -1,4 +1,0 @@
-[flake8]
-max-line-length = 99
-exclude = .git/*,.tox/*,docs/*,dist/*,build/*
-ignore = E231,W503

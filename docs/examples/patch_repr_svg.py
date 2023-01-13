@@ -1,7 +1,7 @@
 import sys
 
 
-def patch__repr_html_():  # pragma: no cover
+def patch__repr_html():  # pragma: no cover
     """
     You're running this example directly from your browser! By using the amazing
     https://pyodide.org/.
@@ -27,10 +27,11 @@ def patch__repr_html_():  # pragma: no cover
         return '<svg width="auto" height="auto"><image xlink:href="{}"/>'.format(url)
 
     StateMachine._repr_html_ = show_sm
+    StateMachine._repr_svg_ = show_sm
 
 
 if sys.platform == "emscripten":  # pragma: no cover
     # https://pyodide.org/ is the runtime!
-    patch__repr_html_()
-    print(patch__repr_html_.__doc__)
+    patch__repr_html()
+    print(patch__repr_html.__doc__)
     print("'StateMachine._repr_html_' patched!")

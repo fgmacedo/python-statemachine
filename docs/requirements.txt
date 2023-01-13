@@ -1,10 +1,4 @@
-# docs
-Sphinx<5.0.0
-sphinx_rtd_theme==1.1.1
-sphinx-markdown-builder==0.5.5
-myst-parser==0.18.1
-jupyterlite-sphinx==0.7.2
-sphinx-gallery==0.11.1
-matplotlib==3.6.2
-
-pydot
+# Temp file while readthedocs dont enable USE_SPHINX_LATEST on this project
+# https://github.com/readthedocs/readthedocs.org/issues/7858#issuecomment-764886373
+Sphinx==4.5.0
+sphinx-rtd-theme==1.1.1
