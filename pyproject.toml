@@ -78,6 +78,8 @@ ignore = [
 max-line-length = 99
 
 [tool.ruff]
+src = ["statemachine"]
+
 # Enable Pyflakes and pycodestyle rules.
 select = ["E", "F", "I"]
 
@@ -115,7 +117,7 @@ target-version = "py311"
 max-complexity = 5
 
 [tool.ruff.isort]
-force-sort-within-sections = true
+force-single-line = true
 
 [tool.ruff.pydocstyle]
 # Use Google-style docstrings.

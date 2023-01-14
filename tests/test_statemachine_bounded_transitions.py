@@ -3,9 +3,10 @@ from unittest import mock
 
 import pytest
 
-from .models import MyModel
 from statemachine import State
 from statemachine import StateMachine
+
+from .models import MyModel
 
 
 @pytest.fixture

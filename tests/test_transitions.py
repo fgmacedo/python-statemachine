@@ -4,10 +4,11 @@ from __future__ import unicode_literals
 
 import pytest
 
-from .models import MyModel
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.statemachine import Transition
+
+from .models import MyModel
 
 
 def test_transition_representation(campaign_machine):

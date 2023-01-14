@@ -2,7 +2,6 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-
 try:
     from django.utils.translation import ugettext as _
 except Exception:

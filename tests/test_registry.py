@@ -8,7 +8,9 @@ import pytest
 
 
 def test_should_register_a_state_machine(caplog):
-    from statemachine import StateMachine, State, registry
+    from statemachine import State
+    from statemachine import StateMachine
+    from statemachine import registry
 
     class CampaignMachine(StateMachine):
         "A workflow machine"

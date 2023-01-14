@@ -11,7 +11,8 @@ def current_time():
 @pytest.fixture
 def campaign_machine():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
@@ -29,7 +30,8 @@ def campaign_machine():
 @pytest.fixture
 def campaign_machine_with_validator():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
@@ -51,7 +53,8 @@ def campaign_machine_with_validator():
 @pytest.fixture
 def campaign_machine_with_final_state():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
@@ -69,7 +72,8 @@ def campaign_machine_with_final_state():
 @pytest.fixture
 def campaign_machine_with_values():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachineWithKeys(StateMachine):
         "A workflow machine"
@@ -112,7 +116,8 @@ def add_machines_to_doctest(doctest_namespace, traffic_light_machine):
 
 @pytest.fixture
 def classic_traffic_light_machine():
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class TrafficLightMachine(StateMachine):
         green = State("Green", initial=True)
@@ -128,7 +133,8 @@ def classic_traffic_light_machine():
 
 @pytest.fixture
 def reverse_traffic_light_machine():
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class ReverseTrafficLightMachine(StateMachine):
         "A traffic light machine"
@@ -149,7 +155,8 @@ def reverse_traffic_light_machine():
 
 @pytest.fixture
 def approval_machine(current_time):
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class ApprovalMachine(StateMachine):
         "A workflow machine"

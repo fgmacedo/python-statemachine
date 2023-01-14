@@ -4,9 +4,9 @@ from __future__ import unicode_literals
 
 import pytest
 
-from statemachine import exceptions
 from statemachine import State
 from statemachine import StateMachine
+from statemachine import exceptions
 
 
 class Request(object):

@@ -6,7 +6,8 @@ from statemachine import exceptions
 
 @pytest.fixture
 def BaseMachine():
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class BaseMachine(StateMachine):
         state_1 = State("1", initial=True)

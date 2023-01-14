@@ -3,7 +3,6 @@ import warnings
 
 from .utils import qualname
 
-
 _REGISTRY = {}
 _initialized = False
 

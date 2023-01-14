@@ -7,11 +7,14 @@ repos:
         exclude: docs/auto_examples
     -   id: trailing-whitespace
         exclude: docs/auto_examples
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  # Ruff version.
+  rev: 'v0.0.220'
+  hooks:
+    - id: ruff
+      # Respect `exclude` and `extend-exclude` settings.
+      args: ["--force-exclude"]
 -   repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
     -   id: black
--   repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.9.0
-    hooks:
-    -   id: reorder-python-imports

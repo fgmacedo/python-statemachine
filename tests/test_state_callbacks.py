@@ -14,7 +14,8 @@ def event_mock():
 
 @pytest.fixture()
 def traffic_light_machine(event_mock):
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class TrafficLightMachineStateEvents(StateMachine):
         "A traffic light machine"

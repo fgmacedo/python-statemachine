@@ -1,9 +1,9 @@
 # coding: utf-8
 import pytest
 
-from statemachine import exceptions
 from statemachine import State
 from statemachine import StateMachine
+from statemachine import exceptions
 
 
 class MyModel(object):
