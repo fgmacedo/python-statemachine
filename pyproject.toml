@@ -47,7 +47,6 @@ sphinx-rtd-theme = "1.1.1"
 myst-parser = "^0.18.1"
 sphinx-gallery = "^0.11.1"
 jupyterlite-sphinx = "^0.7.2"
-pandoc = "^2.3"
 
 [build-system]
 requires = ["poetry-core"]
