@@ -1,10 +1,4 @@
-# coding: utf-8
-import sys
 import warnings
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
@@ -12,12 +6,12 @@ from .event import Event
 from .event_data import EventData
 from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
+from .factory import StateMachineMetaclass
 from .model import Model
-from .state import State
 from .transition import Transition
 
 
-class BaseStateMachine(object):
+class StateMachine(metaclass=StateMachineMetaclass):
 
     TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
 
@@ -204,10 +198,3 @@ class BaseStateMachine(object):
     def send(self, event, *args, **kwargs):
         event = Event(event)
         return event(self, *args, **kwargs)
-
-
-# Python 2
-if sys.version_info[0] == 2:  # pragma: no cover
-    from .factory_2 import StateMachine  # noqa
-else:
-    from .factory_3 import StateMachine  # noqa

@@ -55,10 +55,7 @@ class StateMachineMetaclass(type):
 
         # do not validate the base class
         name = qualname(cls)
-        if name in (
-            "statemachine.factory_2.StateMachine",
-            "statemachine.factory_3.StateMachine",
-        ):
+        if name == "statemachine.statemachine.StateMachine":
             return
 
         cls._abstract = False

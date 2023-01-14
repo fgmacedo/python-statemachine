@@ -3,7 +3,7 @@ import sys
 
 import pydot
 
-from ..statemachine import BaseStateMachine
+from ..statemachine import StateMachine
 
 
 class DotGraphMachine(object):
@@ -136,7 +136,7 @@ def import_sm(qualname):
     module_name, class_name = qualname.rsplit(".", 1)
     module = importlib.import_module(module_name)
     smclass = getattr(module, class_name, None)
-    if not smclass or not issubclass(smclass, BaseStateMachine):
+    if not smclass or not issubclass(smclass, StateMachine):
         raise ValueError("{} is not a subclass of StateMachine".format(class_name))
 
     return smclass

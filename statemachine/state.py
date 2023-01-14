@@ -1,8 +1,5 @@
 # coding: utf-8
 import warnings
-from typing import Any
-from typing import Optional
-from typing import Text
 
 from .callbacks import Callbacks
 from .exceptions import StateMachineError

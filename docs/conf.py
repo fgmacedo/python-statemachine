@@ -33,7 +33,9 @@ project_root = os.path.dirname(cwd)
 # version is used.
 sys.path.insert(0, project_root)
 
-import statemachine
+import statemachine  # noqa: E402
+from tests.scrape_images import MachineScraper  # noqa: E402
+
 
 # -- General configuration ---------------------------------------------
 
@@ -339,8 +341,6 @@ html_context = {
 }
 
 # html_theme_options = {}
-
-from tests.scrape_images import MachineScraper
 
 
 # Sphinx Galery

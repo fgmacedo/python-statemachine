@@ -79,7 +79,7 @@ max-line-length = 99
 
 [tool.ruff]
 # Enable Pyflakes and pycodestyle rules.
-select = ["E", "F"]
+select = ["E", "F", "I"]
 
 line-length = 99
 
@@ -112,8 +112,14 @@ target-version = "py311"
 
 [tool.ruff.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
-max-complexity = 10
+max-complexity = 5
 
+[tool.ruff.isort]
+force-sort-within-sections = true
+
+[tool.ruff.pydocstyle]
+# Use Google-style docstrings.
+convention = "google"
 
 [tool.coverage.run]
 branch = true
@@ -125,7 +131,6 @@ omit = [
     "*test*.py",
     "tmp/*",
     "pytest_cov",
-    "statemachine/factory_2.py",
 ]
 [tool.coverage.report]
 show_missing = true
