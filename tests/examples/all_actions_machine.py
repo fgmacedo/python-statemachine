@@ -5,7 +5,7 @@ All actions machine
 A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
 
 """
-import mock
+from unittest import mock
 
 from statemachine import State
 from statemachine import StateMachine
