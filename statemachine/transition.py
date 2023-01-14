@@ -1,4 +1,3 @@
-import warnings
 from functools import partial
 
 from .callbacks import Callbacks
@@ -91,13 +90,6 @@ class Transition:
 
     def match(self, event):
         return self._events.match(event)
-
-    @property
-    def identifier(self):
-        warnings.warn(
-            "identifier is deprecated. Use `event` instead", DeprecationWarning
-        )
-        return self.event
 
     @property
     def event(self):

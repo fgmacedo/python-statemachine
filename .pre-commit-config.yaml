@@ -18,3 +18,18 @@ repos:
     rev: 22.10.0
     hooks:
     -   id: black
+
+- repo: local
+  hooks:
+  - id: mypy
+    name: Mypy
+    entry: poetry run mypy statemachine/ tests/
+    types: [python]
+    language: system
+    pass_filenames: false
+  - id: pytest
+    name: Pytest
+    entry: poetry run pytest
+    types: [python]
+    language: system
+    pass_filenames: false

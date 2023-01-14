@@ -1,4 +1,3 @@
-import warnings
 from collections import OrderedDict
 from uuid import uuid4
 
@@ -139,14 +138,6 @@ class StateMachineMetaclass(type):
             setattr(cls, event, event_trigger)
 
         return cls._events[event]
-
-    @property
-    def transitions(self):
-        warnings.warn(
-            "Class level property `transitions` is deprecated. Use `events` instead.",
-            DeprecationWarning,
-        )
-        return self.events
 
     @property
     def events(self):

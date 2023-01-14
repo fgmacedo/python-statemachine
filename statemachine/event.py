@@ -1,5 +1,3 @@
-import warnings
-
 from .event_data import EventData
 from .exceptions import TransitionNotAllowed
 
@@ -47,13 +45,6 @@ class Event:
                 break
         else:
             raise TransitionNotAllowed(event_data.event, event_data.state)
-
-    @property
-    def identifier(self):
-        warnings.warn(
-            "identifier is deprecated. Use `name` instead", DeprecationWarning
-        )
-        return self.name
 
 
 def trigger_event_factory(event):
