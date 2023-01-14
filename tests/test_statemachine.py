@@ -1,4 +1,3 @@
-# coding: utf-8
 import pytest
 
 from statemachine import State
@@ -6,7 +5,7 @@ from statemachine import StateMachine
 from statemachine import exceptions
 
 
-class MyModel(object):
+class MyModel:
     "A class that can be used to hold arbitrary key/value pairs as attributes."
 
     def __init__(self, **kwargs):

@@ -1,4 +1,3 @@
-# coding: utf-8
 import warnings
 
 from .callbacks import Callbacks
@@ -8,7 +7,7 @@ from .transition_list import TransitionList
 from .utils import ugettext as _
 
 
-class State(object):
+class State:
     """
     A State in a state machine describes a particular behaviour of the machine.
     When we say that a machine is “in” a state, it means that the machine behaves

@@ -1,7 +1,3 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from unittest import mock
 
 import pytest
@@ -52,7 +48,7 @@ def traffic_light_machine(event_mock):
     return TrafficLightMachineStateEvents
 
 
-class TestStateCallbacks(object):
+class TestStateCallbacks:
     def test_should_call_on_enter_generic_state(
         self, event_mock, traffic_light_machine
     ):

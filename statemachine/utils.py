@@ -1,7 +1,3 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import warnings
 
 try:
@@ -20,7 +16,7 @@ def qualname(cls):
 
 
 def _is_string(obj):
-    return isinstance(obj, (str, type("")))  # type(u""") is a small hack for Python2
+    return isinstance(obj, (str, str))  # type(u""") is a small hack for Python2
 
 
 def ensure_iterable(obj):

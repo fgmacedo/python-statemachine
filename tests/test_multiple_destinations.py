@@ -1,7 +1,3 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
 from statemachine import State
@@ -9,7 +5,7 @@ from statemachine import StateMachine
 from statemachine import exceptions
 
 
-class Request(object):
+class Request:
     def __init__(self, state="requested"):
         self.state = None
         self._is_ok = False

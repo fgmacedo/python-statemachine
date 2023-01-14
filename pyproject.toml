@@ -81,7 +81,7 @@ max-line-length = 99
 src = ["statemachine"]
 
 # Enable Pyflakes and pycodestyle rules.
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "UP"]
 
 line-length = 99
 

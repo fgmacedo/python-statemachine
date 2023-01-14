@@ -4,7 +4,7 @@ from .event_data import EventData
 from .exceptions import TransitionNotAllowed
 
 
-class Event(object):
+class Event:
     def __init__(self, name):
         self.name = name
 

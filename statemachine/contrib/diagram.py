@@ -6,7 +6,7 @@ import pydot
 from ..statemachine import StateMachine
 
 
-class DotGraphMachine(object):
+class DotGraphMachine:
     graph_rankdir = "LR"
     """
     Diretion of the graph. Defaults to "LR" (option "TB" for top botton)

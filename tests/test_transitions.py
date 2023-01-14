@@ -1,7 +1,3 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
 from statemachine import State
@@ -148,7 +144,7 @@ def test_transitions_to_the_same_estate_as_itself():
     assert machine.draft.is_active
 
 
-class TestReverseTransition(object):
+class TestReverseTransition:
     @pytest.mark.parametrize(
         "initial_state",
         [

@@ -10,7 +10,7 @@ from statemachine import StateMachine
 from statemachine.exceptions import AttrNotFound
 
 
-class Order(object):
+class Order:
     def __init__(self):
         self.order_total = 0
         self.payments = []

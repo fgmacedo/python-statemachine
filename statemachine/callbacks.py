@@ -1,11 +1,10 @@
-# coding: utf-8
 from .exceptions import AttrNotFound
 from .exceptions import InvalidDefinition
 from .utils import ensure_iterable
 from .utils import ugettext as _
 
 
-class CallbackWrapper(object):
+class CallbackWrapper:
     """A thin wrapper that ensures the targef callback is a proper callable.
 
     At first, `func` can be a string or a callable, and even if it's already
@@ -58,17 +57,14 @@ class CallbackWrapper(object):
 
 class ConditionWrapper(CallbackWrapper):
     def __init__(self, func, suppress_errors=False, expected_value=True):
-        super(ConditionWrapper, self).__init__(func, suppress_errors)
+        super().__init__(func, suppress_errors)
         self.expected_value = expected_value
 
     def __call__(self, *args, **kwargs):
-        return (
-            super(ConditionWrapper, self).__call__(*args, **kwargs)
-            == self.expected_value
-        )
+        return super().__call__(*args, **kwargs) == self.expected_value
 
 
-class Callbacks(object):
+class Callbacks:
     def __init__(self, resolver=None, factory=CallbackWrapper):
         self.items = []
         self._resolver = resolver

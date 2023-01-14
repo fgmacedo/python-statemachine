@@ -1,4 +1,3 @@
-# coding: utf-8
 import warnings
 from functools import partial
 
@@ -7,7 +6,7 @@ from .callbacks import ConditionWrapper
 from .events import Events
 
 
-class Transition(object):
+class Transition:
     """A transition holds reference to the source and target state.
 
     Args:

@@ -1,4 +1,3 @@
-# coding: utf-8
 import pytest
 
 from statemachine.dispatcher import ObjectConfig
@@ -6,7 +5,7 @@ from statemachine.dispatcher import ensure_callable
 from statemachine.dispatcher import resolver_factory
 
 
-class Person(object):
+class Person:
     def __init__(self, first_name, last_name, legal_document=None):
         self.first_name = first_name
         self.last_name = last_name
@@ -16,7 +15,7 @@ class Person(object):
         return "{} {}".format(self.first_name, self.last_name)
 
 
-class Organization(object):
+class Organization:
     def __init__(self, name, legal_document):
         self.name = name
         self.legal_document = legal_document

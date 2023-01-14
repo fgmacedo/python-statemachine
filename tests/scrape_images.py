@@ -5,7 +5,7 @@ from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.factory import StateMachineMetaclass
 
 
-class MachineScraper(object):
+class MachineScraper:
     """Scrapes images of the statemachines defined into the examples for the gallery"""
 
     re_machine_module_name = re.compile(r"python-statemachine/(.*).py$")

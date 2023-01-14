@@ -17,7 +17,7 @@ from .utils import ugettext as _
 
 class StateMachineMetaclass(type):
     def __init__(cls, name, bases, attrs):
-        super(StateMachineMetaclass, cls).__init__(name, bases, attrs)
+        super().__init__(name, bases, attrs)
         registry.register(cls)
         cls._abstract = True
         cls.name = cls.__name__

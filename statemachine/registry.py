@@ -1,5 +1,12 @@
-# coding: utf-8
 import warnings
+
+try:
+    _has_django = True
+    from django.utils.module_loading import autodiscover_modules
+except ImportError:
+    # Not a django project
+    autodiscover_modules = None
+    _has_django = False
 
 from .utils import qualname
 
@@ -30,21 +37,9 @@ def init_registry():
         _initialized = True
 
 
-def _has_django():
-    try:
-        import django  # noqa
-
-        return True
-    except ImportError:
-        # Not a django project
-        pass
-    return False
-
-
 def load_modules(modules=None):
-    if not _has_django():
+    if not _has_django:
         return
-    from django.utils.module_loading import autodiscover_modules
 
     for module in modules:
         autodiscover_modules(module)

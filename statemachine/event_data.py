@@ -1,4 +1,4 @@
-class EventData(object):
+class EventData:
     def __init__(self, machine, event, *args, **kwargs):
         self.machine = machine
         self.event = event
