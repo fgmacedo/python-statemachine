@@ -359,4 +359,5 @@ sphinx_gallery_conf = {
         "# await piplite.install('python-statemachine[diagrams]')\n"
         "# import patch_repr_svg\n"
     ),
+    "reset_modules": [],
 }
