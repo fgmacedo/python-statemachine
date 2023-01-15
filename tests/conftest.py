@@ -3,12 +3,12 @@ from datetime import datetime
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def current_time():
     return datetime.now()
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine():
     "Define a new class for each test"
     from statemachine import State
@@ -27,7 +27,7 @@ def campaign_machine():
     return CampaignMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine_with_validator():
     "Define a new class for each test"
     from statemachine import State
@@ -50,7 +50,7 @@ def campaign_machine_with_validator():
     return CampaignMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine_with_final_state():
     "Define a new class for each test"
     from statemachine import State
@@ -69,7 +69,7 @@ def campaign_machine_with_final_state():
     return CampaignMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine_with_values():
     "Define a new class for each test"
     from statemachine import State
@@ -88,33 +88,28 @@ def campaign_machine_with_values():
     return CampaignMachineWithKeys
 
 
-@pytest.fixture
+@pytest.fixture()
 def traffic_light_machine():
     from tests.examples.traffic_light_machine import TrafficLightMachine
 
     return TrafficLightMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def OrderControl():
     from tests.examples.order_control_machine import OrderControl
 
     return OrderControl
 
 
-@pytest.fixture
+@pytest.fixture()
 def AllActionsMachine():
     from tests.examples.all_actions_machine import AllActionsMachine
 
     return AllActionsMachine
 
 
-@pytest.fixture(autouse=True)
-def add_machines_to_doctest(doctest_namespace, traffic_light_machine):
-    doctest_namespace["TrafficLightMachine"] = traffic_light_machine
-
-
-@pytest.fixture
+@pytest.fixture()
 def classic_traffic_light_machine():
     from statemachine import State
     from statemachine import StateMachine
@@ -131,7 +126,7 @@ def classic_traffic_light_machine():
     return TrafficLightMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def reverse_traffic_light_machine():
     from statemachine import State
     from statemachine import StateMachine
@@ -153,7 +148,7 @@ def reverse_traffic_light_machine():
     return ReverseTrafficLightMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def approval_machine(current_time):  # noqa: C901
     from statemachine import State
     from statemachine import StateMachine

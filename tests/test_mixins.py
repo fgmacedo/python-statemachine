@@ -26,5 +26,5 @@ def test_mixin_should_raise_exception_if_machine_class_does_not_exist():
     class MyModelWithoutMachineName(MachineMixin):
         pass
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="None is not a valid state machine name"):
         MyModelWithoutMachineName()

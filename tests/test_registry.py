@@ -27,7 +27,7 @@ def test_should_register_a_state_machine(caplog):
 
 
 @pytest.fixture()
-def override_has_django():
+def _override_has_django():
     with mock.patch("statemachine.registry._has_django", new=True):
         yield
 
@@ -56,7 +56,7 @@ def django_autodiscover_modules():
         sys.modules["django"] = real_django
 
 
-@pytest.mark.usefixtures("override_has_django")
+@pytest.mark.usefixtures("_override_has_django")
 def test_load_modules_should_call_autodiscover_modules(django_autodiscover_modules):
     from statemachine.registry import load_modules
 

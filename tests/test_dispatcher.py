@@ -78,7 +78,7 @@ class TestEnsureCallable:
 
 class TestResolverFactory:
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("first_name", "Frodo"),
             ("last_name", "Bolseiro"),
@@ -95,7 +95,7 @@ class TestResolverFactory:
         assert resolved_method() == expected_value
 
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("first_name", "Frodo"),
             ("last_name", "Bolseiro"),

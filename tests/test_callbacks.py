@@ -10,7 +10,7 @@ from statemachine.dispatcher import resolver_factory
 from statemachine.exceptions import InvalidDefinition
 
 
-@pytest.fixture
+@pytest.fixture()
 def ObjectWithCallbacks():
     class ObjectWithCallbacks:
         def __init__(self):

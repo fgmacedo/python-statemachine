@@ -91,7 +91,7 @@ Example given:
 >>> m = TestSM()
 enter state1
 
->>> m.is_state1, m.is_state2, m.is_state3, m.is_state4, m.current_state ; _ = m.cycle()
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
 (True, False, False, False, State('s1', id='state1', value='state1', initial=True, final=False))
 before cycle
 before trans12
@@ -102,7 +102,7 @@ enter state2
 after cycle
 after trans12
 
->>> m.is_state1, m.is_state2, m.is_state3, m.is_state4, m.current_state ; _ = m.cycle()
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
 (False, True, False, False, State('s2', id='state2', value='state2', initial=False, final=False))
 before cycle
 before trans23
@@ -113,7 +113,7 @@ enter state3
 after cycle
 after trans23
 
->>> m.is_state1, m.is_state2, m.is_state3, m.is_state4, m.current_state ; _ = m.cycle()
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
 (False, False, True, False, State('s3', id='state3', value='state3', initial=False, final=False))
 before cycle
 before trans34
@@ -124,7 +124,7 @@ enter state4
 after cycle
 after trans34
 
->>> m.is_state1, m.is_state2, m.is_state3, m.is_state4, m.current_state
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state
 (False, False, False, True, State('s4', id='state4', value='state4', initial=False, final=True))
 
 ```

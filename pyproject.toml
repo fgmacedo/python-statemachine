@@ -90,6 +90,7 @@ select = [
     "UP", # pyupgrade
     "C",  # flake8-comprehensions
     "B",  # flake8-bugbear
+    "PT", # flake8-pytest-style
 ]
 
 line-length = 99

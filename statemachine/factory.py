@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from uuid import uuid4
 
 from . import registry
@@ -9,7 +8,6 @@ from .graph import visit_connected_states
 from .state import State
 from .transition import Transition
 from .transition_list import TransitionList
-from .utils import check_state_factory
 from .utils import qualname
 from .utils import ugettext as _
 
@@ -21,13 +19,10 @@ class StateMachineMetaclass(type):
         cls._abstract = True
         cls.name = cls.__name__
         cls.states = []
-        cls._events = OrderedDict()
+        cls._events = {}
         cls.states_map = {}
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
-
-        for state in cls.states:
-            setattr(cls, "is_{}".format(state.id), check_state_factory(state))
 
         cls._set_special_states()
         cls._check()
@@ -57,7 +52,9 @@ class StateMachineMetaclass(type):
                 _(
                     "There are unreachable states. "
                     "The statemachine graph should have a single component. "
-                    "Disconnected states: [{}]".format(disconnected_states)
+                    "Disconnected states: {}".format(
+                        [s.id for s in disconnected_states]
+                    )
                 )
             )
 

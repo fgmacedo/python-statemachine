@@ -1,5 +1,3 @@
-import warnings
-
 try:
     from django.utils.translation import ugettext
 except Exception:
@@ -26,17 +24,3 @@ def ensure_iterable(obj):
         return iter(obj)
     except TypeError:
         return [obj]
-
-
-def check_state_factory(state):
-    "Return a property that checks if the current state is the desired state"
-
-    @property
-    def is_in_state(self):
-        warnings.warn(
-            "Using `machine.is_<state>` is deprecated. Use `machine.<state>.is_active` instead.",
-            DeprecationWarning,
-        )
-        return bool(self.current_state == state)
-
-    return is_in_state

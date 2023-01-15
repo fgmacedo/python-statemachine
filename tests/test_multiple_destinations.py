@@ -153,9 +153,10 @@ def test_should_change_to_returned_state_on_multiple_target_with_combined_transi
     # then
     assert machine.completed.is_active
 
-    with pytest.raises(exceptions.TransitionNotAllowed) as e:
+    with pytest.raises(
+        exceptions.TransitionNotAllowed, match="Can't validate when in Completed."
+    ):
         assert machine.validate()
-        assert e.message == "Can't validate when in Completed."
 
 
 def test_transition_on_execute_should_be_called_with_run_syntax(
@@ -194,7 +195,7 @@ def test_multiple_values_returned_with_multiple_targets():
 
 
 @pytest.mark.parametrize(
-    "payment_failed, expected_state",
+    ("payment_failed", "expected_state"),
     [
         (False, "paid"),
         (True, "failed"),
