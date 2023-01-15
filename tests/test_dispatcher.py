@@ -36,8 +36,8 @@ class TestEnsureCallable:
 
     @pytest.fixture(
         params=[
-            pytest.param(dict(), id="no-kwargs"),
-            pytest.param(dict(a="x", b="y"), id="with-kwargs"),
+            pytest.param({}, id="no-kwargs"),
+            pytest.param({"a": "x", "b": "y"}, id="with-kwargs"),
         ]
     )
     def kwargs(self, request):

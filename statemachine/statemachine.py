@@ -80,7 +80,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 "send",
             }
             | {s.id for s in self.states}
-            | {e for e in self._events.keys()}
+            | set(self._events.keys())
         )
 
     def _visit_states_and_transitions(self, visitor):

@@ -154,7 +154,7 @@ def reverse_traffic_light_machine():
 
 
 @pytest.fixture
-def approval_machine(current_time):
+def approval_machine(current_time):  # noqa: C901
     from statemachine import State
     from statemachine import StateMachine
 

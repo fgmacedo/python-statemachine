@@ -50,6 +50,17 @@ class StateMachineMetaclass(type):
         visitable_states = set(visit_connected_states(starting_state))
         return set(cls.states) - visitable_states
 
+    def _check_disconnected_state(cls):
+        disconnected_states = cls._disconnected_states(cls.initial_state)
+        if disconnected_states:
+            raise InvalidDefinition(
+                _(
+                    "There are unreachable states. "
+                    "The statemachine graph should have a single component. "
+                    "Disconnected states: [{}]".format(disconnected_states)
+                )
+            )
+
     def _check(cls):
 
         # do not validate the base class
@@ -65,15 +76,7 @@ class StateMachineMetaclass(type):
         if not cls._events:
             raise InvalidDefinition(_("There are no events."))
 
-        disconnected_states = cls._disconnected_states(cls.initial_state)
-        if disconnected_states:
-            raise InvalidDefinition(
-                _(
-                    "There are unreachable states. "
-                    "The statemachine graph should have a single component. "
-                    "Disconnected states: [{}]".format(disconnected_states)
-                )
-            )
+        cls._check_disconnected_state()
 
         final_state_with_invalid_transitions = [
             state for state in cls.final_states if state.transitions
