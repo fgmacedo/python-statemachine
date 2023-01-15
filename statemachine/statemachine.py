@@ -49,8 +49,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
             try:
                 initial_state = self.states_map[current_state_value]
-            except KeyError:
-                raise InvalidStateValue(current_state_value)
+            except KeyError as err:
+                raise InvalidStateValue(current_state_value) from err
 
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state

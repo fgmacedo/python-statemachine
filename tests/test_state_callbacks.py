@@ -54,7 +54,7 @@ class TestStateCallbacks:
     ):
         machine = traffic_light_machine()
         machine.cycle()
-        event_mock.on_enter_state.call_args_list == [
+        assert event_mock.on_enter_state.call_args_list == [
             mock.call(machine.green),
             mock.call(machine.yellow),
         ]

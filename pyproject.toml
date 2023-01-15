@@ -89,7 +89,7 @@ select = [
     "I", # isort
     "UP", # pyupgrade
     "C",  # flake8-comprehensions
-    # "B",  # flake8-bugbear
+    "B",  # flake8-bugbear
 ]
 
 line-length = 99
