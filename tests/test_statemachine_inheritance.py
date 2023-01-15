@@ -1,12 +1,12 @@
-# coding: utf-8
 import pytest
 
 from statemachine import exceptions
 
 
-@pytest.fixture
+@pytest.fixture()
 def BaseMachine():
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class BaseMachine(StateMachine):
         state_1 = State("1", initial=True)
@@ -16,7 +16,7 @@ def BaseMachine():
     return BaseMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def InheritedClass(BaseMachine):
     class InheritedClass(BaseMachine):
         pass
@@ -24,7 +24,7 @@ def InheritedClass(BaseMachine):
     return InheritedClass
 
 
-@pytest.fixture
+@pytest.fixture()
 def ExtendedClass(BaseMachine):
     from statemachine import State
 
@@ -35,7 +35,7 @@ def ExtendedClass(BaseMachine):
     return ExtendedClass
 
 
-@pytest.fixture
+@pytest.fixture()
 def OverridedClass(BaseMachine):
     from statemachine import State
 
@@ -47,7 +47,7 @@ def OverridedClass(BaseMachine):
     return OverridedClass
 
 
-@pytest.fixture
+@pytest.fixture()
 def OverridedTransitionClass(BaseMachine):
     from statemachine import State
 

@@ -1,8 +1,4 @@
-# coding: utf-8
-import warnings
-from typing import Any
-from typing import Optional
-from typing import Text
+from typing import Any, Optional  # noqa: F401, I001
 
 from .callbacks import Callbacks
 from .exceptions import StateMachineError
@@ -11,7 +7,7 @@ from .transition_list import TransitionList
 from .utils import ugettext as _
 
 
-class State(object):
+class State:
     """
     A State in a state machine describes a particular behaviour of the machine.
     When we say that a machine is “in” a state, it means that the machine behaves
@@ -80,10 +76,10 @@ class State(object):
     def __init__(
         self, name, value=None, initial=False, final=False, enter=None, exit=None
     ):
-        # type: (Text, Optional[Any], bool, bool, Optional[Any], Optional[Any]) -> None
+        # type: (str, Optional[Any], bool, bool, Optional[Any], Optional[Any]) -> None
         self.name = name
         self.value = value
-        self._id = None  # type: Optional[Text]
+        self._id = None  # type: Optional[str]
         self._initial = initial
         self.transitions = TransitionList()
         self._final = final
@@ -133,14 +129,6 @@ class State(object):
     @property
     def id(self):
         return self._id
-
-    @property
-    def identifier(self):
-        warnings.warn(
-            "`State.identifier` is deprecated. Use `State.id` instead.",
-            DeprecationWarning,
-        )
-        return self.id
 
     def _set_id(self, id):
         self._id = id

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # statemachine documentation build configuration file, created by
 # sphinx-quickstart on Tue Jul  9 22:26:36 2013.
@@ -17,7 +16,6 @@ import sys
 
 import sphinx_rtd_theme
 
-
 # If extensions (or modules to document with autodoc) are in another
 # directory, add these directories to sys.path here. If the directory is
 # relative to the documentation root, use os.path.abspath to make it
@@ -33,7 +31,9 @@ project_root = os.path.dirname(cwd)
 # version is used.
 sys.path.insert(0, project_root)
 
-import statemachine
+from tests.scrape_images import MachineScraper  # noqa: E402
+
+import statemachine  # noqa: E402
 
 # -- General configuration ---------------------------------------------
 
@@ -340,8 +340,6 @@ html_context = {
 
 # html_theme_options = {}
 
-from tests.scrape_images import MachineScraper
-
 
 # Sphinx Galery
 sphinx_gallery_conf = {
@@ -355,10 +353,11 @@ sphinx_gallery_conf = {
     "show_signature": False,
     "min_reported_time": 9999,
     "thumbnail_size": (400, 280),
-    "image_scrapers": ("matplotlib", MachineScraper()),
+    "image_scrapers": (MachineScraper(),),
     "first_notebook_cell": (
         "# import piplite\n"
         "# await piplite.install('python-statemachine[diagrams]')\n"
         "# import patch_repr_svg\n"
     ),
+    "reset_modules": [],
 }

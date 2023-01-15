@@ -1,4 +1,3 @@
-# coding: utf-8
 import inspect
 from collections import namedtuple
 from functools import wraps
@@ -31,11 +30,8 @@ def methodcaller(method):
     # args is a list of the argument names (it may contain nested lists)
     # varargs and keywords are the names of the * and ** arguments or None
     # defaults is a tuple of default argument values or None if there are no default arguments
-    try:
-        spec = inspect.getfullargspec(method)
-    except AttributeError:  # pragma: no cover
-        spec = inspect.getargspec(method)
-    keywords = getattr(spec, "varkw", getattr(spec, "keywords", None))
+    spec = inspect.getfullargspec(method)
+    keywords = spec.varkw
     expected_args = list(spec.args)
     expected_kwargs = spec.defaults or {}
 

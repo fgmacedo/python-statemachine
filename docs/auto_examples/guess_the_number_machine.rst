@@ -59,7 +59,7 @@ Well leave the machine imagine a number and also play the game. Why not?
             # lets play a not so random game, or our tests will be crazy
             random.seed(seed)
             self.number = random.randint(self.lower, self.higher)
-            super(GuessTheNumberMachine, self).__init__()
+            super().__init__()
 
         def max_guesses_reached(self):
             return self.guesses >= self.max_attempts

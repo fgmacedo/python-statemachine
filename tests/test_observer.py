@@ -7,7 +7,7 @@ Frodo enter: producing from produce
 
 class TestObserver:
     def test_add_log_observer(self, campaign_machine, capsys):
-        class LogObserver(object):
+        class LogObserver:
             def __init__(self, name):
                 self.name = name
 

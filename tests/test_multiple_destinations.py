@@ -1,15 +1,11 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
-from statemachine import exceptions
 from statemachine import State
 from statemachine import StateMachine
+from statemachine import exceptions
 
 
-class Request(object):
+class Request:
     def __init__(self, state="requested"):
         self.state = None
         self._is_ok = False
@@ -157,9 +153,10 @@ def test_should_change_to_returned_state_on_multiple_target_with_combined_transi
     # then
     assert machine.completed.is_active
 
-    with pytest.raises(exceptions.TransitionNotAllowed) as e:
+    with pytest.raises(
+        exceptions.TransitionNotAllowed, match="Can't validate when in Completed."
+    ):
         assert machine.validate()
-        assert e.message == "Can't validate when in Completed."
 
 
 def test_transition_on_execute_should_be_called_with_run_syntax(
@@ -198,7 +195,7 @@ def test_multiple_values_returned_with_multiple_targets():
 
 
 @pytest.mark.parametrize(
-    "payment_failed, expected_state",
+    ("payment_failed", "expected_state"),
     [
         (False, "paid"),
         (True, "failed"),

@@ -1,13 +1,10 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
-from .models import MyModel
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.statemachine import Transition
+
+from .models import MyModel
 
 
 def test_transition_representation(campaign_machine):
@@ -147,7 +144,7 @@ def test_transitions_to_the_same_estate_as_itself():
     assert machine.draft.is_active
 
 
-class TestReverseTransition(object):
+class TestReverseTransition:
     @pytest.mark.parametrize(
         "initial_state",
         [

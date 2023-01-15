@@ -1,19 +1,19 @@
-# coding: utf-8
 from unittest import mock
 
 import pytest
 
-from .models import MyModel
 from statemachine import State
 from statemachine import StateMachine
 
+from .models import MyModel
 
-@pytest.fixture
+
+@pytest.fixture()
 def event_mock():
     return mock.MagicMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def state_machine(event_mock):
     class CampaignMachine(StateMachine):
         draft = State("Draft", initial=True)

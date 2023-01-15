@@ -28,7 +28,7 @@ class AllActionsMachine(StateMachine):
 
     def __init__(self, *args, **kwargs):
         self.spy = mock.Mock(side_effect=lambda x: x)
-        super(AllActionsMachine, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     # validators and guards
 

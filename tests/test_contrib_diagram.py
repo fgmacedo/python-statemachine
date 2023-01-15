@@ -1,4 +1,3 @@
-# coding: utf-8
 import pytest
 
 from statemachine.contrib.diagram import DotGraphMachine
@@ -56,12 +55,11 @@ class TestDiagramCmdLine:
     def test_generate_complain_about_bad_sm_path(self, capsys, tmp_path):
         out = tmp_path / "sm.svg"
 
-        with pytest.raises(ValueError) as e:
+        expected_error = "TrafficLightMachineXXX is not a subclass of StateMachine"
+        with pytest.raises(ValueError, match=expected_error):
             main(
                 [
                     "tests.examples.traffic_light_machine.TrafficLightMachineXXX",
                     str(out),
                 ]
             )
-
-        assert e.match("TrafficLightMachineXXX is not a subclass of StateMachine")

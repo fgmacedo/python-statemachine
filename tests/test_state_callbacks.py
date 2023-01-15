@@ -1,7 +1,3 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from unittest import mock
 
 import pytest
@@ -13,8 +9,9 @@ def event_mock():
 
 
 @pytest.fixture()
-def traffic_light_machine(event_mock):
-    from statemachine import StateMachine, State
+def traffic_light_machine(event_mock):  # noqa: C901
+    from statemachine import State
+    from statemachine import StateMachine
 
     class TrafficLightMachineStateEvents(StateMachine):
         "A traffic light machine"
@@ -51,13 +48,13 @@ def traffic_light_machine(event_mock):
     return TrafficLightMachineStateEvents
 
 
-class TestStateCallbacks(object):
+class TestStateCallbacks:
     def test_should_call_on_enter_generic_state(
         self, event_mock, traffic_light_machine
     ):
         machine = traffic_light_machine()
         machine.cycle()
-        event_mock.on_enter_state.call_args_list == [
+        assert event_mock.on_enter_state.call_args_list == [
             mock.call(machine.green),
             mock.call(machine.yellow),
         ]

@@ -1,10 +1,4 @@
-# coding: utf-8
-import sys
-import warnings
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING  # noqa: F401, I001
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
@@ -12,12 +6,16 @@ from .event import Event
 from .event_data import EventData
 from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
+from .factory import StateMachineMetaclass
 from .model import Model
-from .state import State
 from .transition import Transition
 
 
-class BaseStateMachine(object):
+if TYPE_CHECKING:
+    from .state import State  # noqa: F401
+
+
+class StateMachine(metaclass=StateMachineMetaclass):
 
     TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
 
@@ -51,8 +49,8 @@ class BaseStateMachine(object):
 
             try:
                 initial_state = self.states_map[current_state_value]
-            except KeyError:
-                raise InvalidStateValue(current_state_value)
+            except KeyError as err:
+                raise InvalidStateValue(current_state_value) from err
 
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
@@ -82,7 +80,7 @@ class BaseStateMachine(object):
                 "send",
             }
             | {s.id for s in self.states}
-            | {e for e in self._events.keys()}
+            | set(self._events.keys())
         )
 
     def _visit_states_and_transitions(self, visitor):
@@ -134,28 +132,8 @@ class BaseStateMachine(object):
         self.current_state_value = value.value
 
     @property
-    def transitions(self):
-        warnings.warn(
-            "Property `transitions` is deprecated. Use `events` instead.",
-            DeprecationWarning,
-        )
-        return self.events
-
-    @property
     def events(self):
         return self.__class__.events
-
-    @property
-    def allowed_transitions(self):
-        "get the callable proxy of the current allowed transitions"
-        warnings.warn(
-            "`allowed_transitions` is deprecated. Use `allowed_events` instead.",
-            DeprecationWarning,
-        )
-        return [
-            getattr(self, event)
-            for event in self.current_state.transitions.unique_events
-        ]
 
     @property
     def allowed_events(self):
@@ -193,21 +171,6 @@ class BaseStateMachine(object):
 
         return result
 
-    def run(self, event, *args, **kwargs):
-        warnings.warn(
-            "`run` is deprecated. Use `send` instead.",
-            DeprecationWarning,
-        )
-        event = Event(event)
-        return event(self, *args, **kwargs)
-
     def send(self, event, *args, **kwargs):
         event = Event(event)
         return event(self, *args, **kwargs)
-
-
-# Python 2
-if sys.version_info[0] == 2:  # pragma: no cover
-    from .factory_2 import StateMachine  # noqa
-else:
-    from .factory_3 import StateMachine  # noqa

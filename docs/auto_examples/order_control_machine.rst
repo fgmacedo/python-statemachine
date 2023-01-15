@@ -59,7 +59,7 @@ An StateMachine that demonstrates :ref:`Guards` being used to control the state 
             self.order_total = 0
             self.payments = []
             self.payment_received = False
-            super(OrderControl, self).__init__()
+            super().__init__()
 
         def payments_enough(self, amount):
             return sum(self.payments) + amount >= self.order_total

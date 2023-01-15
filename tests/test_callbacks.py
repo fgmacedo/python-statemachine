@@ -1,4 +1,3 @@
-# coding: utf-8
 from unittest import mock
 
 import pytest
@@ -11,11 +10,11 @@ from statemachine.dispatcher import resolver_factory
 from statemachine.exceptions import InvalidDefinition
 
 
-@pytest.fixture
+@pytest.fixture()
 def ObjectWithCallbacks():
-    class ObjectWithCallbacks(object):
+    class ObjectWithCallbacks:
         def __init__(self):
-            super(ObjectWithCallbacks, self).__init__()
+            super().__init__()
             self.name = "statemachine"
             self.callbacks = Callbacks(resolver=resolver_factory(self)).add(
                 ["life_meaning", "name", "a_method"]
@@ -166,7 +165,7 @@ class TestCallbacksAsDecorator:
 
             def __init__(self, *args, **kwargs):
                 self.spy = mock.Mock(side_effect=lambda *x: x)
-                super(MiniHeroJourneyMachine, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
             @ordinary_world.enter
             def enter_ordinary_world(self):

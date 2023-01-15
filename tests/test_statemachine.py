@@ -1,12 +1,11 @@
-# coding: utf-8
 import pytest
 
-from statemachine import exceptions
 from statemachine import State
 from statemachine import StateMachine
+from statemachine import exceptions
 
 
-class MyModel(object):
+class MyModel:
     "A class that can be used to hold arbitrary key/value pairs as attributes."
 
     def __init__(self, **kwargs):
@@ -130,7 +129,7 @@ def test_should_change_state_with_multiple_machine_instances(campaign_machine):
 
 
 @pytest.mark.parametrize(
-    "current_state, transition",
+    ("current_state", "transition"),
     [
         ("draft", "deliver"),
         ("closed", "add_job"),
@@ -274,7 +273,7 @@ def test_state_machine_without_model(campaign_machine):
 
 
 @pytest.mark.parametrize(
-    "model, machine_name, start_value",
+    ("model", "machine_name", "start_value"),
     [
         (None, "campaign_machine", "producing"),
         (None, "campaign_machine_with_values", 2),
@@ -291,7 +290,7 @@ def test_state_machine_with_a_start_value(request, model, machine_name, start_va
 
 
 @pytest.mark.parametrize(
-    "model, machine_name, start_value",
+    ("model", "machine_name", "start_value"),
     [
         (None, "campaign_machine", "tapioca"),
         (None, "campaign_machine_with_values", 99),
@@ -327,7 +326,11 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
 def test_should_not_create_disconnected_machine():
 
-    with pytest.raises(exceptions.InvalidDefinition) as e:
+    expected = (
+        r"There are unreachable states. The statemachine graph should have a single component. "
+        r"Disconnected states: \['blue'\]"
+    )
+    with pytest.raises(exceptions.InvalidDefinition, match=expected):
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
@@ -337,12 +340,13 @@ def test_should_not_create_disconnected_machine():
 
             cycle = green.to(yellow) | yellow.to(green)
 
-        assert "Blue" in e.message
-        assert "Green" not in e.message
-
 
 def test_should_not_create_big_disconnected_machine():
-    with pytest.raises(exceptions.InvalidDefinition) as e:
+    expected = (
+        r"There are unreachable states. The statemachine graph should have a single component. "
+        r"Disconnected states: \[.*\]$"
+    )
+    with pytest.raises(exceptions.InvalidDefinition, match=expected):
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
@@ -356,10 +360,6 @@ def test_should_not_create_big_disconnected_machine():
             cycle = green.to(yellow)
             diverge = green.to(cyan) | cyan.to(red)
             validate = yellow.to(green)
-
-        assert "Magenta" in e.message
-        assert "Blue" in e.message
-        assert "Cyan" not in e.message
 
 
 def test_state_value_is_correct():

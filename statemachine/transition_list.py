@@ -3,7 +3,7 @@ from collections import OrderedDict
 from .utils import ensure_iterable
 
 
-class TransitionList(object):
+class TransitionList:
     def __init__(self, transitions=None):
         self.transitions = list(transitions) if transitions else []
 

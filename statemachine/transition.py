@@ -1,5 +1,3 @@
-# coding: utf-8
-import warnings
 from functools import partial
 
 from .callbacks import Callbacks
@@ -7,7 +5,7 @@ from .callbacks import ConditionWrapper
 from .events import Events
 
 
-class Transition(object):
+class Transition:
     """A transition holds reference to the source and target state.
 
     Args:
@@ -92,13 +90,6 @@ class Transition(object):
 
     def match(self, event):
         return self._events.match(event)
-
-    @property
-    def identifier(self):
-        warnings.warn(
-            "identifier is deprecated. Use `event` instead", DeprecationWarning
-        )
-        return self.event
 
     @property
     def event(self):

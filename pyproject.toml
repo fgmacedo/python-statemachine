@@ -40,6 +40,7 @@ pydot = "^1.4.2"
 ruff = "^0.0.220"
 pre-commit = "^2.21.0"
 mypy = "^0.991"
+black = "^22.12.0"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "4.5.0"
@@ -78,8 +79,19 @@ ignore = [
 max-line-length = 99
 
 [tool.ruff]
+src = ["statemachine"]
+
 # Enable Pyflakes and pycodestyle rules.
-select = ["E", "F"]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "UP", # pyupgrade
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "PT", # flake8-pytest-style
+]
 
 line-length = 99
 
@@ -112,8 +124,14 @@ target-version = "py311"
 
 [tool.ruff.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
-max-complexity = 10
+max-complexity = 5
 
+[tool.ruff.isort]
+force-single-line = true
+
+[tool.ruff.pydocstyle]
+# Use Google-style docstrings.
+convention = "google"
 
 [tool.coverage.run]
 branch = true
@@ -125,7 +143,6 @@ omit = [
     "*test*.py",
     "tmp/*",
     "pytest_cov",
-    "statemachine/factory_2.py",
 ]
 [tool.coverage.report]
 show_missing = true
@@ -140,6 +157,7 @@ exclude_lines = [
     # Don't complain if tests don't hit defensive assertion code:
     "raise AssertionError",
     "raise NotImplementedError",
+   "if TYPE_CHECKING",
 ]
 
 [tool.coverage.html]

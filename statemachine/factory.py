@@ -1,5 +1,3 @@
-import warnings
-from collections import OrderedDict
 from uuid import uuid4
 
 from . import registry
@@ -10,25 +8,21 @@ from .graph import visit_connected_states
 from .state import State
 from .transition import Transition
 from .transition_list import TransitionList
-from .utils import check_state_factory
 from .utils import qualname
 from .utils import ugettext as _
 
 
 class StateMachineMetaclass(type):
     def __init__(cls, name, bases, attrs):
-        super(StateMachineMetaclass, cls).__init__(name, bases, attrs)
+        super().__init__(name, bases, attrs)
         registry.register(cls)
         cls._abstract = True
         cls.name = cls.__name__
         cls.states = []
-        cls._events = OrderedDict()
+        cls._events = {}
         cls.states_map = {}
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
-
-        for state in cls.states:
-            setattr(cls, "is_{}".format(state.id), check_state_factory(state))
 
         cls._set_special_states()
         cls._check()
@@ -51,14 +45,24 @@ class StateMachineMetaclass(type):
         visitable_states = set(visit_connected_states(starting_state))
         return set(cls.states) - visitable_states
 
+    def _check_disconnected_state(cls):
+        disconnected_states = cls._disconnected_states(cls.initial_state)
+        if disconnected_states:
+            raise InvalidDefinition(
+                _(
+                    "There are unreachable states. "
+                    "The statemachine graph should have a single component. "
+                    "Disconnected states: {}".format(
+                        [s.id for s in disconnected_states]
+                    )
+                )
+            )
+
     def _check(cls):
 
         # do not validate the base class
         name = qualname(cls)
-        if name in (
-            "statemachine.factory_2.StateMachine",
-            "statemachine.factory_3.StateMachine",
-        ):
+        if name == "statemachine.statemachine.StateMachine":
             return
 
         cls._abstract = False
@@ -69,15 +73,7 @@ class StateMachineMetaclass(type):
         if not cls._events:
             raise InvalidDefinition(_("There are no events."))
 
-        disconnected_states = cls._disconnected_states(cls.initial_state)
-        if disconnected_states:
-            raise InvalidDefinition(
-                _(
-                    "There are unreachable states. "
-                    "The statemachine graph should have a single component. "
-                    "Disconnected states: [{}]".format(disconnected_states)
-                )
-            )
+        cls._check_disconnected_state()
 
         final_state_with_invalid_transitions = [
             state for state in cls.final_states if state.transitions
@@ -142,14 +138,6 @@ class StateMachineMetaclass(type):
             setattr(cls, event, event_trigger)
 
         return cls._events[event]
-
-    @property
-    def transitions(self):
-        warnings.warn(
-            "Class level property `transitions` is deprecated. Use `events` instead.",
-            DeprecationWarning,
-        )
-        return self.events
 
     @property
     def events(self):

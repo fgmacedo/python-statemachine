@@ -18,6 +18,7 @@ def patch__repr_html():  # pragma: no cover
     See also https://python-statemachine.readthedocs.io/en/latest/diagram.html
     """
     from urllib.parse import quote
+
     from statemachine import StateMachine
 
     def show_sm(sm):
