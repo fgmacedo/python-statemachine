@@ -93,7 +93,7 @@ Let's first try to create a statemachine instance, using the default dummy model
 the needed methods to complete the state machine. Since the required methods will not be found
 either in the state machine or in the model, an exception ``AttrNotFound`` will be raised.
 
-.. GENERATED FROM PYTHON SOURCE LINES 60-66
+.. GENERATED FROM PYTHON SOURCE LINES 60-68
 
 .. code-block:: default
 
@@ -101,7 +101,9 @@ either in the state machine or in the model, an exception ``AttrNotFound`` will 
     try:
         control = OrderControl()
     except AttrNotFound as e:
-        assert str(e) == "Did not found name 'payment_received' from model or statemachine"
+        assert (  # noqa: PT017
+            str(e) == "Did not found name 'payment_received' from model or statemachine"
+        )
 
 
 
@@ -110,11 +112,11 @@ either in the state machine or in the model, an exception ``AttrNotFound`` will 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 67-68
+.. GENERATED FROM PYTHON SOURCE LINES 69-70
 
 Now initializing with a proper ``order`` instance.
 
-.. GENERATED FROM PYTHON SOURCE LINES 68-72
+.. GENERATED FROM PYTHON SOURCE LINES 70-74
 
 .. code-block:: default
 
@@ -129,11 +131,11 @@ Now initializing with a proper ``order`` instance.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 73-74
+.. GENERATED FROM PYTHON SOURCE LINES 75-76
 
 Send events to add to order
 
-.. GENERATED FROM PYTHON SOURCE LINES 74-78
+.. GENERATED FROM PYTHON SOURCE LINES 76-80
 
 .. code-block:: default
 
@@ -148,11 +150,11 @@ Send events to add to order
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 79-80
+.. GENERATED FROM PYTHON SOURCE LINES 81-82
 
 Receive a payment of $4...
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-83
+.. GENERATED FROM PYTHON SOURCE LINES 82-85
 
 .. code-block:: default
 
@@ -172,11 +174,11 @@ Receive a payment of $4...
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 84-85
+.. GENERATED FROM PYTHON SOURCE LINES 86-87
 
 Since there's still $6 left to fulfill the payment, we cannot process the order.
 
-.. GENERATED FROM PYTHON SOURCE LINES 85-90
+.. GENERATED FROM PYTHON SOURCE LINES 87-92
 
 .. code-block:: default
 
@@ -198,7 +200,7 @@ Since there's still $6 left to fulfill the payment, we cannot process the order.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 91-94
+.. GENERATED FROM PYTHON SOURCE LINES 93-96
 
 .. code-block:: default
 
@@ -214,15 +216,15 @@ Since there's still $6 left to fulfill the payment, we cannot process the order.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7ff705f5bc10>, state_field='state', current_state='waiting_for_payment')
+    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='waiting_for_payment')
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-96
+.. GENERATED FROM PYTHON SOURCE LINES 97-98
 
 Now paying the left amount, we can proceed.
 
-.. GENERATED FROM PYTHON SOURCE LINES 96-99
+.. GENERATED FROM PYTHON SOURCE LINES 98-101
 
 .. code-block:: default
 
@@ -242,7 +244,7 @@ Now paying the left amount, we can proceed.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 100-103
+.. GENERATED FROM PYTHON SOURCE LINES 102-105
 
 .. code-block:: default
 
@@ -258,11 +260,11 @@ Now paying the left amount, we can proceed.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7ff705f5bc10>, state_field='state', current_state='processing')
+    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='processing')
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 104-107
+.. GENERATED FROM PYTHON SOURCE LINES 106-109
 
 .. code-block:: default
 
@@ -276,7 +278,7 @@ Now paying the left amount, we can proceed.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 108-111
+.. GENERATED FROM PYTHON SOURCE LINES 110-113
 
 .. code-block:: default
 
@@ -292,11 +294,11 @@ Now paying the left amount, we can proceed.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7ff705f5bc10>, state_field='state', current_state='shipping')
+    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='shipping')
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 112-115
+.. GENERATED FROM PYTHON SOURCE LINES 114-117
 
 .. code-block:: default
 
@@ -310,11 +312,11 @@ Now paying the left amount, we can proceed.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 116-117
+.. GENERATED FROM PYTHON SOURCE LINES 118-119
 
 Just checking the final expected state
 
-.. GENERATED FROM PYTHON SOURCE LINES 117-120
+.. GENERATED FROM PYTHON SOURCE LINES 119-122
 
 .. code-block:: default
 
@@ -334,7 +336,7 @@ Just checking the final expected state
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 121-124
+.. GENERATED FROM PYTHON SOURCE LINES 123-126
 
 .. code-block:: default
 
@@ -354,7 +356,7 @@ Just checking the final expected state
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 125-128
+.. GENERATED FROM PYTHON SOURCE LINES 127-130
 
 .. code-block:: default
 
@@ -374,7 +376,7 @@ Just checking the final expected state
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 129-133
+.. GENERATED FROM PYTHON SOURCE LINES 131-135
 
 .. code-block:: default
 
@@ -391,11 +393,11 @@ Just checking the final expected state
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7ff705f5bc10>, state_field='state', current_state='completed')
+    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='completed')
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 134-137
+.. GENERATED FROM PYTHON SOURCE LINES 136-139
 
 .. code-block:: default
 
