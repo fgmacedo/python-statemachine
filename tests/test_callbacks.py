@@ -86,7 +86,8 @@ class TestCallbacksMachinery:
         callbacks.add("my_method").add("other_method")
         callbacks.add("last_one")
 
-        assert [c.func for c in callbacks] == ["my_method", "other_method", "last_one"]
+        assert [c.func for c in callbacks] == [
+            "my_method", "other_method", "last_one"]
 
     def test_add_many_callbacks_at_once(self):
         callbacks = Callbacks()
@@ -101,10 +102,12 @@ class TestCallbacksMachinery:
         callbacks = Callbacks(resolver_factory(object()))
 
         if suppress_errors:
-            callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
+            callbacks.add("this_does_no_exist",
+                          suppress_errors=suppress_errors)
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
+                callbacks.add("this_does_no_exist",
+                              suppress_errors=suppress_errors)
 
     def test_collect_results(self):
         callbacks = Callbacks()
@@ -187,10 +190,10 @@ class TestCallbacksAsDecorator:
                 self.spy("refuse_call", reason)
 
         sm = MiniHeroJourneyMachine()
-        sm.adventure_called(request="The darkness is comming")
+        sm.adventure_called(request="The darkness is coming")
         assert sm.spy.call_args_list == [
             mock.call("enter_ordinary_world"),
-            mock.call("call_to_adventure", "The darkness is comming"),
+            mock.call("call_to_adventure", "The darkness is coming"),
         ]
 
         sm = MiniHeroJourneyMachine()

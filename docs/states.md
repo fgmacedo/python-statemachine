@@ -1,7 +1,7 @@
 
 # States
 
-State, as the name sais, holds the representation of a state in a statemachine.
+State, as the name says, holds the representation of a state in a statemachine.
 
 
 ## State
@@ -16,7 +16,7 @@ State, as the name sais, holds the representation of a state in a statemachine.
 A StateMachine should have one and only one `initial` state.
 
 
-The initial {ref}`state` is entered when the machine starts and the corresponding enterirng
+The initial {ref}`state` is entered when the machine starts and the corresponding entering
 state {ref}`actions` are called if defined.
 
 

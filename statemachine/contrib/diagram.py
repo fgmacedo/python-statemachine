@@ -9,7 +9,7 @@ from ..statemachine import StateMachine
 class DotGraphMachine:
     graph_rankdir = "LR"
     """
-    Diretion of the graph. Defaults to "LR" (option "TB" for top botton)
+    DireCtion of the graph. Defaults to "LR" (option "TB" for top botton)
     http://www.graphviz.org/doc/info/attrs.html#d:rankdir
     """
 
@@ -61,10 +61,12 @@ class DotGraphMachine:
 
     def _state_actions(self, state):
         entry = ", ".join(
-            [getattr(action.func, "__name__", action.func) for action in state.enter]
+            [getattr(action.func, "__name__", action.func)
+             for action in state.enter]
         )
         exit = ", ".join(
-            [getattr(action.func, "__name__", action.func) for action in state.exit]
+            [getattr(action.func, "__name__", action.func)
+             for action in state.exit]
         )
 
         if entry:
@@ -102,7 +104,8 @@ class DotGraphMachine:
             name = getattr(cond.func, "__name__", cond.func)
             return name if cond.expected_value else "!{}".format(name)
 
-        cond = ", ".join([_get_condition_repr(cond) for cond in transition.cond])
+        cond = ", ".join([_get_condition_repr(cond)
+                         for cond in transition.cond])
         if cond:
             cond = "\n[{}]".format(cond)
         return pydot.Edge(
@@ -137,7 +140,8 @@ def import_sm(qualname):
     module = importlib.import_module(module_name)
     smclass = getattr(module, class_name, None)
     if not smclass or not issubclass(smclass, StateMachine):
-        raise ValueError("{} is not a subclass of StateMachine".format(class_name))
+        raise ValueError(
+            "{} is not a subclass of StateMachine".format(class_name))
 
     return smclass
 
@@ -145,7 +149,7 @@ def import_sm(qualname):
 def write_image(qualname, out):
     """
     Given a `qualname`, that is the fully qualified dotted path to a StateMachine
-    classe, imports the class and generates a dot graph using the `pydot` lib.
+    classes, imports the class and generates a dot graph using the `pydot` lib.
     Writes the graph representation to the filename 'out' that will
     open/create and truncate such file and write on it a representation of
     the graph defined by the statemachine, in the format specified by

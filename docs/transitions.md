@@ -24,7 +24,7 @@ An event start a {ref}`transition`, can be thought of as a "cause" that
 initiates a change in the state of the system.
 
 In python-statemachine, an event is specified as an attribute of the
-statemachine class declaration, or diretly on the `event` parameter on
+statemachine class declaration, or directly on the `event` parameter on
 a {ref}`transition`.
 
 
@@ -89,14 +89,14 @@ At line 18, you can say that this code defines three transitions:
 And these transitions are assigned to the {ref}`event` `cycle` defined at
 class level.
 
-When an {ref}`event` is sent to a stamemachine:
+When an {ref}`event` is sent to a statemachine:
 
 1. Uses the current {ref}`state` to check for available transitions.
 1. For each possible transition, it checks for those that matches the received {ref}`event`.
-1. The target state, if the transition succeeds, is determined by a transisition
+1. The target state, if the transition succeeds, is determined by a transition
    that an event matches and;
 1. All {ref}`validators-and-guards`, including {ref}`actions`
-   atached to the `on_<event>` and `before_<event>` callbacks.
+   attached to the `on_<event>` and `before_<event>` callbacks.
 
 
 ## Triggering events
