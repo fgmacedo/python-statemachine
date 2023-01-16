@@ -21,7 +21,7 @@
 All actions machine
 ===================
 
-A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
+A StateMachine that exercises all possible :ref:`Actions` and :ref:`Guards`.
 
 .. GENERATED FROM PYTHON SOURCE LINES 8-143
 

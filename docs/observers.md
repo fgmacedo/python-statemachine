@@ -1,7 +1,7 @@
 
 # Observers
 
-Observers are a way do generically add behavior to a StateMachine without
+Observers are a way to generically add behavior to a StateMachine without
 changing its internal implementation.
 
 One possible use case is to add an observer that prints a log message when the SM runs a

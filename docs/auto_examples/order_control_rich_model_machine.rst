@@ -89,9 +89,9 @@ An StateMachine that demonstrates :ref:`Actions` being used on a rich model.
 Testing
 -------
 
-Let's first try to create a statemachine instance, using the default dummy model that don't have
-the needed methods to complete the state machine. Since the required methods will not be found
-either in the state machine or in the model, an exception ``AttrNotFound`` will be raised.
+Let's first try to create a statemachine instance, using the default dummy model that doesn't
+have the needed methods to complete the state machine. Since the required methods will not be
+found either in the state machine or in the model, an exception ``AttrNotFound`` will be raised.
 
 .. GENERATED FROM PYTHON SOURCE LINES 60-68
 
@@ -216,7 +216,7 @@ Since there's still $6 left to fulfill the payment, we cannot process the order.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='waiting_for_payment')
+    OrderControl(model=<__main__.Order object at 0x74e76af0>, state_field='state', current_state='waiting_for_payment')
 
 
 
@@ -260,7 +260,7 @@ Now paying the left amount, we can proceed.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='processing')
+    OrderControl(model=<__main__.Order object at 0x74e76af0>, state_field='state', current_state='processing')
 
 
 
@@ -294,7 +294,7 @@ Now paying the left amount, we can proceed.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='shipping')
+    OrderControl(model=<__main__.Order object at 0x74e76af0>, state_field='state', current_state='shipping')
 
 
 
@@ -393,7 +393,7 @@ Just checking the final expected state
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='completed')
+    OrderControl(model=<__main__.Order object at 0x74e76af0>, state_field='state', current_state='completed')
 
 
 
