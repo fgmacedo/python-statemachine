@@ -11,7 +11,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,6 +19,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - run: git fetch origin develop
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
@@ -61,4 +61,27 @@ jobs:
     - name: Test with pytest
       run: |
         source .venv/bin/activate
-        pytest
+        pytest --cov-report=xml --junitxml=xunit-results.xml
+        coverage xml
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          coverage.xml
+          xunit-results.xml
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        args: >
+          -Dsonar.organization=fgmacedo
+          -Dsonar.projectKey=fgmacedo_python-statemachine
+          -Dsonar.python.coverage.reportPaths=coverage.xml
+          -Dsonar.sources=statemachine/
+          -Dsonar.test.exclusions=tests/**
+          -Dsonar.tests=tests/
+          -Dsonar.python.version=3
+          -Dsonar.verbose=false
