@@ -36,10 +36,10 @@ There are two variations of Guard clauses available:
 
 cond
 : A list of conditions, acting like predicates. A transition is only allowed to occur if
-all conditions evaluates to ``True``.
+all conditions evaluate to ``True``.
 
 unless
-: Same as `cond`, but the transition is allowed if they evaluates fo ``False``.
+: Same as `cond`, but the transition is allowed if all conditions evaluate to ``False``.
 
 ## Validators
 

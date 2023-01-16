@@ -216,7 +216,7 @@ Since there's still $6 left to fulfill the payment, we cannot process the order.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='waiting_for_payment')
+    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='waiting_for_payment')
 
 
 
@@ -260,7 +260,7 @@ Now paying the left amount, we can proceed.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='processing')
+    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='processing')
 
 
 
@@ -294,7 +294,7 @@ Now paying the left amount, we can proceed.
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='shipping')
+    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='shipping')
 
 
 
@@ -393,7 +393,7 @@ Just checking the final expected state
  .. code-block:: none
 
 
-    OrderControl(model=<__main__.Order object at 0x7f008da2bc50>, state_field='state', current_state='completed')
+    OrderControl(model=<__main__.Order object at 0x74f0eb80>, state_field='state', current_state='completed')
 
 
 

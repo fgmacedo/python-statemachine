@@ -86,8 +86,7 @@ class TestCallbacksMachinery:
         callbacks.add("my_method").add("other_method")
         callbacks.add("last_one")
 
-        assert [c.func for c in callbacks] == [
-            "my_method", "other_method", "last_one"]
+        assert [c.func for c in callbacks] == ["my_method", "other_method", "last_one"]
 
     def test_add_many_callbacks_at_once(self):
         callbacks = Callbacks()
@@ -102,12 +101,10 @@ class TestCallbacksMachinery:
         callbacks = Callbacks(resolver_factory(object()))
 
         if suppress_errors:
-            callbacks.add("this_does_no_exist",
-                          suppress_errors=suppress_errors)
+            callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add("this_does_no_exist",
-                              suppress_errors=suppress_errors)
+                callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
 
     def test_collect_results(self):
         callbacks = Callbacks()
