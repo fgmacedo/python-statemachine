@@ -45,6 +45,7 @@ jobs:
       #              run ruff
       #----------------------------------------------
     - name: Linter with ruff
+      if: matrix.python-version == 3.11
       run: |
         source .venv/bin/activate
         ruff .
@@ -52,6 +53,7 @@ jobs:
       #              run black
       #----------------------------------------------
     - name: Linter with black
+      if: matrix.python-version == 3.11
       run: |
         source .venv/bin/activate
         black . --check --diff
@@ -61,27 +63,15 @@ jobs:
     - name: Test with pytest
       run: |
         source .venv/bin/activate
-        pytest --cov-report=xml --junitxml=xunit-results.xml
+        pytest --cov-report=xml:coverage.xml
         coverage xml
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      if: matrix.python-version == 3.11
       with:
-        name: test-results
-        path: |
-          coverage.xml
-          xunit-results.xml
-    - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        args: >
-          -Dsonar.organization=fgmacedo
-          -Dsonar.projectKey=fgmacedo_python-statemachine
-          -Dsonar.python.coverage.reportPaths=coverage.xml
-          -Dsonar.sources=statemachine/
-          -Dsonar.test.exclusions=tests/**
-          -Dsonar.tests=tests/
-          -Dsonar.python.version=3
-          -Dsonar.verbose=false
+        directory: .
+        env_vars: OS,PYTHON
+        fail_ci_if_error: true
+        flags: unittests
+        name: codecov-umbrella
+        verbose: true
