@@ -9,7 +9,7 @@ from ..statemachine import StateMachine
 class DotGraphMachine:
     graph_rankdir = "LR"
     """
-    Diretion of the graph. Defaults to "LR" (option "TB" for top botton)
+    Direction of the graph. Defaults to "LR" (option "TB" for top botton)
     http://www.graphviz.org/doc/info/attrs.html#d:rankdir
     """
 
@@ -145,7 +145,7 @@ def import_sm(qualname):
 def write_image(qualname, out):
     """
     Given a `qualname`, that is the fully qualified dotted path to a StateMachine
-    classe, imports the class and generates a dot graph using the `pydot` lib.
+    classes, imports the class and generates a dot graph using the `pydot` lib.
     Writes the graph representation to the filename 'out' that will
     open/create and truncate such file and write on it a representation of
     the graph defined by the statemachine, in the format specified by

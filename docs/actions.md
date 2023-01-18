@@ -258,7 +258,7 @@ You can also declare an event while also adding a callback:
 ```
 
 Note that with this syntax, the result `loop` that is present on the `ExampleStateMachine.loop`
-namespacte is not a simple method, but an {ref}`event` trigger. So it only executes if the
+namespace is not a simple method, but an {ref}`event` trigger. So it only executes if the
 StateMachine is on the right state.
 
 So, you can use the event-oriented approach:
@@ -361,7 +361,7 @@ For your convenience, all these parameters are available for you on any Action o
 : The {ref}`Transition` instance that was activated by the {ref}`Event`.
 
 
-So, you can implement Actions and Guards like these, but this list is not exaustive, it's only
+So, you can implement Actions and Guards like these, but this list is not exhaustive, it's only
 to give you a few examples...  any combination of parameters will work, including extra parameters
 that you may inform when triggering an {ref}`event`:
 

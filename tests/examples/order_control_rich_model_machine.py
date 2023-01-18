@@ -54,9 +54,9 @@ class OrderControl(StateMachine):
 # Testing
 # -------
 #
-# Let's first try to create a statemachine instance, using the default dummy model that don't have
-# the needed methods to complete the state machine. Since the required methods will not be found
-# either in the state machine or in the model, an exception ``AttrNotFound`` will be raised.
+# Let's first try to create a statemachine instance, using the default dummy model that doesn't
+# have the needed methods to complete the state machine. Since the required methods will not be
+# found either in the state machine or in the model, an exception ``AttrNotFound`` will be raised.
 
 try:
     control = OrderControl()

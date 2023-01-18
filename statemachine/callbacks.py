@@ -5,7 +5,7 @@ from .utils import ugettext as _
 
 
 class CallbackWrapper:
-    """A thin wrapper that ensures the targef callback is a proper callable.
+    """A thin wrapper that ensures the target callback is a proper callable.
 
     At first, `func` can be a string or a callable, and even if it's already
     a callable, his signature can mismatch.
@@ -83,14 +83,14 @@ class Callbacks:
         ]
 
     def _add_unbounded_callback(self, func, is_event=False, transitions=None):
-        """This list was a targed for adding a func using decorator
+        """This list was a target for adding a func using decorator
         `@<state|event>[.on|before|after|enter|exit]` syntax.
 
         If we assign ``func`` directly as callable on the ``items`` list,
         this will result in an `unbounded method error`, with `func` expecting a parameter
         ``self`` not defined.
 
-        The implemented solution is to resolve the colision giving the func a reference method.
+        The implemented solution is to resolve the collision giving the func a reference method.
         To update It's callback when the name is resolved on the
         :func:`StateMachineMetaclass.add_from_attributes`.
         If the ``func`` is bounded It will be used directly, if not, it's ref will be replaced

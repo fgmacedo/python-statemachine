@@ -103,7 +103,7 @@ Ready to contribute? Here's how to set up ``python-statemachine`` for local deve
 
         poetry run sphinx-autobuild docs docs/_build/html --re-ignore "auto_examples/.*"
 
-    Sometimes you need a full fresh of the files being build for docs, you can safelly remove
+    Sometimes you need a full fresh of the files being build for docs, you can safely remove
     all automatically generated files to get a clean state by running::
 
         rm -rf docs/_build/ docs/auto_examples

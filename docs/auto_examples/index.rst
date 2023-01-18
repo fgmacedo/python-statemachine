@@ -89,7 +89,7 @@ Below is a gallery of StateMachine examples.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="A StateMachine that exercices all possible Actions and Guards.">
+    <div class="sphx-glr-thumbcontainer" tooltip="A StateMachine that exercises all possible Actions and Guards.">
 
 .. only:: html
 

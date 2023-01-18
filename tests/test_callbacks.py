@@ -187,10 +187,10 @@ class TestCallbacksAsDecorator:
                 self.spy("refuse_call", reason)
 
         sm = MiniHeroJourneyMachine()
-        sm.adventure_called(request="The darkness is comming")
+        sm.adventure_called(request="The darkness is coming")
         assert sm.spy.call_args_list == [
             mock.call("enter_ordinary_world"),
-            mock.call("call_to_adventure", "The darkness is comming"),
+            mock.call("call_to_adventure", "The darkness is coming"),
         ]
 
         sm = MiniHeroJourneyMachine()
