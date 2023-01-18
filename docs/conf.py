@@ -270,7 +270,7 @@ sphinx_gallery_conf = {
     "show_signature": False,
     "min_reported_time": 9999,
     "thumbnail_size": (400, 280),
-    "image_scrapers": (MachineScraper(),),
+    "image_scrapers": (MachineScraper(project_root),),
     "first_notebook_cell": (
         "# import piplite\n"
         "# await piplite.install('python-statemachine[diagrams]')\n"

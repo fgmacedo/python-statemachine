@@ -10,10 +10,11 @@ from statemachine.factory import StateMachineMetaclass
 class MachineScraper:
     """Scrapes images of the statemachines defined into the examples for the gallery"""
 
-    re_machine_module_name = re.compile(r"python-statemachine/(.*).py$")
     re_replace_png_extension = re.compile(r"\.png$")
 
-    def __init__(self):
+    def __init__(self, project_root):
+        self.project_root = project_root
+        self.re_machine_module_name = re.compile(f"{self.project_root}/(.*).py$")
         self.seen = set()
 
     def __repr__(self):
@@ -25,7 +26,10 @@ class MachineScraper:
             return
 
         module_name = module_name[0].replace("/", ".")
-        return importlib.import_module(module_name)
+        try:
+            return importlib.import_module(module_name)
+        except ModuleNotFoundError:
+            return
 
     def generate_image(self, sm_class, original_path):
         image_path = self.re_replace_png_extension.sub(".svg", original_path)
@@ -37,7 +41,6 @@ class MachineScraper:
 
     def __call__(self, block, block_vars, gallery_conf):
         # Find all PNG files in the directory of this example.
-
         module = self._get_module(block_vars["src_file"])
         if module is None:
             return ""
