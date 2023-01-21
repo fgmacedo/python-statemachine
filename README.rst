@@ -9,8 +9,8 @@ Python State Machine
 .. image:: https://img.shields.io/pypi/dm/python-statemachine.svg
         :target: https://pypi.python.org/pypi/python-statemachine
 
-.. image:: https://travis-ci.org/fgmacedo/python-statemachine.svg?branch=develop
-        :target: https://travis-ci.org/fgmacedo/python-statemachine
+.. image:: https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml/badge.svg?branch=develop
+        :target: https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml?query=branch%3Adevelop
         :alt: Build status
 
 .. image:: https://codecov.io/gh/fgmacedo/python-statemachine/branch/develop/graph/badge.svg
