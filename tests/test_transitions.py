@@ -2,6 +2,7 @@ import pytest
 
 from statemachine import State
 from statemachine import StateMachine
+from statemachine.exceptions import InvalidDefinition
 from statemachine.statemachine import Transition
 
 from .models import MyModel
@@ -13,7 +14,7 @@ def test_transition_representation(campaign_machine):
         "Transition("
         "State('Draft', id='draft', value='draft', initial=True, final=False), "
         "State('Being produced', id='producing', value='producing', "
-        "initial=False, final=False), event='produce')"
+        "initial=False, final=False), event='produce', internal=False)"
     )
 
 
@@ -187,3 +188,46 @@ def test_should_transition_with_a_dict_as_return():
 
     result = machine.send("accept")
     assert result == expected_result
+
+
+class TestInternalTransition:
+    @pytest.mark.parametrize(
+        ("internal", "expected_calls"),
+        [
+            (False, ["on_exit_initial", "on_enter_initial"]),
+            (True, []),
+        ],
+    )
+    def test_should_not_execute_state_actions_on_internal_transitions(
+        self, internal, expected_calls
+    ):
+
+        calls = []
+
+        class TestStateMachine(StateMachine):
+            initial = State("initial", initial=True)
+
+            loop = initial.to.itself(internal=internal)
+
+            def on_exit_initial(self):
+                calls.append("on_exit_initial")
+
+            def on_enter_initial(self):
+                calls.append("on_enter_initial")
+
+        sm = TestStateMachine()
+        calls.clear()
+        sm.loop()
+        assert calls == expected_calls
+
+    def test_should_not_allow_internal_transitions_from_distinct_states(self):
+
+        with pytest.raises(
+            InvalidDefinition, match="Internal transitions should be self-transitions."
+        ):
+
+            class TestStateMachine(StateMachine):
+                initial = State("initial", initial=True)
+                final = State("final", final=True)
+
+                execute = initial.to(initial, final, internal=True)

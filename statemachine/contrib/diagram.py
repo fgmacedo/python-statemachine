@@ -9,7 +9,7 @@ from ..statemachine import StateMachine
 class DotGraphMachine:
     graph_rankdir = "LR"
     """
-    Direction of the graph. Defaults to "LR" (option "TB" for top botton)
+    Direction of the graph. Defaults to "LR" (option "TB" for top bottom)
     http://www.graphviz.org/doc/info/attrs.html#d:rankdir
     """
 
@@ -60,11 +60,12 @@ class DotGraphMachine:
         )
 
     def _state_actions(self, state):
-        entry = ", ".join(
-            [getattr(action.func, "__name__", action.func) for action in state.enter]
-        )
-        exit = ", ".join(
-            [getattr(action.func, "__name__", action.func) for action in state.exit]
+        entry = ", ".join([str(action) for action in state.enter])
+        exit = ", ".join([str(action) for action in state.exit])
+        internal = ", ".join(
+            f"{transition.event} / {transition.on!s}"
+            for transition in state.transitions
+            if transition.internal
         )
 
         if entry:
@@ -72,7 +73,7 @@ class DotGraphMachine:
         if exit:
             exit = "exit / {}".format(exit)
 
-        actions = "\n".join(x for x in [entry, exit] if x)
+        actions = "\n".join(x for x in [entry, exit, internal] if x)
 
         if actions:
             actions = "\n{}".format(actions)
@@ -98,11 +99,7 @@ class DotGraphMachine:
         return node
 
     def _transition_as_edge(self, transition):
-        def _get_condition_repr(cond):
-            name = getattr(cond.func, "__name__", cond.func)
-            return name if cond.expected_value else "!{}".format(name)
-
-        cond = ", ".join([_get_condition_repr(cond) for cond in transition.cond])
+        cond = ", ".join([str(cond) for cond in transition.cond])
         if cond:
             cond = "\n[{}]".format(cond)
         return pydot.Edge(
@@ -115,15 +112,14 @@ class DotGraphMachine:
 
     def get_graph(self):
         graph = self._get_graph()
-
-        initial_node = self._initial_node()
-        initial_edge = self._initial_edge()
-        graph.add_node(initial_node)
-        graph.add_edge(initial_edge)
+        graph.add_node(self._initial_node())
+        graph.add_edge(self._initial_edge())
 
         for state in self.machine.states:
             graph.add_node(self._state_as_node(state))
             for transition in state.transitions:
+                if transition.internal:
+                    continue
                 graph.add_edge(self._transition_as_edge(transition))
 
         return graph
@@ -162,11 +158,11 @@ def main(argv=None):
     import argparse
 
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [OPTION] <classpath> <out>",
+        usage="%(prog)s [OPTION] <class_path> <out>",
         description="Generate diagrams for StateMachine classes.",
     )
     parser.add_argument(
-        "classpath", help="A fully-qualified dotted path to the StateMachine class."
+        "class_path", help="A fully-qualified dotted path to the StateMachine class."
     )
     parser.add_argument(
         "out",
@@ -174,7 +170,7 @@ def main(argv=None):
     )
 
     args = parser.parse_args(argv)
-    write_image(qualname=args.classpath, out=args.out)
+    write_image(qualname=args.class_path, out=args.out)
 
 
 if __name__ == "__main__":  # pragma: no cover

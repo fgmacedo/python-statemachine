@@ -10,37 +10,61 @@
 
 # Transitions and events
 
-A machine moves from state to state through transitions. These transitions are
-caused by events.
+A state machine is typically composed of a set of {ref}`state`, {ref}`transition`, {ref}`event`,
+and {ref}`actions`. A state is a representation of the system's current condition or behavior.
+A transition represents the change in the system's state in response to an event or condition.
+An event is a trigger that causes the system to transition from one state to another, and action
+is any side-effect, which is the way a StateMachine can cause things to happen in the
+outside world.
 
 
-## Event
+Consider this traffic light machine as an example:
 
-An event is an external signal that something has happened.
-They are send to a state machine and allow the state machine to react.
+![TrafficLightMachine](images/traffic_light_machine.png)
 
-An event starts a {ref}`transition`, can be thought of as a "cause" that
-initiates a change in the state of the system.
 
-In python-statemachine, an event is specified as an attribute of the
-statemachine class declaration or directly on the {ref}`event` parameter on
-a {ref}`transition`.
+There're three transitions, one starting from green to yellow, another from
+yellow to red, and another from red back to green. All these transitions
+are triggered by the same {ref}`event` called `cycle`.
 
+This state machine could be expressed in `python-statemachine` as:
+
+```{literalinclude} ../tests/examples/traffic_light_machine.py
+:language: python
+:linenos:
+:emphasize-lines: 18
+```
+
+In line 18, you can say that this code defines three transitions:
+
+* `green.to(yellow)`
+* `yellow.to(red)`
+* `red.to(green)`
+
+And these transitions are assigned to the {ref}`event` `cycle` defined at the class level.
 
 ## Transition
 
-In an executing state machine, a transition is the instantaneous transfer
-from one state to another. In a state machine, a transition tells us what
-happens when an {ref}`event` occurs.
+In an executing state machine, a transition is a transfer from one state to another. In a state machine, a transition tells us what happens when an {ref}`event` occurs.
 
-A self transition is a transition that goes from and to the same state.
 
-A transition can define actions that will be executed whenever that transition
+```{tip}
+A transition can define {ref}`actions` that will be executed whenever that transition
 is executed.
+
+An action associated with an event (before, on, after), will be assigned to all transitions
+bounded that uses the event as trigger.
+```
 
 ```{eval-rst}
 .. autoclass:: statemachine.transition.Transition
     :members:
+```
+
+```{hint}
+Usually you don't need to import and use a {ref}`transition` class directly in your code,
+one of the most powerful features of this library is now transitions and events can be expressed
+linking directly from/to {ref}`state` instances.
 ```
 
 (self-transition)=
@@ -59,49 +83,104 @@ TransitionList([Transition(State('Draft', ...
 
 ```
 
-### Example
+### Internal transition
 
-Consider this traffic light machine as example:
+It's like a {ref}`self transition`.
 
-![TrafficLightMachine](images/traffic_light_machine.png)
-
-
-There're three transitions, one starting from green to yellow, another from
-yellow to red, and another from red back to green. All these transitions
-are triggered by the same {ref}`event` called `cycle`.
-
-This statemachine could be expressed in python-statemachine as:
+But in contrast to a self-transition, no entry or exit actions are ever executed as a result of an internal transition.
 
 
-```{literalinclude} ../tests/examples/traffic_light_machine.py
-:language: python
-:linenos:
-:emphasize-lines: 18
+Syntax:
+
+```py
+>>> draft = State("Draft")
+
+>>> draft.to.itself(internal=True)
+TransitionList([Transition(State('Draft', ...
+
 ```
 
-At line 18, you can say that this code defines three transitions:
+Example:
 
-* `green.to(yellow)`
-* `yellow.to(red)`
-* `red.to(green)`
+```py
+>>> class TestStateMachine(StateMachine):
+...     initial = State("initial", initial=True)
+...
+...     external_loop = initial.to.itself(on="do_something")
+...     internal_loop = initial.to.itself(internal=True, on="do_something")
+...
+...     def __init__(self):
+...         self.calls = []
+...         super().__init__()
+...
+...     def do_something(self):
+...         self.calls.append("do_something")
+...
+...     def on_exit_initial(self):
+...         self.calls.append("on_exit_initial")
+...
+...     def on_enter_initial(self):
+...         self.calls.append("on_enter_initial")
 
-And these transitions are assigned to the {ref}`event` `cycle` defined at
-class level.
+```
+Usage:
 
-When an {ref}`event` is send to a statemachine:
+```py
+>>> sm = TestStateMachine()
 
-1. Uses the current {ref}`state` to check for available transitions.
-1. For each possible transition, it checks for those that matches the received {ref}`event`.
-1. The target state, if the transition succeeds, is determined by a transition
-   that an event matches and;
-1. All {ref}`validators-and-guards`, including {ref}`actions`
-   attached to the `on_<event>` and `before_<event>` callbacks.
+>>> sm._graph().write_png("docs/images/test_state_machine_internal.png")
+
+>>> sm.calls.clear()
+
+>>> sm.external_loop()
+
+>>> sm.calls
+['on_exit_initial', 'do_something', 'on_enter_initial']
+
+>>> sm.calls.clear()
+
+>>> sm.internal_loop()
+
+>>> sm.calls
+['do_something']
+
+```
+
+![TestStateMachine](images/test_state_machine_internal.png)
+
+```{note}
+
+The internal transition is represented like an entry/exit action, where
+the event name is used to describe the transition.
+
+```
 
 
-## Triggering events
+## Event
+
+An event is an external signal that something has happened.
+They are sent to a state machine and allow the state machine to react.
+
+An event starts a {ref}`transition`, which can be thought of as a "cause" that
+initiates a change in the state of the system.
+
+In `python-statemachine`, an event is specified as an attribute of the state machine class declaration or directly on the {ref}`event` parameter on a {ref}`transition`.
+
+### Triggering events
+
+Triggering an event on a state machine means invoking or sending a signal, initiating the
+process that may result in executing a transition.
+
+This process usually involves checking the current state, evaluating any guard conditions
+associated with the transition, executing any actions associated with the transition and states,
+and finally updating the current state.
+
+```{seealso}
+See {ref}`actions` and {ref}`validators-and-guards`.
+```
 
 
-By direct calling the event:
+You can invoke the event in an imperative syntax:
 
 ```py
 >>> machine = TrafficLightMachine()
@@ -114,7 +193,7 @@ By direct calling the event:
 
 ```
 
-In a running (interpreted) machine, events are `send`:
+Or in an event-oriented style, events are `send`:
 
 ```py
 >>> machine.send("cycle")
@@ -126,8 +205,8 @@ In a running (interpreted) machine, events are `send`:
 ```
 
 You can also pass positional and keyword arguments, that will be propagated
-to the actions. On this example, the :code:`TrafficLightMachine` implements
-an action that `echoes` back the params informed.
+to the actions and guards. In this example, the :code:`TrafficLightMachine` implements
+an action that `echoes` back the parameters informed.
 
 ```{literalinclude} ../tests/examples/traffic_light_machine.py
     :language: python

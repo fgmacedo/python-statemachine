@@ -2,7 +2,9 @@ from functools import partial
 
 from .callbacks import Callbacks
 from .callbacks import ConditionWrapper
+from .event_data import EventData
 from .events import Events
+from .exceptions import InvalidDefinition
 
 
 class Transition:
@@ -14,6 +16,8 @@ class Transition:
         event (Optional[Union[str, List[str]]]): List of designators of events that trigger this
             transition. Can be either a list of strings, or a space-separated string list of event
             descriptors.
+        internal (bool): Is the transition internal or external? Internal transitions
+            don't execute the state entry/exit actions. Default ``False``.
         validators (Optional[Union[str, Callable, List[Callable]]]): The validation callbacks to
             be invoked before the transition is executed.
         cond (Optional[Union[str, Callable, List[Callable]]]): The condition callbacks to be
@@ -33,6 +37,7 @@ class Transition:
         source,
         target,
         event=None,
+        internal=False,
         validators=None,
         cond=None,
         unless=None,
@@ -43,6 +48,11 @@ class Transition:
 
         self.source = source
         self.target = target
+        self.internal = internal
+
+        if internal and source is not target:
+            raise InvalidDefinition("Internal transitions should be self-transitions.")
+
         self._events = Events().add(event)
         self.validators = Callbacks().add(validators)
         self.before = Callbacks().add(before)
@@ -55,8 +65,9 @@ class Transition:
         )
 
     def __repr__(self):
-        return "{}({!r}, {!r}, event={!r})".format(
-            type(self).__name__, self.source, self.target, self.event
+        return (
+            f"{type(self).__name__}({self.source!r}, {self.target!r}, event={self.event!r}, "
+            f"internal={self.internal!r})"
         )
 
     def _setup(self, resolver):
@@ -102,7 +113,7 @@ class Transition:
     def add_event(self, value):
         self._events.add(value)
 
-    def execute(self, event_data):
+    def execute(self, event_data: EventData):
         self.validators.call(*event_data.args, **event_data.extended_kwargs)
         if not self._eval_cond(event_data):
             return False
