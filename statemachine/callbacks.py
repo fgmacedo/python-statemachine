@@ -22,6 +22,9 @@ class CallbackWrapper:
     def __repr__(self):
         return "{}({!r})".format(type(self).__name__, self.func)
 
+    def __str__(self):
+        return getattr(self.func, "__name__", self.func)
+
     def __eq__(self, other):
         return self.func == getattr(other, "func", other)
 
@@ -60,6 +63,10 @@ class ConditionWrapper(CallbackWrapper):
         super().__init__(func, suppress_errors)
         self.expected_value = expected_value
 
+    def __str__(self):
+        name = super().__str__()
+        return name if self.expected_value else "!{}".format(name)
+
     def __call__(self, *args, **kwargs):
         return super().__call__(*args, **kwargs) == self.expected_value
 
@@ -74,6 +81,9 @@ class Callbacks:
         return "{}({!r}, factory={!r})".format(
             type(self).__name__, self.items, self.factory
         )
+
+    def __str__(self):
+        return ", ".join(str(c) for c in self)
 
     def setup(self, resolver):
         """Validate configuracions"""

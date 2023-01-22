@@ -147,13 +147,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """This method will also handle execution queue"""
         return trigger()
 
-    def _activate(self, event_data):
+    def _activate(self, event_data: EventData):
         transition = event_data.transition
+        assert transition is not None
         source = event_data.state
         target = transition.target
 
         result = transition.before.call(*event_data.args, **event_data.extended_kwargs)
-        if source is not None:
+        if source is not None and not transition.internal:
             source.exit.call(*event_data.args, **event_data.extended_kwargs)
 
         result += transition.on.call(*event_data.args, **event_data.extended_kwargs)
@@ -161,7 +162,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.current_state = target
         event_data.state = target
 
-        target.enter.call(*event_data.args, **event_data.extended_kwargs)
+        if not transition.internal:
+            target.enter.call(*event_data.args, **event_data.extended_kwargs)
         transition.after.call(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:

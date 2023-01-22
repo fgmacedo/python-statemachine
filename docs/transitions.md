@@ -59,6 +59,75 @@ TransitionList([Transition(State('Draft', ...
 
 ```
 
+### Internal transition
+
+Its like a {ref}`self transition`.
+
+But in contrast to a self-transition, no entry or exit actions are ever executed as a result of an internal transition.
+
+
+Syntax:
+
+```py
+>>> draft = State("Draft")
+
+>>> draft.to.itself(internal=True)
+TransitionList([Transition(State('Draft', ...
+
+```
+
+Example:
+
+```py
+>>> class TestStateMachine(StateMachine):
+...     initial = State("initial", initial=True)
+...
+...     external_loop = initial.to.itself(on="do_something")
+...     internal_loop = initial.to.itself(internal=True, on="do_something")
+...
+...     def __init__(self):
+...         self.calls = []
+...         super().__init__()
+...
+...     def do_something(self):
+...         self.calls.append("do_something")
+...
+...     def on_exit_initial(self):
+...         self.calls.append("on_exit_initial")
+...
+...     def on_enter_initial(self):
+...         self.calls.append("on_enter_initial")
+
+
+>>> sm = TestStateMachine()
+
+>>> sm._graph().write_png("docs/images/test_state_machine_internal.png")
+
+>>> sm.calls.clear()
+
+>>> sm.external_loop()
+
+>>> sm.calls
+['on_exit_initial', 'do_something', 'on_enter_initial']
+
+>>> sm.calls.clear()
+
+>>> sm.internal_loop()
+
+>>> sm.calls
+['do_something']
+
+```
+
+![TestStateMachine](images/test_state_machine_internal.png)
+
+```{note}
+
+The internal transition is represented like an entry/exit action, where
+the event name is used to describe the transition.
+
+```
+
 ### Example
 
 Consider this traffic light machine as example:
