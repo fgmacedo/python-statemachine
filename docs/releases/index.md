@@ -9,8 +9,19 @@ Each release note will tell you what's new in each version, and will also descri
 
 Below are release notes through StateMachine and its patch releases.
 
+###  2.0 release
+
+```{toctree}
+:maxdepth: 1
+
+2.0.0
+
+```
+
 
 ###  1.0 release
+
+This is the last release series to support Python 2.X series.
 
 ```{toctree}
 :maxdepth: 1

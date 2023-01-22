@@ -9,7 +9,7 @@ from ..statemachine import StateMachine
 class DotGraphMachine:
     graph_rankdir = "LR"
     """
-    Direction of the graph. Defaults to "LR" (option "TB" for top botton)
+    Direction of the graph. Defaults to "LR" (option "TB" for top bottom)
     http://www.graphviz.org/doc/info/attrs.html#d:rankdir
     """
 
@@ -158,11 +158,11 @@ def main(argv=None):
     import argparse
 
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [OPTION] <classpath> <out>",
+        usage="%(prog)s [OPTION] <class_path> <out>",
         description="Generate diagrams for StateMachine classes.",
     )
     parser.add_argument(
-        "classpath", help="A fully-qualified dotted path to the StateMachine class."
+        "class_path", help="A fully-qualified dotted path to the StateMachine class."
     )
     parser.add_argument(
         "out",
@@ -170,7 +170,7 @@ def main(argv=None):
     )
 
     args = parser.parse_args(argv)
-    write_image(qualname=args.classpath, out=args.out)
+    write_image(qualname=args.class_path, out=args.out)
 
 
 if __name__ == "__main__":  # pragma: no cover
