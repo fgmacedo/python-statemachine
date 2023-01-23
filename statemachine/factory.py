@@ -44,8 +44,26 @@ class StateMachineMetaclass(type):
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
 
+        if not cls.states:
+            return
+        initials = [s for s in cls.states if s.initial]
+        parallels = [s.id for s in cls.states if s.parallel]
+        root_only_has_parallels = len(cls.states) == len(parallels)
+
+        if len(initials) != 1 and not root_only_has_parallels:
+            raise InvalidDefinition(
+                _(
+                    "There should be one and only one initial state. "
+                    "Your currently have these: {0}"
+                ).format(", ".join(s.id for s in initials))
+            )
+
         try:
-            cls.initial_state: State = next(s for s in cls.states if s.initial)
+            if root_only_has_parallels:
+                # TODO: Temp, whe should fix initial, and current state design
+                cls.initial_state: State = next(s for s in cls.states if s.initial)
+            else:
+                cls.initial_state: State = next(s for s in initials if s.initial)
         except StopIteration:
             cls.initial_state = None  # Abstract SM still don't have states
 
@@ -205,14 +223,18 @@ class StateMachineMetaclass(type):
 
     def add_state(cls, id, state: State):
         state._set_id(id)
-        cls.states.append(state)
-        cls.states_map[state.value] = state
-        if not hasattr(cls, id):
-            setattr(cls, id, state)
+        if not state.parent:
+            cls.states.append(state)
+            cls.states_map[state.value] = state
+            if not hasattr(cls, id):
+                setattr(cls, id, state)
 
         # also register all events associated directly with transitions
         for event in state.transitions.unique_events:
             cls.add_event(event)
+
+        for substate in state.substates:
+            cls.add_state(substate.id, substate)
 
     def add_event(cls, event, transitions=None):
         if transitions is not None:
