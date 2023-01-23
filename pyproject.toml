@@ -40,6 +40,7 @@ ruff = "^0.0.220"
 pre-commit = "^2.21.0"
 mypy = "^0.991"
 black = "^22.12.0"
+pdbpp = "^0.10.3"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "4.5.0"
@@ -48,6 +49,7 @@ myst-parser = "^0.18.1"
 sphinx-gallery = "^0.11.1"
 jupyterlite-sphinx = "^0.7.2"
 pillow = "^9.4.0"
+sphinx-autobuild = "^2021.3.14"
 
 [build-system]
 requires = ["poetry-core"]
