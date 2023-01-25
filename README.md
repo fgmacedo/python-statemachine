@@ -1,31 +1,14 @@
-===================
-Python StateMachine
-===================
+# Python StateMachine
+
+[![pypi](https://img.shields.io/pypi/v/python-statemachine.svg)](https://pypi.python.org/pypi/python-statemachine)
+[![downloads](https://img.shields.io/pypi/dm/python-statemachine.svg)](https://pypi.python.org/pypi/python-statemachine)
+[![build status](https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml/badge.svg?branch=develop)](https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml?query=branch%3Adevelop)
+[![Coverage report](https://codecov.io/gh/fgmacedo/python-statemachine/branch/develop/graph/badge.svg)](https://codecov.io/gh/fgmacedo/python-statemachine)
+[![Documentation Status](https://readthedocs.org/projects/python-statemachine/badge/?version=latest)](https://python-statemachine.readthedocs.io/en/latest/?badge=latest)
+[![GitHub commits since last release (main)](https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/main/develop)](https://github.com/fgmacedo/python-statemachine/compare/main...develop)
 
 
-.. image:: https://img.shields.io/pypi/v/python-statemachine.svg
-        :target: https://pypi.python.org/pypi/python-statemachine
-
-.. image:: https://img.shields.io/pypi/dm/python-statemachine.svg
-        :target: https://pypi.python.org/pypi/python-statemachine
-
-.. image:: https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml/badge.svg?branch=develop
-        :target: https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml?query=branch%3Adevelop
-        :alt: Build status
-
-.. image:: https://codecov.io/gh/fgmacedo/python-statemachine/branch/develop/graph/badge.svg
-        :target: https://codecov.io/gh/fgmacedo/python-statemachine
-        :alt: Coverage report
-
-.. image:: https://readthedocs.org/projects/python-statemachine/badge/?version=latest
-        :target: https://python-statemachine.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-.. image:: https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/main/develop
-   :alt: GitHub commits since last release (main)
-
-
-Python `finite-state machines <https://en.wikipedia.org/wiki/Finite-state_machine>`_ made easy.
+Python [finite-state machines](https://en.wikipedia.org/wiki/Finite-state_machine) made easy.
 
 
 * Free software: MIT license
@@ -52,26 +35,22 @@ A few reasons why you may consider using it:
 * 🚫 Prevents common mistakes and ensures that your system stays in a valid state at all times.
 
 
-Getting started
-===============
+## Getting started
 
 
 To install Python State Machine, run this command in your terminal:
 
-.. code-block:: console
+    pip install python-statemachine
 
-    $ pip install python-statemachine
-
-To generate diagrams from your machines, you'll also need ``pydot`` and ``Graphviz``. You can
-install this library already with ``pydot`` dependency using the `extras` install option. See
+To generate diagrams from your machines, you'll also need `pydot` and `Graphviz`. You can
+install this library already with `pydot` dependency using the `extras` install option. See
 our docs for more details.
 
-.. code-block:: console
-
-    $ pip install python-statemachine[diagrams]
+    pip install python-statemachine[diagrams]
 
 Define your state machine:
 
+```py
 >>> from statemachine import StateMachine, State
 
 >>> class TrafficLightMachine(StateMachine):
@@ -102,36 +81,53 @@ Define your state machine:
 ...     def on_exit_red(self):
 ...         print("Go ahead!")
 
+```
 
 You can now create an instance:
 
+```py
 >>> traffic_light = TrafficLightMachine()
+
+```
 
 Then start sending events:
 
+```py
 >>> traffic_light.cycle()
 'Running cycle from green to yellow'
 
+```
+
 You can inspect the current state:
 
+```py
 >>> traffic_light.current_state.id
 'yellow'
 
+```
+
 Or get a complete state repr for debugging purposes:
 
+```py
 >>> traffic_light.current_state
 State('Yellow', id='yellow', value='yellow', initial=False, final=False)
 
+```
+
 The ``State`` instance can also be checked by equality:
 
+```py
 >>> traffic_light.current_state == TrafficLightMachine.yellow
 True
 
 >>> traffic_light.current_state == traffic_light.yellow
 True
 
+```
+
 But for your convenience, can easily ask if a state is active at any time:
 
+```py
 >>> traffic_light.green.is_active
 False
 
@@ -141,24 +137,35 @@ True
 >>> traffic_light.red.is_active
 False
 
+```
+
 Easily iterate over all states:
 
+```py
 >>> [s.id for s in traffic_light.states]
 ['green', 'red', 'yellow']
 
+```
+
 Or over events:
 
+```py
 >>> [t.name for t in traffic_light.events]
 ['cycle', 'go', 'slowdown', 'stop']
 
+```
+
 Call an event by its name:
 
+```py
 >>> traffic_light.cycle()
 Don't move.
 'Running cycle from yellow to red'
 
+```
 Or send an event with the event name:
 
+```py
 >>> traffic_light.send('cycle')
 Go ahead!
 'Running cycle from red to green'
@@ -166,31 +173,39 @@ Go ahead!
 >>> traffic_light.green.is_active
 True
 
+```
 You can't run a transition from an invalid state:
 
+```py
 >>> traffic_light.go()
 Traceback (most recent call last):
 statemachine.exceptions.TransitionNotAllowed: Can't go when in Green.
 
+```
 Keeping the same state as expected:
 
+```py
 >>> traffic_light.green.is_active
 True
+
+```
 
 And you can pass arbitrary positional or keyword arguments to the event, and
 they will be propagated to all actions and callbacks:
 
+```py
 >>> traffic_light.cycle(message="Please, now slowdown.")
 'Running cycle from green to yellow. Please, now slowdown.'
 
+```
 
-Models
-------
+## Models
 
 If you need to persist the current state on another object, or you're using the
 state machine to control the flow of another object, you can pass this object
-to the ``StateMachine`` constructor:
+to the `StateMachine` constructor:
 
+```py
 >>> class MyModel(object):
 ...     def __init__(self, state):
 ...         self.state = state
@@ -219,13 +234,13 @@ True
 >>> traffic_light.yellow.is_active
 True
 
+```
 
-A more useful example
----------------------
+## A more useful example
 
-A simple didactic state machine for controlling an ``Order``:
+A simple didactic state machine for controlling an `Order`:
 
-
+```py
 >>> class OrderControl(StateMachine):
 ...     waiting_for_payment = State("Waiting for payment", initial=True)
 ...     processing = State("Processing")
@@ -263,10 +278,11 @@ A simple didactic state machine for controlling an ``Order``:
 ...     def on_enter_waiting_for_payment(self):
 ...         self.payment_received = False
 
-
+```
 
 You can use this machine as follows.
 
+```py
 >>> control = OrderControl()
 
 >>> control.add_to_order(3)
@@ -308,6 +324,31 @@ True
 >>> control.completed.is_active
 True
 
+```
 
 There's a lot more to cover, please take a look at our docs:
 https://python-statemachine.readthedocs.io.
+
+
+## Contributing
+
+<a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
+<a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>
+<a class="github-button" href="https://github.com/fgmacedo/python-statemachine/fork" data-icon="octicon-repo-forked" aria-label="Fork fgmacedo/python-statemachine on GitHub">Fork</a>
+
+- If you found this project helpful, please consider giving it a star on GitHub.
+
+- **Contribute code**: If you would like to contribute code to this project, please submit a pull
+  request. For more information on how to contribute, please see our [contributing.md](contributing.md) file.
+
+- **Report bugs**: If you find any bugs in this project, please report them by opening an issue
+  on our GitHub issue tracker.
+
+- **Suggest features**: If you have a great idea for a new feature, please let us know by opening
+  an issue on our GitHub issue tracker.
+
+- **Documentation**: Help improve this project's documentation by submitting pull requests.
+
+- **Promote the project**: Help spread the word about this project by sharing it on social media,
+  writing a blog post, or giving a talk about it. Tag me on Twitter
+  [@fgmacedo](https://twitter.com/fgmacedo) so I can share it too!
