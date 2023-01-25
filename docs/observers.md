@@ -42,7 +42,7 @@ external object can have the same level of functionalities provided to the built
 ```
 
 ```{seealso}
-See {ref}`actions`, {ref}`validators-and-guards` for a list of possible callbacks.
+See {ref}`actions`, {ref}`validators and guards` for a list of possible callbacks.
 
 And also {ref}`dynamic-dispatch` to know more about how the lib calls methods to match
 their signature.

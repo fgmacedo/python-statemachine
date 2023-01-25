@@ -1,6 +1,6 @@
 # Actions
 
-An action is the way a StateMachine can cause things to happen in the
+Action is the way a StateMachine can cause things to happen in the
 outside world, and indeed they are the main reason why they exist at all.
 
 The main point of introducing a state machine is for the
@@ -8,7 +8,7 @@ actions to be invoked at the right times, depending on the sequence of events
 and the state of the guards.
 
 Actions are most commonly performed on entry or exit of a state, although
-it is possible to add them before / after a transition.
+it is possible to add them before/after a transition.
 
 There are several action callbacks that you can define to interact with a
 StateMachine in execution.
@@ -257,9 +257,9 @@ You can also declare an event while also adding a callback:
 
 ```
 
-Note that with this syntax, the result `loop` that is present on the `ExampleStateMachine.loop`
+Note that with this syntax, the resulting `loop` that is present on the `ExampleStateMachine.loop`
 namespace is not a simple method, but an {ref}`event` trigger. So it only executes if the
-StateMachine is on the right state.
+StateMachine is in the right state.
 
 So, you can use the event-oriented approach:
 
@@ -275,8 +275,7 @@ On loop
 
 ## Other callbacks
 
-In addition to {ref}`actions`, you can specify {ref}`validators-and-guards` that are checked
-before an transition is started. They are meant to stop a transition to occur.
+In addition to {ref}`actions`, you can specify {ref}`validators and guards` that are checked before a transition is started. They are meant to stop a transition to occur.
 
 ```{seealso}
 See {ref}`guards` and {ref}`validators`.
@@ -320,7 +319,7 @@ Actions and Guards will be executed in the following order:
 
 python-statemachine implements a custom dispatch mechanism on all those available Actions and
 Guards, this means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
-library will match your method signature of what's expect to receive with the provided arguments.
+library will match your method signature of what's expected to receive with the provided arguments.
 
 This means that if on your `on_enter_<state.id>()` or `on_execute_<event>()` method, you need to know
 the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
@@ -346,10 +345,10 @@ For your convenience, all these parameters are available for you on any Action o
 : The {ref}`Event` that was triggered.
 
 `source`
-: The {ref}`State` the statemachine was when the {ref}`Event` started.
+: The {ref}`State` the state machine was when the {ref}`Event` started.
 
 `state`
-: The current {ref}`State` of the statemachine.
+: The current {ref}`State` of the state machine.
 
 `target`
 : The destination {ref}`State` of the transition.

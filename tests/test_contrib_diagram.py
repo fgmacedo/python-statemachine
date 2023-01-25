@@ -1,7 +1,11 @@
+from contextlib import contextmanager
+from unittest import mock
+
 import pytest
 
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
+from statemachine.contrib.diagram import quickchart_write_svg
 
 
 @pytest.fixture(
@@ -9,6 +13,10 @@ from statemachine.contrib.diagram import main
         (
             "_repr_svg_",
             '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg',
+        ),
+        (
+            "_repr_html_",
+            '<div class="statemachine"><?xml version="1.0" encoding="UTF-8" standalone=',
         ),
     ]
 )
@@ -63,3 +71,19 @@ class TestDiagramCmdLine:
                     str(out),
                 ]
             )
+
+
+class TestQuickChart:
+    @contextmanager
+    def mock_quickchart(self, origin_img_path):
+        with open(origin_img_path) as f:
+            expected_image = f.read()
+
+        with mock.patch("statemachine.contrib.diagram.urlopen", spec=True) as p:
+            p().read.side_effect = lambda: expected_image.encode()
+            yield p
+
+    def test_should_call_write_svg(self, OrderControl):
+        sm = OrderControl()
+        with self.mock_quickchart("docs/images/_oc_machine_processing.svg"):
+            quickchart_write_svg(sm, "docs/images/oc_machine_processing.svg")

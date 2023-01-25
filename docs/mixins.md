@@ -1,7 +1,7 @@
 
 # Mixins
 
-Your model can inherited from a custom mixin to auto-instantiate a state machine.
+Your model can be inherited from a custom mixin to auto-instantiate a state machine.
 
 ## MachineMixin
 
@@ -14,7 +14,7 @@ Your model can inherited from a custom mixin to auto-instantiate a state machine
 
 ### Mixins example
 
-Given a statemachine definition:
+Given a state machine definition:
 
 ```py
 >>> from statemachine import StateMachine, State
@@ -35,48 +35,52 @@ Given a statemachine definition:
 
 ```
 
-It can be attached to a model using mixin and the full qualified name of the
+It can be attached to a model using mixin and the fully qualified name of the
 class.
 
-```{warning}
+
+``` py
+>>> class Workflow(MachineMixin):
+...     state_machine_name = '__main__.CampaignMachineWithKeys'
+...     state_machine_attr = 'sm'
+...     state_field_name = 'workflow_step'
+...
+...     workflow_step = 1
+...
+
+```
+
+When an instance of `Workflow` is created, it receives an instance of `CampaignMachineWithKeys``
+assigned using the `state_machine_attr` name. Also, the `current_state` is stored using the `state_field_name`, in this case, `workflow_step`.
+
+``` py
+>>> model = Workflow()
+
+>>> isinstance(model.sm, CampaignMachineWithKeys)
+True
+
+>>> model.workflow_step
+1
+
+>>> model.sm.current_state == model.sm.draft
+True
+
+>>> model.sm.cancel()
+
+>>> model.workflow_step
+4
+
+>>> model.sm.current_state == model.sm.cancelled
+True
+
+```
+
+```{note}
 On this example the `state_machine_name` is receiving a `__main__` module due
-to the way `autodoc` works so we can have automated testes on the docs
+to the way `autodoc` works so we can have automated tests on the docs
 examples.
 
 On your code, use the fully qualified path to the statemachine class.
-```
-
-``` py
->>> class MyModel(MachineMixin):
-...     state_machine_name = '__main__.CampaignMachineWithKeys'
-...
-...     def __init__(self, **kwargs):
-...         for k, v in kwargs.items():
-...             setattr(self, k, v)
-...         super(MyModel, self).__init__()
-...
-...     def __repr__(self):
-...         return "{}({!r})".format(type(self).__name__, self.__dict__)
-
->>> model = MyModel(state=1)
-
->>> isinstance(model.statemachine, CampaignMachineWithKeys)
-True
-
->>> model.state
-1
-
->>> model.statemachine.current_state == model.statemachine.draft
-True
-
->>> model.statemachine.cancel()
-
->>> model.state
-4
-
->>> model.statemachine.current_state == model.statemachine.cancelled
-True
-
 ```
 
 ```{seealso}
