@@ -1,5 +1,7 @@
 import importlib
 import sys
+from urllib.parse import quote
+from urllib.request import urlopen
 
 import pydot
 
@@ -126,6 +128,48 @@ class DotGraphMachine:
 
     def __call__(self):
         return self.get_graph()
+
+
+def quickchart_write_svg(sm: StateMachine, path: str):
+    """
+    If the default dependency of GraphViz installed locally doesn't work for you. As an option,
+    you can generate the image online from the output of the `dot` language,
+    using one of the many services available.
+
+    To get the **dot** representation of your state machine is as easy as follows:
+
+    >>> from tests.examples.order_control_machine import OrderControl
+    >>> sm = OrderControl()
+    >>> print(sm._graph().to_string())
+    digraph list {
+    fontsize="10pt";
+    label=OrderControl;
+    rankdir=LR;
+    ...
+
+    To give you an example, we included this method that will serialize the dot, request the graph
+    to https://quickchart.io, and persist the result locally as an ``.svg`` file.
+
+
+    .. warning::
+        Quickchart is an external graph service that supports many formats to generate diagrams.
+
+        By using this method, you should trust http://quickchart.io.
+
+        Please read https://quickchart.io/documentation/faq/ for more information.
+
+    >>> quickchart_write_svg(sm, "docs/images/oc_machine_processing.svg")  # doctest: +SKIP
+
+    """
+    dot_representation = sm._graph().to_string()
+
+    url = "https://quickchart.io/graphviz?graph={}".format(quote(dot_representation))
+
+    response = urlopen(url)
+    data = response.read()
+
+    with open(path, "wb") as f:
+        f.write(data)
 
 
 def import_sm(qualname):

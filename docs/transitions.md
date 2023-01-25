@@ -176,7 +176,7 @@ associated with the transition, executing any actions associated with the transi
 and finally updating the current state.
 
 ```{seealso}
-See {ref}`actions` and {ref}`validators-and-guards`.
+See {ref}`actions` and {ref}`validator sand guards`.
 ```
 
 

@@ -1,6 +1,6 @@
-====================
-Python State Machine
-====================
+===================
+Python StateMachine
+===================
 
 
 .. image:: https://img.shields.io/pypi/v/python-statemachine.svg
@@ -112,7 +112,7 @@ Then start sending events:
 >>> traffic_light.cycle()
 'Running cycle from green to yellow'
 
-You can inspect about the current state:
+You can inspect the current state:
 
 >>> traffic_light.current_state.id
 'yellow'
@@ -151,13 +151,13 @@ Or over events:
 >>> [t.name for t in traffic_light.events]
 ['cycle', 'go', 'slowdown', 'stop']
 
-Call an event by it's name:
+Call an event by its name:
 
 >>> traffic_light.cycle()
 Don't move.
 'Running cycle from yellow to red'
 
-Or sending an event with the event name:
+Or send an event with the event name:
 
 >>> traffic_light.send('cycle')
 Go ahead!
@@ -180,8 +180,8 @@ True
 And you can pass arbitrary positional or keyword arguments to the event, and
 they will be propagated to all actions and callbacks:
 
->>> traffic_light.cycle(message="Please, now slowdon.")
-'Running cycle from green to yellow. Please, now slowdon.'
+>>> traffic_light.cycle(message="Please, now slowdown.")
+'Running cycle from green to yellow. Please, now slowdown.'
 
 
 Models

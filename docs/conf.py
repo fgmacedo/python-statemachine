@@ -50,7 +50,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
     "sphinx_gallery.gen_gallery",
-    "jupyterlite_sphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -243,11 +242,6 @@ myst_substitutions = {
     "event": "{ref}`event`",
 }
 
-# JupyterLite
-jupyterlite_config = "jupyterlite_config.json"
-jupyterlite_contents = ["./examples", "./auto_examples"]
-jupyterlite_dir = "./auto_examples"
-
 # Github
 
 html_context = {
@@ -271,10 +265,5 @@ sphinx_gallery_conf = {
     "min_reported_time": 9999,
     "thumbnail_size": (400, 280),
     "image_scrapers": (MachineScraper(project_root),),
-    "first_notebook_cell": (
-        "# import piplite\n"
-        "# await piplite.install('python-statemachine[diagrams]')\n"
-        "# import patch_repr_svg\n"
-    ),
     "reset_modules": [],
 }
