@@ -7,7 +7,7 @@ maintainers = [
     "Fernando Macedo <fgmacedo@gmail.com>",
 ]
 license = "MIT license"
-readme = "README.rst"
+readme = "README.md"
 homepage = "https://github.com/fgmacedo/python-statemachine"
 packages = [
     {include = "statemachine"},
@@ -56,7 +56,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "--ignore-glob=docs/conf.py --ignore-glob=statemachine/factory_* --ignore-glob=docs/auto_examples/* --ignore-glob=docs/_build/* --cov --cov-config .coveragerc --doctest-glob='*.rst' --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure"
+addopts = "--ignore-glob=docs/conf.py --ignore-glob=statemachine/factory_* --ignore-glob=docs/auto_examples/* --ignore-glob=docs/_build/* --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure"
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 
 [tool.mypy]
