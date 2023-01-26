@@ -12,12 +12,10 @@ class TestObserver:
                 self.name = name
 
             def on_transition(self, event, state, target):
-                print(
-                    "{} on: {}--({})-->{}".format(self.name, state.id, event, target.id)
-                )
+                print(f"{self.name} on: {state.id}--({event})-->{target.id}")
 
             def on_enter_state(self, target, event):
-                print("{} enter: {} from {}".format(self.name, target.id, event))
+                print(f"{self.name} enter: {target.id} from {event}")
 
         sm = campaign_machine()
 

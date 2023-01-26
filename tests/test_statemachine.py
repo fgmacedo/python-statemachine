@@ -3,17 +3,7 @@ import pytest
 from statemachine import State
 from statemachine import StateMachine
 from statemachine import exceptions
-
-
-class MyModel:
-    "A class that can be used to hold arbitrary key/value pairs as attributes."
-
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-    def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.__dict__)
+from tests.models import MyModel
 
 
 def test_machine_repr(campaign_machine):

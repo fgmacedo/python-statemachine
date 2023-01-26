@@ -39,21 +39,21 @@ The follow example can get you an overview of the "generic" callbacks available:
 ...     go = initial.to(final)
 ...
 ...     def before_transition(self, event, state):
-...         print("Before '{}', on the '{}' state.".format(event, state.id))
+...         print(f"Before '{event}', on the '{state.id}' state.")
 ...         return "before_transition_return"
 ...
 ...     def on_transition(self, event, state):
-...         print("On '{}', on the '{}' state.".format(event, state.id))
+...         print(f"On '{event}', on the '{state.id}' state.")
 ...         return "on_transition_return"
 ...
 ...     def on_exit_state(self, event, state):
-...         print("Exiting '{}' state from '{}' event.".format(state.id, event))
+...         print(f"Exiting '{state.id}' state from '{event}' event.")
 ...
 ...     def on_enter_state(self, event, state):
-...         print("Entering '{}' state from '{}' event.".format(state.id, event))
+...         print(f"Entering '{state.id}' state from '{event}' event.")
 ...
 ...     def after_transition(self, event, state):
-...         print("After '{}', on the '{}' state.".format(event, state.id))
+...         print(f"After '{event}', on the '{state.id}' state.")
 
 
 >>> sm = ExampleStateMachine()  # On initialization, the machine run a special event `__initial__`

@@ -8,7 +8,7 @@ class TransitionList:
         self.transitions = list(transitions) if transitions else []
 
     def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.transitions)
+        return f"{type(self).__name__}({self.transitions!r})"
 
     def __or__(self, other):
         return TransitionList(self.transitions).add_transitions(other)

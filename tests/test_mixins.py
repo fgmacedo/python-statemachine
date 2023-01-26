@@ -1,22 +1,15 @@
 import pytest
 
 from statemachine.mixins import MachineMixin
+from tests.models import MyModel
 
 
-class MyModel(MachineMixin):
+class MyMixedModel(MyModel, MachineMixin):
     state_machine_name = "tests.conftest.CampaignMachine"
-
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-        super().__init__()
-
-    def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.__dict__)
 
 
 def test_mixin_should_instantiate_a_machine(campaign_machine):
-    model = MyModel(state="draft")
+    model = MyMixedModel(state="draft")
     assert isinstance(model.statemachine, campaign_machine)
     assert model.state == "draft"
     assert model.statemachine.current_state == model.statemachine.draft

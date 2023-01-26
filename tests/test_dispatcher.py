@@ -12,7 +12,7 @@ class Person:
         self.legal_document = legal_document
 
     def get_full_name(self):
-        return "{} {}".format(self.first_name, self.last_name)
+        return f"{self.first_name} {self.last_name}"
 
 
 class Organization:

@@ -35,8 +35,8 @@ class StateMachineMetaclass(type):
             raise InvalidDefinition(
                 _(
                     "There should be one and only one initial state. "
-                    "Your currently have these: {!r}".format(initials)
-                )
+                    "Your currently have these: {!r}"
+                ).format([s.id for s in initials])
             )
         cls.initial_state = initials[0]
         cls.final_states = [state for state in cls.states if state.final]
@@ -52,10 +52,8 @@ class StateMachineMetaclass(type):
                 _(
                     "There are unreachable states. "
                     "The statemachine graph should have a single component. "
-                    "Disconnected states: {}".format(
-                        [s.id for s in disconnected_states]
-                    )
-                )
+                    "Disconnected states: {}"
+                ).format([s.id for s in disconnected_states])
             )
 
     def _check(cls):
@@ -82,10 +80,8 @@ class StateMachineMetaclass(type):
         if final_state_with_invalid_transitions:
             raise InvalidDefinition(
                 _(
-                    "Cannot declare transitions from final state. Invalid state(s): {}".format(
-                        [s.id for s in final_state_with_invalid_transitions]
-                    )
-                )
+                    "Cannot declare transitions from final state. Invalid state(s): {}"
+                ).format([s.id for s in final_state_with_invalid_transitions])
             )
 
     def add_inherited(cls, bases):
@@ -112,7 +108,7 @@ class StateMachineMetaclass(type):
             # so we'll also give the ``func`` a new unique name to be used by the callback
             # machinery.
             cls.add_event(attr_name, func._transitions)
-            attr_name = "_{}_{}".format(attr_name, uuid4().hex)
+            attr_name = f"_{attr_name}_{uuid4().hex}"
             setattr(cls, attr_name, func)
 
         for ref in func._callbacks_to_update:

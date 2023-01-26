@@ -87,9 +87,9 @@ class Transition:
             on("on_transition", prepend=True)
 
             for event in self._events:
-                before("before_{}".format(event))
-                on("on_{}".format(event))
-                after("after_{}".format(event))
+                before(f"before_{event}")
+                on(f"on_{event}")
+                after(f"after_{event}")
 
             after("after_transition")
 

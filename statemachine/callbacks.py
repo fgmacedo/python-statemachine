@@ -20,7 +20,7 @@ class CallbackWrapper:
         self._callback = None
 
     def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.func)
+        return f"{type(self).__name__}({self.func!r})"
 
     def __str__(self):
         return getattr(self.func, "__name__", self.func)
@@ -65,7 +65,7 @@ class ConditionWrapper(CallbackWrapper):
 
     def __str__(self):
         name = super().__str__()
-        return name if self.expected_value else "!{}".format(name)
+        return name if self.expected_value else f"!{name}"
 
     def __call__(self, *args, **kwargs):
         return super().__call__(*args, **kwargs) == self.expected_value
@@ -78,9 +78,7 @@ class Callbacks:
         self.factory = factory
 
     def __repr__(self):
-        return "{}({!r}, factory={!r})".format(
-            type(self).__name__, self.items, self.factory
-        )
+        return f"{type(self).__name__}({self.items!r}, factory={self.factory!r})"
 
     def __str__(self):
         return ", ".join(str(c) for c in self)

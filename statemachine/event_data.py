@@ -24,7 +24,7 @@ class EventData:
         self.result = None
 
     def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.__dict__)
+        return f"{type(self).__name__}({self.__dict__!r})"
 
     def _set_transition(self, transition: "Transition"):
         self.transition = transition
