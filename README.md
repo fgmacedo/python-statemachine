@@ -65,15 +65,9 @@ Define your state machine:
 ...     stop = yellow.to(red)
 ...     go = red.to(green)
 ...
-...     def before_cycle(self, event_data=None):
-...         message = event_data.kwargs.get("message", "")
+...     def before_cycle(self, event: str, source: State, target: State, message: str = ""):
 ...         message = ". " + message if message else ""
-...         return "Running {} from {} to {}{}".format(
-...             event_data.event,
-...             event_data.transition.source.id,
-...             event_data.transition.target.id,
-...             message,
-...         )
+...         return f"Running {event} from {source.id} to {target.id}{message}"
 ...
 ...     def on_enter_red(self):
 ...         print("Don't move.")

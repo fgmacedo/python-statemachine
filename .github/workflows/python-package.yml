@@ -65,10 +65,14 @@ jobs:
         source .venv/bin/activate
         pytest --cov-report=xml:coverage.xml
         coverage xml
+      #----------------------------------------------
+      #          upload coverage
+      #----------------------------------------------
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       if: matrix.python-version == 3.11
       with:
+        token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
         directory: .
         env_vars: OS,PYTHON
         fail_ci_if_error: true

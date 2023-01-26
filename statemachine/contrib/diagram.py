@@ -71,14 +71,14 @@ class DotGraphMachine:
         )
 
         if entry:
-            entry = "entry / {}".format(entry)
+            entry = f"entry / {entry}"
         if exit:
-            exit = "exit / {}".format(exit)
+            exit = f"exit / {exit}"
 
         actions = "\n".join(x for x in [entry, exit, internal] if x)
 
         if actions:
-            actions = "\n{}".format(actions)
+            actions = f"\n{actions}"
 
         return actions
 
@@ -87,7 +87,7 @@ class DotGraphMachine:
 
         node = pydot.Node(
             state.id,
-            label="{}{}".format(state.name, actions),
+            label=f"{state.name}{actions}",
             shape="rectangle",
             style="rounded, filled",
             fontsize=self.state_font_size,
@@ -103,11 +103,11 @@ class DotGraphMachine:
     def _transition_as_edge(self, transition):
         cond = ", ".join([str(cond) for cond in transition.cond])
         if cond:
-            cond = "\n[{}]".format(cond)
+            cond = f"\n[{cond}]"
         return pydot.Edge(
             transition.source.id,
             transition.target.id,
-            label="{}{}".format(transition.event, cond),
+            label=f"{transition.event}{cond}",
             color="blue",
             fontsize=self.transition_font_size,
         )
@@ -163,7 +163,7 @@ def quickchart_write_svg(sm: StateMachine, path: str):
     """
     dot_representation = sm._graph().to_string()
 
-    url = "https://quickchart.io/graphviz?graph={}".format(quote(dot_representation))
+    url = f"https://quickchart.io/graphviz?graph={quote(dot_representation)}"
 
     response = urlopen(url)
     data = response.read()
@@ -177,7 +177,7 @@ def import_sm(qualname):
     module = importlib.import_module(module_name)
     smclass = getattr(module, class_name, None)
     if not smclass or not issubclass(smclass, StateMachine):
-        raise ValueError("{} is not a subclass of StateMachine".format(class_name))
+        raise ValueError(f"{class_name} is not a subclass of StateMachine")
 
     return smclass
 

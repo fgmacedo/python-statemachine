@@ -95,24 +95,16 @@ class State:
             self.enter.add(
                 "on_enter_state", resolver=r, prepend=True, suppress_errors=True
             )
-            self.enter.add(
-                "on_enter_{}".format(self.id), resolver=r, suppress_errors=True
-            )
+            self.enter.add(f"on_enter_{self.id}", resolver=r, suppress_errors=True)
             self.exit.add(
                 "on_exit_state", resolver=r, prepend=True, suppress_errors=True
             )
-            self.exit.add(
-                "on_exit_{}".format(self.id), resolver=r, suppress_errors=True
-            )
+            self.exit.add(f"on_exit_{self.id}", resolver=r, suppress_errors=True)
 
     def __repr__(self):
-        return "{}({!r}, id={!r}, value={!r}, initial={!r}, final={!r})".format(
-            type(self).__name__,
-            self.name,
-            self.id,
-            self.value,
-            self.initial,
-            self.final,
+        return (
+            f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
+            f"initial={self.initial!r}, final={self.final!r})"
         )
 
     def __get__(self, machine, owner):

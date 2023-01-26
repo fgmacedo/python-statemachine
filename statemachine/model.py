@@ -3,4 +3,4 @@ class Model:
         self.state = None
 
     def __repr__(self):
-        return "Model(state={})".format(self.state)
+        return f"Model(state={self.state})"

@@ -33,11 +33,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._activate_initial_state(initial_transition)
 
     def __repr__(self):
-        return "{}(model={!r}, state_field={!r}, current_state={!r})".format(
-            type(self).__name__,
-            self.model,
-            self.state_field,
-            self.current_state.id if self.current_state else None,
+        current_state_id = self.current_state.id if self.current_state else None
+        return (
+            f"{type(self).__name__}(model={self.model!r}, state_field={self.state_field!r}, "
+            f"current_state={current_state_id!r})"
         )
 
     def _activate_initial_state(self, initial_transition):
@@ -104,7 +103,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return self
 
     def _repr_html_(self):
-        return '<div class="statemachine">{}</div>'.format(self._repr_svg_())
+        return f'<div class="statemachine">{self._repr_svg_()}</div>'
 
     def _repr_svg_(self):
         return self._graph().create_svg().decode()

@@ -48,7 +48,7 @@ class MachineScraper:
         image_names = []
         image_path_iterator = block_vars["image_path_iterator"]
         for key, value in module.__dict__.items():
-            unique_key = "{}.{}".format(module.__name__, key)
+            unique_key = f"{module.__name__}.{key}"
 
             if (
                 key.startswith("__")

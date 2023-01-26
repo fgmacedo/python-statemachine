@@ -17,9 +17,5 @@ class TrafficLightMachine(StateMachine):
 
     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
-    def on_cycle(self, event_data=None):
-        return "Running {} from {} to {}".format(
-            event_data.event,
-            event_data.source.id,
-            event_data.target.id,
-        )
+    def on_cycle(self, event_data):
+        return f"Running {event_data.event} from {event_data.source.id} to {event_data.target.id}"

@@ -7,7 +7,7 @@ class Event:
         self.name = name
 
     def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.name)
+        return f"{type(self).__name__}({self.name!r})"
 
     def __call__(self, machine, *args, **kwargs):
         return self.trigger(machine, *args, **kwargs)

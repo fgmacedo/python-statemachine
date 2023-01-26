@@ -18,10 +18,10 @@ Giving the {ref}`sphx_glr_auto_examples_traffic_light_machine.py` as example:
 ...         self.name = name
 ...
 ...     def after_transition(self, event, source, target):
-...         print("{} after: {}--({})-->{}".format(self.name, source.id, event, target.id))
+...         print(f"{self.name} after: {source.id}--({event})-->{target.id}")
 ...
 ...     def on_enter_state(self, target, event):
-...         print("{} enter: {} from {}".format(self.name, target.id, event))
+...         print(f"{self.name} enter: {target.id} from {event}")
 
 
 >>> sm = TrafficLightMachine()
