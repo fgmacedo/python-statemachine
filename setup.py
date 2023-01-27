@@ -15,7 +15,7 @@ extras_require = {"diagrams": ["pydot"]}
 
 setup(
     name="python-statemachine",
-    version="1.0.2",
+    version="1.0.3",
     description="Python Finite State Machines made easy.",
     long_description=long_description,
     author="Fernando Macedo",
