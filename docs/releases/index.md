@@ -1,8 +1,9 @@
 # Release notes
 
+Versions follow [Semantic Versioning](https://semver.org/) (`<major>.<minor>.<patch>`).
 
-Release notes for the official StateMachine releases.
-Each release note will tell you what's new in each version, and will also describe any backwards-incompatible changes made in that version.
+Backward incompatible (breaking) changes will only be introduced in major versions
+with advance notice in the **Deprecations** section of releases.
 
 
 ## Releases
@@ -24,8 +25,9 @@ Below are release notes through StateMachine and its patch releases.
 This is the last release series to support Python 2.X series.
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 
+1.0.3
 1.0.2
 1.0.1
 1.0.0
