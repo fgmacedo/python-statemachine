@@ -309,5 +309,6 @@ True
 True
 
 
-There's a lot more to cover, please take a look at our docs:
-https://python-statemachine.readthedocs.io.
+* There's a lot more to cover, please take a look at our docs:
+  https://python-statemachine.readthedocs.io.
+* If you found this project helpful, please consider giving it a star on GitHub.

@@ -61,7 +61,7 @@ class OrderControl(StateMachine):
 try:
     control = OrderControl()
 except AttrNotFound as e:
-    assert str(e) == "Did not found name 'payment_received' from model or statemachine"
+    assert str(e) == "Did not found name 'wait_for_payment' from model or statemachine"
 
 # %%
 # Now initializing with a proper ``order`` instance.
