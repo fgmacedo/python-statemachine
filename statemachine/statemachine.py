@@ -28,7 +28,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.state_field = state_field
         self.start_value = start_value
 
-        initial_transition = Transition(None, None, event="__initial__")
+        initial_transition = Transition(
+            None, self._get_initial_state(), event="__initial__"
+        )
         self._setup(initial_transition)
         self._activate_initial_state(initial_transition)
 
@@ -39,21 +41,19 @@ class StateMachine(metaclass=StateMachineMetaclass):
             f"current_state={current_state_id!r})"
         )
 
-    def _activate_initial_state(self, initial_transition):
-
+    def _get_initial_state(self):
         current_state_value = (
             self.start_value if self.start_value else self.initial_state.value
         )
+        try:
+            return self.states_map[current_state_value]
+        except KeyError as err:
+            raise InvalidStateValue(current_state_value) from err
+
+    def _activate_initial_state(self, initial_transition):
         if self.current_state_value is None:
-
-            try:
-                initial_state = self.states_map[current_state_value]
-            except KeyError as err:
-                raise InvalidStateValue(current_state_value) from err
-
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
-            initial_transition.target = initial_state
             initial_transition.before.clear()
             initial_transition.on.clear()
             initial_transition.after.clear()
@@ -93,8 +93,18 @@ class StateMachine(metaclass=StateMachineMetaclass):
         model = ObjectConfig(self.model, skip_attrs={self.state_field})
         default_resolver = resolver_factory(machine, model)
 
-        initial_transition._setup(default_resolver)
-        self._visit_states_and_transitions(lambda x: x._setup(default_resolver))
+        # clone states and transitions to avoid sharing callbacks references between instances
+        self.states_map = {
+            state.value: state.clone()._setup(self, default_resolver)
+            for state in self.states
+        }
+        self.states = list(self.states_map.values())
+
+        for state in self.states:
+            for transition in state.transitions:
+                transition._setup(self, default_resolver)
+
+        initial_transition._setup(self, default_resolver)
         self.add_observer(machine, model)
 
     def add_observer(self, *observers):

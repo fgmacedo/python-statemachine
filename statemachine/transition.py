@@ -70,7 +70,13 @@ class Transition:
             f"internal={self.internal!r})"
         )
 
-    def _setup(self, resolver):
+    def _upd_state_refs(self, machine):
+        if self.source:
+            self.source = machine.__dict__[self.source._storage]
+        self.target = machine.__dict__[self.target._storage]
+
+    def _setup(self, machine, resolver):
+        self._upd_state_refs(machine)
         self.validators.setup(resolver)
         self.cond.setup(resolver)
         self.before.setup(resolver)

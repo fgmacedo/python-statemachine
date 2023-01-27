@@ -1,4 +1,5 @@
 from typing import Any, Optional  # noqa: F401, I001
+from copy import deepcopy
 
 from .callbacks import Callbacks
 from .exceptions import StateMachineError
@@ -9,7 +10,7 @@ from .utils import ugettext as _
 
 class State:
     """
-    A State in a state machine describes a particular behaviour of the machine.
+    A State in a state machine describes a particular behavior of the machine.
     When we say that a machine is “in” a state, it means that the machine behaves
     in the way that state describes.
 
@@ -80,15 +81,27 @@ class State:
         self.name = name
         self.value = value
         self._id = None  # type: Optional[str]
+        self._storage = ""
         self._initial = initial
         self.transitions = TransitionList()
         self._final = final
         self.enter = Callbacks().add(enter)
         self.exit = Callbacks().add(exit)
 
-    def _setup(self, resolver):
+    def __eq__(self, other):
+        return (
+            isinstance(other, State) and self.name == other.name and self.id == other.id
+        )
+
+    def __hash__(self):
+        return hash(repr(self))
+
+    def _setup(self, machine, resolver):
+        self.machine = machine
         self.enter.setup(resolver)
         self.exit.setup(resolver)
+        machine.__dict__[self._storage] = self
+        return self
 
     def _add_observer(self, *resolvers):
         for r in resolvers:
@@ -108,7 +121,8 @@ class State:
         )
 
     def __get__(self, machine, owner):
-        self.machine = machine
+        if machine and self._storage in machine.__dict__:
+            return machine.__dict__[self._storage]
         return self
 
     def __set__(self, instance, value):
@@ -118,12 +132,16 @@ class State:
             )
         )
 
+    def clone(self):
+        return deepcopy(self)
+
     @property
     def id(self):
         return self._id
 
     def _set_id(self, id):
         self._id = id
+        self._storage = f"_{id}"
         if self.value is None:
             self.value = id
 
