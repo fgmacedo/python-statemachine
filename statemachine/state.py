@@ -1,5 +1,6 @@
 # coding: utf-8
 import warnings
+from copy import deepcopy
 from typing import Any
 from typing import Optional
 from typing import Text
@@ -84,15 +85,26 @@ class State(object):
         self.name = name
         self.value = value
         self._id = None  # type: Optional[Text]
+        self._storage = ""
         self._initial = initial
         self.transitions = TransitionList()
         self._final = final
         self.enter = Callbacks().add(enter)
         self.exit = Callbacks().add(exit)
 
-    def _setup(self, resolver):
+    def __eq__(self, other):
+        return (
+            isinstance(other, State) and self.name == other.name and self.id == other.id
+        )
+
+    def __hash__(self):
+        return hash(repr(self))
+
+    def _setup(self, machine, resolver):
+        self.machine = machine
         self.enter.setup(resolver)
         self.exit.setup(resolver)
+        machine.__dict__[self._storage] = self
 
     def _add_observer(self, *resolvers):
         for r in resolvers:
@@ -120,7 +132,8 @@ class State(object):
         )
 
     def __get__(self, machine, owner):
-        self.machine = machine
+        if machine and self._storage in machine.__dict__:
+            return machine.__dict__[self._storage]
         return self
 
     def __set__(self, instance, value):
@@ -129,6 +142,9 @@ class State(object):
                 value, self.id
             )
         )
+
+    def clone(self):
+        return deepcopy(self)
 
     @property
     def id(self):
@@ -144,6 +160,7 @@ class State(object):
 
     def _set_id(self, id):
         self._id = id
+        self._storage = "_{}".format(id)
         if self.value is None:
             self.value = id
 
