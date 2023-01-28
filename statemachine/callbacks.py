@@ -68,7 +68,7 @@ class ConditionWrapper(CallbackWrapper):
         return name if self.expected_value else f"!{name}"
 
     def __call__(self, *args, **kwargs):
-        return super().__call__(*args, **kwargs) == self.expected_value
+        return bool(super().__call__(*args, **kwargs)) == self.expected_value
 
 
 class Callbacks:
@@ -90,7 +90,7 @@ class Callbacks:
             callback for callback in self.items if callback.setup(self._resolver)
         ]
 
-    def _add_unbounded_callback(self, func, is_event=False, transitions=None):
+    def _add_unbounded_callback(self, func, is_event=False, transitions=None, **kwargs):
         """This list was a target for adding a func using decorator
         `@<state|event>[.on|before|after|enter|exit]` syntax.
 
@@ -113,7 +113,7 @@ class Callbacks:
                 event.
 
         """
-        callback = self._add(func)
+        callback = self._add(func, **kwargs)
         if not getattr(func, "_callbacks_to_update", None):
             func._callbacks_to_update = set()
         func._callbacks_to_update.add(callback._update_func)

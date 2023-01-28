@@ -39,13 +39,31 @@ cond
 all conditions evaluate to ``True``.
 
 unless
-: Same as `cond`, but the transition is allowed if all conditions evaluate to ``False``.
+: Same as `cond`, but the transition is allowed if all conditions evaluate to `False`.
+
+```{hint}
+In Python, a boolean value is either `True` or `False`. However, there are also specific values that
+are considered "**falsy**" and will evaluate as `False` when used in a boolean context.
+
+These include:
+
+1. The special value `None`.
+1. Numeric values of `0` or `0.0`.
+1. **Empty** strings, lists, tuples, sets, and dictionaries.
+1. Instances of certain classes that define a `__bool__()` or `__len__()` method that returns
+   `False` or `0`, respectively.
+
+On the other hand, any value that is not considered "**falsy**" is considered "**truthy**" and will evaluate to `True` when used in a boolean context.
+
+So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an empty list is a
+**falsy** value.
+```
 
 ## Validators
 
 
 Are like {ref}`guards`, but instead of evaluating to boolean, they are expected to raise an
-exception to stop the flow. It may be useful for imperative style programming, when you don't
+exception to stop the flow. It may be useful for imperative style programming when you don't
 wanna to continue evaluating other possible transitions and exit immediately.
 
 

@@ -15,6 +15,9 @@ class DotGraphMachine:
     http://www.graphviz.org/doc/info/attrs.html#d:rankdir
     """
 
+    font_name = "Arial"
+    """Graph font face name"""
+
     state_font_size = "10pt"
     """State font size"""
 
@@ -35,6 +38,7 @@ class DotGraphMachine:
             "list",
             graph_type="digraph",
             label=machine.name,
+            fontname=self.font_name,
             fontsize=self.state_font_size,
             rankdir=self.graph_rankdir,
         )
@@ -58,6 +62,7 @@ class DotGraphMachine:
             self.machine.initial_state.id,
             label="",
             color="blue",
+            fontname=self.font_name,
             fontsize=self.transition_font_size,
         )
 
@@ -90,6 +95,7 @@ class DotGraphMachine:
             label=f"{state.name}{actions}",
             shape="rectangle",
             style="rounded, filled",
+            fontname=self.font_name,
             fontsize=self.state_font_size,
             peripheries=2 if state.final else 1,
         )
@@ -109,6 +115,7 @@ class DotGraphMachine:
             transition.target.id,
             label=f"{transition.event}{cond}",
             color="blue",
+            fontname=self.font_name,
             fontsize=self.transition_font_size,
         )
 
@@ -142,6 +149,7 @@ def quickchart_write_svg(sm: StateMachine, path: str):
     >>> sm = OrderControl()
     >>> print(sm._graph().to_string())
     digraph list {
+    fontname=Arial;
     fontsize="10pt";
     label=OrderControl;
     rankdir=LR;
