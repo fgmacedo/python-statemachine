@@ -1,4 +1,7 @@
+import pytest
+
 from statemachine import State
+from statemachine.dispatcher import resolver_factory
 
 
 def test_transition_list_or_operator():
@@ -21,3 +24,37 @@ def test_transition_list_or_operator():
         ("s2", "s3"),
         ("s3", "s4"),
     ]
+
+
+class TestDecorators:
+    @pytest.mark.parametrize(
+        ("callback_name", "list_attr_name", "expected_value"),
+        [
+            ("before", None, 42),
+            ("after", None, 42),
+            ("on", None, 42),
+            ("validators", None, 42),
+            ("cond", None, True),
+            ("unless", "cond", False),
+        ],
+    )
+    def test_should_assign_callback_to_transitions(
+        self, callback_name, list_attr_name, expected_value
+    ):
+        if list_attr_name is None:
+            list_attr_name = callback_name
+
+        s1 = State("s1", initial=True)
+        transition_list = s1.to.itself()
+        decorator = getattr(transition_list, callback_name)
+
+        @decorator
+        def my_callback():
+            return 42
+
+        transition = s1.transitions[0]
+        callback_list = getattr(transition, list_attr_name)
+
+        callback_list.setup(resolver_factory(object()))
+
+        assert callback_list.call() == [expected_value]

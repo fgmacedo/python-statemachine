@@ -237,6 +237,14 @@ The action will be registered for every {ref}`transition` associated with the ev
 ...     @loop.after
 ...     def loop_completed(self):
 ...         pass
+...
+...     @loop.cond
+...     def should_we_allow_loop(self):
+...         return True
+...
+...     @loop.unless
+...     def should_we_block_loop(self):
+...         return False
 
 ```
 

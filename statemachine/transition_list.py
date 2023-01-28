@@ -29,13 +29,14 @@ class TransitionList:
     def __len__(self):
         return len(self.transitions)
 
-    def _add_callback(self, callback, name, is_event=False):
+    def _add_callback(self, callback, name, is_event=False, **kwargs):
         for transition in self.transitions:
             list_obj = getattr(transition, name)
             list_obj._add_unbounded_callback(
                 callback,
                 is_event=is_event,
                 transitions=self,
+                **kwargs,
             )
         return callback
 
@@ -50,6 +51,15 @@ class TransitionList:
 
     def on(self, f):
         return self._add_callback(f, "on")
+
+    def cond(self, f):
+        return self._add_callback(f, "cond")
+
+    def unless(self, f):
+        return self._add_callback(f, "cond", expected_value=False)
+
+    def validators(self, f):
+        return self._add_callback(f, "validators")
 
     def add_event(self, event):
         for transition in self.transitions:
