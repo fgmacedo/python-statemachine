@@ -17,7 +17,7 @@ def simple_sm_cls():
             self.name = name
             self.can_finish = False
             self.finalized = False
-            super(TestStateMachine, self).__init__()
+            super().__init__()
 
         def do_finish(self):
             return self.name, self.can_finish
