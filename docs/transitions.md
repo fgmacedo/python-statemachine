@@ -52,6 +52,9 @@ In an executing state machine, a transition is a transfer from one state to anot
 A transition can define {ref}`actions` that will be executed whenever that transition
 is executed.
 
+Transitions can be filtered with {ref}`guards` allowing you to add conditions when a
+transition may be executed.
+
 An action associated with an event (before, on, after), will be assigned to all transitions
 bounded that uses the event as trigger.
 ```
@@ -63,7 +66,7 @@ bounded that uses the event as trigger.
 
 ```{hint}
 Usually you don't need to import and use a {ref}`transition` class directly in your code,
-one of the most powerful features of this library is now transitions and events can be expressed
+one of the most powerful features of this library is how transitions and events can be expressed
 linking directly from/to {ref}`state` instances.
 ```
 
@@ -150,7 +153,7 @@ Usage:
 
 ```{note}
 
-The internal transition is represented like an entry/exit action, where
+The internal transition is represented the same way as an entry/exit action, where
 the event name is used to describe the transition.
 
 ```
@@ -159,7 +162,7 @@ the event name is used to describe the transition.
 ## Event
 
 An event is an external signal that something has happened.
-They are sent to a state machine and allow the state machine to react.
+They are send to a state machine and allow the state machine to react.
 
 An event starts a {ref}`transition`, which can be thought of as a "cause" that
 initiates a change in the state of the system.
@@ -171,12 +174,16 @@ In `python-statemachine`, an event is specified as an attribute of the state mac
 Triggering an event on a state machine means invoking or sending a signal, initiating the
 process that may result in executing a transition.
 
-This process usually involves checking the current state, evaluating any guard conditions
-associated with the transition, executing any actions associated with the transition and states,
-and finally updating the current state.
+This process usually involves
+
+1. checking the current state
+1. evaluating any guard conditions
+associated with the transition
+1. executing any actions associated with the transition and (current and target) states
+1. finally updating the current state.
 
 ```{seealso}
-See {ref}`actions` and {ref}`validator sand guards`.
+See {ref}`actions` and {ref}`validators and guards`.
 ```
 
 

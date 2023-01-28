@@ -5,7 +5,7 @@ Validations and Guards are checked before an transition is started. They are mea
 transition to occur.
 
 The main difference, is that {ref}`validators` raise exceptions to stop the flow, and {ref}`guards`
-act like predicates that should resolve for a ``boolean`` value.
+act like predicates that shall resolve to a ``boolean`` value.
 
 ```{seealso}
 Please see {ref}`dynamic-dispatch` to know more about how this lib supports multiple signatures
@@ -18,13 +18,12 @@ Also known as **Conditional transition**.
 
 A guard is a condition that may be checked when a statemachine wants to handle
 an {ref}`event`. A guard is declared on the {ref}`transition`, and when that transition
-would trigger, then the guard (if any) is checked.  If the guard is `True`
+would trigger, then the guard (if any) is checked. If the guard is `True`
 then the transition does happen. If the guard is `False`, the transition
 is ignored.
 
 When transitions have guards, then it's possible to define two or more
-transitions for the same event from the same {ref}`state`, i.e. that a state has
-two (or more) transitions for the same event.  When the event happens, then
+transitions for the same event from the same {ref}`state`. When the event happens, then
 the guarded transitions are checked, one by one, and the first transition
 whose guard is true will be used, the others will be ignored.
 
@@ -37,9 +36,13 @@ There are two variations of Guard clauses available:
 cond
 : A list of conditions, acting like predicates. A transition is only allowed to occur if
 all conditions evaluate to ``True``.
+* Single condition: `cond="condition"`
+* Multiple conditions: `cond=["condition1", "condition2"]`
 
 unless
-: Same as `cond`, but the transition is allowed if all conditions evaluate to `False`.
+: Same as `cond`, but the transition is only allowed if all conditions evaluate to ``False``.
+* Single condition: `unless="condition"`
+* Multiple conditions: `unless=["condition1", "condition2"]`
 
 ```{hint}
 In Python, a boolean value is either `True` or `False`. However, there are also specific values that
@@ -48,9 +51,9 @@ are considered "**falsy**" and will evaluate as `False` when used in a boolean c
 These include:
 
 1. The special value `None`.
-1. Numeric values of `0` or `0.0`.
-1. **Empty** strings, lists, tuples, sets, and dictionaries.
-1. Instances of certain classes that define a `__bool__()` or `__len__()` method that returns
+2. Numeric values of `0` or `0.0`.
+3. **Empty** strings, lists, tuples, sets, and dictionaries.
+4. Instances of certain classes that define a `__bool__()` or `__len__()` method that returns
    `False` or `0`, respectively.
 
 On the other hand, any value that is not considered "**falsy**" is considered "**truthy**" and will evaluate to `True` when used in a boolean context.
@@ -64,8 +67,14 @@ So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an emp
 
 Are like {ref}`guards`, but instead of evaluating to boolean, they are expected to raise an
 exception to stop the flow. It may be useful for imperative style programming when you don't
-wanna to continue evaluating other possible transitions and exit immediately.
+want to continue evaluating other possible transitions and exit immediately.
 
+* Single validator: `validators="validator"`
+* Multiple validator: `validators=["validator1", "validator2"]`
+
+Both conditions and validators can also be combined for a single event.
+
+    <event> = <state1>.to(<state2>, cond="condition1", unless="condition2", validators="validator")
 
 Consider this example:
 
@@ -76,16 +85,23 @@ class InvoiceStateMachine(StateMachine):
     paid = State("paid")
     failed = State("failed")
 
+    paused = False
+    offer_valid = True
+
     pay = (
-        unpaid.to(paid, cond="payment_success")
-        | failed.to(paid)
-        | unpaid.to(failed)
+        unpaid.to(paid, cond="payment_success") |
+        unpaid.to(failed, validators="validator", unless="paused") |
+        failed.to(paid, cond=["payment_success", "offer_valid"])
     )
-
     def payment_success(self, event_data):
-        return <validation logic goes here>
+        return <condition logic goes here>
 
+    def validator(self):
+        return <validator logic goes here>
 ```
-
+```{seealso}
+See the example {ref}`sphx_glr_auto_examples_all_actions_machine.py` for a complete example of
+validators and guards.
+```
 
 Reference: [Statecharts](https://statecharts.dev/).
