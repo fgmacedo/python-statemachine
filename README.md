@@ -100,7 +100,7 @@ You can inspect the current state:
 
 ```
 
-Or get a complete state repr for debugging purposes:
+Or get a complete state representation for debugging purposes:
 
 ```py
 >>> traffic_light.current_state
@@ -326,14 +326,14 @@ https://python-statemachine.readthedocs.io.
 
 ## Contributing
 
-<a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
-<a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>
-<a class="github-button" href="https://github.com/fgmacedo/python-statemachine/fork" data-icon="octicon-repo-forked" aria-label="Fork fgmacedo/python-statemachine on GitHub">Fork</a>
+* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
+* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>
+* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/fork" data-icon="octicon-repo-forked" aria-label="Fork fgmacedo/python-statemachine on GitHub">Fork</a>
 
 - If you found this project helpful, please consider giving it a star on GitHub.
 
 - **Contribute code**: If you would like to contribute code to this project, please submit a pull
-  request. For more information on how to contribute, please see our [contributing.md](contributing.md) file.
+request. For more information on how to contribute, please see our [contributing.md]contributing.md) file.
 
 - **Report bugs**: If you find any bugs in this project, please report them by opening an issue
   on our GitHub issue tracker.

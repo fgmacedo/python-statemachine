@@ -1,8 +1,8 @@
 # Contributing
 
-<a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
-<a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>
-<a class="github-button" href="https://github.com/fgmacedo/python-statemachine/fork" data-icon="octicon-repo-forked" aria-label="Fork fgmacedo/python-statemachine on GitHub">Fork</a>
+* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
+* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>
+* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/fork" data-icon="octicon-repo-forked" aria-label="Fork fgmacedo/python-statemachine on GitHub">Fork</a>
 
 Contributions are welcome, and they are greatly appreciated! Every little bit helps, and credit
 will always be given.
@@ -22,7 +22,6 @@ If you are reporting a bug, please include:
 * Detailed steps to reproduce the bug.
 
 ### Fix Bugs
-
 
 Look through the GitHub issues for bugs. Anything tagged with "bug"
 and "help wanted" is open to whoever wants to implement it.
@@ -53,32 +52,38 @@ If you are proposing a feature:
 
 Ready to contribute? Here's how to set up `python-statemachine` for local development.
 
+1. Install dependencies.
+   1. [graphviz](https://graphviz.org/download/#linux)
+   1. [poetry](https://python-poetry.org/docs/#installation)
 
 1. Fork the `python-statemachine` repository on GitHub.
 
-2. Clone the forked repository to your local machine by running::
+1. Clone the forked repository to your local machine by running::
 
         git clone https://github.com/YOUR-USERNAME/python-statemachine.git.
 
 
-3. Run `poetry install` to install all the dependencies and create a virtual environment::
+1. Run `poetry install` once to install all the dependencies and create a virtual environment::
 
         poetry install
 
-4. Install the pre-commit validations:
+1. Run `poetry shell` to enter the provided virtual
+
+1. Install the pre-commit validations:
 
         pre-commit install
 
-5. Create a branch for local development:
+1. Create a branch for local development:
 
-        git checkout -b name-of-your-bugfix-or-feature
+        git checkout -b <name-of-your-bugfix-or-feature>
 
-6. Make changes to the code.
-7. Run tests to ensure they pass by running:
+1. Make changes to the code.
+
+1. Run tests to ensure they pass by running:
 
         poetry run pytest
 
-8. Update the documentation as needed.
+1. Update the documentation as needed.
 
     Build the documentation:
 
@@ -102,15 +107,16 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
 
         rm -rf docs/_build/ docs/auto_examples
 
-9. Commit your changes and push them to your forked repository:
+1. Commit your changes and push them to your forked repository:
 
         git add -A .
-        git commit -m "Your detailed description of your changes."
+        git commit -s -m "Your detailed description of your changes."
         git push origin name-of-your-bugfix-or-feature
 
-10. Create a pull request on the original repository for your changes to be reviewed and potentially
+1. Create a pull request on the original repository for your changes to be reviewed and potentially
 merged. Be sure to follow the project's code of conduct and contributing guidelines.
 
+1. Use `exit` to leave the virtual environment.
 
 ## Pull Request Guidelines
 
