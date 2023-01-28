@@ -44,7 +44,7 @@ class GuessTheNumberMachine(StateMachine):
 
     def before_guess(self, number):
         self.guesses += 1
-        print(f"You guess is {number}...")
+        print(f"Your guess is {number}...")
 
     def guess_is_lower(self, number):
         return number < self.number
