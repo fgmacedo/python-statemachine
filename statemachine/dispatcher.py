@@ -1,9 +1,9 @@
-import inspect
 from collections import namedtuple
 from functools import wraps
 from operator import attrgetter
 
 from .exceptions import AttrNotFound
+from .signature import SignatureAdapter
 from .utils import ugettext as _
 
 
@@ -21,42 +21,6 @@ class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs")):
             return obj
         else:
             return cls(obj, set())
-
-
-def methodcaller(method):
-    """Build a wrapper that adapts the received arguments to the inner method signature"""
-
-    # spec is a named tuple ArgSpec(args, varargs, keywords, defaults)
-    # args is a list of the argument names (it may contain nested lists)
-    # varargs and keywords are the names of the * and ** arguments or None
-    # defaults is a tuple of default argument values or None if there are no default arguments
-    spec = inspect.getfullargspec(method)
-    keywords = spec.varkw
-    expected_args = list(spec.args)
-    expected_kwargs = spec.defaults or {}
-
-    # discart "self" argument for bounded methods
-    if hasattr(method, "__self__") and expected_args and expected_args[0] == "self":
-        expected_args = expected_args[1:]
-
-    @wraps(method)
-    def wrapper(*args, **kwargs):
-        if spec.varargs is not None:
-            filtered_args = args
-        else:
-            filtered_args = [
-                kwargs.get(k, (args[idx] if idx < len(args) else None))
-                for idx, k in enumerate(expected_args)
-            ]
-
-        if keywords is not None:
-            filtered_kwargs = kwargs
-        else:
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in expected_kwargs}
-
-        return method(*filtered_args, **filtered_kwargs)
-
-    return wrapper
 
 
 def _get_func_by_attr(attr, *configs):
@@ -84,7 +48,7 @@ def ensure_callable(attr, *objects):
             has the given ``attr``.
     """
     if callable(attr) or isinstance(attr, property):
-        return methodcaller(attr)
+        return SignatureAdapter.wrap(attr)
 
     # Setup configuration if not present to normalize the internal API
     configs = [ObjectConfig.from_obj(obj) for obj in objects]
@@ -102,7 +66,7 @@ def ensure_callable(attr, *objects):
 
         return wrapper
 
-    return methodcaller(func)
+    return SignatureAdapter.wrap(func)
 
 
 def resolver_factory(*objects):
