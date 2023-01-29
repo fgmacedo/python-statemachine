@@ -1,4 +1,5 @@
 import inspect
+import sys
 
 import pytest
 
@@ -55,20 +56,14 @@ class TestSignatureAdapter:
         [
             (single_positional_param, [10], {}, 10),
             (single_positional_param, [], {"a": 10}, 10),
-            pytest.param(
-                single_positional_param, [], {}, TypeError, marks=pytest.mark.xfail
-            ),
+            pytest.param(single_positional_param, [], {}, TypeError),
             (single_default_keyword_param, [10], {}, 10),
             (single_default_keyword_param, [], {"a": 10}, 10),
-            pytest.param(
-                single_default_keyword_param, [], {}, 42, marks=pytest.mark.xfail
-            ),
+            pytest.param(single_default_keyword_param, [], {}, 42),
             (MyObject().method_no_argument, [], {}, 42),
             (MyObject().method_no_argument, ["ignored"], {"x": True}, 42),
             (MyObject.method_no_argument, [MyObject()], {"x": True}, 42),
-            pytest.param(
-                MyObject.method_no_argument, [], {}, TypeError, marks=pytest.mark.xfail
-            ),
+            pytest.param(MyObject.method_no_argument, [], {}, TypeError),
             (args_param, [], {}, ()),
             (args_param, [42], {}, (42,)),
             (args_param, [1, 1, 2, 3, 5, 8, 13], {}, (1, 1, 2, 3, 5, 8, 13)),
@@ -104,20 +99,18 @@ class TestSignatureAdapter:
                 [True],
                 {"b": "spam"},
                 (True, "spam", ()),
-                marks=pytest.mark.xfail,
             ),
             pytest.param(
                 positional_optional_catchall,
                 ["a", "b"],
                 {"b": "spam"},
-                TypeError,
-                marks=pytest.mark.xfail,
+                ("a", "spam", ()),
             ),
             (
                 positional_optional_catchall,
                 ["a", "b", "c"],
                 {"b": "spam"},
-                ("a", "b", ("c",)),
+                ("a", "spam", ("c",)),
             ),
             (
                 positional_optional_catchall,
@@ -126,27 +119,20 @@ class TestSignatureAdapter:
                 ("a", "b", ("c", False, 10)),
             ),
             (ignored_param, [], {}, TypeError),
-            pytest.param(
-                ignored_param, [1, 2, 3], {}, (1, 2, 3, 10), marks=pytest.mark.xfail
-            ),
             (ignored_param, [1, 2, 3], {}, TypeError),
             pytest.param(
                 ignored_param,
                 [1, 2],
                 {"c": 42},
                 (1, 2, 42, 10),
-                marks=pytest.mark.xfail,
             ),
             pytest.param(
                 ignored_param,
                 [1, 2],
                 {"c": 42, "d": 21},
                 (1, 2, 42, 21),
-                marks=pytest.mark.xfail,
             ),
-            pytest.param(
-                positional_and_kw_arguments, [], {}, TypeError, marks=pytest.mark.xfail
-            ),
+            pytest.param(positional_and_kw_arguments, [], {}, TypeError),
             (positional_and_kw_arguments, [1, 2, 3], {}, (1, 2, 3)),
             (positional_and_kw_arguments, [1, 2], {"event": "foo"}, (1, 2, "foo")),
             (
@@ -155,14 +141,42 @@ class TestSignatureAdapter:
                 {"source": "A", "target": "B", "event": "foo"},
                 ("A", "B", "foo"),
             ),
-            pytest.param(
-                default_kw_arguments, [], {}, ("A", "B", "go"), marks=pytest.mark.xfail
-            ),
+            pytest.param(default_kw_arguments, [], {}, ("A", "B", "go")),
             (default_kw_arguments, [1, 2, 3], {}, (1, 2, 3)),
             (default_kw_arguments, [1, 2], {"event": "wait"}, (1, 2, "wait")),
         ],
     )
     def test_wrap_fn_single_positional_parameter(self, func, args, kwargs, expected):
+
+        wrapped_func = SignatureAdapter.wrap(func)
+
+        if inspect.isclass(expected) and issubclass(expected, Exception):
+            with pytest.raises(expected):
+                wrapped_func(*args, **kwargs)
+        else:
+            assert wrapped_func(*args, **kwargs) == expected
+
+    @pytest.mark.parametrize(
+        ("args", "kwargs", "expected"),
+        [
+            ([], {}, TypeError),
+            ([1, 2, 3], {}, TypeError),
+            ([1, 2], {"kw_only_param": 42}, (1, 2, 42)),
+            ([1], {"pos_or_kw_param": 21, "kw_only_param": 42}, (1, 21, 42)),
+            (
+                [],
+                {"pos_only": 10, "pos_or_kw_param": 21, "kw_only_param": 42},
+                TypeError,
+            ),
+        ],
+    )
+    @pytest.mark.skipif(
+        sys.version_info < (3, 8), reason="requires python3.8 or higher"
+    )
+    def test_positional_ony(self, args, kwargs, expected):
+        def func(pos_only, /, pos_or_kw_param, *, kw_only_param):
+            # https://peps.python.org/pep-0570/
+            return pos_only, pos_or_kw_param, kw_only_param
 
         wrapped_func = SignatureAdapter.wrap(func)
 
