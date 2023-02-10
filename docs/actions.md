@@ -87,9 +87,9 @@ All actions and {ref}`guards` support multiple method signatures. They follow th
 
 For each defined {ref}`state`, you can declare `enter` and `exit` callbacks.
 
-### Declare state actions by name convention
+### Declare state actions by naming convention
 
-Callbacks by name convention will be searched on the StateMachine and on the
+Callbacks by naming convention will be searched on the StateMachine and on the
 model, using the patterns:
 
 - `on_enter_<state.id>()`
@@ -158,11 +158,11 @@ Use the `enter` or `exit` params available on the `State` constructor.
 
 For each {ref}`event`, you can register `before`, `on` and `after` callbacks.
 
-### Declare transition actions by name convention
+### Declare transition actions by naming convention
 
 The action will be registered for every {ref}`transition` associated with the event.
 
-Callbacks by name convention will be searched on the StateMachine and on the
+Callbacks by naming convention will be searched on the StateMachine and on the
 model, using the patterns:
 
 - `before_<event>()`
@@ -325,8 +325,8 @@ Actions and Guards will be executed in the following order:
 (dynamic-dispatch)=
 ## Dynamic dispatch
 
-python-statemachine implements a custom dispatch mechanism on all those available Actions and
-Guards, this means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
+`python-statemachine` implements a custom dispatch mechanism on all those available Actions and
+Guards. This means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
 library will match your method signature of what's expected to receive with the provided arguments.
 
 This means that if on your `on_enter_<state.id>()` or `on_execute_<event>()` method, you need to know
@@ -353,7 +353,7 @@ For your convenience, all these parameters are available for you on any Action o
 : The {ref}`Event` that was triggered.
 
 `source`
-: The {ref}`State` the state machine was when the {ref}`Event` started.
+: The {ref}`State` the state machine was in when the {ref}`Event` started.
 
 `state`
 : The current {ref}`State` of the state machine.
