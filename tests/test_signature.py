@@ -1,5 +1,4 @@
 import inspect
-import sys
 
 import pytest
 
@@ -147,36 +146,6 @@ class TestSignatureAdapter:
         ],
     )
     def test_wrap_fn_single_positional_parameter(self, func, args, kwargs, expected):
-
-        wrapped_func = SignatureAdapter.wrap(func)
-
-        if inspect.isclass(expected) and issubclass(expected, Exception):
-            with pytest.raises(expected):
-                wrapped_func(*args, **kwargs)
-        else:
-            assert wrapped_func(*args, **kwargs) == expected
-
-    @pytest.mark.parametrize(
-        ("args", "kwargs", "expected"),
-        [
-            ([], {}, TypeError),
-            ([1, 2, 3], {}, TypeError),
-            ([1, 2], {"kw_only_param": 42}, (1, 2, 42)),
-            ([1], {"pos_or_kw_param": 21, "kw_only_param": 42}, (1, 21, 42)),
-            (
-                [],
-                {"pos_only": 10, "pos_or_kw_param": 21, "kw_only_param": 42},
-                TypeError,
-            ),
-        ],
-    )
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8), reason="requires python3.8 or higher"
-    )
-    def test_positional_ony(self, args, kwargs, expected):
-        def func(pos_only, /, pos_or_kw_param, *, kw_only_param):
-            # https://peps.python.org/pep-0570/
-            return pos_only, pos_or_kw_param, kw_only_param
 
         wrapped_func = SignatureAdapter.wrap(func)
 

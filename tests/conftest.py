@@ -1,6 +1,11 @@
+import sys
 from datetime import datetime
 
 import pytest
+
+# We support Python 3.8+ positional only syntax
+if sys.version_info[:2] < (3, 8):
+    collect_ignore_glob = ["*_positional_only.py"]
 
 
 @pytest.fixture()
