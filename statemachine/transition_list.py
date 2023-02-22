@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 from .utils import ensure_iterable
 
 
@@ -67,10 +65,9 @@ class TransitionList:
 
     @property
     def unique_events(self):
-        # Compat Python2.7: Using OrderedDict to get a unique ordered list
-        tmp_list = OrderedDict()
+        tmp_ordered_unique_events_as_keys_on_dict = {}
         for transition in self.transitions:
             for event in transition.events:
-                tmp_list[event] = True
+                tmp_ordered_unique_events_as_keys_on_dict[event] = True
 
-        return list(tmp_list.keys())
+        return list(tmp_ordered_unique_events_as_keys_on_dict.keys())

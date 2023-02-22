@@ -84,7 +84,7 @@ class Callbacks:
         return ", ".join(str(c) for c in self)
 
     def setup(self, resolver):
-        """Validate configuracions"""
+        """Validate configurations"""
         self._resolver = resolver
         self.items = [
             callback for callback in self.items if callback.setup(self._resolver)

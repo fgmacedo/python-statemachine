@@ -141,7 +141,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @property
     def current_state(self):
-        # type: () -> Optional[State]
         return self.states_map.get(self.current_state_value, None)
 
     @current_state.setter
