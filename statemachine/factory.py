@@ -8,7 +8,6 @@ from .graph import visit_connected_states
 from .state import State
 from .transition import Transition
 from .transition_list import TransitionList
-from .utils import qualname
 from .utils import ugettext as _
 
 
@@ -57,18 +56,19 @@ class StateMachineMetaclass(type):
             )
 
     def _check(cls):
+        has_states = bool(cls.states)
+        has_events = bool(cls._events)
 
-        # do not validate the base class
-        name = qualname(cls)
-        if name == "statemachine.statemachine.StateMachine":
+        cls._abstract = not has_states and not has_events
+
+        # do not validate the base abstract classes
+        if cls._abstract:
             return
 
-        cls._abstract = False
-
-        if not cls.states:
+        if not has_states:
             raise InvalidDefinition(_("There are no states."))
 
-        if not cls._events:
+        if not has_events:
             raise InvalidDefinition(_("There are no events."))
 
         cls._check_disconnected_state()
