@@ -81,9 +81,9 @@ Consider this example:
 ```py
 
 class InvoiceStateMachine(StateMachine):
-    unpaid = State("unpaid", initial=True)
-    paid = State("paid")
-    failed = State("failed")
+    unpaid = State(initial=True)
+    paid = State()
+    failed = State()
 
     paused = False
     offer_valid = True

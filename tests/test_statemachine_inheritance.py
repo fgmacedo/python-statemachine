@@ -9,8 +9,8 @@ def BaseMachine():
     from statemachine import StateMachine
 
     class BaseMachine(StateMachine):
-        state_1 = State("1", initial=True)
-        state_2 = State("2")
+        state_1 = State(initial=True)
+        state_2 = State()
         trans_1_2 = state_1.to(state_2)
 
     return BaseMachine
@@ -29,7 +29,7 @@ def ExtendedClass(BaseMachine):
     from statemachine import State
 
     class ExtendedClass(BaseMachine):
-        state_3 = State("3")
+        state_3 = State()
         trans_2_3 = BaseMachine.state_2.to(state_3)
 
     return ExtendedClass
@@ -40,7 +40,7 @@ def OverridedClass(BaseMachine):
     from statemachine import State
 
     class OverridedClass(BaseMachine):
-        state_2 = State("2", value="state_2")
+        state_2 = State()
 
         trans_1_2 = BaseMachine.state_1.to(state_2)
 
@@ -52,7 +52,7 @@ def OverridedTransitionClass(BaseMachine):
     from statemachine import State
 
     class OverridedTransitionClass(BaseMachine):
-        state_3 = State("3")
+        state_3 = State()
         trans_1_2 = BaseMachine.state_1.to(state_3)
 
     return OverridedTransitionClass

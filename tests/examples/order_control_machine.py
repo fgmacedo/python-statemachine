@@ -10,10 +10,10 @@ from statemachine import StateMachine
 
 
 class OrderControl(StateMachine):
-    waiting_for_payment = State("Waiting for payment", initial=True)
-    processing = State("Processing")
-    shipping = State("Shipping")
-    completed = State("Completed", final=True)
+    waiting_for_payment = State(initial=True)
+    processing = State()
+    shipping = State()
+    completed = State(final=True)
 
     add_to_order = waiting_for_payment.to(waiting_for_payment)
     receive_payment = waiting_for_payment.to(

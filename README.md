@@ -55,9 +55,9 @@ Define your state machine:
 
 >>> class TrafficLightMachine(StateMachine):
 ...     "A traffic light machine"
-...     green = State("Green", initial=True)
-...     yellow = State("Yellow")
-...     red = State("Red")
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
 ...
 ...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 ...
@@ -97,6 +97,14 @@ You can inspect the current state:
 ```py
 >>> traffic_light.current_state.id
 'yellow'
+
+```
+
+A `State` human-readable name is automatically derived from the `State.id`:
+
+```py
+>>> traffic_light.current_state.name
+'Yellow'
 
 ```
 
@@ -199,10 +207,10 @@ A simple didactic state machine for controlling an `Order`:
 
 ```py
 >>> class OrderControl(StateMachine):
-...     waiting_for_payment = State("Waiting for payment", initial=True)
-...     processing = State("Processing")
-...     shipping = State("Shipping")
-...     completed = State("Completed", final=True)
+...     waiting_for_payment = State(initial=True)
+...     processing = State()
+...     shipping = State()
+...     completed = State(final=True)
 ...
 ...     add_to_order = waiting_for_payment.to(waiting_for_payment)
 ...     receive_payment = (
@@ -253,6 +261,9 @@ You can use this machine as follows.
 
 >>> control.current_state.id
 'waiting_for_payment'
+
+>>> control.current_state.name
+'Waiting for payment'
 
 >>> control.process_order()
 Traceback (most recent call last):

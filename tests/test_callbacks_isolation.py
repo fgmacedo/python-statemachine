@@ -8,8 +8,8 @@ from statemachine import StateMachine
 def simple_sm_cls():
     class TestStateMachine(StateMachine):
         # States
-        initial = State("Initial", initial=True)
-        final = State("Final", final=True, enter="do_enter_final")
+        initial = State(initial=True)
+        final = State(final=True, enter="do_enter_final")
 
         finish = initial.to(final, cond="can_finish", on="do_finish")
 

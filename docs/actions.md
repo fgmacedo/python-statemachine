@@ -32,8 +32,8 @@ The follow example can get you an overview of the "generic" callbacks available:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
-...     final = State("Final", final=True)
+...     initial = State(initial=True)
+...     final = State(final=True)
 ...
 ...     loop = initial.to.itself()
 ...     go = initial.to(final)
@@ -101,7 +101,7 @@ model, using the patterns:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -121,7 +121,7 @@ Use the `enter` or `exit` params available on the `State` constructor.
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True, enter="entering_initial", exit="leaving_initial")
+...     initial = State(initial=True, enter="entering_initial", exit="leaving_initial")
 ...
 ...     loop = initial.to.itself()
 ...
@@ -140,7 +140,7 @@ Use the `enter` or `exit` params available on the `State` constructor.
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -176,7 +176,7 @@ model, using the patterns:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -198,7 +198,7 @@ model, using the patterns:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself(before="just_before", on="its_happening", after="loop_completed")
 ...
@@ -222,7 +222,7 @@ The action will be registered for every {ref}`transition` associated with the ev
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -256,7 +256,7 @@ You can also declare an event while also adding a callback:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     @initial.to.itself()
 ...     def loop(self):

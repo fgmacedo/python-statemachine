@@ -5,9 +5,9 @@ from statemachine import StateMachine
 def test_assign_events_on_transitions():
     class TrafficLightMachine(StateMachine):
         "A traffic light machine"
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        red = State("Red")
+        green = State(initial=True)
+        yellow = State()
+        red = State()
 
         green.to(yellow, event="cycle slowdown slowdown")
         yellow.to(red, event="cycle stop")

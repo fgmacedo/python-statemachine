@@ -11,9 +11,9 @@ from statemachine import StateMachine
 
 class TrafficLightMachine(StateMachine):
     "A traffic light machine"
-    green = State("Green", initial=True)
-    yellow = State("Yellow")
-    red = State("Red")
+    green = State(initial=True)
+    yellow = State()
+    red = State()
 
     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 

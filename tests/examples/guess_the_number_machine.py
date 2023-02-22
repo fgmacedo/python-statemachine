@@ -15,11 +15,11 @@ from statemachine import StateMachine
 
 class GuessTheNumberMachine(StateMachine):
 
-    start = State("Start", initial=True)
-    low = State("Low")
-    high = State("High")
-    won = State("Won", final=True)
-    lose = State("Lose", final=True)
+    start = State(initial=True)
+    low = State()
+    high = State()
+    won = State(final=True)
+    lose = State(final=True)
 
     guess = (
         lose.from_(low, high, cond="max_guesses_reached")

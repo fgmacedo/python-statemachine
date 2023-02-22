@@ -15,11 +15,16 @@ class State:
     in the way that state describes.
 
     Args:
-        name: An human readable representation of the state.
+        name: A human-readable representation of the state. Default is derived
+            from the name of the variable assigned to the state machine class.
+            The name is derived from the id using this logic::
+
+                name = id.replace("_", " ").capitalize()
+
         value: A specific value to the storage and retrieval of states.
             If specified, you can use It to map a more friendly representation to a low-level
             value.
-        initial: Set `' True`` if the ``State`` is the initial one. There must be one and only
+        initial: Set ``True`` if the ``State`` is the initial one. There must be one and only
             one initial state in a statemachine. Defaults to ``False``.
         final: Set ``True`` if represents a final state. A machine can have
             optionally many final states. Final states have no :ref:`transition` starting from It.
@@ -83,16 +88,21 @@ class State:
     """
 
     def __init__(
-        self, name, value=None, initial=False, final=False, enter=None, exit=None
+        self,
+        name: str = "",
+        value: Any = None,
+        initial: bool = False,
+        final: bool = False,
+        enter: Any = None,
+        exit: Any = None,
     ):
-        # type: (str, Optional[Any], bool, bool, Optional[Any], Optional[Any]) -> None
         self.name = name
         self.value = value
-        self._id = None  # type: Optional[str]
-        self._storage = ""
         self._initial = initial
-        self.transitions = TransitionList()
         self._final = final
+        self._id: str = ""
+        self._storage: str = ""
+        self.transitions = TransitionList()
         self.enter = Callbacks().add(enter)
         self.exit = Callbacks().add(exit)
 
@@ -144,23 +154,25 @@ class State:
         return deepcopy(self)
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self._id
 
-    def _set_id(self, id):
+    def _set_id(self, id: str):
         self._id = id
         self._storage = f"_{id}"
         if self.value is None:
             self.value = id
+        if not self.name:
+            self.name = self._id.replace("_", " ").capitalize()
 
-    def _to_(self, *states, **kwargs):
+    def _to_(self, *states: "State", **kwargs):
         transitions = TransitionList(
             Transition(self, state, **kwargs) for state in states
         )
         self.transitions.add_transitions(transitions)
         return transitions
 
-    def _from_(self, *states, **kwargs):
+    def _from_(self, *states: "State", **kwargs):
         transitions = TransitionList()
         for origin in states:
             transition = Transition(origin, self, **kwargs)
@@ -169,7 +181,7 @@ class State:
         return transitions
 
     def _get_proxy_method_to_itself(self, method):
-        def proxy(*states, **kwargs):
+        def proxy(*states: "State", **kwargs):
             return method(*states, **kwargs)
 
         def proxy_to_itself(**kwargs):

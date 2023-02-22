@@ -39,8 +39,8 @@ def test_machine_should_only_allow_only_one_initial_state():
 
         class CampaignMachine(StateMachine):
             "A workflow machine"
-            draft = State("Draft", initial=True)
-            producing = State("Being produced")
+            draft = State(initial=True)
+            producing = State()
             closed = State(
                 "Closed", initial=True
             )  # Should raise an Exception right after the class is defined
@@ -55,9 +55,9 @@ def test_machine_should_not_allow_transitions_from_final_state():
 
         class CampaignMachine(StateMachine):
             "A workflow machine"
-            draft = State("Draft", initial=True)
-            producing = State("Being produced")
-            closed = State("Closed", final=True)
+            draft = State(initial=True)
+            producing = State()
+            closed = State(final=True)
 
             add_job = draft.to(draft) | producing.to(producing) | closed.to(draft)
             produce = draft.to(producing)
@@ -306,7 +306,7 @@ def test_should_not_create_instance_of_abstract_machine():
 
 
 def test_should_not_create_instance_of_machine_without_states():
-    s1 = State("X")
+    s1 = State()
     with pytest.raises(exceptions.InvalidDefinition):
 
         class OnlyTransitionMachine(StateMachine):
@@ -319,7 +319,7 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
         class NoTransitionsMachine(StateMachine):
             "A machine without transitions"
-            initial = State("initial", initial=True)
+            initial = State(initial=True)
 
 
 def test_should_not_create_disconnected_machine():
@@ -332,9 +332,9 @@ def test_should_not_create_disconnected_machine():
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
-            green = State("Green", initial=True)
-            yellow = State("Yellow")
-            blue = State("Blue")  # This state is unreachable
+            green = State(initial=True)
+            yellow = State()
+            blue = State()  # This state is unreachable
 
             cycle = green.to(yellow) | yellow.to(green)
 
@@ -348,12 +348,12 @@ def test_should_not_create_big_disconnected_machine():
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
-            green = State("Green", initial=True)
-            yellow = State("Yellow")
-            magenta = State("Magenta")  # This state is unreachable
-            red = State("Red")
-            cyan = State("Cyan")
-            blue = State("Blue")  # This state is also unreachable
+            green = State(initial=True)
+            yellow = State()
+            magenta = State()  # This state is unreachable
+            red = State()
+            cyan = State()
+            blue = State()  # This state is also unreachable
 
             cycle = green.to(yellow)
             diverge = green.to(cyan) | cyan.to(red)
