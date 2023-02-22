@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING  # noqa: F401, I001
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
 from .event import Event
+from .event_data import TriggerData
 from .event_data import EventData
 from .exceptions import InvalidStateValue
 from .exceptions import InvalidDefinition
@@ -62,30 +63,29 @@ class StateMachine(metaclass=StateMachineMetaclass):
             initial_transition.before.clear()
             initial_transition.on.clear()
             initial_transition.after.clear()
+
             event_data = EventData(
-                self,
-                initial_transition.event,
+                trigger_data=TriggerData(
+                    machine=self,
+                    event=initial_transition.event,
+                ),
                 transition=initial_transition,
             )
             self._activate(event_data)
 
     def _get_protected_attrs(self):
-        return (
-            {
-                "_abstract",
-                "model",
-                "state_field",
-                "start_value",
-                "initial_state",
-                "final_states",
-                "states",
-                "_events",
-                "states_map",
-                "send",
-            }
-            | {s.id for s in self.states}
-            | set(self._events.keys())
-        )
+        return {
+            "_abstract",
+            "model",
+            "state_field",
+            "start_value",
+            "initial_state",
+            "final_states",
+            "states",
+            "_events",
+            "states_map",
+            "send",
+        } | {s.id for s in self.states}
 
     def _visit_states_and_transitions(self, visitor):
         for state in self.states:
@@ -165,7 +165,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _activate(self, event_data: EventData):
         transition = event_data.transition
-        assert transition is not None
         source = event_data.state
         target = transition.target
 

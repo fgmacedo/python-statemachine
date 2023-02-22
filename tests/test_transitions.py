@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 
 from statemachine import State
@@ -231,3 +233,63 @@ class TestInternalTransition:
                 final = State(final=True)
 
                 execute = initial.to(initial, final, internal=True)
+
+
+@pytest.fixture()
+def chained_sm_class():  # noqa: C901
+    class ChainedSM(StateMachine):
+        a = State(initial=True)
+        b = State()
+        c = State()
+
+        t1 = a.to(b, after="t1") | b.to(c)
+
+        def __init__(self, *args, **kwargs):
+            self.spy = mock.Mock(side_effect=lambda x, **kwargs: x)
+            super().__init__(*args, **kwargs)
+
+        def before_t1(self, source: State, value: int = 0):
+            return self.spy("before_t1", source=source.id, value=value)
+
+        def on_t1(self, source: State, value: int = 0):
+            return self.spy("on_t1", source=source.id, value=value)
+
+        def after_t1(self, source: State, value: int = 0):
+            return self.spy("after_t1", source=source.id, value=value)
+
+        def on_enter_state(self, state: State, source: State, value: int = 0):
+            return self.spy(
+                "on_enter_state",
+                state=state.id,
+                source=getattr(source, "id", None),
+                value=value,
+            )
+
+        def on_exit_state(self, state: State, source: State, value: int = 0):
+            return self.spy(
+                "on_exit_state", state=state.id, source=source.id, value=value
+            )
+
+    return ChainedSM
+
+
+class TestChainedTransition:
+    def test_should_allow_chaining_transitions_using_actions(self, chained_sm_class):
+        sm = chained_sm_class()
+        sm.t1(value=42)
+
+        assert sm.c.is_active
+
+        assert sm.spy.call_args_list == [
+            mock.call("on_enter_state", state="a", source=None, value=0),
+            mock.call("before_t1", source="a", value=42),
+            mock.call("on_exit_state", state="a", source="a", value=42),
+            mock.call("on_t1", source="a", value=42),
+            mock.call("on_enter_state", state="b", source="a", value=42),
+            mock.call("before_t1", source="b", value=42),
+            mock.call("on_exit_state", state="b", source="b", value=42),
+            mock.call("on_t1", source="b", value=42),
+            mock.call("on_enter_state", state="c", source="b", value=42),
+            mock.call("after_t1", source="b", value=42),
+            mock.call("after_t1", source="a", value=42),
+        ]

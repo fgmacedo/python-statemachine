@@ -19,7 +19,7 @@ class Order:
     def payments_enough(self, amount):
         return sum(self.payments) + amount >= self.order_total
 
-    def add_to_order(self, amount):
+    def before_add_to_order(self, amount):
         self.order_total += amount
         return self.order_total
 
@@ -40,7 +40,7 @@ class OrderControl(StateMachine):
     shipping = State()
     completed = State(final=True)
 
-    add_to_order = waiting_for_payment.to(waiting_for_payment, before="add_to_order")
+    add_to_order = waiting_for_payment.to(waiting_for_payment)
     receive_payment = waiting_for_payment.to(
         processing, cond="payments_enough"
     ) | waiting_for_payment.to(waiting_for_payment, unless="payments_enough")

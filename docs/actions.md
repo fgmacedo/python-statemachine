@@ -133,6 +133,12 @@ Use the `enter` or `exit` params available on the `State` constructor.
 
 ```
 
+```{hint}
+It's also possible to use an event name as action.
+
+**Be careful to not introduce recursion errors** that will raise `RecursionError` exception.
+```
+
 ### Bind state actions using decorator syntax
 
 
@@ -211,6 +217,12 @@ model, using the patterns:
 ...     def loop_completed(self):
 ...         pass
 
+```
+
+```{hint}
+It's also possible to use an event name as action to chain transitions.
+
+**Be careful to not introduce recursion errors**, like `loop = initial.to.itself(after="loop")`, that will raise `RecursionError` exception.
 ```
 
 ### Bind event actions using decorator syntax

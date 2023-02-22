@@ -37,7 +37,7 @@ def _get_func_by_attr(attr, *configs):
     return func, config.obj
 
 
-def ensure_callable(attr, *objects):
+def ensure_callable(attr, *objects):  # noqa: C901
     """Ensure that `attr` is a callable, if not, tries to retrieve one from any of the given
     `objects`.
 
@@ -63,6 +63,15 @@ def ensure_callable(attr, *objects):
 
         def wrapper(*args, **kwargs):
             return getter(obj)
+
+        return wrapper
+
+    if getattr(func, "_is_sm_event", False):
+        "Events already have the 'machine' parameter defined."
+
+        def wrapper(*args, **kwargs):
+            kwargs.pop("machine")
+            return func(*args, **kwargs)
 
         return wrapper
 
