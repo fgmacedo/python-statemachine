@@ -193,43 +193,6 @@ they will be propagated to all actions and callbacks:
 
 ```
 
-## Models
-
-If you need to persist the current state on another object, or you're using the
-state machine to control the flow of another object, you can pass this object
-to the `StateMachine` constructor:
-
-```py
->>> class MyModel(object):
-...     def __init__(self, state):
-...         self.state = state
-...
-
->>> obj = MyModel(state='red')
-
->>> traffic_light = TrafficLightMachine(obj)
-
->>> traffic_light.red.is_active
-True
-
->>> obj.state
-'red'
-
->>> obj.state = 'green'
-
->>> traffic_light.green.is_active
-True
-
->>> traffic_light.slowdown()
-
->>> obj.state
-'yellow'
-
->>> traffic_light.yellow.is_active
-True
-
-```
-
 ## A more useful example
 
 A simple didactic state machine for controlling an `Order`:

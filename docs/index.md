@@ -11,6 +11,7 @@ states
 transitions
 actions
 guards
+models
 observers
 mixins
 integrations
