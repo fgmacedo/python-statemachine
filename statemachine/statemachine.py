@@ -5,10 +5,12 @@ from .dispatcher import resolver_factory
 from .event import Event
 from .event_data import EventData
 from .exceptions import InvalidStateValue
+from .exceptions import InvalidDefinition
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .model import Model
 from .transition import Transition
+from .utils import ugettext as _
 
 
 if TYPE_CHECKING:
@@ -27,6 +29,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
+
+        if self._abstract:
+            raise InvalidDefinition(_("There are no states or transitions."))
 
         initial_transition = Transition(
             None, self._get_initial_state(), event="__initial__"
