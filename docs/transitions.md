@@ -107,7 +107,7 @@ Example:
 
 ```py
 >>> class TestStateMachine(StateMachine):
-...     initial = State("initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     external_loop = initial.to.itself(on="do_something")
 ...     internal_loop = initial.to.itself(internal=True, on="do_something")

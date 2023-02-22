@@ -76,8 +76,8 @@ def transition_callback_machine(request):
 
         class ApprovalMachine(StateMachine):
             "A workflow"
-            requested = State("Requested", initial=True)
-            accepted = State("Accepted")
+            requested = State(initial=True)
+            accepted = State()
 
             validate = requested.to(accepted)
 
@@ -89,8 +89,8 @@ def transition_callback_machine(request):
 
         class ApprovalMachine(StateMachine):
             "A workflow"
-            requested = State("Requested", initial=True)
-            accepted = State("Accepted")
+            requested = State(initial=True)
+            accepted = State()
 
             @requested.to(accepted)
             def validate(self):
@@ -113,9 +113,9 @@ def test_statemachine_transition_callback(transition_callback_machine):
 def test_can_run_combined_transitions():
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
-        closed = State("Closed")
+        draft = State(initial=True)
+        producing = State()
+        closed = State()
 
         abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
         produce = draft.to(producing)
@@ -130,9 +130,9 @@ def test_can_run_combined_transitions():
 def test_transitions_to_the_same_estate_as_itself():
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
-        closed = State("Closed")
+        draft = State(initial=True)
+        producing = State()
+        closed = State()
 
         update = draft.to.itself()
         abort = draft.to(closed) | producing.to(closed) | closed.to.itself()
@@ -174,9 +174,9 @@ def test_should_transition_with_a_dict_as_return():
 
     class ApprovalMachine(StateMachine):
         "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
 
         accept = requested.to(accepted)
         reject = requested.to(rejected)
@@ -205,7 +205,7 @@ class TestInternalTransition:
         calls = []
 
         class TestStateMachine(StateMachine):
-            initial = State("initial", initial=True)
+            initial = State(initial=True)
 
             loop = initial.to.itself(internal=internal)
 
@@ -227,7 +227,7 @@ class TestInternalTransition:
         ):
 
             class TestStateMachine(StateMachine):
-                initial = State("initial", initial=True)
-                final = State("final", final=True)
+                initial = State(initial=True)
+                final = State(final=True)
 
                 execute = initial.to(initial, final, internal=True)

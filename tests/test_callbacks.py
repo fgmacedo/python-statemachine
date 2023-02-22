@@ -157,9 +157,9 @@ class TestCallbacksAsDecorator:
     def test_decorate_unbounded_machine_methods(self):
         class MiniHeroJourneyMachine(StateMachine):
 
-            ordinary_world = State("Ordinary World", initial=True)
-            call_to_adventure = State("Call to Adventure")
-            refusal_of_call = State("Refusal of the Call")
+            ordinary_world = State(initial=True)
+            call_to_adventure = State()
+            refusal_of_call = State()
 
             adventure_called = ordinary_world.to(call_to_adventure)
 

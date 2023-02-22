@@ -16,9 +16,9 @@ def event_mock():
 @pytest.fixture()
 def state_machine(event_mock):
     class CampaignMachine(StateMachine):
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
-        closed = State("Closed")
+        draft = State(initial=True)
+        producing = State()
+        closed = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)

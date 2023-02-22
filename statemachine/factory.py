@@ -114,7 +114,7 @@ class StateMachineMetaclass(type):
         for ref in func._callbacks_to_update:
             ref(attr_name)
 
-    def add_state(cls, id, state):
+    def add_state(cls, id, state: State):
         state._set_id(id)
         cls.states.append(state)
         cls.states_map[state.value] = state

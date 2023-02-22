@@ -21,9 +21,9 @@ def campaign_machine():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
+        draft = State(initial=True)
         producing = State("Being produced")
-        closed = State("Closed")
+        closed = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -40,9 +40,9 @@ def campaign_machine_with_validator():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
+        draft = State(initial=True)
         producing = State("Being produced")
-        closed = State("Closed")
+        closed = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing, validators="can_produce")
@@ -63,9 +63,9 @@ def campaign_machine_with_final_state():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
+        draft = State(initial=True)
         producing = State("Being produced")
-        closed = State("Closed", final=True)
+        closed = State(final=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -82,9 +82,9 @@ def campaign_machine_with_values():
 
     class CampaignMachineWithKeys(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True, value=1)
+        draft = State(initial=True, value=1)
         producing = State("Being produced", value=2)
-        closed = State("Closed", value=3)
+        closed = State(value=3)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -120,9 +120,9 @@ def classic_traffic_light_machine():
     from statemachine import StateMachine
 
     class TrafficLightMachine(StateMachine):
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        red = State("Red")
+        green = State(initial=True)
+        yellow = State()
+        red = State()
 
         slowdown = green.to(yellow)
         stop = yellow.to(red)
@@ -138,9 +138,9 @@ def reverse_traffic_light_machine():
 
     class ReverseTrafficLightMachine(StateMachine):
         "A traffic light machine"
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        red = State("Red")
+        green = State(initial=True)
+        yellow = State()
+        red = State()
 
         stop = red.from_(yellow, green, red)
         cycle = (
@@ -160,11 +160,11 @@ def approval_machine(current_time):  # noqa: C901
 
     class ApprovalMachine(StateMachine):
         "A workflow machine"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
 
-        completed = State("Completed")
+        completed = State()
 
         validate = requested.to(accepted, cond="is_ok") | requested.to(rejected)
 

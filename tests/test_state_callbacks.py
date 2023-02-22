@@ -15,9 +15,9 @@ def traffic_light_machine(event_mock):  # noqa: C901
 
     class TrafficLightMachineStateEvents(StateMachine):
         "A traffic light machine"
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        red = State("Red")
+        green = State(initial=True)
+        yellow = State()
+        red = State()
 
         cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 

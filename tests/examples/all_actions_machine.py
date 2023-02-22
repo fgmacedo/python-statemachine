@@ -13,8 +13,8 @@ from statemachine import StateMachine
 
 class AllActionsMachine(StateMachine):
 
-    initial = State("Initial", initial=True)
-    final = State("Final", final=True)
+    initial = State(initial=True)
+    final = State(final=True)
 
     go = initial.to(
         final,

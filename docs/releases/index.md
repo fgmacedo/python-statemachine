@@ -10,7 +10,7 @@ with advance notice in the **Deprecations** section of releases.
 
 Below are release notes through StateMachine and its patch releases.
 
-###  2.0 release
+###  2.0 releases
 
 ```{toctree}
 :maxdepth: 1
@@ -20,7 +20,7 @@ Below are release notes through StateMachine and its patch releases.
 ```
 
 
-###  1.0 release
+###  1.0 releases
 
 This is the last release series to support Python 2.X series.
 
@@ -34,7 +34,7 @@ This is the last release series to support Python 2.X series.
 
 ```
 
-###  0.* release
+###  0.* releases
 
 ```{toctree}
 :maxdepth: 1

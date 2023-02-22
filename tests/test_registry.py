@@ -10,8 +10,8 @@ def test_should_register_a_state_machine(caplog):
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
+        draft = State(initial=True)
+        producing = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
