@@ -34,7 +34,7 @@ This is the last release series to support Python 2.X series.
 
 ```
 
-###  0.* releases
+###  0.* release
 
 ```{toctree}
 :maxdepth: 1

@@ -41,6 +41,11 @@ The `StateMachine` itself is registered as an observer, so by using `.add_observ
 external object can have the same level of functionalities provided to the built-in class.
 ```
 
+```{tip}
+{ref}`domain models` are also registered as an observer.
+```
+
+
 ```{seealso}
 See {ref}`actions`, {ref}`validators and guards` for a list of possible callbacks.
 
