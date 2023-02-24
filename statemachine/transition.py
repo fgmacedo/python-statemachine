@@ -1,10 +1,13 @@
 from functools import partial
+from typing import TYPE_CHECKING
 
 from .callbacks import Callbacks
 from .callbacks import ConditionWrapper
-from .event_data import EventData
 from .events import Events
 from .exceptions import InvalidDefinition
+
+if TYPE_CHECKING:
+    from .event_data import EventData
 
 
 class Transition:
@@ -119,7 +122,7 @@ class Transition:
     def add_event(self, value):
         self._events.add(value)
 
-    def execute(self, event_data: EventData):
+    def execute(self, event_data: "EventData"):
         self.validators.call(*event_data.args, **event_data.extended_kwargs)
         if not self._eval_cond(event_data):
             return False

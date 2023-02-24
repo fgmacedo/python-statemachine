@@ -1,4 +1,5 @@
 from .event_data import EventData
+from .event_data import TriggerData
 from .exceptions import TransitionNotAllowed
 
 
@@ -13,38 +14,36 @@ class Event:
         return self.trigger(machine, *args, **kwargs)
 
     def trigger(self, machine, *args, **kwargs):
-        event_data = EventData(machine, self.name, *args, **kwargs)
-
         def trigger_wrapper():
             """Wrapper that captures event_data as closure."""
-            return self._trigger(event_data)
+            trigger_data = TriggerData(
+                machine=machine,
+                event=self.name,
+                args=args,
+                kwargs=kwargs,
+            )
+            return self._trigger(trigger_data)
 
         return machine._process(trigger_wrapper)
 
-    def _trigger(self, event_data):
-        event_data.source = event_data.machine.current_state
-        event_data.state = event_data.machine.current_state
-        event_data.model = event_data.machine.model
-
-        try:
-            self._process(event_data)
-        except Exception as error:
-            event_data.error = error
-            # TODO: Log errors
-            # TODO: Allow exception handlers
-            raise
+    def _trigger(self, trigger_data: TriggerData):
+        event_data = self._process(trigger_data)
         return event_data.result
 
-    def _process(self, event_data):
-        for transition in event_data.source.transitions:
-            if not transition.match(event_data.event):
+    def _process(self, trigger_data: TriggerData):
+        state = trigger_data.machine.current_state
+        for transition in state.transitions:
+            if not transition.match(trigger_data.event):
                 continue
-            event_data._set_transition(transition)
+
+            event_data = EventData(trigger_data=trigger_data, transition=transition)
             if transition.execute(event_data):
                 event_data.executed = True
                 break
         else:
-            raise TransitionNotAllowed(event_data.event, event_data.state)
+            raise TransitionNotAllowed(trigger_data.event, state)
+
+        return event_data
 
 
 def trigger_event_factory(event):
@@ -56,5 +55,6 @@ def trigger_event_factory(event):
 
     trigger_event.name = event
     trigger_event.identifier = event
+    trigger_event._is_sm_event = True
 
     return trigger_event
