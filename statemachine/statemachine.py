@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, TYPE_CHECKING  # noqa: F401, I001
+from typing import Any, Dict, List, TYPE_CHECKING  # noqa: F401, I001
+from collections import deque
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
@@ -26,10 +27,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
     states = []  # type: List[State]
     states_map = {}  # type: Dict[Any, State]
 
-    def __init__(self, model=None, state_field="state", start_value=None):
+    def __init__(self, model=None, state_field="state", start_value=None, queued=False):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
+        self._queued = queued
+        self._external_queue = deque()
 
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
@@ -159,9 +162,35 @@ class StateMachine(metaclass=StateMachineMetaclass):
             for event in self.current_state.transitions.unique_events
         ]
 
-    def _process(self, trigger):
-        """This method will also handle execution queue"""
-        return trigger()
+    def _process(self, trigger):  # noqa: C901
+        # Check if the machine is running in "queued" mode
+        if not self._queued:
+            # If not, check if the queue is empty
+            if not self._external_queue:
+                # If the queue is empty, execute the trigger immediately
+                return trigger()
+            # If the queue is not empty, raise an exception as something is wrong
+            raise TransitionNotAllowed("Queue not empty.")
+
+        # If the machine is in "queued" mode, add the trigger to the queue
+        self._external_queue.append(trigger)
+        # If there is already a trigger in the queue,
+        # only return as the processing loop should already be running
+        if len(self._external_queue) > 1:
+            return
+
+        # Execute the triggers in the queue in order until the queue is empty
+        while self._external_queue:
+            # Get the next trigger in the queue
+            queued_trigger = self._external_queue[0]
+            try:
+                # Execute the trigger and remove it from the queue if successful
+                queued_trigger()
+                self._external_queue.popleft()
+            except Exception:
+                # If the trigger raises an exception, clear the queue and re-raise the exception
+                self._external_queue.clear()
+                raise
 
     def _activate(self, event_data: EventData):
         transition = event_data.transition
@@ -190,4 +219,4 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def send(self, event, *args, **kwargs):
         event = Event(event)
-        return event(self, *args, **kwargs)
+        return event.trigger(self, *args, **kwargs)

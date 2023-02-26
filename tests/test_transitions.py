@@ -274,22 +274,49 @@ def chained_sm_class():  # noqa: C901
 
 
 class TestChainedTransition:
-    def test_should_allow_chaining_transitions_using_actions(self, chained_sm_class):
-        sm = chained_sm_class()
+    @pytest.mark.parametrize(
+        ("queued", "expected_calls"),
+        [
+            (
+                False,
+                [
+                    mock.call("on_enter_state", state="a", source=None, value=0),
+                    mock.call("before_t1", source="a", value=42),
+                    mock.call("on_exit_state", state="a", source="a", value=42),
+                    mock.call("on_t1", source="a", value=42),
+                    mock.call("on_enter_state", state="b", source="a", value=42),
+                    mock.call("before_t1", source="b", value=42),
+                    mock.call("on_exit_state", state="b", source="b", value=42),
+                    mock.call("on_t1", source="b", value=42),
+                    mock.call("on_enter_state", state="c", source="b", value=42),
+                    mock.call("after_t1", source="b", value=42),
+                    mock.call("after_t1", source="a", value=42),
+                ],
+            ),
+            (
+                True,
+                [
+                    mock.call("on_enter_state", state="a", source=None, value=0),
+                    mock.call("before_t1", source="a", value=42),
+                    mock.call("on_exit_state", state="a", source="a", value=42),
+                    mock.call("on_t1", source="a", value=42),
+                    mock.call("on_enter_state", state="b", source="a", value=42),
+                    mock.call("after_t1", source="a", value=42),
+                    mock.call("before_t1", source="b", value=42),
+                    mock.call("on_exit_state", state="b", source="b", value=42),
+                    mock.call("on_t1", source="b", value=42),
+                    mock.call("on_enter_state", state="c", source="b", value=42),
+                    mock.call("after_t1", source="b", value=42),
+                ],
+            ),
+        ],
+    )
+    def test_should_allow_chaining_transitions_using_actions(
+        self, chained_sm_class, queued, expected_calls
+    ):
+        sm = chained_sm_class(queued=queued)
         sm.t1(value=42)
 
         assert sm.c.is_active
 
-        assert sm.spy.call_args_list == [
-            mock.call("on_enter_state", state="a", source=None, value=0),
-            mock.call("before_t1", source="a", value=42),
-            mock.call("on_exit_state", state="a", source="a", value=42),
-            mock.call("on_t1", source="a", value=42),
-            mock.call("on_enter_state", state="b", source="a", value=42),
-            mock.call("before_t1", source="b", value=42),
-            mock.call("on_exit_state", state="b", source="b", value=42),
-            mock.call("on_t1", source="b", value=42),
-            mock.call("on_enter_state", state="c", source="b", value=42),
-            mock.call("after_t1", source="b", value=42),
-            mock.call("after_t1", source="a", value=42),
-        ]
+        assert sm.spy.call_args_list == expected_calls
