@@ -165,12 +165,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
     def _process(self, trigger):  # noqa: C901
         # Check if the machine is running in "queued" mode
         if not self._queued:
-            # If not, check if the queue is empty
-            if not self._external_queue:
-                # If the queue is empty, execute the trigger immediately
-                return trigger()
             # If the queue is not empty, raise an exception as something is wrong
-            raise TransitionNotAllowed("Queue not empty.")
+            if len(self._external_queue) > 0:
+                raise TransitionNotAllowed("Queue not empty.")
+            # If the queue is empty, execute the trigger immediately
+            return trigger()
 
         # If the machine is in "queued" mode, add the trigger to the queue
         self._external_queue.append(trigger)
