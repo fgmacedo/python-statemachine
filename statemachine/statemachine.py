@@ -1,19 +1,19 @@
-from typing import Any, Dict, List, TYPE_CHECKING  # noqa: F401, I001
 from collections import deque
+from typing import TYPE_CHECKING
+from typing import Any
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
 from .event import Event
-from .event_data import TriggerData
 from .event_data import EventData
-from .exceptions import InvalidStateValue
+from .event_data import TriggerData
 from .exceptions import InvalidDefinition
+from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .model import Model
 from .transition import Transition
 from .utils import ugettext as _
-
 
 if TYPE_CHECKING:
     from .state import State  # noqa: F401
@@ -23,9 +23,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
 
-    _events = {}  # type: Dict[Any, Any]
-    states = []  # type: List[State]
-    states_map = {}  # type: Dict[Any, State]
+    _events: dict[Any, Any] = {}
+    states: list["State"] = []
+    states_map: dict[Any, "State"] = {}
 
     def __init__(
         self,
