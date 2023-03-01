@@ -33,6 +33,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.start_value = start_value
         self._queued = queued
         self._external_queue = deque()
+        self._processing = False
 
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
@@ -162,34 +163,56 @@ class StateMachine(metaclass=StateMachineMetaclass):
             for event in self.current_state.transitions.unique_events
         ]
 
-    def _process(self, trigger):  # noqa: C901
-        # Check if the machine is running in "queued" mode
+    def _process(self, trigger):
+        """Process event triggers.
+
+        The simplest implementation is the "synchronous" mode (``not queued``),
+        where the trigger will be run immediately and the result collected as the return.
+
+        .. note::
+
+            While processing the trigger, if others events are generated, they
+            will also be processed immediately, so a "nested" behavior happens.
+
+        If the machine is on ``queued`` mode, the results are not collected, and the event is put
+        on a queue.
+
+        .. note::
+            While processing the queue items, if others events are generated, they
+            will be processed sequentially (and not nested).
+
+        """
         if not self._queued:
-            # If the queue is not empty, raise an exception as something is wrong
-            if len(self._external_queue) > 0:
-                raise TransitionNotAllowed("Queue not empty.")
-            # If the queue is empty, execute the trigger immediately
+            # The machine is in "synchronous" mode
             return trigger()
 
-        # If the machine is in "queued" mode, add the trigger to the queue
+        # The machine is in "queued" mode
+        # Add the trigger to queue and start processing in a loop.
         self._external_queue.append(trigger)
-        # If there is already a trigger in the queue,
-        # only return as the processing loop should already be running
-        if len(self._external_queue) > 1:
+
+        # We make sure that only the first event enters the processing critical section,
+        # next events will only be put on the queue and processed by the same loop.
+        if self._processing:
             return
 
-        # Execute the triggers in the queue in order until the queue is empty
-        while self._external_queue:
-            # Get the next trigger in the queue
-            queued_trigger = self._external_queue[0]
-            try:
-                # Execute the trigger and remove it from the queue if successful
-                queued_trigger()
-                self._external_queue.popleft()
-            except Exception:
-                # If the trigger raises an exception, clear the queue and re-raise the exception
-                self._external_queue.clear()
-                raise
+        self._processing_loop()
+
+    def _processing_loop(self):
+        """Execute the triggers in the queue in order until the queue is empty"""
+        self._processing = True
+        try:
+            #
+            while self._external_queue:
+                queued_trigger = self._external_queue.popleft()
+                try:
+                    queued_trigger()
+                except Exception:
+                    # Whe clear the queue as we don't have an expected behavior
+                    # and cannot keep processing
+                    self._external_queue.clear()
+                    raise
+        finally:
+            self._processing = False
 
     def _activate(self, event_data: EventData):
         transition = event_data.transition
