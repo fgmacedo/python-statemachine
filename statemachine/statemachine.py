@@ -27,14 +27,21 @@ class StateMachine(metaclass=StateMachineMetaclass):
     states = []  # type: List[State]
     states_map = {}  # type: Dict[Any, State]
 
-    def __init__(self, model=None, state_field="state", start_value=None, queued=False):
+    def __init__(
+        self,
+        model: Any = None,
+        state_field: str = "state",
+        start_value: Any = None,
+        queued: bool = True,
+    ):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
-        self._queued = queued
-        self._external_queue = deque()
-        self._processing = False
+        self.__queued = queued
+        self.__processing: bool = False
+        self._external_queue: deque = deque()
 
+        assert hasattr(self, "_abstract")
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
@@ -182,7 +189,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             will be processed sequentially (and not nested).
 
         """
-        if not self._queued:
+        if not self.__queued:
             # The machine is in "synchronous" mode
             return trigger()
 
@@ -192,21 +199,26 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         # We make sure that only the first event enters the processing critical section,
         # next events will only be put on the queue and processed by the same loop.
-        if self._processing:
+        if self.__processing:
             return
 
         return self._processing_loop()
 
     def _processing_loop(self):  # noqa: C901
         """Execute the triggers in the queue in order until the queue is empty"""
-        self._processing = True
-        first_result = None
+        self.__processing = True
+
+        # We will collect the first result as the processing result to keep backwards compatibility
+        # so we need to use a sentinel object instead of `None` because the first result may
+        # be also `None`, and on this case the `first_result` may be overridden by another result.
+        sentinel = object()
+        first_result = sentinel
         try:
             while self._external_queue:
                 queued_trigger = self._external_queue.popleft()
                 try:
                     result = queued_trigger()
-                    if first_result is None:
+                    if first_result is sentinel:
                         first_result = result
                 except Exception:
                     # Whe clear the queue as we don't have an expected behavior
@@ -214,8 +226,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
                     self._external_queue.clear()
                     raise
         finally:
-            self._processing = False
-        return first_result
+            self.__processing = False
+        return first_result if first_result is not sentinel else None
 
     def _activate(self, event_data: EventData):
         transition = event_data.transition

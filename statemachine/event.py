@@ -39,8 +39,7 @@ class Event:
                 event_data.executed = True
                 break
         else:
-            if not trigger_data.machine._queued:
-                raise TransitionNotAllowed(trigger_data.event, state)
+            raise TransitionNotAllowed(trigger_data.event, state)
 
         return event_data.result
 

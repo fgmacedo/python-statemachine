@@ -16,6 +16,7 @@ observers
 mixins
 integrations
 diagram
+processing_model
 auto_examples/index
 contributing
 authors
