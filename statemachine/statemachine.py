@@ -1,6 +1,8 @@
 from collections import deque
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict  # deprecated since 3.9: https://peps.python.org/pep-0585/
+from typing import List  # deprecated since 3.9: https://peps.python.org/pep-0585/
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
@@ -23,9 +25,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
 
-    _events: dict[Any, Any] = {}
-    states: list["State"] = []
-    states_map: dict[Any, "State"] = {}
+    _events: Dict[Any, Any] = {}  # noqa: UP006
+    states: List["State"] = []  # noqa: UP006
+    states_map: Dict[Any, "State"] = {}  # noqa: UP006
 
     def __init__(
         self,
