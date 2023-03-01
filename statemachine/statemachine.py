@@ -174,8 +174,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             While processing the trigger, if others events are generated, they
             will also be processed immediately, so a "nested" behavior happens.
 
-        If the machine is on ``queued`` mode, the results are not collected, and the event is put
-        on a queue.
+        If the machine is on ``queued`` mode, the event is put on a queue, and only the first
+        event will have the result collected.
 
         .. note::
             While processing the queue items, if others events are generated, they
@@ -195,17 +195,19 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self._processing:
             return
 
-        self._processing_loop()
+        return self._processing_loop()
 
-    def _processing_loop(self):
+    def _processing_loop(self):  # noqa: C901
         """Execute the triggers in the queue in order until the queue is empty"""
         self._processing = True
+        first_result = None
         try:
-            #
             while self._external_queue:
                 queued_trigger = self._external_queue.popleft()
                 try:
-                    queued_trigger()
+                    result = queued_trigger()
+                    if first_result is None:
+                        first_result = result
                 except Exception:
                     # Whe clear the queue as we don't have an expected behavior
                     # and cannot keep processing
@@ -213,6 +215,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                     raise
         finally:
             self._processing = False
+        return first_result
 
     def _activate(self, event_data: EventData):
         transition = event_data.transition
