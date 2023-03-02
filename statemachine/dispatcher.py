@@ -37,7 +37,7 @@ def _get_func_by_attr(attr, *configs):
     return func, config.obj
 
 
-def ensure_callable(attr, *objects):  # noqa: C901
+def ensure_callable(attr, *objects):
     """Ensure that `attr` is a callable, if not, tries to retrieve one from any of the given
     `objects`.
 

@@ -25,9 +25,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
 
-    _events: Dict[Any, Any] = {}  # noqa: UP006
-    states: List["State"] = []  # noqa: UP006
-    states_map: Dict[Any, "State"] = {}  # noqa: UP006
+    _events: Dict[Any, Any] = {}
+    states: List["State"] = []
+    states_map: Dict[Any, "State"] = {}
 
     def __init__(
         self,
@@ -206,7 +206,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         return self._processing_loop()
 
-    def _processing_loop(self):  # noqa: C901
+    def _processing_loop(self):
         """Execute the triggers in the queue in order until the queue is empty"""
         self.__processing = True
 
