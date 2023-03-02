@@ -219,7 +219,7 @@ an action that `echoes` back the parameters informed.
     :language: python
     :linenos:
     :emphasize-lines: 10
-    :lines: 12-15
+    :lines: 12-21
 ```
 
 

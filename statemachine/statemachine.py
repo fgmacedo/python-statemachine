@@ -1,18 +1,21 @@
-from typing import Any, Dict, List, Optional, TYPE_CHECKING  # noqa: F401, I001
+from collections import deque
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict  # deprecated since 3.9: https://peps.python.org/pep-0585/
+from typing import List  # deprecated since 3.9: https://peps.python.org/pep-0585/
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
 from .event import Event
-from .event_data import TriggerData
 from .event_data import EventData
-from .exceptions import InvalidStateValue
+from .event_data import TriggerData
 from .exceptions import InvalidDefinition
+from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .model import Model
 from .transition import Transition
 from .utils import ugettext as _
-
 
 if TYPE_CHECKING:
     from .state import State  # noqa: F401
@@ -22,15 +25,25 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
 
-    _events = {}  # type: Dict[Any, Any]
-    states = []  # type: List[State]
-    states_map = {}  # type: Dict[Any, State]
+    _events: Dict[Any, Any] = {}
+    states: List["State"] = []
+    states_map: Dict[Any, "State"] = {}
 
-    def __init__(self, model=None, state_field="state", start_value=None):
+    def __init__(
+        self,
+        model: Any = None,
+        state_field: str = "state",
+        start_value: Any = None,
+        rtc: bool = True,
+    ):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
+        self.__rtc = rtc
+        self.__processing: bool = False
+        self._external_queue: deque = deque()
 
+        assert hasattr(self, "_abstract")
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
@@ -160,8 +173,63 @@ class StateMachine(metaclass=StateMachineMetaclass):
         ]
 
     def _process(self, trigger):
-        """This method will also handle execution queue"""
-        return trigger()
+        """Process event triggers.
+
+        The simplest implementation is the non-RTC (synchronous),
+        where the trigger will be run immediately and the result collected as the return.
+
+        .. note::
+
+            While processing the trigger, if others events are generated, they
+            will also be processed immediately, so a "nested" behavior happens.
+
+        If the machine is on ``rtc`` model (queued), the event is put on a queue, and only the
+        first event will have the result collected.
+
+        .. note::
+            While processing the queue items, if others events are generated, they
+            will be processed sequentially (and not nested).
+
+        """
+        if not self.__rtc:
+            # The machine is in "synchronous" mode
+            return trigger()
+
+        # The machine is in "queued" mode
+        # Add the trigger to queue and start processing in a loop.
+        self._external_queue.append(trigger)
+
+        # We make sure that only the first event enters the processing critical section,
+        # next events will only be put on the queue and processed by the same loop.
+        if self.__processing:
+            return
+
+        return self._processing_loop()
+
+    def _processing_loop(self):
+        """Execute the triggers in the queue in order until the queue is empty"""
+        self.__processing = True
+
+        # We will collect the first result as the processing result to keep backwards compatibility
+        # so we need to use a sentinel object instead of `None` because the first result may
+        # be also `None`, and on this case the `first_result` may be overridden by another result.
+        sentinel = object()
+        first_result = sentinel
+        try:
+            while self._external_queue:
+                trigger = self._external_queue.popleft()
+                try:
+                    result = trigger()
+                    if first_result is sentinel:
+                        first_result = result
+                except Exception:
+                    # Whe clear the queue as we don't have an expected behavior
+                    # and cannot keep processing
+                    self._external_queue.clear()
+                    raise
+        finally:
+            self.__processing = False
+        return first_result if first_result is not sentinel else None
 
     def _activate(self, event_data: EventData):
         transition = event_data.transition
@@ -190,4 +258,4 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def send(self, event, *args, **kwargs):
         event = Event(event)
-        return event(self, *args, **kwargs)
+        return event.trigger(self, *args, **kwargs)
