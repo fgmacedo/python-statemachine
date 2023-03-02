@@ -1,22 +1,28 @@
 # Processing model
 
 In the literature, It's expected that all state-machine events should execute on a
-[run to completion](https://en.wikipedia.org/wiki/UML_state_machine#Run-to-completion_execution_model)
-(RTC) mode.
+[run-to-completion](https://en.wikipedia.org/wiki/UML_state_machine#Run-to-completion_execution_model)
+(RTC) model.
 
-> All state machine formalisms, including UML state machines, universally assume that a state machine completes processing of each event before it can start processing the next event. This model of execution is called run to completion, or RTC.
+> All state machine formalisms, including UML state machines, universally assume that a state machine
+> completes processing of each event before it can start processing the next event. This model of
+> execution is called run to completion, or RTC.
 
-The main point is: What should happen if the state machine may trigger nested events while processing a parent event?
+The main point is: What should happen if the state machine triggers nested events while processing a parent event?
 
 ```{hint}
 The importance of this decision depends on your state machine definition. Also the difference between RTC
 and non-RTC processing models is more pronounced in a multi-threaded system than in a single-threaded system.
-In other words, even if you run in {ref}`synchronous mode`, only one external {ref}`event` will be handled at a time and all internal events will run before the next external event is called,
+In other words, even if you run in {ref}`Non-RTC model`, only one external {ref}`event` will be
+handled at a time and all internal events will run before the next external event is called,
 so you only notice the difference if your state machine definition has nested event triggers while
 processing these external events.
 ```
 
-There are two distinct methods for processing events in the library. The default is to run in {ref}`queued mode (RTC)` to be compliant with the specs, where the {ref}`event` is put on a queue before processing. You can also configure your state machine to run in {ref}`synchronous mode`, where the {ref}`event` will be run immediately.
+There are two distinct models for processing events in the library. The default is to run in
+{ref}`RTC model` to be compliant with the specs, where the {ref}`event` is put on a
+queue before processing. You can also configure your state machine to run in
+{ref}`Non-RTC model`, where the {ref}`event` will be run immediately.
 
 Consider this state machine:
 
@@ -29,7 +35,7 @@ Consider this state machine:
 ...     connected = State()
 ...
 ...     connect = disconnected.to(connecting, after="connection_succeed")
-...     connecting.to(connected, event="connection_succeed")
+...     connection_succeed = connecting.to(connected)
 ...
 ...     def on_connect(self):
 ...         return "on_connect"
@@ -50,17 +56,17 @@ Consider this state machine:
 
 ```
 
-## Queued mode (RTC)
+## RTC model
 
-In an run to completion (RTC) processing model (default), the state machine executes each event to completion before processing the next event. This means that the state machine completes all the actions associated with an event before moving on to the next event. This guarantees that the system is always in a consistent state.
+In a run-to-completion (RTC) processing model (**default**), the state machine executes each event to completion before processing the next event. This means that the state machine completes all the actions associated with an event before moving on to the next event. This guarantees that the system is always in a consistent state.
 
-If the machine is in `queued` mode, the event is put on a queue.
+If the machine is in `rtc` mode, the event is put on a queue.
 
 ```{note}
 While processing the queue items, if others events are generated, they will be processed sequentially.
 ```
 
-Running the above state machine will give these results on the RTC (default) model:
+Running the above state machine will give these results on the RTC model:
 
 ```py
 >>> sm = ServerConnection()
@@ -83,9 +89,11 @@ after 'connection_succeed' from 'connecting' to 'connected'
 Note that the events `connect` and `connection_succeed` are executed sequentially, and the `connect.after` runs on the expected order.
 ```
 
-## Synchronous mode
+## Non-RTC model
 
-In contrast, in a synchronous (non-RTC) processing model, the state machine starts executing nested events while processing a parent event. This means that when an event is triggered, the state machine chains the processing when another event was triggered as a result of the first event.
+In contrast, in a non-RTC (synchronous) processing model, the state machine starts executing nested events
+while processing a parent event. This means that when an event is triggered, the state machine
+chains the processing when another event was triggered as a result of the first event.
 
 ```{warning}
 This can lead to complex and unpredictable behavior in the system if your state-machine definition triggers **nested
@@ -104,7 +112,7 @@ While processing the {ref}`event`, if others events are generated, they will als
 Running the above state machine will give these results on the non-RTC (synchronous) model:
 
 ```py
->>> sm = ServerConnection(queued=False)
+>>> sm = ServerConnection(rtc=False)
 enter 'disconnected' from '' given '__initial__'
 
 >>> sm.send("connect")

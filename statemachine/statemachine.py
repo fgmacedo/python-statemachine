@@ -34,12 +34,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
         model: Any = None,
         state_field: str = "state",
         start_value: Any = None,
-        queued: bool = True,
+        rtc: bool = True,
     ):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
-        self.__queued = queued
+        self.__rtc = rtc
         self.__processing: bool = False
         self._external_queue: deque = deque()
 
@@ -175,7 +175,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
     def _process(self, trigger):
         """Process event triggers.
 
-        The simplest implementation is the "synchronous" mode (``not queued``),
+        The simplest implementation is the non-RTC (synchronous),
         where the trigger will be run immediately and the result collected as the return.
 
         .. note::
@@ -183,15 +183,15 @@ class StateMachine(metaclass=StateMachineMetaclass):
             While processing the trigger, if others events are generated, they
             will also be processed immediately, so a "nested" behavior happens.
 
-        If the machine is on ``queued`` mode, the event is put on a queue, and only the first
-        event will have the result collected.
+        If the machine is on ``rtc`` model (queued), the event is put on a queue, and only the
+        first event will have the result collected.
 
         .. note::
             While processing the queue items, if others events are generated, they
             will be processed sequentially (and not nested).
 
         """
-        if not self.__queued:
+        if not self.__rtc:
             # The machine is in "synchronous" mode
             return trigger()
 
@@ -217,9 +217,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         first_result = sentinel
         try:
             while self._external_queue:
-                queued_trigger = self._external_queue.popleft()
+                trigger = self._external_queue.popleft()
                 try:
-                    result = queued_trigger()
+                    result = trigger()
                     if first_result is sentinel:
                         first_result = result
                 except Exception:
