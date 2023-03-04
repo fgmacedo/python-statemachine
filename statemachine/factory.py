@@ -5,10 +5,10 @@ from .event import Event
 from .event import trigger_event_factory
 from .exceptions import InvalidDefinition
 from .graph import visit_connected_states
+from .i18n import _
 from .state import State
 from .transition import Transition
 from .transition_list import TransitionList
-from .utils import ugettext as _
 
 
 class StateMachineMetaclass(type):

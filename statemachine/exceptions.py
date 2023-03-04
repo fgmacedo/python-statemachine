@@ -1,4 +1,4 @@
-from .utils import ugettext as _
+from .i18n import _
 
 
 class StateMachineError(Exception):

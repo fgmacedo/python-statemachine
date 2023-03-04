@@ -1,11 +1,3 @@
-try:
-    from django.utils.translation import ugettext
-except Exception:
-
-    def ugettext(text):
-        return text
-
-
 def qualname(cls):
     """
     Returns a fully qualified name of the class, to avoid name collisions.

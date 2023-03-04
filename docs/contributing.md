@@ -37,6 +37,39 @@ Python State Machine could always use more documentation, whether as part of the
 official Python State Machine docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
+### Add a translation
+
+
+Extract a `Portable Object Template` (`POT`) file:
+
+```shell
+pybabel extract statemachine -o statemachine/locale/statemachine.pot
+```
+
+Then, copy the template as a `.po` file into the target locale folder. For example, if you're adding support for Brazilian Portuguese language, the code is `pt_BR`, and the file path should be `statemachine/locale/pt_BR/LC_MESSAGES/statemachine.po`:
+
+```shell
+cp statemachine/locale/statemachine.pot statemachine/locale/pt_BR/LC_MESSAGES/statemachine.po
+```
+
+Then open the `statemachine.po` and translate.
+
+After translation, to get the new language working locally, you need to compile the `.po` files into `.mo`  (binary format). Run:
+
+```shell
+pybabel compile -d statemachine/locale/ -f statemachine.po
+```
+
+
+On Linux (Debian based), you can test changing the `LANGUAGE` environment variable.
+
+```shell
+# If the last line is `Can't guess when in Won.` something went wrong.
+LANGUAGE=pt_BR python tests/examples/guess_the_number_machine.py
+```
+
+Then open a [pull request](https://github.com/fgmacedo/python-statemachine/pulls) with your translation file.
+
 ### Submit Feedback
 
 The best way to send feedback is to file an issue at https://github.com/fgmacedo/python-statemachine/issues.

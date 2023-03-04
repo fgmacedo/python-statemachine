@@ -3,8 +3,8 @@ from functools import wraps
 from operator import attrgetter
 
 from .exceptions import AttrNotFound
+from .i18n import _
 from .signature import SignatureAdapter
-from .utils import ugettext as _
 
 
 class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs")):

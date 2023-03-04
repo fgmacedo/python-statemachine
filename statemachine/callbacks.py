@@ -1,7 +1,7 @@
 from .exceptions import AttrNotFound
 from .exceptions import InvalidDefinition
+from .i18n import _
 from .utils import ensure_iterable
-from .utils import ugettext as _
 
 
 class CallbackWrapper:
