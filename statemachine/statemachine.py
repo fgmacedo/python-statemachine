@@ -13,9 +13,9 @@ from .exceptions import InvalidDefinition
 from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
+from .i18n import _
 from .model import Model
 from .transition import Transition
-from .utils import ugettext as _
 
 if TYPE_CHECKING:
     from .state import State  # noqa: F401

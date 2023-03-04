@@ -5,7 +5,7 @@ from .callbacks import Callbacks
 from .exceptions import StateMachineError
 from .transition import Transition
 from .transition_list import TransitionList
-from .utils import ugettext as _
+from .i18n import _
 
 
 class State:
