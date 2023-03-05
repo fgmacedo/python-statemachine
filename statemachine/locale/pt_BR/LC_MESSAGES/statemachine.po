@@ -1,7 +1,6 @@
 # This file is distributed under the same license as the PROJECT project.
 # Fernando Macedo <fgmacedo@gmail.com>, 2023.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: 2.0.0\n"

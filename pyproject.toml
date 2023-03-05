@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-statemachine"
-version = "1.0.3"
+version = "2.0.0"
 description = "Python Finite State Machines made easy."
 authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
 maintainers = [
@@ -12,6 +12,10 @@ homepage = "https://github.com/fgmacedo/python-statemachine"
 packages = [
     {include = "statemachine"},
     {include = "statemachine/**/*.py" },
+]
+include = [
+    { path = "statemachine/locale/**/*.po", format = "sdist" },
+    { path = "statemachine/locale/**/*.mo", format = ["sdist", "wheel"] }
 ]
 classifiers = [
     "Intended Audience :: Developers",

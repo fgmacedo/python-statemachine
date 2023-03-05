@@ -57,7 +57,7 @@ Then open the `statemachine.po` and translate.
 After translation, to get the new language working locally, you need to compile the `.po` files into `.mo`  (binary format). Run:
 
 ```shell
-pybabel compile -d statemachine/locale/ -f statemachine.po
+pybabel compile -d statemachine/locale/ -D statemachine
 ```
 
 
