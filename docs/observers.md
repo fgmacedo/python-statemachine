@@ -1,7 +1,7 @@
 
 # Observers
 
-Observers are a way do generically add behavior to a StateMachine without
+Observers are a way to generically add behavior to a StateMachine without
 changing its internal implementation.
 
 One possible use case is to add an observer that prints a log message when the SM runs a
@@ -18,10 +18,10 @@ Giving the {ref}`sphx_glr_auto_examples_traffic_light_machine.py` as example:
 ...         self.name = name
 ...
 ...     def after_transition(self, event, source, target):
-...         print("{} after: {}--({})-->{}".format(self.name, source.id, event, target.id))
+...         print(f"{self.name} after: {source.id}--({event})-->{target.id}")
 ...
 ...     def on_enter_state(self, target, event):
-...         print("{} enter: {} from {}".format(self.name, target.id, event))
+...         print(f"{self.name} enter: {target.id} from {event}")
 
 
 >>> sm = TrafficLightMachine()
@@ -41,8 +41,13 @@ The `StateMachine` itself is registered as an observer, so by using `.add_observ
 external object can have the same level of functionalities provided to the built-in class.
 ```
 
+```{tip}
+{ref}`domain models` are also registered as an observer.
+```
+
+
 ```{seealso}
-See {ref}`actions`, {ref}`validators-and-guards` for a list of possible callbacks.
+See {ref}`actions`, {ref}`validators and guards` for a list of possible callbacks.
 
 And also {ref}`dynamic-dispatch` to know more about how the lib calls methods to match
 their signature.

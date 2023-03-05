@@ -1,9 +1,6 @@
-# coding: utf-8
-
-
-class Model(object):
+class Model:
     def __init__(self):
         self.state = None
 
     def __repr__(self):
-        return "Model(state={})".format(self.state)
+        return f"Model(state={self.state})"

@@ -1,23 +1,29 @@
+import sys
 from datetime import datetime
 
 import pytest
 
+# We support Python 3.8+ positional only syntax
+if sys.version_info[:2] < (3, 8):
+    collect_ignore_glob = ["*_positional_only.py"]
 
-@pytest.fixture
+
+@pytest.fixture()
 def current_time():
     return datetime.now()
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
+        draft = State(initial=True)
         producing = State("Being produced")
-        closed = State("Closed")
+        closed = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -26,16 +32,17 @@ def campaign_machine():
     return CampaignMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine_with_validator():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
+        draft = State(initial=True)
         producing = State("Being produced")
-        closed = State("Closed")
+        closed = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing, validators="can_produce")
@@ -48,16 +55,17 @@ def campaign_machine_with_validator():
     return CampaignMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine_with_final_state():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
+        draft = State(initial=True)
         producing = State("Being produced")
-        closed = State("Closed", final=True)
+        closed = State(final=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -66,16 +74,17 @@ def campaign_machine_with_final_state():
     return CampaignMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def campaign_machine_with_values():
     "Define a new class for each test"
-    from statemachine import State, StateMachine
+    from statemachine import State
+    from statemachine import StateMachine
 
     class CampaignMachineWithKeys(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True, value=1)
+        draft = State(initial=True, value=1)
         producing = State("Being produced", value=2)
-        closed = State("Closed", value=3)
+        closed = State(value=3)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -84,40 +93,36 @@ def campaign_machine_with_values():
     return CampaignMachineWithKeys
 
 
-@pytest.fixture
+@pytest.fixture()
 def traffic_light_machine():
     from tests.examples.traffic_light_machine import TrafficLightMachine
 
     return TrafficLightMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def OrderControl():
     from tests.examples.order_control_machine import OrderControl
 
     return OrderControl
 
 
-@pytest.fixture
+@pytest.fixture()
 def AllActionsMachine():
     from tests.examples.all_actions_machine import AllActionsMachine
 
     return AllActionsMachine
 
 
-@pytest.fixture(autouse=True)
-def add_machines_to_doctest(doctest_namespace, traffic_light_machine):
-    doctest_namespace["TrafficLightMachine"] = traffic_light_machine
-
-
-@pytest.fixture
+@pytest.fixture()
 def classic_traffic_light_machine():
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class TrafficLightMachine(StateMachine):
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        red = State("Red")
+        green = State(initial=True)
+        yellow = State()
+        red = State()
 
         slowdown = green.to(yellow)
         stop = yellow.to(red)
@@ -126,15 +131,16 @@ def classic_traffic_light_machine():
     return TrafficLightMachine
 
 
-@pytest.fixture
+@pytest.fixture()
 def reverse_traffic_light_machine():
-    from statemachine import StateMachine, State
+    from statemachine import State
+    from statemachine import StateMachine
 
     class ReverseTrafficLightMachine(StateMachine):
         "A traffic light machine"
-        green = State("Green", initial=True)
-        yellow = State("Yellow")
-        red = State("Red")
+        green = State(initial=True)
+        yellow = State()
+        red = State()
 
         stop = red.from_(yellow, green, red)
         cycle = (
@@ -147,17 +153,18 @@ def reverse_traffic_light_machine():
     return ReverseTrafficLightMachine
 
 
-@pytest.fixture
-def approval_machine(current_time):
-    from statemachine import StateMachine, State
+@pytest.fixture()
+def approval_machine(current_time):  # noqa: C901
+    from statemachine import State
+    from statemachine import StateMachine
 
     class ApprovalMachine(StateMachine):
         "A workflow machine"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
 
-        completed = State("Completed")
+        completed = State()
 
         validate = requested.to(accepted, cond="is_ok") | requested.to(rejected)
 

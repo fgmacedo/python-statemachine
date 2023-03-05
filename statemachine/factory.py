@@ -1,5 +1,3 @@
-import warnings
-from collections import OrderedDict
 from uuid import uuid4
 
 from . import registry
@@ -7,28 +5,23 @@ from .event import Event
 from .event import trigger_event_factory
 from .exceptions import InvalidDefinition
 from .graph import visit_connected_states
+from .i18n import _
 from .state import State
 from .transition import Transition
 from .transition_list import TransitionList
-from .utils import check_state_factory
-from .utils import qualname
-from .utils import ugettext as _
 
 
 class StateMachineMetaclass(type):
     def __init__(cls, name, bases, attrs):
-        super(StateMachineMetaclass, cls).__init__(name, bases, attrs)
+        super().__init__(name, bases, attrs)
         registry.register(cls)
         cls._abstract = True
         cls.name = cls.__name__
         cls.states = []
-        cls._events = OrderedDict()
+        cls._events = {}
         cls.states_map = {}
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
-
-        for state in cls.states:
-            setattr(cls, "is_{}".format(state.id), check_state_factory(state))
 
         cls._set_special_states()
         cls._check()
@@ -41,8 +34,8 @@ class StateMachineMetaclass(type):
             raise InvalidDefinition(
                 _(
                     "There should be one and only one initial state. "
-                    "Your currently have these: {!r}".format(initials)
-                )
+                    "Your currently have these: {!r}"
+                ).format([s.id for s in initials])
             )
         cls.initial_state = initials[0]
         cls.final_states = [state for state in cls.states if state.final]
@@ -51,33 +44,34 @@ class StateMachineMetaclass(type):
         visitable_states = set(visit_connected_states(starting_state))
         return set(cls.states) - visitable_states
 
-    def _check(cls):
-
-        # do not validate the base class
-        name = qualname(cls)
-        if name in (
-            "statemachine.factory_2.StateMachine",
-            "statemachine.factory_3.StateMachine",
-        ):
-            return
-
-        cls._abstract = False
-
-        if not cls.states:
-            raise InvalidDefinition(_("There are no states."))
-
-        if not cls._events:
-            raise InvalidDefinition(_("There are no events."))
-
+    def _check_disconnected_state(cls):
         disconnected_states = cls._disconnected_states(cls.initial_state)
         if disconnected_states:
             raise InvalidDefinition(
                 _(
                     "There are unreachable states. "
                     "The statemachine graph should have a single component. "
-                    "Disconnected states: [{}]".format(disconnected_states)
-                )
+                    "Disconnected states: {}"
+                ).format([s.id for s in disconnected_states])
             )
+
+    def _check(cls):
+        has_states = bool(cls.states)
+        has_events = bool(cls._events)
+
+        cls._abstract = not has_states and not has_events
+
+        # do not validate the base abstract classes
+        if cls._abstract:
+            return
+
+        if not has_states:
+            raise InvalidDefinition(_("There are no states."))
+
+        if not has_events:
+            raise InvalidDefinition(_("There are no events."))
+
+        cls._check_disconnected_state()
 
         final_state_with_invalid_transitions = [
             state for state in cls.final_states if state.transitions
@@ -86,10 +80,8 @@ class StateMachineMetaclass(type):
         if final_state_with_invalid_transitions:
             raise InvalidDefinition(
                 _(
-                    "Cannot declare transitions from final state. Invalid state(s): {}".format(
-                        [s.id for s in final_state_with_invalid_transitions]
-                    )
-                )
+                    "Cannot declare transitions from final state. Invalid state(s): {}"
+                ).format([s.id for s in final_state_with_invalid_transitions])
             )
 
     def add_inherited(cls, bases):
@@ -116,13 +108,13 @@ class StateMachineMetaclass(type):
             # so we'll also give the ``func`` a new unique name to be used by the callback
             # machinery.
             cls.add_event(attr_name, func._transitions)
-            attr_name = "_{}_{}".format(attr_name, uuid4().hex)
+            attr_name = f"_{attr_name}_{uuid4().hex}"
             setattr(cls, attr_name, func)
 
         for ref in func._callbacks_to_update:
             ref(attr_name)
 
-    def add_state(cls, id, state):
+    def add_state(cls, id, state: State):
         state._set_id(id)
         cls.states.append(state)
         cls.states_map[state.value] = state
@@ -142,14 +134,6 @@ class StateMachineMetaclass(type):
             setattr(cls, event, event_trigger)
 
         return cls._events[event]
-
-    @property
-    def transitions(self):
-        warnings.warn(
-            "Class level property `transitions` is deprecated. Use `events` instead.",
-            DeprecationWarning,
-        )
-        return self.events
 
     @property
     def events(self):

@@ -1,20 +1,9 @@
-# coding: utf-8
 import pytest
 
-from statemachine import exceptions
 from statemachine import State
 from statemachine import StateMachine
-
-
-class MyModel(object):
-    "A class that can be used to hold arbitrary key/value pairs as attributes."
-
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-    def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.__dict__)
+from statemachine import exceptions
+from tests.models import MyModel
 
 
 def test_machine_repr(campaign_machine):
@@ -39,7 +28,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
         "add_job",
         "deliver",
         "produce",
-    ]  # noqa: E501
+    ]
 
     assert model.state == "draft"
     assert machine.current_state == machine.draft
@@ -50,8 +39,8 @@ def test_machine_should_only_allow_only_one_initial_state():
 
         class CampaignMachine(StateMachine):
             "A workflow machine"
-            draft = State("Draft", initial=True)
-            producing = State("Being produced")
+            draft = State(initial=True)
+            producing = State()
             closed = State(
                 "Closed", initial=True
             )  # Should raise an Exception right after the class is defined
@@ -66,9 +55,9 @@ def test_machine_should_not_allow_transitions_from_final_state():
 
         class CampaignMachine(StateMachine):
             "A workflow machine"
-            draft = State("Draft", initial=True)
-            producing = State("Being produced")
-            closed = State("Closed", final=True)
+            draft = State(initial=True)
+            producing = State()
+            closed = State(final=True)
 
             add_job = draft.to(draft) | producing.to(producing) | closed.to(draft)
             produce = draft.to(producing)
@@ -130,7 +119,7 @@ def test_should_change_state_with_multiple_machine_instances(campaign_machine):
 
 
 @pytest.mark.parametrize(
-    "current_state, transition",
+    ("current_state", "transition"),
     [
         ("draft", "deliver"),
         ("closed", "add_job"),
@@ -274,7 +263,7 @@ def test_state_machine_without_model(campaign_machine):
 
 
 @pytest.mark.parametrize(
-    "model, machine_name, start_value",
+    ("model", "machine_name", "start_value"),
     [
         (None, "campaign_machine", "producing"),
         (None, "campaign_machine_with_values", 2),
@@ -291,7 +280,7 @@ def test_state_machine_with_a_start_value(request, model, machine_name, start_va
 
 
 @pytest.mark.parametrize(
-    "model, machine_name, start_value",
+    ("model", "machine_name", "start_value"),
     [
         (None, "campaign_machine", "tapioca"),
         (None, "campaign_machine_with_values", 99),
@@ -307,13 +296,21 @@ def test_state_machine_with_a_invalid_start_value(
         machine_cls(model, start_value=start_value)
 
 
-def test_should_not_create_instance_of_machine_without_states():
+def test_should_not_create_instance_of_abstract_machine():
+    class EmptyMachine(StateMachine):
+        "An empty machine"
+        pass
 
     with pytest.raises(exceptions.InvalidDefinition):
+        EmptyMachine()
 
-        class EmptyMachine(StateMachine):
-            "An empty machine"
-            pass
+
+def test_should_not_create_instance_of_machine_without_states():
+    s1 = State()
+    with pytest.raises(exceptions.InvalidDefinition):
+
+        class OnlyTransitionMachine(StateMachine):
+            t1 = s1.to.itself()
 
 
 def test_should_not_create_instance_of_machine_without_transitions():
@@ -322,44 +319,45 @@ def test_should_not_create_instance_of_machine_without_transitions():
 
         class NoTransitionsMachine(StateMachine):
             "A machine without transitions"
-            initial = State("initial", initial=True)
+            initial = State(initial=True)
 
 
 def test_should_not_create_disconnected_machine():
 
-    with pytest.raises(exceptions.InvalidDefinition) as e:
+    expected = (
+        r"There are unreachable states. The statemachine graph should have a single component. "
+        r"Disconnected states: \['blue'\]"
+    )
+    with pytest.raises(exceptions.InvalidDefinition, match=expected):
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
-            green = State("Green", initial=True)
-            yellow = State("Yellow")
-            blue = State("Blue")  # This state is unreachable
+            green = State(initial=True)
+            yellow = State()
+            blue = State()  # This state is unreachable
 
             cycle = green.to(yellow) | yellow.to(green)
 
-        assert "Blue" in e.message
-        assert "Green" not in e.message
-
 
 def test_should_not_create_big_disconnected_machine():
-    with pytest.raises(exceptions.InvalidDefinition) as e:
+    expected = (
+        r"There are unreachable states. The statemachine graph should have a single component. "
+        r"Disconnected states: \[.*\]$"
+    )
+    with pytest.raises(exceptions.InvalidDefinition, match=expected):
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
-            green = State("Green", initial=True)
-            yellow = State("Yellow")
-            magenta = State("Magenta")  # This state is unreachable
-            red = State("Red")
-            cyan = State("Cyan")
-            blue = State("Blue")  # This state is also unreachable
+            green = State(initial=True)
+            yellow = State()
+            magenta = State()  # This state is unreachable
+            red = State()
+            cyan = State()
+            blue = State()  # This state is also unreachable
 
             cycle = green.to(yellow)
             diverge = green.to(cyan) | cyan.to(red)
             validate = yellow.to(green)
-
-        assert "Magenta" in e.message
-        assert "Blue" in e.message
-        assert "Cyan" not in e.message
 
 
 def test_state_value_is_correct():

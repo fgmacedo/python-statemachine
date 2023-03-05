@@ -1,0 +1,173 @@
+[tool.poetry]
+name = "python-statemachine"
+version = "2.0.0"
+description = "Python Finite State Machines made easy."
+authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
+maintainers = [
+    "Fernando Macedo <fgmacedo@gmail.com>",
+]
+license = "MIT license"
+readme = "README.md"
+homepage = "https://github.com/fgmacedo/python-statemachine"
+packages = [
+    {include = "statemachine"},
+    {include = "statemachine/**/*.py" },
+]
+include = [
+    { path = "statemachine/locale/**/*.po", format = "sdist" },
+    { path = "statemachine/locale/**/*.mo", format = ["sdist", "wheel"] }
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries"
+]
+
+[tool.poetry.extras]
+diagrams = ["pydot"]
+
+[tool.poetry.dependencies]
+python = ">=3.7, <3.12"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+pytest-sugar = "^0.9.6"
+pydot = "^1.4.2"
+ruff = "^0.0.220"
+pre-commit = "^2.21.0"
+mypy = "^0.991"
+black = "^22.12.0"
+pdbpp = "^0.10.3"
+
+[tool.poetry.group.docs.dependencies]
+Sphinx = "4.5.0"
+sphinx-rtd-theme = "1.1.1"
+myst-parser = "^0.18.1"
+sphinx-gallery = "^0.11.1"
+jupyterlite-sphinx = "^0.7.2"
+pillow = "^9.4.0"
+sphinx-autobuild = "^2021.3.14"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure"
+doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    'django.*',
+    'pytest.*',
+    'pydot.*',
+    'sphinx_gallery.*',
+]
+ignore_missing_imports = true
+
+[tool.flake8]
+ignore = [
+    "E231",
+    "W503",
+]
+max-line-length = 99
+
+[tool.ruff]
+src = ["statemachine"]
+
+# Enable Pyflakes and pycodestyle rules.
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "UP", # pyupgrade
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "PT", # flake8-pytest-style
+]
+ignore = [
+    "UP006", # `use-pep585-annotation` Requires Python3.9+
+]
+
+line-length = 99
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "auto_examples",
+    "venv",
+]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.11.
+target-version = "py311"
+
+[tool.ruff.mccabe]
+max-complexity = 6
+
+[tool.ruff.isort]
+force-single-line = true
+
+[tool.ruff.pydocstyle]
+# Use Google-style docstrings.
+convention = "google"
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+data_file = ".coverage"
+source = [
+    "statemachine",
+]
+omit = [
+    "*test*.py",
+    "tmp/*",
+    "pytest_cov",
+]
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self.debug",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+   "if TYPE_CHECKING",
+]
+
+[tool.coverage.html]
+directory = "tmp/htmlcov"

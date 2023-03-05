@@ -1,35 +1,86 @@
-# coding: utf-8
-import sys
-import warnings
-from collections import OrderedDict
+from collections import deque
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Dict  # deprecated since 3.9: https://peps.python.org/pep-0585/
+from typing import List  # deprecated since 3.9: https://peps.python.org/pep-0585/
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
 from .event import Event
 from .event_data import EventData
+from .event_data import TriggerData
+from .exceptions import InvalidDefinition
 from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
+from .factory import StateMachineMetaclass
+from .i18n import _
 from .model import Model
-from .state import State
 from .transition import Transition
 
+if TYPE_CHECKING:
+    from .state import State
 
-class BaseStateMachine(object):
 
-    TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
+class StateMachine(metaclass=StateMachineMetaclass):
+    """
 
-    _events = {}  # type: Dict[Any, Any]
-    states = []  # type: List[State]
-    states_map = {}  # type: Dict[Any, State]
+    Args:
+        model: An optional external object to store state. See :ref:`domain models`.
 
-    def __init__(self, model=None, state_field="state", start_value=None):
+        state_field (str): The model's field which stores the current state.
+            Default: ``state``.
+
+        start_value: An optional start state value if there's no current state assigned
+            on the :ref:`domain models`. Default: ``None``.
+
+        rtc (bool): Controls the :ref:`processing model`. Defaults to ``True``
+            that corresponds to a **run-to-completion** (RTC) model.
+
+        allow_event_without_transition: If ``False`` when an event does not result in a transition,
+            an exception ``TransitionNotAllowed`` will be raised.
+            If ``True`` the state machine allows triggering events that may not lead to a state
+            :ref:`transition`, including tolerance to unknown :ref:`event` triggers.
+            Default: ``False``.
+
+    """
+
+    TransitionNotAllowed = TransitionNotAllowed
+    """Shortcut for easy exception handling.
+
+    Example::
+
+        try:
+            sm.send("an-inexistent-event")
+        except sm.TransitionNotAllowed:
+            pass
+    """
+
+    _events: Dict[Any, Any] = {}
+    states: List["State"] = []
+    """List of all state machine :ref:`states`."""
+
+    states_map: Dict[Any, "State"] = {}
+    """Map of ``state.value`` to the corresponding :ref:`state`."""
+
+    def __init__(
+        self,
+        model: Any = None,
+        state_field: str = "state",
+        start_value: Any = None,
+        rtc: bool = True,
+        allow_event_without_transition: bool = False,
+    ):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
+        self.allow_event_without_transition = allow_event_without_transition
+        self.__rtc = rtc
+        self.__processing: bool = False
+        self._external_queue: deque = deque()
+
+        assert hasattr(self, "_abstract")
+        if self._abstract:
+            raise InvalidDefinition(_("There are no states or transitions."))
 
         initial_transition = Transition(
             None, self._get_initial_state(), event="__initial__"
@@ -38,11 +89,10 @@ class BaseStateMachine(object):
         self._activate_initial_state(initial_transition)
 
     def __repr__(self):
-        return "{}(model={!r}, state_field={!r}, current_state={!r})".format(
-            type(self).__name__,
-            self.model,
-            self.state_field,
-            self.current_state.id if self.current_state else None,
+        current_state_id = self.current_state.id if self.current_state_value else None
+        return (
+            f"{type(self).__name__}(model={self.model!r}, state_field={self.state_field!r}, "
+            f"current_state={current_state_id!r})"
         )
 
     def _get_initial_state(self):
@@ -51,8 +101,8 @@ class BaseStateMachine(object):
         )
         try:
             return self.states_map[current_state_value]
-        except KeyError:
-            raise InvalidStateValue(current_state_value)
+        except KeyError as err:
+            raise InvalidStateValue(current_state_value) from err
 
     def _activate_initial_state(self, initial_transition):
         if self.current_state_value is None:
@@ -61,30 +111,29 @@ class BaseStateMachine(object):
             initial_transition.before.clear()
             initial_transition.on.clear()
             initial_transition.after.clear()
+
             event_data = EventData(
-                self,
-                initial_transition.event,
+                trigger_data=TriggerData(
+                    machine=self,
+                    event=initial_transition.event,
+                ),
                 transition=initial_transition,
             )
             self._activate(event_data)
 
     def _get_protected_attrs(self):
-        return (
-            {
-                "_abstract",
-                "model",
-                "state_field",
-                "start_value",
-                "initial_state",
-                "final_states",
-                "states",
-                "_events",
-                "states_map",
-                "send",
-            }
-            | {s.id for s in self.states}
-            | {e for e in self._events.keys()}
-        )
+        return {
+            "_abstract",
+            "model",
+            "state_field",
+            "start_value",
+            "initial_state",
+            "final_states",
+            "states",
+            "_events",
+            "states_map",
+            "send",
+        } | {s.id for s in self.states}
 
     def _visit_states_and_transitions(self, visitor):
         for state in self.states:
@@ -98,15 +147,11 @@ class BaseStateMachine(object):
         default_resolver = resolver_factory(machine, model)
 
         # clone states and transitions to avoid sharing callbacks references between instances
-        states = []
-        self.states_map = OrderedDict()
-        for state in self.states:
-            new_state = state.clone()
-            new_state._setup(self, default_resolver)
-            states.append(new_state)
-            self.states_map[new_state.value] = new_state
-
-        self.states = states
+        self.states_map = {
+            state.value: state.clone()._setup(self, default_resolver)
+            for state in self.states
+        }
+        self.states = list(self.states_map.values())
 
         for state in self.states:
             for transition in state.transitions:
@@ -116,12 +161,22 @@ class BaseStateMachine(object):
         self.add_observer(machine, model)
 
     def add_observer(self, *observers):
+        """Add an observer.
+
+        Observers are a way to generically add behavior to a :ref:`StateMachine` without changing
+        its internal implementation.
+
+        .. seealso::
+
+            :ref:`observers`.
+        """
+
         resolvers = [resolver_factory(ObjectConfig.from_obj(o)) for o in observers]
         self._visit_states_and_transitions(lambda x: x._add_observer(*resolvers))
         return self
 
     def _repr_html_(self):
-        return '<div class="statemachine">{}</div>'.format(self._repr_svg_())
+        return f'<div class="statemachine">{self._repr_svg_()}</div>'
 
     def _repr_svg_(self):
         return self._graph().create_svg().decode()
@@ -133,6 +188,11 @@ class BaseStateMachine(object):
 
     @property
     def current_state_value(self):
+        """Get/Set the current :ref:`state` value.
+
+        This is a low level API, that can be used to assign any valid state value
+        completely bypassing all the hooks and validations.
+        """
         value = getattr(self.model, self.state_field, None)
         return value
 
@@ -143,57 +203,96 @@ class BaseStateMachine(object):
         setattr(self.model, self.state_field, value)
 
     @property
-    def current_state(self):
-        # type: () -> Optional[State]
-        return self.states_map.get(self.current_state_value, None)
+    def current_state(self) -> "State":
+        """Get/Set the current :ref:`state`.
+
+        This is a low level API, that can be to assign any valid state
+        completely bypassing all the hooks and validations.
+        """
+        return self.states_map[self.current_state_value]
 
     @current_state.setter
     def current_state(self, value):
         self.current_state_value = value.value
 
     @property
-    def transitions(self):
-        warnings.warn(
-            "Property `transitions` is deprecated. Use `events` instead.",
-            DeprecationWarning,
-        )
-        return self.events
-
-    @property
     def events(self):
         return self.__class__.events
 
     @property
-    def allowed_transitions(self):
-        "get the callable proxy of the current allowed transitions"
-        warnings.warn(
-            "`allowed_transitions` is deprecated. Use `allowed_events` instead.",
-            DeprecationWarning,
-        )
-        return [
-            getattr(self, event)
-            for event in self.current_state.transitions.unique_events
-        ]
-
-    @property
     def allowed_events(self):
-        "get the callable proxy of the current allowed events"
+        """List of the current allowed events."""
         return [
             getattr(self, event)
             for event in self.current_state.transitions.unique_events
         ]
 
     def _process(self, trigger):
-        """This method will also handle execution queue"""
-        return trigger()
+        """Process event triggers.
 
-    def _activate(self, event_data):
+        The simplest implementation is the non-RTC (synchronous),
+        where the trigger will be run immediately and the result collected as the return.
+
+        .. note::
+
+            While processing the trigger, if others events are generated, they
+            will also be processed immediately, so a "nested" behavior happens.
+
+        If the machine is on ``rtc`` model (queued), the event is put on a queue, and only the
+        first event will have the result collected.
+
+        .. note::
+            While processing the queue items, if others events are generated, they
+            will be processed sequentially (and not nested).
+
+        """
+        if not self.__rtc:
+            # The machine is in "synchronous" mode
+            return trigger()
+
+        # The machine is in "queued" mode
+        # Add the trigger to queue and start processing in a loop.
+        self._external_queue.append(trigger)
+
+        # We make sure that only the first event enters the processing critical section,
+        # next events will only be put on the queue and processed by the same loop.
+        if self.__processing:
+            return
+
+        return self._processing_loop()
+
+    def _processing_loop(self):
+        """Execute the triggers in the queue in order until the queue is empty"""
+        self.__processing = True
+
+        # We will collect the first result as the processing result to keep backwards compatibility
+        # so we need to use a sentinel object instead of `None` because the first result may
+        # be also `None`, and on this case the `first_result` may be overridden by another result.
+        sentinel = object()
+        first_result = sentinel
+        try:
+            while self._external_queue:
+                trigger = self._external_queue.popleft()
+                try:
+                    result = trigger()
+                    if first_result is sentinel:
+                        first_result = result
+                except Exception:
+                    # Whe clear the queue as we don't have an expected behavior
+                    # and cannot keep processing
+                    self._external_queue.clear()
+                    raise
+        finally:
+            self.__processing = False
+        return first_result if first_result is not sentinel else None
+
+    def _activate(self, event_data: EventData):
         transition = event_data.transition
         source = event_data.state
         target = transition.target
 
         result = transition.before.call(*event_data.args, **event_data.extended_kwargs)
-        if source is not None:
+        if source is not None and not transition.internal:
             source.exit.call(*event_data.args, **event_data.extended_kwargs)
 
         result += transition.on.call(*event_data.args, **event_data.extended_kwargs)
@@ -201,7 +300,8 @@ class BaseStateMachine(object):
         self.current_state = target
         event_data.state = target
 
-        target.enter.call(*event_data.args, **event_data.extended_kwargs)
+        if not transition.internal:
+            target.enter.call(*event_data.args, **event_data.extended_kwargs)
         transition.after.call(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:
@@ -211,21 +311,13 @@ class BaseStateMachine(object):
 
         return result
 
-    def run(self, event, *args, **kwargs):
-        warnings.warn(
-            "`run` is deprecated. Use `send` instead.",
-            DeprecationWarning,
-        )
-        event = Event(event)
-        return event(self, *args, **kwargs)
-
     def send(self, event, *args, **kwargs):
+        """Send an :ref:`Event` to the state machine.
+
+        .. seealso::
+
+            See: :ref:`triggering events`.
+
+        """
         event = Event(event)
-        return event(self, *args, **kwargs)
-
-
-# Python 2
-if sys.version_info[0] == 2:  # pragma: no cover
-    from .factory_2 import StateMachine  # noqa
-else:
-    from .factory_3 import StateMachine  # noqa
+        return event.trigger(self, *args, **kwargs)

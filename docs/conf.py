@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # statemachine documentation build configuration file, created by
 # sphinx-quickstart on Tue Jul  9 22:26:36 2013.
@@ -17,7 +16,6 @@ import sys
 
 import sphinx_rtd_theme
 
-
 # If extensions (or modules to document with autodoc) are in another
 # directory, add these directories to sys.path here. If the directory is
 # relative to the documentation root, use os.path.abspath to make it
@@ -33,7 +31,9 @@ project_root = os.path.dirname(cwd)
 # version is used.
 sys.path.insert(0, project_root)
 
-import statemachine
+from tests.scrape_images import MachineScraper  # noqa: E402
+
+import statemachine  # noqa: E402
 
 # -- General configuration ---------------------------------------------
 
@@ -50,7 +50,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
     "sphinx_gallery.gen_gallery",
-    "jupyterlite_sphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -159,6 +158,10 @@ html_css_files = [
     "custom_machine.css",
 ]
 
+html_js_files = [
+    "https://buttons.github.io/buttons.js",
+]
+
 # If not '', a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
 # html_last_updated_fmt = '%b %d, %Y'
@@ -206,86 +209,6 @@ html_css_files = [
 htmlhelp_basename = "statemachinedoc"
 
 
-# -- Options for LaTeX output ------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    #'papersize': 'letterpaper',
-    # The font size ('10pt', '11pt' or '12pt').
-    #'pointsize': '10pt',
-    # Additional stuff for the LaTeX preamble.
-    #'preamble': '',
-}
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title, author, documentclass
-# [howto/manual]).
-latex_documents = [
-    (
-        "index",
-        "statemachine.tex",
-        "Python State Machine Documentation",
-        "Fernando Macedo",
-        "manual",
-    ),
-]
-
-# The name of an image file (relative to this directory) to place at
-# the top of the title page.
-# latex_logo = None
-
-# For "manual" documents, if this is true, then toplevel headings
-# are parts, not chapters.
-# latex_use_parts = False
-
-# If true, show page references after internal links.
-# latex_show_pagerefs = False
-
-# If true, show URL addresses after external links.
-# latex_show_urls = False
-
-# Documents to append as an appendix to all manuals.
-# latex_appendices = []
-
-# If false, no module index is generated.
-# latex_domain_indices = True
-
-
-# -- Options for manual page output ------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    (
-        "index",
-        "statemachine",
-        "Python State Machine Documentation",
-        ["Fernando Macedo"],
-        1,
-    )
-]
-
-# If true, show URL addresses after external links.
-# man_show_urls = False
-
-
-# -- Options for Texinfo output ----------------------------------------
-
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [
-    (
-        "index",
-        "statemachine",
-        "Python State Machine Documentation",
-        "Fernando Macedo",
-        "statemachine",
-        "One line description of project.",
-        "Miscellaneous",
-    ),
-]
-
 # Documents to append as an appendix to all manuals.
 # texinfo_appendices = []
 
@@ -323,11 +246,6 @@ myst_substitutions = {
     "event": "{ref}`event`",
 }
 
-# JupyterLite
-jupyterlite_config = "jupyterlite_config.json"
-jupyterlite_contents = ["./examples", "./auto_examples"]
-jupyterlite_dir = "./auto_examples"
-
 # Github
 
 html_context = {
@@ -337,11 +255,6 @@ html_context = {
     "github_version": "develop",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
-
-# html_theme_options = {}
-
-from tests.scrape_images import MachineScraper
-
 
 # Sphinx Galery
 sphinx_gallery_conf = {
@@ -355,10 +268,6 @@ sphinx_gallery_conf = {
     "show_signature": False,
     "min_reported_time": 9999,
     "thumbnail_size": (400, 280),
-    "image_scrapers": ("matplotlib", MachineScraper()),
-    "first_notebook_cell": (
-        "# import piplite\n"
-        "# await piplite.install('python-statemachine[diagrams]')\n"
-        "# import patch_repr_svg\n"
-    ),
+    "image_scrapers": (MachineScraper(project_root),),
+    "reset_modules": [],
 }

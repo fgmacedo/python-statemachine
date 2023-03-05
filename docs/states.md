@@ -1,27 +1,20 @@
 
 # States
 
-State, as the name sais, holds the representation of a state in a statemachine.
+{ref}`State`, as the name says, holds the representation of a state in a {ref}`StateMachine`.
 
 
-## State
+## Initial state
 
-```{eval-rst}
-.. autoclass:: statemachine.state.State
-    :members:
-```
-
-### Initial state
-
-A StateMachine should have one and only one `initial` state.
+A {ref}`StateMachine` should have one and only one `initial` {ref}`state`.
 
 
-The initial {ref}`state` is entered when the machine starts and the corresponding enterirng
+The initial {ref}`state` is entered when the machine starts and the corresponding entering
 state {ref}`actions` are called if defined.
 
 
 (final-state)=
-### Final state
+## Final state
 
 
 You can explicitly set final states.

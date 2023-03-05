@@ -1,0 +1,70 @@
+# This file is distributed under the same license as the PROJECT project.
+# Fernando Macedo <fgmacedo@gmail.com>, 2023.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 2.0.0\n"
+"Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
+"POT-Creation-Date: 2023-03-04 16:10-0300\n"
+"PO-Revision-Date: 2023-03-04 16:10-0300\n"
+"Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.12.1\n"
+
+#: statemachine/callbacks.py:56
+msgid "Callback {!r} not property configured."
+msgstr "Callback {!r} não está configurado corretamente."
+
+#: statemachine/dispatcher.py:35
+msgid "Did not found name '{}' from model or statemachine"
+msgstr "Não foi encontrado o nome '{}' no modelo ou na máquina de estados"
+
+#: statemachine/exceptions.py:17
+msgid "{!r} is not a valid state value."
+msgstr "{!r} não é um valor de estado válido."
+
+#: statemachine/exceptions.py:31
+msgid "Can't {} when in {}."
+msgstr "Não é possível {} quando em {}."
+
+#: statemachine/factory.py:35
+msgid ""
+"There should be one and only one initial state. Your currently have "
+"these: {!r}"
+msgstr ""
+"Deve haver um e apenas um estado inicial. Atualmente, você tem "
+"os seguintes: {!r}"
+
+#: statemachine/factory.py:51
+msgid ""
+"There are unreachable states. The statemachine graph should have a single"
+" component. Disconnected states: {}"
+msgstr ""
+"Há estados inalcançáveis. O grafo da máquina de estados deve ter apenas um"
+" componente. Estados desconectados: {}"
+
+#: statemachine/factory.py:69
+msgid "There are no states."
+msgstr "Não há estados."
+
+#: statemachine/factory.py:72
+msgid "There are no events."
+msgstr "Não há eventos."
+
+#: statemachine/factory.py:82
+msgid "Cannot declare transitions from final state. Invalid state(s): {}"
+msgstr "Não é possível declarar transições a partir do estado final. Estado(s) inválido(s): {}"
+
+#: statemachine/mixins.py:30
+msgid "{!r} is not a valid state machine name."
+msgstr "{!r} não é um nome válido para a máquina de estados."
+
+#: statemachine/state.py:148
+msgid "State overriding is not allowed. Trying to add '{}' to {}"
+msgstr "A substituição de estado não é permitida. Tentando adicionar '{}' a {}"
+
+#: statemachine/statemachine.py:48
+msgid "There are no states or transitions."
+msgstr "Não há estados ou transições."

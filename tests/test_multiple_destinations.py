@@ -1,15 +1,11 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
-from statemachine import exceptions
 from statemachine import State
 from statemachine import StateMachine
+from statemachine import exceptions
 
 
-class Request(object):
+class Request:
     def __init__(self, state="requested"):
         self.state = None
         self._is_ok = False
@@ -55,9 +51,9 @@ def test_transition_should_choose_final_state_on_multiple_possibilities(
 def test_transition_to_first_that_executes_if_multiple_targets():
     class ApprovalMachine(StateMachine):
         "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
 
         validate = requested.to(accepted, rejected)
 
@@ -73,9 +69,9 @@ def test_do_not_transition_if_multiple_targets_with_guard():
 
     class ApprovalMachine(StateMachine):
         "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
 
         validate = (
             requested.to(accepted, cond=never_will_pass)
@@ -100,9 +96,9 @@ def test_do_not_transition_if_multiple_targets_with_guard():
 def test_check_invalid_reference_to_conditions():
     class ApprovalMachine(StateMachine):
         "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
 
         validate = requested.to(accepted, cond="not_found_condition") | requested.to(
             rejected
@@ -115,10 +111,10 @@ def test_check_invalid_reference_to_conditions():
 def test_should_change_to_returned_state_on_multiple_target_with_combined_transitions():
     class ApprovalMachine(StateMachine):
         "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
-        completed = State("Completed")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
+        completed = State()
 
         validate = (
             requested.to(accepted, cond="is_ok")
@@ -157,9 +153,10 @@ def test_should_change_to_returned_state_on_multiple_target_with_combined_transi
     # then
     assert machine.completed.is_active
 
-    with pytest.raises(exceptions.TransitionNotAllowed) as e:
+    with pytest.raises(
+        exceptions.TransitionNotAllowed, match="Can't validate when in Completed."
+    ):
         assert machine.validate()
-        assert e.message == "Can't validate when in Completed."
 
 
 def test_transition_on_execute_should_be_called_with_run_syntax(
@@ -181,9 +178,9 @@ def test_transition_on_execute_should_be_called_with_run_syntax(
 def test_multiple_values_returned_with_multiple_targets():
     class ApprovalMachine(StateMachine):
         "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        denied = State("Denied")
+        requested = State(initial=True)
+        accepted = State()
+        denied = State()
 
         @requested.to(accepted, denied)
         def validate(self):
@@ -198,7 +195,7 @@ def test_multiple_values_returned_with_multiple_targets():
 
 
 @pytest.mark.parametrize(
-    "payment_failed, expected_state",
+    ("payment_failed", "expected_state"),
     [
         (False, "paid"),
         (True, "failed"),
@@ -208,9 +205,9 @@ def test_multiple_targets_using_or_starting_from_same_origin(
     payment_failed, expected_state
 ):
     class InvoiceStateMachine(StateMachine):
-        unpaid = State("unpaid", initial=True)
-        paid = State("paid")
-        failed = State("failed")
+        unpaid = State(initial=True)
+        paid = State()
+        failed = State()
 
         pay = (
             unpaid.to(paid, unless="payment_success")

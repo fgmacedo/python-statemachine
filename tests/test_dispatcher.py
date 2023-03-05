@@ -1,22 +1,21 @@
-# coding: utf-8
 import pytest
 
-from statemachine.dispatcher import ensure_callable
 from statemachine.dispatcher import ObjectConfig
+from statemachine.dispatcher import ensure_callable
 from statemachine.dispatcher import resolver_factory
 
 
-class Person(object):
+class Person:
     def __init__(self, first_name, last_name, legal_document=None):
         self.first_name = first_name
         self.last_name = last_name
         self.legal_document = legal_document
 
     def get_full_name(self):
-        return "{} {}".format(self.first_name, self.last_name)
+        return f"{self.first_name} {self.last_name}"
 
 
-class Organization(object):
+class Organization:
     def __init__(self, name, legal_document):
         self.name = name
         self.legal_document = legal_document
@@ -37,8 +36,8 @@ class TestEnsureCallable:
 
     @pytest.fixture(
         params=[
-            pytest.param(dict(), id="no-kwargs"),
-            pytest.param(dict(a="x", b="y"), id="with-kwargs"),
+            pytest.param({}, id="no-kwargs"),
+            pytest.param({"a": "x", "b": "y"}, id="with-kwargs"),
         ]
     )
     def kwargs(self, request):
@@ -79,7 +78,7 @@ class TestEnsureCallable:
 
 class TestResolverFactory:
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("first_name", "Frodo"),
             ("last_name", "Bolseiro"),
@@ -96,7 +95,7 @@ class TestResolverFactory:
         assert resolved_method() == expected_value
 
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("first_name", "Frodo"),
             ("last_name", "Bolseiro"),

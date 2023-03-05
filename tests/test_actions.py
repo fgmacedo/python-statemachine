@@ -1,6 +1,3 @@
-# coding: utf-8
-
-
 class TestActions:
     def test_should_return_all_before_results(self, AllActionsMachine):
         import tests.examples.all_actions_machine  # noqa

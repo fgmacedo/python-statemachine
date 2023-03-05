@@ -15,11 +15,11 @@ from statemachine import StateMachine
 
 class GuessTheNumberMachine(StateMachine):
 
-    start = State("Start", initial=True)
-    low = State("Low")
-    high = State("High")
-    won = State("Won", final=True)
-    lose = State("Lose", final=True)
+    start = State(initial=True)
+    low = State()
+    high = State()
+    won = State(final=True)
+    lose = State(final=True)
 
     guess = (
         lose.from_(low, high, cond="max_guesses_reached")
@@ -37,14 +37,14 @@ class GuessTheNumberMachine(StateMachine):
         # lets play a not so random game, or our tests will be crazy
         random.seed(seed)
         self.number = random.randint(self.lower, self.higher)
-        super(GuessTheNumberMachine, self).__init__()
+        super().__init__()
 
     def max_guesses_reached(self):
         return self.guesses >= self.max_attempts
 
     def before_guess(self, number):
         self.guesses += 1
-        print("You guess is {}...".format(number))
+        print(f"Your guess is {number}...")
 
     def guess_is_lower(self, number):
         return number < self.number
@@ -56,11 +56,10 @@ class GuessTheNumberMachine(StateMachine):
         return self.number == number
 
     def on_enter_start(self):
-        print("(psss.. don't tell anyone the number is {})".format(self.number))
+        print(f"(psss.. don't tell anyone the number is {self.number})")
         print(
-            "I'm thinking of a number between {} and {}. Can you guess what it is?".format(
-                self.lower, self.higher
-            )
+            f"I'm thinking of a number between {self.lower} and {self.higher}. "
+            f"Can you guess what it is?"
         )
 
     def on_enter_low(self):
@@ -70,14 +69,10 @@ class GuessTheNumberMachine(StateMachine):
         print("Too high. Try again.")
 
     def on_enter_won(self):
-        print(
-            "Congratulations, you guessed the number in {} guesses!".format(
-                self.guesses
-            )
-        )
+        print(f"Congratulations, you guessed the number in {self.guesses} guesses!")
 
     def on_enter_lose(self):
-        print("Oh, no! You've spent all your {} attempts!".format(self.guesses))
+        print(f"Oh, no! You've spent all your {self.guesses} attempts!")
 
 
 # %%

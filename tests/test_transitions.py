@@ -1,13 +1,11 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
-from .models import MyModel
 from statemachine import State
 from statemachine import StateMachine
+from statemachine.exceptions import InvalidDefinition
 from statemachine.statemachine import Transition
+
+from .models import MyModel
 
 
 def test_transition_representation(campaign_machine):
@@ -16,7 +14,7 @@ def test_transition_representation(campaign_machine):
         "Transition("
         "State('Draft', id='draft', value='draft', initial=True, final=False), "
         "State('Being produced', id='producing', value='producing', "
-        "initial=False, final=False), event='produce')"
+        "initial=False, final=False), event='produce', internal=False)"
     )
 
 
@@ -78,8 +76,8 @@ def transition_callback_machine(request):
 
         class ApprovalMachine(StateMachine):
             "A workflow"
-            requested = State("Requested", initial=True)
-            accepted = State("Accepted")
+            requested = State(initial=True)
+            accepted = State()
 
             validate = requested.to(accepted)
 
@@ -91,8 +89,8 @@ def transition_callback_machine(request):
 
         class ApprovalMachine(StateMachine):
             "A workflow"
-            requested = State("Requested", initial=True)
-            accepted = State("Accepted")
+            requested = State(initial=True)
+            accepted = State()
 
             @requested.to(accepted)
             def validate(self):
@@ -115,9 +113,9 @@ def test_statemachine_transition_callback(transition_callback_machine):
 def test_can_run_combined_transitions():
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
-        closed = State("Closed")
+        draft = State(initial=True)
+        producing = State()
+        closed = State()
 
         abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
         produce = draft.to(producing)
@@ -132,9 +130,9 @@ def test_can_run_combined_transitions():
 def test_transitions_to_the_same_estate_as_itself():
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
-        closed = State("Closed")
+        draft = State(initial=True)
+        producing = State()
+        closed = State()
 
         update = draft.to.itself()
         abort = draft.to(closed) | producing.to(closed) | closed.to.itself()
@@ -147,7 +145,7 @@ def test_transitions_to_the_same_estate_as_itself():
     assert machine.draft.is_active
 
 
-class TestReverseTransition(object):
+class TestReverseTransition:
     @pytest.mark.parametrize(
         "initial_state",
         [
@@ -176,9 +174,9 @@ def test_should_transition_with_a_dict_as_return():
 
     class ApprovalMachine(StateMachine):
         "A workflow"
-        requested = State("Requested", initial=True)
-        accepted = State("Accepted")
-        rejected = State("Rejected")
+        requested = State(initial=True)
+        accepted = State()
+        rejected = State()
 
         accept = requested.to(accepted)
         reject = requested.to(rejected)
@@ -190,3 +188,62 @@ def test_should_transition_with_a_dict_as_return():
 
     result = machine.send("accept")
     assert result == expected_result
+
+
+class TestInternalTransition:
+    @pytest.mark.parametrize(
+        ("internal", "expected_calls"),
+        [
+            (False, ["on_exit_initial", "on_enter_initial"]),
+            (True, []),
+        ],
+    )
+    def test_should_not_execute_state_actions_on_internal_transitions(
+        self, internal, expected_calls
+    ):
+
+        calls = []
+
+        class TestStateMachine(StateMachine):
+            initial = State(initial=True)
+
+            loop = initial.to.itself(internal=internal)
+
+            def on_exit_initial(self):
+                calls.append("on_exit_initial")
+
+            def on_enter_initial(self):
+                calls.append("on_enter_initial")
+
+        sm = TestStateMachine()
+        calls.clear()
+        sm.loop()
+        assert calls == expected_calls
+
+    def test_should_not_allow_internal_transitions_from_distinct_states(self):
+
+        with pytest.raises(
+            InvalidDefinition, match="Internal transitions should be self-transitions."
+        ):
+
+            class TestStateMachine(StateMachine):
+                initial = State(initial=True)
+                final = State(final=True)
+
+                execute = initial.to(initial, final, internal=True)
+
+
+class TestAllowEventWithoutTransition:
+    def test_send_unknown_event(self, classic_traffic_light_machine):
+        sm = classic_traffic_light_machine(allow_event_without_transition=True)
+        assert sm.green.is_active
+        sm.send("unknow_event")
+        assert sm.green.is_active
+
+    def test_send_not_valid_for_the_current_state_event(
+        self, classic_traffic_light_machine
+    ):
+        sm = classic_traffic_light_machine(allow_event_without_transition=True)
+        assert sm.green.is_active
+        sm.stop()
+        assert sm.green.is_active

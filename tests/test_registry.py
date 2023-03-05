@@ -1,18 +1,17 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from unittest import mock
 
-import mock
 import pytest
 
 
 def test_should_register_a_state_machine(caplog):
-    from statemachine import StateMachine, State, registry
+    from statemachine import State
+    from statemachine import StateMachine
+    from statemachine import registry
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
+        draft = State(initial=True)
+        producing = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -25,6 +24,12 @@ def test_should_register_a_state_machine(caplog):
 
     with pytest.warns(DeprecationWarning):
         assert registry.get_machine_cls("CampaignMachine") == CampaignMachine
+
+
+@pytest.fixture()
+def _override_has_django():
+    with mock.patch("statemachine.registry._has_django", new=True):
+        yield
 
 
 @pytest.fixture()
@@ -41,7 +46,7 @@ def django_autodiscover_modules():
     sys.modules["django.utils.module_loading"] = module_loading
 
     with mock.patch(
-        "statemachine.registry._autodiscover_modules", new=auto_discover_modules
+        "statemachine.registry.autodiscover_modules", new=auto_discover_modules
     ):
         yield auto_discover_modules
 
@@ -51,6 +56,7 @@ def django_autodiscover_modules():
         sys.modules["django"] = real_django
 
 
+@pytest.mark.usefixtures("_override_has_django")
 def test_load_modules_should_call_autodiscover_modules(django_autodiscover_modules):
     from statemachine.registry import load_modules
 

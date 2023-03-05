@@ -1,5 +1,5 @@
-# coding: utf-8
-import mock
+from unittest import mock
+
 import pytest
 
 from statemachine import State
@@ -10,11 +10,11 @@ from statemachine.dispatcher import resolver_factory
 from statemachine.exceptions import InvalidDefinition
 
 
-@pytest.fixture
+@pytest.fixture()
 def ObjectWithCallbacks():
-    class ObjectWithCallbacks(object):
+    class ObjectWithCallbacks:
         def __init__(self):
-            super(ObjectWithCallbacks, self).__init__()
+            super().__init__()
             self.name = "statemachine"
             self.callbacks = Callbacks(resolver=resolver_factory(self)).add(
                 ["life_meaning", "name", "a_method"]
@@ -157,15 +157,15 @@ class TestCallbacksAsDecorator:
     def test_decorate_unbounded_machine_methods(self):
         class MiniHeroJourneyMachine(StateMachine):
 
-            ordinary_world = State("Ordinary World", initial=True)
-            call_to_adventure = State("Call to Adventure")
-            refusal_of_call = State("Refusal of the Call")
+            ordinary_world = State(initial=True)
+            call_to_adventure = State()
+            refusal_of_call = State()
 
             adventure_called = ordinary_world.to(call_to_adventure)
 
             def __init__(self, *args, **kwargs):
                 self.spy = mock.Mock(side_effect=lambda *x: x)
-                super(MiniHeroJourneyMachine, self).__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)
 
             @ordinary_world.enter
             def enter_ordinary_world(self):
@@ -187,10 +187,10 @@ class TestCallbacksAsDecorator:
                 self.spy("refuse_call", reason)
 
         sm = MiniHeroJourneyMachine()
-        sm.adventure_called(request="The darkness is comming")
+        sm.adventure_called(request="The darkness is coming")
         assert sm.spy.call_args_list == [
             mock.call("enter_ordinary_world"),
-            mock.call("call_to_adventure", "The darkness is comming"),
+            mock.call("call_to_adventure", "The darkness is coming"),
         ]
 
         sm = MiniHeroJourneyMachine()

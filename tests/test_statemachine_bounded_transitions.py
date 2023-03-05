@@ -1,23 +1,24 @@
-# coding: utf-8
-import mock
+from unittest import mock
+
 import pytest
 
-from .models import MyModel
 from statemachine import State
 from statemachine import StateMachine
 
+from .models import MyModel
 
-@pytest.fixture
+
+@pytest.fixture()
 def event_mock():
     return mock.MagicMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def state_machine(event_mock):
     class CampaignMachine(StateMachine):
-        draft = State("Draft", initial=True)
-        producing = State("Being produced")
-        closed = State("Closed")
+        draft = State(initial=True)
+        producing = State()
+        closed = State()
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)

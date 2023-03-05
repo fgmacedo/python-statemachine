@@ -2,10 +2,10 @@
 All actions machine
 ===================
 
-A StateMachine that exercices all possible :ref:`Actions` and :ref:`Guards`.
+A StateMachine that exercises all possible :ref:`Actions` and :ref:`Guards`.
 
 """
-import mock
+from unittest import mock
 
 from statemachine import State
 from statemachine import StateMachine
@@ -13,8 +13,8 @@ from statemachine import StateMachine
 
 class AllActionsMachine(StateMachine):
 
-    initial = State("Initial", initial=True)
-    final = State("Final", final=True)
+    initial = State(initial=True)
+    final = State(final=True)
 
     go = initial.to(
         final,
@@ -28,7 +28,7 @@ class AllActionsMachine(StateMachine):
 
     def __init__(self, *args, **kwargs):
         self.spy = mock.Mock(side_effect=lambda x: x)
-        super(AllActionsMachine, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     # validators and guards
 

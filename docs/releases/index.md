@@ -10,8 +10,19 @@ with advance notice in the **Deprecations** section of releases.
 
 Below are release notes through StateMachine and its patch releases.
 
+###  2.0 releases
 
-###  1.0 release
+```{toctree}
+:maxdepth: 1
+
+2.0.0
+
+```
+
+
+###  1.0 releases
+
+This is the last release series to support Python 2.X series.
 
 ```{toctree}
 :maxdepth: 2

@@ -1,10 +1,10 @@
 # Diagrams
 
-You can generate diagrams from your statemachine.
+You can generate diagrams from your {ref}`StateMachine`.
 
 ```{note}
 This functionality depends on [pydot](https://github.com/pydot/pydot), it means that you need to
-have pydot installed on your system. pydot is a Python library that allows you to create and
+have `pydot` installed on your system. pydot is a Python library that allows you to create and
 manipulate graphs in [Graphviz](https://graphviz.org/)'s
 [dot language](https://graphviz.org/doc/info/lang.html).
 
@@ -25,7 +25,7 @@ To install Graphviz, you can visit the [Graphviz website](https://graphviz.org/)
 instructions for your operating system. Alternatively, you can use a package manager to install
 Graphviz. For example, on Debian-based systems (such as Ubuntu), you can use the following command:
 
-    apt-get install graphviz
+    sudo apt install graphviz
 
 ```
 
@@ -59,7 +59,7 @@ As this one:
 ![OrderControl](images/order_control_machine_initial.png)
 
 
-The current state is also highlighted:
+The current {ref}`state` is also highlighted:
 
 ``` py
 
@@ -80,6 +80,16 @@ The current state is also highlighted:
 
 ![OrderControl](images/order_control_machine_processing.png)
 
+
+```{hint}
+
+A handy shortcut to have the graph representation:
+
+```py
+>>> machine._graph()
+<pydot.Dot ...
+
+```
 
 ## Generate from the command line
 
@@ -118,3 +128,13 @@ Machines instances are automatically displayed as a diagram when used on Jupyter
 
 
 ![Approval machine on JupyterLab](images/lab_approval_machine_accepted.png)
+
+
+## Don't want to install Graphviz
+
+
+```{eval-rst}
+.. autofunction:: statemachine.contrib.diagram.quickchart_write_svg
+```
+
+![OrderControl](images/oc_machine_processing.svg)

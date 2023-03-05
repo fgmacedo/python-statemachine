@@ -10,7 +10,7 @@ from statemachine import StateMachine
 from statemachine.exceptions import AttrNotFound
 
 
-class Order(object):
+class Order:
     def __init__(self):
         self.order_total = 0
         self.payments = []
@@ -19,7 +19,7 @@ class Order(object):
     def payments_enough(self, amount):
         return sum(self.payments) + amount >= self.order_total
 
-    def add_to_order(self, amount):
+    def before_add_to_order(self, amount):
         self.order_total += amount
         return self.order_total
 
@@ -35,14 +35,12 @@ class Order(object):
 
 
 class OrderControl(StateMachine):
-    waiting_for_payment = State(
-        "Waiting for payment", initial=True, enter="wait_for_payment"
-    )
-    processing = State("Processing")
-    shipping = State("Shipping")
-    completed = State("Completed", final=True)
+    waiting_for_payment = State(initial=True, enter="wait_for_payment")
+    processing = State()
+    shipping = State()
+    completed = State(final=True)
 
-    add_to_order = waiting_for_payment.to(waiting_for_payment, before="add_to_order")
+    add_to_order = waiting_for_payment.to(waiting_for_payment)
     receive_payment = waiting_for_payment.to(
         processing, cond="payments_enough"
     ) | waiting_for_payment.to(waiting_for_payment, unless="payments_enough")
@@ -51,17 +49,19 @@ class OrderControl(StateMachine):
 
 
 # %%
-# Testing
-# -------
+# Testing OrderControl
+# --------------------
 #
-# Let's first try to create a statemachine instance, using the default dummy model that don't have
-# the needed methods to complete the state machine. Since the required methods will not be found
-# either in the state machine or in the model, an exception ``AttrNotFound`` will be raised.
+# Let's first try to create a statemachine instance, using the default dummy model that doesn't
+# have the needed methods to complete the state machine. Since the required methods will not be
+# found either in the state machine or in the model, an exception ``AttrNotFound`` will be raised.
 
 try:
     control = OrderControl()
 except AttrNotFound as e:
-    assert str(e) == "Did not found name 'wait_for_payment' from model or statemachine"
+    assert (  # noqa: PT017
+        str(e) == "Did not found name 'wait_for_payment' from model or statemachine"
+    )
 
 # %%
 # Now initializing with a proper ``order`` instance.

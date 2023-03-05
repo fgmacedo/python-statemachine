@@ -1,6 +1,6 @@
 # Actions
 
-An action is the way a StateMachine can cause things to happen in the
+Action is the way a {ref}`StateMachine` can cause things to happen in the
 outside world, and indeed they are the main reason why they exist at all.
 
 The main point of introducing a state machine is for the
@@ -8,7 +8,7 @@ actions to be invoked at the right times, depending on the sequence of events
 and the state of the guards.
 
 Actions are most commonly performed on entry or exit of a state, although
-it is possible to add them before / after a transition.
+it is possible to add them before/after a transition.
 
 There are several action callbacks that you can define to interact with a
 StateMachine in execution.
@@ -26,34 +26,34 @@ when something changes and are not bounded to a specific state or event:
 
 - `after_transition()`
 
-The follow example can get you an overview of the "generic" callbacks available:
+The following example can get you an overview of the "generic" callbacks available:
 
 ```py
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
-...     final = State("Final", final=True)
+...     initial = State(initial=True)
+...     final = State(final=True)
 ...
 ...     loop = initial.to.itself()
 ...     go = initial.to(final)
 ...
 ...     def before_transition(self, event, state):
-...         print("Before '{}', on the '{}' state.".format(event, state.id))
+...         print(f"Before '{event}', on the '{state.id}' state.")
 ...         return "before_transition_return"
 ...
 ...     def on_transition(self, event, state):
-...         print("On '{}', on the '{}' state.".format(event, state.id))
+...         print(f"On '{event}', on the '{state.id}' state.")
 ...         return "on_transition_return"
 ...
 ...     def on_exit_state(self, event, state):
-...         print("Exiting '{}' state from '{}' event.".format(state.id, event))
+...         print(f"Exiting '{state.id}' state from '{event}' event.")
 ...
 ...     def on_enter_state(self, event, state):
-...         print("Entering '{}' state from '{}' event.".format(state.id, event))
+...         print(f"Entering '{state.id}' state from '{event}' event.")
 ...
 ...     def after_transition(self, event, state):
-...         print("After '{}', on the '{}' state.".format(event, state.id))
+...         print(f"After '{event}', on the '{state.id}' state.")
 
 
 >>> sm = ExampleStateMachine()  # On initialization, the machine run a special event `__initial__`
@@ -87,9 +87,9 @@ All actions and {ref}`guards` support multiple method signatures. They follow th
 
 For each defined {ref}`state`, you can declare `enter` and `exit` callbacks.
 
-### Declare state actions by name convention
+### Declare state actions by naming convention
 
-Callbacks by name convention will be searched on the StateMachine and on the
+Callbacks by naming convention will be searched on the StateMachine and on the
 model, using the patterns:
 
 - `on_enter_<state.id>()`
@@ -101,7 +101,7 @@ model, using the patterns:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -121,7 +121,7 @@ Use the `enter` or `exit` params available on the `State` constructor.
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True, enter="entering_initial", exit="leaving_initial")
+...     initial = State(initial=True, enter="entering_initial", exit="leaving_initial")
 ...
 ...     loop = initial.to.itself()
 ...
@@ -133,6 +133,12 @@ Use the `enter` or `exit` params available on the `State` constructor.
 
 ```
 
+```{hint}
+It's also possible to use an event name as action.
+
+**Be careful to not introduce recursion errors** that will raise `RecursionError` exception.
+```
+
 ### Bind state actions using decorator syntax
 
 
@@ -140,7 +146,7 @@ Use the `enter` or `exit` params available on the `State` constructor.
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -156,14 +162,14 @@ Use the `enter` or `exit` params available on the `State` constructor.
 
 ## Transition actions
 
-For each {ref}`event`, you can register `before`, `on` and `after` callbacks.
+For each {ref}`event`, you can register `before`, `on`, and `after` callbacks.
 
-### Declare transition actions by name convention
+### Declare transition actions by naming convention
 
 The action will be registered for every {ref}`transition` associated with the event.
 
-Callbacks by name convention will be searched on the StateMachine and on the
-model, using the patterns:
+Callbacks by naming convention will be searched on the StateMachine and the model,
+using the patterns:
 
 - `before_<event>()`
 
@@ -176,7 +182,7 @@ model, using the patterns:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -198,7 +204,7 @@ model, using the patterns:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself(before="just_before", on="its_happening", after="loop_completed")
 ...
@@ -213,6 +219,12 @@ model, using the patterns:
 
 ```
 
+```{hint}
+It's also possible to use an event name as action to chain transitions.
+
+**Be careful to not introduce recursion errors**, like `loop = initial.to.itself(after="loop")`, that will raise `RecursionError` exception.
+```
+
 ### Bind event actions using decorator syntax
 
 The action will be registered for every {ref}`transition` associated with the event.
@@ -222,7 +234,7 @@ The action will be registered for every {ref}`transition` associated with the ev
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
 ...
@@ -237,6 +249,14 @@ The action will be registered for every {ref}`transition` associated with the ev
 ...     @loop.after
 ...     def loop_completed(self):
 ...         pass
+...
+...     @loop.cond
+...     def should_we_allow_loop(self):
+...         return True
+...
+...     @loop.unless
+...     def should_we_block_loop(self):
+...         return False
 
 ```
 
@@ -248,7 +268,7 @@ You can also declare an event while also adding a callback:
 >>> from statemachine import StateMachine, State
 
 >>> class ExampleStateMachine(StateMachine):
-...     initial = State("Initial", initial=True)
+...     initial = State(initial=True)
 ...
 ...     @initial.to.itself()
 ...     def loop(self):
@@ -257,9 +277,9 @@ You can also declare an event while also adding a callback:
 
 ```
 
-Note that with this syntax, the result `loop` that is present on the `ExampleStateMachine.loop`
-namespacte is not a simple method, but an {ref}`event` trigger. So it only executes if the
-StateMachine is on the right state.
+Note that with this syntax, the resulting `loop` that is present on the `ExampleStateMachine.loop`
+namespace is not a simple method, but an {ref}`event` trigger. So it only executes if the
+StateMachine is in the right state.
 
 So, you can use the event-oriented approach:
 
@@ -275,8 +295,7 @@ On loop
 
 ## Other callbacks
 
-In addition to {ref}`actions`, you can specify {ref}`validators-and-guards` that are checked
-before an transition is started. They are meant to stop a transition to occur.
+In addition to {ref}`actions`, you can specify {ref}`validators and guards` that are checked before a transition is started. They are meant to stop a transition to occur.
 
 ```{seealso}
 See {ref}`guards` and {ref}`validators`.
@@ -318,9 +337,9 @@ Actions and Guards will be executed in the following order:
 (dynamic-dispatch)=
 ## Dynamic dispatch
 
-python-statemachine implements a custom dispatch mechanism on all those available Actions and
-Guards, this means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
-library will match your method signature of what's expect to receive with the provided arguments.
+{ref}`statemachine` implements a custom dispatch mechanism on all those available Actions and
+Guards. This means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
+library will match your method signature of what's expected to receive with the provided arguments.
 
 This means that if on your `on_enter_<state.id>()` or `on_execute_<event>()` method, you need to know
 the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
@@ -340,16 +359,16 @@ For your convenience, all these parameters are available for you on any Action o
 : All keyword arguments provided on the {ref}`Event`.
 
 `event_data`
-: A reference to `EventData` instance.
+: A reference to {ref}`EventData` instance.
 
 `event`
 : The {ref}`Event` that was triggered.
 
 `source`
-: The {ref}`State` the statemachine was when the {ref}`Event` started.
+: The {ref}`State` the state machine was in when the {ref}`Event` started.
 
 `state`
-: The current {ref}`State` of the statemachine.
+: The current {ref}`State` of the state machine.
 
 `target`
 : The destination {ref}`State` of the transition.
@@ -361,7 +380,7 @@ For your convenience, all these parameters are available for you on any Action o
 : The {ref}`Transition` instance that was activated by the {ref}`Event`.
 
 
-So, you can implement Actions and Guards like these, but this list is not exaustive, it's only
+So, you can implement Actions and Guards like these, but this list is not exhaustive, it's only
 to give you a few examples...  any combination of parameters will work, including extra parameters
 that you may inform when triggering an {ref}`event`:
 

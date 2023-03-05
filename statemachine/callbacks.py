@@ -1,12 +1,11 @@
-# coding: utf-8
 from .exceptions import AttrNotFound
 from .exceptions import InvalidDefinition
+from .i18n import _
 from .utils import ensure_iterable
-from .utils import ugettext as _
 
 
-class CallbackWrapper(object):
-    """A thin wrapper that ensures the targef callback is a proper callable.
+class CallbackWrapper:
+    """A thin wrapper that ensures the target callback is a proper callable.
 
     At first, `func` can be a string or a callable, and even if it's already
     a callable, his signature can mismatch.
@@ -15,13 +14,17 @@ class CallbackWrapper(object):
     call is performed, to allow the proper callback resolution.
     """
 
-    def __init__(self, func, suppress_errors=False):
+    def __init__(self, func, suppress_errors=False, cond=None):
         self.func = func
         self.suppress_errors = suppress_errors
+        self.cond = Callbacks(factory=ConditionWrapper).add(cond)
         self._callback = None
 
     def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.func)
+        return f"{type(self).__name__}({self.func!r})"
+
+    def __str__(self):
+        return getattr(self.func, "__name__", self.func)
 
     def __eq__(self, other):
         return self.func == getattr(other, "func", other)
@@ -40,6 +43,7 @@ class CallbackWrapper(object):
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
+        self.cond.setup(resolver)
         try:
             self._callback = resolver(self.func)
             return True
@@ -58,43 +62,45 @@ class CallbackWrapper(object):
 
 class ConditionWrapper(CallbackWrapper):
     def __init__(self, func, suppress_errors=False, expected_value=True):
-        super(ConditionWrapper, self).__init__(func, suppress_errors)
+        super().__init__(func, suppress_errors)
         self.expected_value = expected_value
 
+    def __str__(self):
+        name = super().__str__()
+        return name if self.expected_value else f"!{name}"
+
     def __call__(self, *args, **kwargs):
-        return (
-            super(ConditionWrapper, self).__call__(*args, **kwargs)
-            == self.expected_value
-        )
+        return bool(super().__call__(*args, **kwargs)) == self.expected_value
 
 
-class Callbacks(object):
+class Callbacks:
     def __init__(self, resolver=None, factory=CallbackWrapper):
         self.items = []
         self._resolver = resolver
         self.factory = factory
 
     def __repr__(self):
-        return "{}({!r}, factory={!r})".format(
-            type(self).__name__, self.items, self.factory
-        )
+        return f"{type(self).__name__}({self.items!r}, factory={self.factory!r})"
+
+    def __str__(self):
+        return ", ".join(str(c) for c in self)
 
     def setup(self, resolver):
-        """Validate configuracions"""
+        """Validate configurations"""
         self._resolver = resolver
         self.items = [
             callback for callback in self.items if callback.setup(self._resolver)
         ]
 
-    def _add_unbounded_callback(self, func, is_event=False, transitions=None):
-        """This list was a targed for adding a func using decorator
+    def _add_unbounded_callback(self, func, is_event=False, transitions=None, **kwargs):
+        """This list was a target for adding a func using decorator
         `@<state|event>[.on|before|after|enter|exit]` syntax.
 
         If we assign ``func`` directly as callable on the ``items`` list,
         this will result in an `unbounded method error`, with `func` expecting a parameter
         ``self`` not defined.
 
-        The implemented solution is to resolve the colision giving the func a reference method.
+        The implemented solution is to resolve the collision giving the func a reference method.
         To update It's callback when the name is resolved on the
         :func:`StateMachineMetaclass.add_from_attributes`.
         If the ``func`` is bounded It will be used directly, if not, it's ref will be replaced
@@ -109,7 +115,7 @@ class Callbacks(object):
                 event.
 
         """
-        callback = self._add(func)
+        callback = self._add(func, **kwargs)
         if not getattr(func, "_callbacks_to_update", None):
             func._callbacks_to_update = set()
         func._callbacks_to_update.add(callback._update_func)
@@ -128,7 +134,14 @@ class Callbacks(object):
         self.items = []
 
     def call(self, *args, **kwargs):
-        return [callback(*args, **kwargs) for callback in self.items]
+        return [
+            callback(*args, **kwargs)
+            for callback in self.items
+            if callback.cond.all(*args, **kwargs)
+        ]
+
+    def all(self, *args, **kwargs):
+        return all(condition(*args, **kwargs) for condition in self)
 
     def _add(self, func, resolver=None, prepend=False, **kwargs):
         if func in self.items:

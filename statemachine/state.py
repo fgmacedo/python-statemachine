@@ -1,29 +1,30 @@
-# coding: utf-8
-import warnings
 from copy import deepcopy
 from typing import Any
-from typing import Optional
-from typing import Text
 
 from .callbacks import Callbacks
 from .exceptions import StateMachineError
+from .i18n import _
 from .transition import Transition
 from .transition_list import TransitionList
-from .utils import ugettext as _
 
 
-class State(object):
+class State:
     """
-    A State in a state machine describes a particular behaviour of the machine.
+    A State in a :ref:`StateMachine` describes a particular behavior of the machine.
     When we say that a machine is “in” a state, it means that the machine behaves
     in the way that state describes.
 
     Args:
-        name: An human readable representation of the state.
+        name: A human-readable representation of the state. Default is derived
+            from the name of the variable assigned to the state machine class.
+            The name is derived from the id using this logic::
+
+                name = id.replace("_", " ").capitalize()
+
         value: A specific value to the storage and retrieval of states.
             If specified, you can use It to map a more friendly representation to a low-level
             value.
-        initial: Set `' True`` if the ``State`` is the initial one. There must be one and only
+        initial: Set ``True`` if the ``State`` is the initial one. There must be one and only
             one initial state in a statemachine. Defaults to ``False``.
         final: Set ``True`` if represents a final state. A machine can have
             optionally many final states. Final states have no :ref:`transition` starting from It.
@@ -51,14 +52,22 @@ class State(object):
     >>> draft.to(producing)
     TransitionList([Transition(State('Draft', ...
 
-    The result is a `TransitionList`. Don't worry about this internal class. But the good
-    thing is that it implements the ``OR`` operator to combine transitions, so you can use the
-    ``|`` syntax to compound a list of transitions and assign to the same event.
+    The result is a `TransitionList`.
+    Don't worry about this internal class.
+    But the good thing is that it implements the ``OR`` operator to combine transitions,
+    so you can use the ``|`` syntax to compound a list of transitions and assign
+    to the same event.
 
-    >>> transitions = draft.to(draft) | draft.to(producing)
+    You can declare all transitions for a state in one single line ...
+
+    >>> transitions = draft.to(draft) | producing.to(closed)
+
+    ... and you can append additional transitions for a state to previous definitions.
+
+    >>> transitions |= closed.to(draft)
 
     >>> [(t.source.name, t.target.name) for t in transitions]
-    [('Draft', 'Draft'), ('Draft', 'Producing')]
+    [('Draft', 'Draft'), ('Producing', 'Closed'), ('Closed', 'Draft')]
 
     There are handy shortcuts that you can use to express this same set of transitions.
 
@@ -79,16 +88,21 @@ class State(object):
     """
 
     def __init__(
-        self, name, value=None, initial=False, final=False, enter=None, exit=None
+        self,
+        name: str = "",
+        value: Any = None,
+        initial: bool = False,
+        final: bool = False,
+        enter: Any = None,
+        exit: Any = None,
     ):
-        # type: (Text, Optional[Any], bool, bool, Optional[Any], Optional[Any]) -> None
         self.name = name
         self.value = value
-        self._id = None  # type: Optional[Text]
-        self._storage = ""
         self._initial = initial
-        self.transitions = TransitionList()
         self._final = final
+        self._id: str = ""
+        self._storage: str = ""
+        self.transitions = TransitionList()
         self.enter = Callbacks().add(enter)
         self.exit = Callbacks().add(exit)
 
@@ -105,30 +119,23 @@ class State(object):
         self.enter.setup(resolver)
         self.exit.setup(resolver)
         machine.__dict__[self._storage] = self
+        return self
 
     def _add_observer(self, *resolvers):
         for r in resolvers:
             self.enter.add(
                 "on_enter_state", resolver=r, prepend=True, suppress_errors=True
             )
-            self.enter.add(
-                "on_enter_{}".format(self.id), resolver=r, suppress_errors=True
-            )
+            self.enter.add(f"on_enter_{self.id}", resolver=r, suppress_errors=True)
             self.exit.add(
                 "on_exit_state", resolver=r, prepend=True, suppress_errors=True
             )
-            self.exit.add(
-                "on_exit_{}".format(self.id), resolver=r, suppress_errors=True
-            )
+            self.exit.add(f"on_exit_{self.id}", resolver=r, suppress_errors=True)
 
     def __repr__(self):
-        return "{}({!r}, id={!r}, value={!r}, initial={!r}, final={!r})".format(
-            type(self).__name__,
-            self.name,
-            self.id,
-            self.value,
-            self.initial,
-            self.final,
+        return (
+            f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
+            f"initial={self.initial!r}, final={self.final!r})"
         )
 
     def __get__(self, machine, owner):
@@ -147,31 +154,25 @@ class State(object):
         return deepcopy(self)
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self._id
 
-    @property
-    def identifier(self):
-        warnings.warn(
-            "`State.identifier` is deprecated. Use `State.id` instead.",
-            DeprecationWarning,
-        )
-        return self.id
-
-    def _set_id(self, id):
+    def _set_id(self, id: str):
         self._id = id
-        self._storage = "_{}".format(id)
+        self._storage = f"_{id}"
         if self.value is None:
             self.value = id
+        if not self.name:
+            self.name = self._id.replace("_", " ").capitalize()
 
-    def _to_(self, *states, **kwargs):
+    def _to_(self, *states: "State", **kwargs):
         transitions = TransitionList(
             Transition(self, state, **kwargs) for state in states
         )
         self.transitions.add_transitions(transitions)
         return transitions
 
-    def _from_(self, *states, **kwargs):
+    def _from_(self, *states: "State", **kwargs):
         transitions = TransitionList()
         for origin in states:
             transition = Transition(origin, self, **kwargs)
@@ -180,7 +181,7 @@ class State(object):
         return transitions
 
     def _get_proxy_method_to_itself(self, method):
-        def proxy(*states, **kwargs):
+        def proxy(*states: "State", **kwargs):
             return method(*states, **kwargs)
 
         def proxy_to_itself(**kwargs):

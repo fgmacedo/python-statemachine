@@ -1,8 +1,11 @@
-# coding: utf-8
+from contextlib import contextmanager
+from unittest import mock
+
 import pytest
 
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
+from statemachine.contrib.diagram import quickchart_write_svg
 
 
 @pytest.fixture(
@@ -60,7 +63,8 @@ class TestDiagramCmdLine:
     def test_generate_complain_about_bad_sm_path(self, capsys, tmp_path):
         out = tmp_path / "sm.svg"
 
-        with pytest.raises(ValueError) as e:
+        expected_error = "TrafficLightMachineXXX is not a subclass of StateMachine"
+        with pytest.raises(ValueError, match=expected_error):
             main(
                 [
                     "tests.examples.traffic_light_machine.TrafficLightMachineXXX",
@@ -68,4 +72,18 @@ class TestDiagramCmdLine:
                 ]
             )
 
-        assert e.match("TrafficLightMachineXXX is not a subclass of StateMachine")
+
+class TestQuickChart:
+    @contextmanager
+    def mock_quickchart(self, origin_img_path):
+        with open(origin_img_path) as f:
+            expected_image = f.read()
+
+        with mock.patch("statemachine.contrib.diagram.urlopen", spec=True) as p:
+            p().read.side_effect = lambda: expected_image.encode()
+            yield p
+
+    def test_should_call_write_svg(self, OrderControl):
+        sm = OrderControl()
+        with self.mock_quickchart("docs/images/_oc_machine_processing.svg"):
+            quickchart_write_svg(sm, "docs/images/oc_machine_processing.svg")

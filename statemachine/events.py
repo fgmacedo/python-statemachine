@@ -1,8 +1,7 @@
-# coding: utf-8
 from .utils import ensure_iterable
 
 
-class Events(object):
+class Events:
     """A collection of event names."""
 
     def __init__(self):

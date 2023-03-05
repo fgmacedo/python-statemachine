@@ -1,8 +1,4 @@
-# coding: utf-8
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-from .utils import ugettext as _
+from .i18n import _
 
 
 class StateMachineError(Exception):
@@ -19,7 +15,7 @@ class InvalidStateValue(InvalidDefinition):
     def __init__(self, value):
         self.value = value
         msg = _("{!r} is not a valid state value.").format(value)
-        super(InvalidStateValue, self).__init__(msg)
+        super().__init__(msg)
 
 
 class AttrNotFound(InvalidDefinition):
@@ -27,10 +23,10 @@ class AttrNotFound(InvalidDefinition):
 
 
 class TransitionNotAllowed(StateMachineError):
-    "The transition can't run from the current state."
+    "Raised when there's no transition that can run from the current :ref:`state`."
 
     def __init__(self, event, state):
         self.event = event
         self.state = state
         msg = _("Can't {} when in {}.").format(self.event, self.state.name)
-        super(TransitionNotAllowed, self).__init__(msg)
+        super().__init__(msg)
