@@ -1,12 +1,5 @@
-try:
-    from django.utils.translation import ugettext as _
-except Exception:
-
-    def _(text):
-        return text
-
-
 from . import registry
+from .i18n import _
 
 
 class MachineMixin:
