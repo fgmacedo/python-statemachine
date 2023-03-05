@@ -3,18 +3,12 @@ from typing import TYPE_CHECKING
 
 from .callbacks import Callbacks
 from .callbacks import ConditionWrapper
+from .event import same_event_cond_builder
 from .events import Events
 from .exceptions import InvalidDefinition
 
 if TYPE_CHECKING:
     from .event_data import EventData
-
-
-def same_event_cond_builder(expected_event: str):
-    def cond(event: str) -> bool:
-        return event == expected_event
-
-    return cond
 
 
 class Transition:
