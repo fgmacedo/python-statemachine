@@ -1,10 +1,11 @@
-import importlib
 import re
 
 from sphinx_gallery.scrapers import figure_rst
 
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.factory import StateMachineMetaclass
+
+from .helpers import import_module_by_path
 
 
 class MachineScraper:
@@ -25,11 +26,7 @@ class MachineScraper:
         if len(module_name) != 1:
             return
 
-        module_name = module_name[0].replace("/", ".")
-        try:
-            return importlib.import_module(module_name)
-        except ModuleNotFoundError:
-            return
+        return import_module_by_path(module_name[0])
 
     def generate_image(self, sm_class, original_path):
         image_path = self.re_replace_png_extension.sub(".svg", original_path)
