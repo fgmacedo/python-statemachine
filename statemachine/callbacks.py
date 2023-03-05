@@ -14,9 +14,10 @@ class CallbackWrapper:
     call is performed, to allow the proper callback resolution.
     """
 
-    def __init__(self, func, suppress_errors=False):
+    def __init__(self, func, suppress_errors=False, cond=None):
         self.func = func
         self.suppress_errors = suppress_errors
+        self.cond = Callbacks(factory=ConditionWrapper).add(cond)
         self._callback = None
 
     def __repr__(self):
@@ -42,6 +43,7 @@ class CallbackWrapper:
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
+        self.cond.setup(resolver)
         try:
             self._callback = resolver(self.func)
             return True
@@ -132,7 +134,14 @@ class Callbacks:
         self.items = []
 
     def call(self, *args, **kwargs):
-        return [callback(*args, **kwargs) for callback in self.items]
+        return [
+            callback(*args, **kwargs)
+            for callback in self.items
+            if callback.cond.all(*args, **kwargs)
+        ]
+
+    def all(self, *args, **kwargs):
+        return all(condition(*args, **kwargs) for condition in self)
 
     def _add(self, func, resolver=None, prepend=False, **kwargs):
         if func in self.items:

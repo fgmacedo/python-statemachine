@@ -10,6 +10,13 @@ if TYPE_CHECKING:
     from .event_data import EventData
 
 
+def same_event_cond_builder(expected_event: str):
+    def cond(event: str) -> bool:
+        return event == expected_event
+
+    return cond
+
+
 class Transition:
     """A transition holds reference to the source and target state.
 
@@ -96,17 +103,11 @@ class Transition:
             on("on_transition", prepend=True)
 
             for event in self._events:
-                before(f"before_{event}")
-                on(f"on_{event}")
-                after(f"after_{event}")
+                before(f"before_{event}", cond=same_event_cond_builder(event))
+                on(f"on_{event}", cond=same_event_cond_builder(event))
+                after(f"after_{event}", cond=same_event_cond_builder(event))
 
             after("after_transition")
-
-    def _eval_cond(self, event_data):
-        return all(
-            condition(*event_data.args, **event_data.extended_kwargs)
-            for condition in self.cond
-        )
 
     def match(self, event):
         return self._events.match(event)
@@ -123,8 +124,9 @@ class Transition:
         self._events.add(value)
 
     def execute(self, event_data: "EventData"):
-        self.validators.call(*event_data.args, **event_data.extended_kwargs)
-        if not self._eval_cond(event_data):
+        args, kwargs = event_data.args, event_data.extended_kwargs
+        self.validators.call(*args, **kwargs)
+        if not self.cond.all(*args, **kwargs):
             return False
 
         result = event_data.machine._activate(event_data)
