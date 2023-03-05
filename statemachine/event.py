@@ -58,3 +58,14 @@ def trigger_event_factory(event):
     trigger_event._is_sm_event = True
 
     return trigger_event
+
+
+def same_event_cond_builder(expected_event: str):
+    """
+    Builds a condition method that evaluates to ``True`` when the expected event is received.
+    """
+
+    def cond(event: str) -> bool:
+        return event == expected_event
+
+    return cond

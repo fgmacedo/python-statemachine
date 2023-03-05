@@ -199,6 +199,7 @@ Or in an event-oriented style, events are `send`:
 
 ```py
 >>> machine.send("cycle")
+Don't move.
 'Running cycle from yellow to red'
 
 >>> machine.current_state.id
@@ -226,6 +227,7 @@ can also raise an exception at this point to stop a transition to occur.
 'red'
 
 >>> machine.cycle()
+Go ahead!
 'Running cycle from red to green'
 
 >>> machine.current_state.id

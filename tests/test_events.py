@@ -13,7 +13,8 @@ def test_assign_events_on_transitions():
         yellow.to(red, event="cycle stop")
         red.to(green, event="cycle go")
 
-        def on_cycle(self, event_data, event: str = ""):
+        def on_cycle(self, event_data, event: str):
+            assert event_data.event == event
             return (
                 f"Running {event} from {event_data.transition.source.id} to "
                 f"{event_data.transition.target.id}"

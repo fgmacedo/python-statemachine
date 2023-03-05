@@ -1,9 +1,9 @@
 ### Issue 308
 
-A StateMachine that exercices the example given on issue
+A StateMachine that exercises the example given on issue
 #[308](https://github.com/fgmacedo/python-statemachine/issues/308).
 
-On this example, we share the transitions list between events.
+In this example, we share the transition list between events.
 
 ```py
 >>> from statemachine import StateMachine, State
@@ -14,12 +14,12 @@ On this example, we share the transitions list between events.
 ...     state3 = State('s3')
 ...     state4 = State('s4', final=True)
 ...
-...     trans12 = state1.to(state2)
-...     trans23 = state2.to(state3)
-...     trans34 = state3.to(state4)
+...     event1 = state1.to(state2)
+...     event2 = state2.to(state3)
+...     event3 = state3.to(state4)
 ...
 ...     # cycle = state1.to(state2) | state2.to(state3) | state3.to(state4)
-...     cycle = trans12 | trans23 | trans34
+...     cycle = event1 | event2 | event3
 ...
 ...     def before_cycle(self):
 ...         print("before cycle")
@@ -55,31 +55,31 @@ On this example, we share the transitions list between events.
 ...         print('exit state4')
 ...
 ...     def before_trans12(self):
-...         print('before trans12')
+...         print('before event1')
 ...
 ...     def on_trans12(self):
-...         print('on trans12')
+...         print('on event1')
 ...
 ...     def after_trans12(self):
-...         print('after trans12')
+...         print('after event1')
 ...
 ...     def before_trans23(self):
-...         print('before trans23')
+...         print('before event2')
 ...
 ...     def on_trans23(self):
-...         print('on trans23')
+...         print('on event2')
 ...
 ...     def after_trans23(self):
-...         print('after trans23')
+...         print('after event2')
 ...
 ...     def before_trans34(self):
-...         print('before trans34')
+...         print('before event3')
 ...
 ...     def on_trans34(self):
-...         print('on trans34')
+...         print('on event3')
 ...
 ...     def after_trans34(self):
-...         print('after trans34')
+...         print('after event3')
 ...
 
 ```
@@ -94,35 +94,26 @@ enter state1
 >>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
 (True, False, False, False, State('s1', id='state1', value='state1', initial=True, final=False))
 before cycle
-before trans12
 exit state1
 on cycle
-on trans12
 enter state2
 after cycle
-after trans12
 
 >>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
 (False, True, False, False, State('s2', id='state2', value='state2', initial=False, final=False))
 before cycle
-before trans23
 exit state2
 on cycle
-on trans23
 enter state3
 after cycle
-after trans23
 
 >>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
 (False, False, True, False, State('s3', id='state3', value='state3', initial=False, final=False))
 before cycle
-before trans34
 exit state3
 on cycle
-on trans34
 enter state4
 after cycle
-after trans34
 
 >>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state
 (False, False, False, True, State('s4', id='state4', value='state4', initial=False, final=True))
