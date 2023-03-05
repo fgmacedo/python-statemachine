@@ -28,7 +28,7 @@ def test_machine_should_be_at_start_state(campaign_machine):
         "add_job",
         "deliver",
         "produce",
-    ]  # noqa: E501
+    ]
 
     assert model.state == "draft"
     assert machine.current_state == machine.draft

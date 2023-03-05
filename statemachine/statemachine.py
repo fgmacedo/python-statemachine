@@ -18,7 +18,7 @@ from .model import Model
 from .transition import Transition
 
 if TYPE_CHECKING:
-    from .state import State  # noqa: F401
+    from .state import State
 
 
 class StateMachine(metaclass=StateMachineMetaclass):

@@ -1,11 +1,11 @@
-from typing import Any, Optional  # noqa: F401, I001
 from copy import deepcopy
+from typing import Any
 
 from .callbacks import Callbacks
 from .exceptions import StateMachineError
+from .i18n import _
 from .transition import Transition
 from .transition_list import TransitionList
-from .i18n import _
 
 
 class State:
