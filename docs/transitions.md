@@ -43,9 +43,9 @@ In line 18, you can say that this code defines three transitions:
 
 And these transitions are assigned to the {ref}`event` `cycle` defined at the class level.
 
-## Transition
+## Transitions
 
-In an executing state machine, a transition is a transfer from one state to another. In a state machine, a transition tells us what happens when an {ref}`event` occurs.
+In an executing state machine, a {ref}`transition` is a transfer from one state to another. In a {ref}`statemachine`, a {ref}`transition` tells us what happens when an {ref}`event` occurs.
 
 
 ```{tip}
@@ -57,11 +57,6 @@ transition may be executed.
 
 An action associated with an event (before, on, after), will be assigned to all transitions
 bounded that uses the event as trigger.
-```
-
-```{eval-rst}
-.. autoclass:: statemachine.transition.Transition
-    :members:
 ```
 
 ```{hint}

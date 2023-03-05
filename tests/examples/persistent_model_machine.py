@@ -81,7 +81,7 @@ class AbstractPersistentModel(ABC):
 
 # %%
 # FilePersistentModel: Concrete model strategy
-# -----------------------
+# --------------------------------------------
 #
 # A concrete implementation of the generic storage protocol above, that reads and writes to a file
 # in plain text.

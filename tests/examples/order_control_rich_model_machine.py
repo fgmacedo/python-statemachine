@@ -49,8 +49,8 @@ class OrderControl(StateMachine):
 
 
 # %%
-# Testing
-# -------
+# Testing OrderControl
+# --------------------
 #
 # Let's first try to create a statemachine instance, using the default dummy model that doesn't
 # have the needed methods to complete the state machine. Since the required methods will not be

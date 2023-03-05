@@ -29,6 +29,7 @@ class Event:
         return machine._process(trigger_wrapper)
 
     def _trigger(self, trigger_data: TriggerData):
+        event_data = None
         state = trigger_data.machine.current_state
         for transition in state.transitions:
             if not transition.match(trigger_data.event):
@@ -39,9 +40,10 @@ class Event:
                 event_data.executed = True
                 break
         else:
-            raise TransitionNotAllowed(trigger_data.event, state)
+            if not trigger_data.machine.allow_event_without_transition:
+                raise TransitionNotAllowed(trigger_data.event, state)
 
-        return event_data.result
+        return event_data.result if event_data else None
 
 
 def trigger_event_factory(event):

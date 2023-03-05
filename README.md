@@ -298,7 +298,7 @@ There's a lot more to cover, please take a look at our docs:
 https://python-statemachine.readthedocs.io.
 
 
-## Contributing
+## Contributing to the project
 
 * <a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
 * <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>

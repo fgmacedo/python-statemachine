@@ -23,7 +23,7 @@ class AttrNotFound(InvalidDefinition):
 
 
 class TransitionNotAllowed(StateMachineError):
-    "The transition can't run from the current state."
+    "Raised when there's no transition that can run from the current :ref:`state`."
 
     def __init__(self, event, state):
         self.event = event

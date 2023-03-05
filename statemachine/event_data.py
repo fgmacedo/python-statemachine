@@ -12,17 +12,18 @@ if TYPE_CHECKING:
 @dataclass
 class TriggerData:
     machine: "StateMachine"
+
     event: str
     """The Event that was triggered."""
 
     model: Any = field(init=False)
-    """A reference to the underlying model that holds the current State."""
+    """A reference to the underlying model that holds the current :ref:`State`."""
 
     args: tuple = field(default_factory=tuple)
-    """All positional arguments provided on the Event."""
+    """All positional arguments provided on the :ref:`Event`."""
 
     kwargs: dict = field(default_factory=dict)
-    """All keyword arguments provided on the Event."""
+    """All keyword arguments provided on the :ref:`Event`."""
 
     def __post_init__(self):
         self.model = self.machine.model
@@ -31,17 +32,19 @@ class TriggerData:
 @dataclass
 class EventData:
     trigger_data: TriggerData
+    """The :ref:`TriggerData` of the :ref:`event`."""
+
     transition: "Transition"
-    """The Transition instance that was activated by the Event."""
+    """The :ref:`Transition` instance that was activated by the :ref:`Event`."""
 
     state: "State" = field(init=False)
-    """The current State of the state machine."""
+    """The current :ref:`State` of the :ref:`statemachine`."""
 
     source: "State" = field(init=False)
-    """The State the state machine was in when the Event started."""
+    """The :ref:`State` which :ref:`statemachine` was in when the Event started."""
 
     target: "State" = field(init=False)
-    """The destination State of the transition."""
+    """The destination :ref:`State` of the :ref:`transition`."""
 
     result: "Any | None" = None
     executed: bool = False

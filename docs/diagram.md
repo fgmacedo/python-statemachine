@@ -1,10 +1,10 @@
 # Diagrams
 
-You can generate diagrams from your state machine.
+You can generate diagrams from your {ref}`StateMachine`.
 
 ```{note}
 This functionality depends on [pydot](https://github.com/pydot/pydot), it means that you need to
-have pydot installed on your system. pydot is a Python library that allows you to create and
+have `pydot` installed on your system. pydot is a Python library that allows you to create and
 manipulate graphs in [Graphviz](https://graphviz.org/)'s
 [dot language](https://graphviz.org/doc/info/lang.html).
 
@@ -59,7 +59,7 @@ As this one:
 ![OrderControl](images/order_control_machine_initial.png)
 
 
-The current state is also highlighted:
+The current {ref}`state` is also highlighted:
 
 ``` py
 

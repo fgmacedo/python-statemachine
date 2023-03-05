@@ -17,6 +17,7 @@ mixins
 integrations
 diagram
 processing_model
+api
 auto_examples/index
 contributing
 authors
