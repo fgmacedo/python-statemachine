@@ -1,10 +1,10 @@
 (validators-and-guards)=
 # Validators and guards
 
-Validations and Guards are checked before an transition is started. They are meant to stop a
+Validations and Guards are checked before a transition is started. They are meant to stop a
 transition to occur.
 
-The main difference, is that {ref}`validators` raise exceptions to stop the flow, and {ref}`guards`
+The main difference is that {ref}`validators` raise exceptions to stop the flow, and {ref}`guards`
 act like predicates that shall resolve to a ``boolean`` value.
 
 ```{seealso}
@@ -16,16 +16,16 @@ for all the available callbacks, being validators and guards or {ref}`actions`.
 
 Also known as **Conditional transition**.
 
-A guard is a condition that may be checked when a statemachine wants to handle
-an {ref}`event`. A guard is declared on the {ref}`transition`, and when that transition
+A guard is a condition that may be checked when a {ref}`statemachine` wants to handle
+an {ref}`event`. A guard is declared on the {ref}`transition`, and when that {ref}`transition`
 would trigger, then the guard (if any) is checked. If the guard is `True`
 then the transition does happen. If the guard is `False`, the transition
 is ignored.
 
-When transitions have guards, then it's possible to define two or more
-transitions for the same event from the same {ref}`state`. When the event happens, then
+When {ref}`transitions` have guards, then it's possible to define two or more
+transitions for the same {ref}`event` from the same {ref}`state`. When the {ref}`event` happens, then
 the guarded transitions are checked, one by one, and the first transition
-whose guard is true will be used, the others will be ignored.
+whose guard is true will be used, and the others will be ignored.
 
 A guard is generally a boolean function or boolean variable and must not have any side effects.
 Side effects are reserved for {ref}`actions`.
@@ -66,7 +66,7 @@ So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an emp
 
 
 Are like {ref}`guards`, but instead of evaluating to boolean, they are expected to raise an
-exception to stop the flow. It may be useful for imperative style programming when you don't
+exception to stop the flow. It may be useful for imperative-style programming when you don't
 want to continue evaluating other possible transitions and exit immediately.
 
 * Single validator: `validators="validator"`

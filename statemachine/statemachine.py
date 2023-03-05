@@ -22,12 +22,45 @@ if TYPE_CHECKING:
 
 
 class StateMachine(metaclass=StateMachineMetaclass):
+    """
 
-    TransitionNotAllowed = TransitionNotAllowed  # shortcut for handling exceptions
+    Args:
+        model: An optional external object to store state. See :ref:`domain models`.
+
+        state_field (str): The model's field which stores the current state.
+            Default: ``state``.
+
+        start_value: An optional start state value if there's no current state assigned
+            on the :ref:`domain models`. Default: ``None``.
+
+        rtc (bool): Controls the :ref:`processing model`. Defaults to ``True``
+            that corresponds to a **run-to-completion** (RTC) model.
+
+        allow_event_without_transition: If ``False`` when an event does not result in a transition,
+            an exception ``TransitionNotAllowed`` will be raised.
+            If ``True`` the state machine allows triggering events that may not lead to a state
+            :ref:`transition`, including tolerance to unknown :ref:`event` triggers.
+            Default: ``False``.
+
+    """
+
+    TransitionNotAllowed = TransitionNotAllowed
+    """Shortcut for easy exception handling.
+
+    Example::
+
+        try:
+            sm.send("an-inexistent-event")
+        except sm.TransitionNotAllowed:
+            pass
+    """
 
     _events: Dict[Any, Any] = {}
     states: List["State"] = []
+    """List of all state machine :ref:`states`."""
+
     states_map: Dict[Any, "State"] = {}
+    """Map of ``state.value`` to the corresponding :ref:`state`."""
 
     def __init__(
         self,
@@ -35,10 +68,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
         state_field: str = "state",
         start_value: Any = None,
         rtc: bool = True,
+        allow_event_without_transition: bool = False,
     ):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
+        self.allow_event_without_transition = allow_event_without_transition
         self.__rtc = rtc
         self.__processing: bool = False
         self._external_queue: deque = deque()
@@ -54,7 +89,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._activate_initial_state(initial_transition)
 
     def __repr__(self):
-        current_state_id = self.current_state.id if self.current_state else None
+        current_state_id = self.current_state.id if self.current_state_value else None
         return (
             f"{type(self).__name__}(model={self.model!r}, state_field={self.state_field!r}, "
             f"current_state={current_state_id!r})"
@@ -126,6 +161,16 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.add_observer(machine, model)
 
     def add_observer(self, *observers):
+        """Add an observer.
+
+        Observers are a way to generically add behavior to a :ref:`StateMachine` without changing
+        its internal implementation.
+
+        .. seealso::
+
+            :ref:`observers`.
+        """
+
         resolvers = [resolver_factory(ObjectConfig.from_obj(o)) for o in observers]
         self._visit_states_and_transitions(lambda x: x._add_observer(*resolvers))
         return self
@@ -143,6 +188,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @property
     def current_state_value(self):
+        """Get/Set the current :ref:`state` value.
+
+        This is a low level API, that can be used to assign any valid state value
+        completely bypassing all the hooks and validations.
+        """
         value = getattr(self.model, self.state_field, None)
         return value
 
@@ -153,8 +203,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
         setattr(self.model, self.state_field, value)
 
     @property
-    def current_state(self):
-        return self.states_map.get(self.current_state_value, None)
+    def current_state(self) -> "State":
+        """Get/Set the current :ref:`state`.
+
+        This is a low level API, that can be to assign any valid state
+        completely bypassing all the hooks and validations.
+        """
+        return self.states_map[self.current_state_value]
 
     @current_state.setter
     def current_state(self, value):
@@ -166,7 +221,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @property
     def allowed_events(self):
-        "get the callable proxy of the current allowed events"
+        """List of the current allowed events."""
         return [
             getattr(self, event)
             for event in self.current_state.transitions.unique_events
@@ -257,5 +312,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return result
 
     def send(self, event, *args, **kwargs):
+        """Send an :ref:`Event` to the state machine.
+
+        .. seealso::
+
+            See: :ref:`triggering events`.
+
+        """
         event = Event(event)
         return event.trigger(self, *args, **kwargs)

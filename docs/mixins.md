@@ -1,7 +1,7 @@
 
 # Mixins
 
-Your model can be inherited from a custom mixin to auto-instantiate a state machine.
+Your {ref}`domain models` can be inherited from a custom mixin to auto-instantiate a {ref}`statemachine`.
 
 ## MachineMixin
 

@@ -1,6 +1,6 @@
 # Actions
 
-Action is the way a StateMachine can cause things to happen in the
+Action is the way a {ref}`StateMachine` can cause things to happen in the
 outside world, and indeed they are the main reason why they exist at all.
 
 The main point of introducing a state machine is for the
@@ -26,7 +26,7 @@ when something changes and are not bounded to a specific state or event:
 
 - `after_transition()`
 
-The follow example can get you an overview of the "generic" callbacks available:
+The following example can get you an overview of the "generic" callbacks available:
 
 ```py
 >>> from statemachine import StateMachine, State
@@ -162,14 +162,14 @@ It's also possible to use an event name as action.
 
 ## Transition actions
 
-For each {ref}`event`, you can register `before`, `on` and `after` callbacks.
+For each {ref}`event`, you can register `before`, `on`, and `after` callbacks.
 
 ### Declare transition actions by naming convention
 
 The action will be registered for every {ref}`transition` associated with the event.
 
-Callbacks by naming convention will be searched on the StateMachine and on the
-model, using the patterns:
+Callbacks by naming convention will be searched on the StateMachine and the model,
+using the patterns:
 
 - `before_<event>()`
 
@@ -337,7 +337,7 @@ Actions and Guards will be executed in the following order:
 (dynamic-dispatch)=
 ## Dynamic dispatch
 
-`python-statemachine` implements a custom dispatch mechanism on all those available Actions and
+{ref}`statemachine` implements a custom dispatch mechanism on all those available Actions and
 Guards. This means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
 library will match your method signature of what's expected to receive with the provided arguments.
 
@@ -359,7 +359,7 @@ For your convenience, all these parameters are available for you on any Action o
 : All keyword arguments provided on the {ref}`Event`.
 
 `event_data`
-: A reference to `EventData` instance.
+: A reference to {ref}`EventData` instance.
 
 `event`
 : The {ref}`Event` that was triggered.

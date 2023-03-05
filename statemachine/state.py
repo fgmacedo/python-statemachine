@@ -10,7 +10,7 @@ from .transition_list import TransitionList
 
 class State:
     """
-    A State in a state machine describes a particular behavior of the machine.
+    A State in a :ref:`StateMachine` describes a particular behavior of the machine.
     When we say that a machine is “in” a state, it means that the machine behaves
     in the way that state describes.
 
