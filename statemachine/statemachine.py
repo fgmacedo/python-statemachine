@@ -62,6 +62,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
     states_map: Dict[Any, "State"] = {}
     """Map of ``state.value`` to the corresponding :ref:`state`."""
 
+    if TYPE_CHECKING:
+        """Makes mypy happy with dynamic created attributes"""
+
+        def __getattr__(self, attribute: str) -> Any:
+            ...
+
     def __init__(
         self,
         model: Any = None,
