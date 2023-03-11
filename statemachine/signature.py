@@ -1,10 +1,10 @@
 import itertools
-from collections.abc import Callable
 from functools import partial
 from inspect import BoundArguments
 from inspect import Parameter
 from inspect import Signature
 from typing import Any
+from typing import Callable
 
 
 class SignatureAdapter(Signature):
