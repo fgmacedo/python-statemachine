@@ -225,9 +225,9 @@ It's also possible to use an event name as action to chain transitions.
 **Be careful to not introduce recursion errors**, like `loop = initial.to.itself(after="loop")`, that will raise `RecursionError` exception.
 ```
 
-### Bind event actions using decorator syntax
+### Bind transition actions using decorator syntax
 
-The action will be registered for every {ref}`transition` associated with the event.
+The action will be registered for every {ref}`transition` in the list associated with the event.
 
 
 ```py
