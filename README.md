@@ -59,11 +59,11 @@ Define your state machine:
 ...     yellow = State()
 ...     red = State()
 ...
-...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
-...
-...     slowdown = green.to(yellow)
-...     stop = yellow.to(red)
-...     go = red.to(green)
+...     cycle = (
+...         green.to(yellow)
+...         | yellow.to(red)
+...         | red.to(green)
+...     )
 ...
 ...     def before_cycle(self, event: str, source: State, target: State, message: str = ""):
 ...         message = ". " + message if message else ""
@@ -80,63 +80,74 @@ Define your state machine:
 You can now create an instance:
 
 ```py
->>> traffic_light = TrafficLightMachine()
+>>> sm = TrafficLightMachine()
 
 ```
 
-Then start sending events:
+This state machine can be represented graphically as follows:
 
 ```py
->>> traffic_light.cycle()
+>>> img_path = "docs/images/readme_trafficlightmachine.png"
+>>> sm._graph().write_png(img_path)
+
+```
+
+![](https://raw.githubusercontent.com/fgmacedo/python-statemachine/develop/docs/images/readme_trafficlightmachine.png)
+
+
+Where on the `TrafficLightMachine`, we've defined `green`, `yellow`, and `red` as states, and
+one event called `cycle`, which is bound to the transitions from `green` to `yellow`, `yellow` to `red`,
+and `red` to `green`. We also have defined three callbacks by name convention, `before_cycle`, `on_enter_red`, and `on_exit_red`.
+
+
+Then start sending events to your new state machine:
+
+```py
+>>> sm.send("cycle")
 'Running cycle from green to yellow'
 
 ```
 
-You can inspect the current state:
+That's it. This is all an external object needs to know about your state machine: How to send events.
+Ideally, all states, transitions, and actions should be kept internally and not checked externally to avoid unnecessary coupling.
+
+But if your use case needs, you can inspect state machine properties, like the current state:
 
 ```py
->>> traffic_light.current_state.id
+>>> sm.current_state.id
 'yellow'
-
-```
-
-A `State` human-readable name is automatically derived from the `State.id`:
-
-```py
->>> traffic_light.current_state.name
-'Yellow'
 
 ```
 
 Or get a complete state representation for debugging purposes:
 
 ```py
->>> traffic_light.current_state
+>>> sm.current_state
 State('Yellow', id='yellow', value='yellow', initial=False, final=False)
 
 ```
 
-The ``State`` instance can also be checked by equality:
+The `State` instance can also be checked by equality:
 
 ```py
->>> traffic_light.current_state == TrafficLightMachine.yellow
+>>> sm.current_state == TrafficLightMachine.yellow
 True
 
->>> traffic_light.current_state == traffic_light.yellow
+>>> sm.current_state == sm.yellow
 True
 
 ```
 
-But for your convenience, can easily ask if a state is active at any time:
+Or you can check if a state is active at any time:
 
 ```py
->>> traffic_light.green.is_active
+>>> sm.green.is_active
 False
 
->>> traffic_light.yellow.is_active
+>>> sm.yellow.is_active
 True
 
->>> traffic_light.red.is_active
+>>> sm.red.is_active
 False
 
 ```
@@ -144,7 +155,7 @@ False
 Easily iterate over all states:
 
 ```py
->>> [s.id for s in traffic_light.states]
+>>> [s.id for s in sm.states]
 ['green', 'red', 'yellow']
 
 ```
@@ -152,15 +163,15 @@ Easily iterate over all states:
 Or over events:
 
 ```py
->>> [t.name for t in traffic_light.events]
-['cycle', 'go', 'slowdown', 'stop']
+>>> [t.name for t in sm.events]
+['cycle']
 
 ```
 
 Call an event by its name:
 
 ```py
->>> traffic_light.cycle()
+>>> sm.cycle()
 Don't move.
 'Running cycle from yellow to red'
 
@@ -168,36 +179,64 @@ Don't move.
 Or send an event with the event name:
 
 ```py
->>> traffic_light.send('cycle')
+>>> sm.send('cycle')
 Go ahead!
 'Running cycle from red to green'
 
->>> traffic_light.green.is_active
+>>> sm.green.is_active
 True
 
 ```
-You can't run a transition from an invalid state:
+
+You can pass arbitrary positional or keyword arguments to the event, and
+they will be propagated to all actions and callbacks using something similar to dependency injection. In other words, the library will only inject the parameters declared on the
+callback method.
+
+Note how `before_cycle` was declared:
 
 ```py
->>> traffic_light.go()
-Traceback (most recent call last):
-statemachine.exceptions.TransitionNotAllowed: Can't go when in Green.
+def before_cycle(self, event: str, source: State, target: State, message: str = ""):
+    message = ". " + message if message else ""
+    return f"Running {event} from {source.id} to {target.id}{message}"
+```
+
+The params `event`, `source`, `target` (and others) are available built-in to be used on any action.
+The param `message` is user-defined, in our example we made it default empty so we can call `cycle` with
+or without a `message` parameter.
+
+If we pass a `message` parameter, it will be used on the `before_cycle` action:
+
+```py
+>>> sm.send("cycle", message="Please, now slowdown.")
+'Running cycle from green to yellow. Please, now slowdown.'
 
 ```
+
+
+By default, events with transitions that cannot run from the current state or unknown events
+raise a `TransitionNotAllowed` exception:
+
+```py
+>>> sm.send("go")
+Traceback (most recent call last):
+statemachine.exceptions.TransitionNotAllowed: Can't go when in Yellow.
+
+```
+
 Keeping the same state as expected:
 
 ```py
->>> traffic_light.green.is_active
+>>> sm.yellow.is_active
 True
 
 ```
 
-And you can pass arbitrary positional or keyword arguments to the event, and
-they will be propagated to all actions and callbacks:
+A human-readable name is automatically derived from the `State.id`, which is used on the messages
+and in diagrams:
 
 ```py
->>> traffic_light.cycle(message="Please, now slowdown.")
-'Running cycle from green to yellow. Please, now slowdown.'
+>>> sm.current_state.name
+'Yellow'
 
 ```
 
