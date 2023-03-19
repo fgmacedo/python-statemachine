@@ -113,7 +113,7 @@ class StateMachineMetaclass(type):
                 cls._add_states_from_dict(value)
             if isinstance(value, State):
                 cls.add_state(key, value)
-            elif isinstance(value, Transition | TransitionList):
+            elif isinstance(value, (Transition, TransitionList)):
                 cls.add_event(key, value)
             elif getattr(value, "_callbacks_to_update", None):
                 cls._add_unbounded_callback(key, value)

@@ -101,6 +101,7 @@ select = [
 ignore = [
     "UP006", # `use-pep585-annotation` Requires Python3.9+
     "UP035", # `use-pep585-annotation` Requires Python3.9+
+    "UP038", # `use-pep585-annotation` Requires Python3.9+
 ]
 
 line-length = 99
