@@ -2,14 +2,8 @@
 Enum campaign machine
 =====================
 
-A StateMachine that demonstrates using an Enum as source for `States` declaration.
-
-.. note::
-
-    Given that you assign the response of ``States.from_enum`` to a class level
-    variable on your ``StateMachine`` you're good to go, you can use any name.
-    The variable will be inspected by the metaclass and the ``State`` instances
-    assigned to the state machine.
+A :ref:`StateMachine` that demonstrates declaring :ref:`States from Enum types` as source for
+``States`` definition.
 
 """
 from enum import Enum
@@ -27,13 +21,13 @@ class CampaignStatus(Enum):
 class CampaignMachine(StateMachine):
     "A workflow machine"
 
-    _ = States.from_enum(
+    states = States.from_enum(
         CampaignStatus, initial=CampaignStatus.draft, final=CampaignStatus.closed
     )
 
-    add_job = _.draft.to(_.draft) | _.producing.to(_.producing)
-    produce = _.draft.to(_.producing)
-    deliver = _.producing.to(_.closed)
+    add_job = states.draft.to(states.draft) | states.producing.to(states.producing)
+    produce = states.draft.to(states.producing)
+    deliver = states.producing.to(states.closed)
 
 
 # %%

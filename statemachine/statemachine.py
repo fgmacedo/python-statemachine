@@ -2,7 +2,6 @@ from collections import deque
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict  # deprecated since 3.9: https://peps.python.org/pep-0585/
-from typing import List  # deprecated since 3.9: https://peps.python.org/pep-0585/
 
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
@@ -15,6 +14,7 @@ from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .i18n import _
 from .model import Model
+from .states import States
 from .transition import Transition
 
 if TYPE_CHECKING:
@@ -55,19 +55,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
             pass
     """
 
-    _events: Dict[Any, Any] = {}
-    states: List["State"] = []
-    """List of all state machine :ref:`states`."""
-
-    states_map: Dict[Any, "State"] = {}
-    """Map of ``state.value`` to the corresponding :ref:`state`."""
-
-    if TYPE_CHECKING:
-        """Makes mypy happy with dynamic created attributes"""
-
-        def __getattr__(self, attribute: str) -> Any:
-            ...
-
     def __init__(
         self,
         model: Any = None,
@@ -91,8 +78,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         initial_transition = Transition(
             None, self._get_initial_state(), event="__initial__"
         )
-        self._setup(initial_transition)
+        self._setup(self.states, initial_transition)
         self._activate_initial_state(initial_transition)
+
+    if TYPE_CHECKING:
+        """Makes mypy happy with dynamic created attributes"""
+
+        def __getattr__(self, attribute: str) -> Any:
+            ...
 
     def __repr__(self):
         current_state_id = self.current_state.id if self.current_state_value else None
@@ -147,17 +140,29 @@ class StateMachine(metaclass=StateMachineMetaclass):
             for transition in state.transitions:
                 visitor(transition)
 
-    def _setup(self, initial_transition):
+    def _setup(self, class_states: States, initial_transition: Transition):
+        """
+        Args:
+            class_states: The original (shared) instances of :ref:`State` living on the
+                user's concrete :ref:`StateMachine` class. These instances cannot be
+                cannot be modified. So we will clone the states in order to bind the new instances
+                with concrete actions and event handlers.
+
+            initial_transition: A special :ref:`transition` that triggers the enter on the
+                `initial` :ref:`State`.
+        """
         machine = ObjectConfig(self, skip_attrs=self._get_protected_attrs())
         model = ObjectConfig(self.model, skip_attrs={self.state_field})
         default_resolver = resolver_factory(machine, model)
 
         # clone states and transitions to avoid sharing callbacks references between instances
-        self.states_map = {
-            state.value: state.clone()._setup(self, default_resolver)
-            for state in self.states
+        self.states = States(
+            {s.id: s.clone()._setup(self, default_resolver) for s in class_states}
+        )
+
+        self.states_map: Dict[Any, State] = {
+            state.value: state for state in self.states
         }
-        self.states = list(self.states_map.values())
 
         for state in self.states:
             for transition in state.transitions:

@@ -40,7 +40,7 @@ pytest = "^7.2.0"
 pytest-cov = "^4.0.0"
 pytest-sugar = "^0.9.6"
 pydot = "^1.4.2"
-ruff = "^0.0.220"
+ruff = "^0.0.257"
 pre-commit = "^2.21.0"
 mypy = "^0.991"
 black = "^22.12.0"
@@ -100,6 +100,7 @@ select = [
 ]
 ignore = [
     "UP006", # `use-pep585-annotation` Requires Python3.9+
+    "UP035", # `use-pep585-annotation` Requires Python3.9+
 ]
 
 line-length = 99

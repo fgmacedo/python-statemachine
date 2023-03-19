@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict
+from typing import Tuple
 from uuid import uuid4
 
 from . import registry
@@ -15,14 +17,17 @@ from .transition_list import TransitionList
 
 
 class StateMachineMetaclass(type):
-    def __init__(cls, name, bases, attrs):
+    def __init__(cls, name: str, bases: Tuple[type], attrs: Dict[str, Any]):
         super().__init__(name, bases, attrs)
         registry.register(cls)
-        cls._abstract = True
         cls.name = cls.__name__
-        cls.states = []
-        cls._events = {}
-        cls.states_map = {}
+        cls.states: States = States()
+        cls.states_map: Dict[Any, State] = {}
+        """Map of ``state.value`` to the corresponding :ref:`state`."""
+
+        cls._abstract = True
+        cls._events: Dict[str, Event] = {}
+
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
 
@@ -108,7 +113,7 @@ class StateMachineMetaclass(type):
                 cls._add_states_from_dict(value)
             if isinstance(value, State):
                 cls.add_state(key, value)
-            elif isinstance(value, (Transition, TransitionList)):
+            elif isinstance(value, Transition | TransitionList):
                 cls.add_event(key, value)
             elif getattr(value, "_callbacks_to_update", None):
                 cls._add_unbounded_callback(key, value)
