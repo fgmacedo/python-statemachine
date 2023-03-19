@@ -6,7 +6,7 @@ def qualname(cls):
 
 
 def _is_string(obj):
-    return isinstance(obj, str | str)  # type(u""") is a small hack for Python2
+    return isinstance(obj, str)
 
 
 def ensure_iterable(obj):
