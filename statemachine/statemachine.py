@@ -144,9 +144,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         Args:
             class_states: The original (shared) instances of :ref:`State` living on the
-                user's concrete :ref:`StateMachine` class. These instances cannot be
-                cannot be modified. So we will clone the states in order to bind the new instances
-                with concrete actions and event handlers.
+                user's concrete :ref:`StateMachine` class. These instances cannot be modified.
+                So we will clone the states in order to bind the new instances with concrete
+                actions and event handlers.
 
             initial_transition: A special :ref:`transition` that triggers the enter on the
                 `initial` :ref:`State`.
