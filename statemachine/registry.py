@@ -26,6 +26,7 @@ def get_machine_cls(name):
         warnings.warn(
             """Use fully qualified names (<module>.<class>) for state machine mixins.""",
             DeprecationWarning,
+            stacklevel=2,
         )
     return _REGISTRY[name]
 

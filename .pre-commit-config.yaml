@@ -9,11 +9,9 @@ repos:
         exclude: docs/auto_examples
 - repo: https://github.com/charliermarsh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.0.220'
+  rev: 'v0.0.257'
   hooks:
     - id: ruff
-      # Respect `exclude` and `extend-exclude` settings.
-      args: ["--force-exclude"]
 -   repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:

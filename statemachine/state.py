@@ -52,7 +52,7 @@ class State:
     >>> draft.to(producing)
     TransitionList([Transition(State('Draft', ...
 
-    The result is a `TransitionList`.
+    The result is a :ref:`TransitionList`.
     Don't worry about this internal class.
     But the good thing is that it implements the ``OR`` operator to combine transitions,
     so you can use the ``|`` syntax to compound a list of transitions and assign

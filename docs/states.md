@@ -3,6 +3,15 @@
 
 {ref}`State`, as the name says, holds the representation of a state in a {ref}`StateMachine`.
 
+```{eval-rst}
+.. autoclass:: statemachine.state.State
+    :noindex:
+```
+
+```{seealso}
+How to define and attach [](actions.md) to {ref}`States`.
+```
+
 
 ## Initial state
 
@@ -58,6 +67,18 @@ You can retrieve all final states.
 
 ```
 
+## States from Enum types
+
+{ref}`States` can also be declared from standard `Enum` classes.
+
+For this, use {ref}`States (class)` to convert your `Enum` type to a list of {ref}`State` objects.
+
+
+```{eval-rst}
+.. automethod:: statemachine.states.States.from_enum
+  :noindex:
+```
+
 ```{seealso}
-How to define and attach [](actions.md) to {ref}`States`.
+See the example {ref}`sphx_glr_auto_examples_enum_campaign_machine.py`.
 ```
