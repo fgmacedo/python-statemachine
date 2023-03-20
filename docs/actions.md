@@ -341,7 +341,7 @@ Actions and Guards will be executed in the following order:
 Guards. This means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
 library will match your method signature of what's expected to receive with the provided arguments.
 
-This means that if on your `on_enter_<state.id>()` or `on_execute_<event>()` method, you need to know
+This means that if on your `on_enter_<state.id>()` or `on_<event>()` method, you need to know
 the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
 argument passed with the trigger, just add this parameter to the method and It will be passed
 by the dispatch mechanics.
