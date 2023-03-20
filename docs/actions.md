@@ -333,6 +333,48 @@ Actions and Guards will be executed in the following order:
 - `after_transition()`
 
 
+## Return values
+
+Currently only certain actions' return values will be combined as a list and returned for
+a triggered transition:
+
+- `before_transition()`
+
+- `before_<event>()`
+
+- `on_transition()`
+
+- `on_<event>()`
+
+Note that `None` will be used if the action callback does not return anything, but only when it is
+defined explicitly. The following provides an example:
+
+```py
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State(initial=True)
+...
+...     loop = initial.to.itself()
+...
+...     def before_loop(self):
+...         return "Before loop"
+...
+...     def on_transition(self):
+...         pass
+...
+...     def on_loop(self):
+...         return "On loop"
+...
+
+>>> sm = ExampleStateMachine()
+
+>>> sm.loop()
+['Before loop', None, 'On loop']
+
+```
+
+For {ref}`RTC model`, only the main event will get its value list, while the chained ones simply get
+`None` returned. For {ref}`Non-RTC model`, results for every event will always be collected and returned.
+
 
 (dynamic-dispatch)=
 ## Dynamic dispatch
