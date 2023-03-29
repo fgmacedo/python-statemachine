@@ -304,7 +304,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         result = transition.before.call(*event_data.args, **event_data.extended_kwargs)
         if source is not None and not transition.internal:
-            source.exit.call(*event_data.args, **event_data.extended_kwargs)
+            result += source.exit.call(*event_data.args, **event_data.extended_kwargs)
 
         result += transition.on.call(*event_data.args, **event_data.extended_kwargs)
 
@@ -312,8 +312,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_data.state = target
 
         if not transition.internal:
-            target.enter.call(*event_data.args, **event_data.extended_kwargs)
-        transition.after.call(*event_data.args, **event_data.extended_kwargs)
+            result += target.enter.call(*event_data.args, **event_data.extended_kwargs)
+        result += transition.after.call(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:
             result = None
