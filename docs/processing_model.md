@@ -81,7 +81,7 @@ exit 'connecting' to 'connected' given 'connection_succeed'
 on 'connection_succeed' from 'connecting' to 'connected'
 enter 'connected' from 'connecting' given 'connection_succeed'
 after 'connection_succeed' from 'connecting' to 'connected'
-['on_transition', 'on_connect']
+['on_transition', 'on_connect', 'after_transition']
 
 ```
 
@@ -124,7 +124,7 @@ on 'connection_succeed' from 'connecting' to 'connected'
 enter 'connected' from 'connecting' given 'connection_succeed'
 after 'connection_succeed' from 'connecting' to 'connected'
 after 'connect' from 'disconnected' to 'connecting'
-['on_transition', 'on_connect']
+['on_transition', 'on_connect', ['on_transition', 'after_transition'], 'after_transition']
 
 ```
 

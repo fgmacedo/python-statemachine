@@ -302,25 +302,38 @@ class StateMachine(metaclass=StateMachineMetaclass):
         source = event_data.state
         target = transition.target
 
-        result = transition.before.call(*event_data.args, **event_data.extended_kwargs)
-        if source is not None and not transition.internal:
-            result += source.exit.call(*event_data.args, **event_data.extended_kwargs)
+        result_list = transition.before.call(
+            *event_data.args, **event_data.extended_kwargs
+        )
 
-        result += transition.on.call(*event_data.args, **event_data.extended_kwargs)
+        if source is not None and not transition.internal:
+            result_list += source.exit.call(
+                *event_data.args, **event_data.extended_kwargs
+            )
+
+        result_list += transition.on.call(
+            *event_data.args, **event_data.extended_kwargs
+        )
 
         self.current_state = target
         event_data.state = target
 
         if not transition.internal:
-            result += target.enter.call(*event_data.args, **event_data.extended_kwargs)
-        result += transition.after.call(*event_data.args, **event_data.extended_kwargs)
+            result_list += target.enter.call(
+                *event_data.args, **event_data.extended_kwargs
+            )
 
-        if len(result) == 0:
-            result = None
-        elif len(result) == 1:
-            result = result[0]
+        result_list += transition.after.call(
+            *event_data.args, **event_data.extended_kwargs
+        )
 
-        return result
+        result_list = [r for r in result_list if r not in [None, []]]
+        if len(result_list) == 0:
+            return None
+        elif len(result_list) == 1:
+            return result_list[0]
+
+        return result_list
 
     def send(self, event, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
