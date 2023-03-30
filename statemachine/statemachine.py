@@ -21,6 +21,10 @@ if TYPE_CHECKING:
     from .state import State
 
 
+EMPTY_RETURN_VALUES = (None, [])
+"""Values returned by callback wrappers, that will not be propagated."""
+
+
 class StateMachine(metaclass=StateMachineMetaclass):
     """
 
@@ -327,7 +331,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             *event_data.args, **event_data.extended_kwargs
         )
 
-        result_list = [r for r in result_list if r not in [None, []]]
+        result_list = [r for r in result_list if r not in EMPTY_RETURN_VALUES]
         if len(result_list) == 0:
             return None
         elif len(result_list) == 1:
