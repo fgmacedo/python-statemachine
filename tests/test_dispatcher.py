@@ -112,3 +112,13 @@ class TestResolverFactory:
         resolver = resolver_factory(org_config, person)
         resolved_method = resolver(attr)
         assert resolved_method() == expected_value
+
+    def test_should_generate_unique_ids(self):
+        person = Person("Frodo", "Bolseiro", "cpf")
+        org = Organization("The Lord fo the Rings", "cnpj")
+
+        resolver1 = resolver_factory(org, person)
+        resolver2 = resolver_factory(org, person)
+        resolver3 = resolver_factory(org, person)
+
+        assert resolver1.id == resolver2.id == resolver3.id

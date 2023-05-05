@@ -19,6 +19,7 @@ class CallbackWrapper:
         self.suppress_errors = suppress_errors
         self.cond = Callbacks(factory=ConditionWrapper).add(cond)
         self._callback = None
+        self._resolver_id = None
 
     def __repr__(self):
         return f"{type(self).__name__}({self.func!r})"
@@ -27,7 +28,7 @@ class CallbackWrapper:
         return getattr(self.func, "__name__", self.func)
 
     def __eq__(self, other):
-        return self.func == getattr(other, "func", other)
+        return self.func == other.func and self._resolver_id == other._resolver_id
 
     def __hash__(self):
         return id(self)
@@ -45,6 +46,7 @@ class CallbackWrapper:
         """
         self.cond.setup(resolver)
         try:
+            self._resolver_id = getattr(resolver, "id", id(resolver))
             self._callback = resolver(self.func)
             return True
         except AttrNotFound:
@@ -144,13 +146,13 @@ class Callbacks:
         return all(condition(*args, **kwargs) for condition in self)
 
     def _add(self, func, resolver=None, prepend=False, **kwargs):
-        if func in self.items:
-            return
-
         resolver = resolver or self._resolver
 
         callback = self.factory(func, **kwargs)
         if resolver is not None and not callback.setup(resolver):
+            return
+
+        if callback in self.items:
             return
 
         if prepend:
