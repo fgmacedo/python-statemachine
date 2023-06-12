@@ -27,7 +27,7 @@ state {ref}`actions` are called if defined.
 
 
 You can explicitly set final states.
-Transitions from these states are not allowed and will raise exception.
+Transitions from these states are not allowed and will raise exceptions.
 
 ```py
 >>> from statemachine import StateMachine, State

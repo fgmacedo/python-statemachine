@@ -3,7 +3,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: 2.0.0\n"
+"Project-Id-Version: 2.1.0\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
 "POT-Creation-Date: 2023-03-04 16:10-0300\n"
 "PO-Revision-Date: 2023-03-04 16:10-0300\n"
