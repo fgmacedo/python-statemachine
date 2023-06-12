@@ -1,4 +1,5 @@
 import itertools
+from functools import partial
 from inspect import BoundArguments
 from inspect import Parameter
 from inspect import Signature
@@ -15,7 +16,9 @@ class SignatureAdapter(Signature):
 
         sig = cls.from_callable(method)
         sig.method = method
-        sig.__name__ = method.__name__
+        sig.__name__ = (
+            method.func.__name__ if isinstance(method, partial) else method.__name__
+        )
         return sig
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:

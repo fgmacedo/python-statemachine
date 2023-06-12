@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-statemachine"
-version = "2.0.0"
+version = "2.1.0"
 description = "Python Finite State Machines made easy."
 authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
 maintainers = [
@@ -40,7 +40,7 @@ pytest = "^7.2.0"
 pytest-cov = "^4.0.0"
 pytest-sugar = "^0.9.6"
 pydot = "^1.4.2"
-ruff = "^0.0.220"
+ruff = "^0.0.257"
 pre-commit = "^2.21.0"
 mypy = "^0.991"
 black = "^22.12.0"
@@ -51,7 +51,6 @@ Sphinx = "4.5.0"
 sphinx-rtd-theme = "1.1.1"
 myst-parser = "^0.18.1"
 sphinx-gallery = "^0.11.1"
-jupyterlite-sphinx = "^0.7.2"
 pillow = "^9.4.0"
 sphinx-autobuild = "^2021.3.14"
 
@@ -100,6 +99,8 @@ select = [
 ]
 ignore = [
     "UP006", # `use-pep585-annotation` Requires Python3.9+
+    "UP035", # `use-pep585-annotation` Requires Python3.9+
+    "UP038", # `use-pep585-annotation` Requires Python3.9+
 ]
 
 line-length = 99

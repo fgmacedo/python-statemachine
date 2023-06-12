@@ -1,3 +1,7 @@
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import Tuple
 from uuid import uuid4
 
 from . import registry
@@ -7,24 +11,34 @@ from .exceptions import InvalidDefinition
 from .graph import visit_connected_states
 from .i18n import _
 from .state import State
+from .states import States
 from .transition import Transition
 from .transition_list import TransitionList
 
 
 class StateMachineMetaclass(type):
-    def __init__(cls, name, bases, attrs):
+    def __init__(cls, name: str, bases: Tuple[type], attrs: Dict[str, Any]):
         super().__init__(name, bases, attrs)
         registry.register(cls)
-        cls._abstract = True
         cls.name = cls.__name__
-        cls.states = []
-        cls._events = {}
-        cls.states_map = {}
+        cls.states: States = States()
+        cls.states_map: Dict[Any, State] = {}
+        """Map of ``state.value`` to the corresponding :ref:`state`."""
+
+        cls._abstract = True
+        cls._events: Dict[str, Event] = {}
+
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
 
         cls._set_special_states()
         cls._check()
+
+    if TYPE_CHECKING:
+        """Makes mypy happy with dynamic created attributes"""
+
+        def __getattr__(self, attribute: str) -> Any:
+            ...
 
     def _set_special_states(cls):
         if not cls.states:
@@ -95,12 +109,18 @@ class StateMachineMetaclass(type):
 
     def add_from_attributes(cls, attrs):
         for key, value in sorted(attrs.items(), key=lambda pair: pair[0]):
+            if isinstance(value, States):
+                cls._add_states_from_dict(value)
             if isinstance(value, State):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
                 cls.add_event(key, value)
             elif getattr(value, "_callbacks_to_update", None):
                 cls._add_unbounded_callback(key, value)
+
+    def _add_states_from_dict(cls, states):
+        for state_id, state in states.items():
+            cls.add_state(state_id, state)
 
     def _add_unbounded_callback(cls, attr_name, func):
         if func._is_event:
@@ -118,6 +138,8 @@ class StateMachineMetaclass(type):
         state._set_id(id)
         cls.states.append(state)
         cls.states_map[state.value] = state
+        if not hasattr(cls, id):
+            setattr(cls, id, state)
 
         # also register all events associated directly with transitions
         for event in state.transitions.unique_events:

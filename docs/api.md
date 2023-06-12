@@ -20,6 +20,14 @@
     :members:
 ```
 
+## States (class)
+
+```{eval-rst}
+.. autoclass:: statemachine.states.States
+    :noindex:
+    :members:
+```
+
 ## Transition
 
 ```{seealso}

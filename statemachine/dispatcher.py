@@ -37,6 +37,28 @@ def _get_func_by_attr(attr, *configs):
     return func, config.obj
 
 
+def _build_attr_wrapper(attr: str, obj):
+    # if `attr` is not callable, then it's an attribute or property,
+    # so `func` contains it's current value.
+    # we'll build a method that get's the fresh value for each call
+    getter = attrgetter(attr)
+
+    def wrapper(*args, **kwargs):
+        return getter(obj)
+
+    return wrapper
+
+
+def _build_sm_event_wrapper(func):
+    "Events already have the 'machine' parameter defined."
+
+    def wrapper(*args, **kwargs):
+        kwargs.pop("machine", None)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def ensure_callable(attr, *objects):
     """Ensure that `attr` is a callable, if not, tries to retrieve one from any of the given
     `objects`.
@@ -56,24 +78,10 @@ def ensure_callable(attr, *objects):
     func, obj = _get_func_by_attr(attr, *configs)
 
     if not callable(func):
-        # if `attr` is not callable, then it's an attribute or property,
-        # so `func` contains it's current value.
-        # we'll build a method that get's the fresh value for each call
-        getter = attrgetter(attr)
-
-        def wrapper(*args, **kwargs):
-            return getter(obj)
-
-        return wrapper
+        return _build_attr_wrapper(attr, obj)
 
     if getattr(func, "_is_sm_event", False):
-        "Events already have the 'machine' parameter defined."
-
-        def wrapper(*args, **kwargs):
-            kwargs.pop("machine")
-            return func(*args, **kwargs)
-
-        return wrapper
+        return _build_sm_event_wrapper(func)
 
     return SignatureAdapter.wrap(func)
 
@@ -81,8 +89,13 @@ def ensure_callable(attr, *objects):
 def resolver_factory(*objects):
     """Factory that returns a configured resolver."""
 
+    objects = [ObjectConfig.from_obj(obj) for obj in objects]
+
     @wraps(ensure_callable)
     def wrapper(attr):
         return ensure_callable(attr, *objects)
+
+    resolver_id = ".".join(str(id(obj.obj)) for obj in objects)
+    wrapper.id = resolver_id
 
     return wrapper
