@@ -346,7 +346,7 @@ https://python-statemachine.readthedocs.io.
 - If you found this project helpful, please consider giving it a star on GitHub.
 
 - **Contribute code**: If you would like to contribute code to this project, please submit a pull
-request. For more information on how to contribute, please see our [contributing.md]contributing.md) file.
+request. For more information on how to contribute, please see our [contributing.md](contributing.md) file.
 
 - **Report bugs**: If you find any bugs in this project, please report them by opening an issue
   on our GitHub issue tracker.
