@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Tuple
 from uuid import uuid4
 
@@ -31,7 +32,13 @@ class StateMachineMetaclass(type):
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
 
-        cls._set_special_states()
+        try:
+            cls.initial_state: State = next(s for s in cls.states if s.initial)
+        except StopIteration:
+            cls.initial_state = None  # Abstract SM still don't have states
+
+        cls.final_states: List[State] = [state for state in cls.states if state.final]
+
         cls._check()
 
     if TYPE_CHECKING:
@@ -39,35 +46,6 @@ class StateMachineMetaclass(type):
 
         def __getattr__(self, attribute: str) -> Any:
             ...
-
-    def _set_special_states(cls):
-        if not cls.states:
-            return
-        initials = [s for s in cls.states if s.initial]
-        if len(initials) != 1:
-            raise InvalidDefinition(
-                _(
-                    "There should be one and only one initial state. "
-                    "Your currently have these: {!r}"
-                ).format([s.id for s in initials])
-            )
-        cls.initial_state = initials[0]
-        cls.final_states = [state for state in cls.states if state.final]
-
-    def _disconnected_states(cls, starting_state):
-        visitable_states = set(visit_connected_states(starting_state))
-        return set(cls.states) - visitable_states
-
-    def _check_disconnected_state(cls):
-        disconnected_states = cls._disconnected_states(cls.initial_state)
-        if disconnected_states:
-            raise InvalidDefinition(
-                _(
-                    "There are unreachable states. "
-                    "The statemachine graph should have a single component. "
-                    "Disconnected states: {}"
-                ).format([s.id for s in disconnected_states])
-            )
 
     def _check(cls):
         has_states = bool(cls.states)
@@ -85,8 +63,21 @@ class StateMachineMetaclass(type):
         if not has_events:
             raise InvalidDefinition(_("There are no events."))
 
+        cls._check_initial_state()
+        cls._check_final_states()
         cls._check_disconnected_state()
 
+    def _check_initial_state(cls):
+        initials = [s for s in cls.states if s.initial]
+        if len(initials) != 1:
+            raise InvalidDefinition(
+                _(
+                    "There should be one and only one initial state. "
+                    "Your currently have these: {!r}"
+                ).format([s.id for s in initials])
+            )
+
+    def _check_final_states(cls):
         final_state_with_invalid_transitions = [
             state for state in cls.final_states if state.transitions
         ]
@@ -96,6 +87,21 @@ class StateMachineMetaclass(type):
                 _(
                     "Cannot declare transitions from final state. Invalid state(s): {}"
                 ).format([s.id for s in final_state_with_invalid_transitions])
+            )
+
+    def _disconnected_states(cls, starting_state):
+        visitable_states = set(visit_connected_states(starting_state))
+        return set(cls.states) - visitable_states
+
+    def _check_disconnected_state(cls):
+        disconnected_states = cls._disconnected_states(cls.initial_state)
+        if disconnected_states:
+            raise InvalidDefinition(
+                _(
+                    "There are unreachable states. "
+                    "The statemachine graph should have a single component. "
+                    "Disconnected states: {}"
+                ).format([s.id for s in disconnected_states])
             )
 
     def add_inherited(cls, bases):

@@ -50,6 +50,23 @@ def test_machine_should_only_allow_only_one_initial_state():
             deliver = producing.to(closed)
 
 
+def test_machine_should_activate_initial_state():
+    class CampaignMachine(StateMachine):
+        "A workflow machine"
+        producing = State()
+        closed = State()
+        draft = State(initial=True)
+
+        add_job = draft.to(draft) | producing.to(producing)
+        produce = draft.to(producing)
+        deliver = producing.to(closed)
+
+    sm = CampaignMachine()
+
+    assert sm.current_state == sm.draft
+    assert sm.current_state.is_active
+
+
 def test_machine_should_not_allow_transitions_from_final_state():
     with pytest.raises(exceptions.InvalidDefinition):
 

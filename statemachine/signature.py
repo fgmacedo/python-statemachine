@@ -25,6 +25,16 @@ class SignatureAdapter(Signature):
         ba = self.bind_expected(*args, **kwargs)
         return self.method(*ba.args, **ba.kwargs)
 
+    @classmethod
+    def from_callable(cls, method):
+        if hasattr(method, "__signature__"):
+            sig = method.__signature__
+            return SignatureAdapter(
+                sig.parameters.values(),
+                return_annotation=sig.return_annotation,
+            )
+        return super().from_callable(method)
+
     def bind_expected(self, *args: Any, **kwargs: Any) -> BoundArguments:  # noqa: C901
         """Get a BoundArguments object, that maps the passed `args`
         and `kwargs` to the function's signature.  It avoids to raise `TypeError`
