@@ -52,4 +52,4 @@ def exercise_order():
 
 
 def test_setup_performance(benchmark):
-    benchmark.pedantic(exercise_order, rounds=10, iterations=700)
+    benchmark.pedantic(exercise_order, rounds=10, iterations=1000)
