@@ -1,5 +1,4 @@
 from collections import namedtuple
-from functools import wraps
 from operator import attrgetter
 
 from .signature import SignatureAdapter
@@ -88,7 +87,6 @@ def resolver_factory(*objects):
 
     objects = [ObjectConfig.from_obj(obj) for obj in objects]
 
-    @wraps(ensure_callable)
     def wrapper(attr):
         return ensure_callable(attr, *objects)
 

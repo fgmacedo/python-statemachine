@@ -1,6 +1,5 @@
 import itertools
 from functools import partial
-from functools import wraps
 from inspect import BoundArguments
 from inspect import Parameter
 from inspect import Signature
@@ -27,7 +26,6 @@ def signature_cache(user_function):
     cache = {}
     cache_get = cache.get
 
-    @wraps(user_function)
     def cached_function(cls, method):
         key = _make_key(method)
         sig = cache_get(key)
@@ -49,13 +47,15 @@ class SignatureAdapter(Signature):
         """Build a wrapper that adapts the received arguments to the inner ``method`` signature"""
 
         sig = cls.from_callable(method)
+        sig_bind_expected = sig.bind_expected
 
         metadata_to_copy = method.func if isinstance(method, partial) else method
 
-        @wraps(metadata_to_copy)
         def method_wrapper(*args: Any, **kwargs: Any) -> Any:
-            ba = sig.bind_expected(*args, **kwargs)
+            ba = sig_bind_expected(*args, **kwargs)
             return method(*ba.args, **ba.kwargs)
+
+        method_wrapper.__name__ = metadata_to_copy.__name__
 
         return method_wrapper
 
