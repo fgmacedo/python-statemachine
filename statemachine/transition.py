@@ -1,4 +1,3 @@
-from functools import partial
 from typing import TYPE_CHECKING
 
 from .callbacks import Callbacks
@@ -87,21 +86,40 @@ class Transition:
         self.on.setup(resolver)
         self.after.setup(resolver)
 
-    def _add_observer(self, *resolvers):
-        for r in resolvers:
-            before = partial(self.before.add, resolver=r, suppress_errors=True)
-            on = partial(self.on.add, resolver=r, suppress_errors=True)
-            after = partial(self.after.add, resolver=r, suppress_errors=True)
-
-            before("before_transition", prepend=True)
-            on("on_transition", prepend=True)
+    def _add_observer(self, *observers):
+        before = self.before.add
+        on = self.on.add
+        after = self.after.add
+        for o in observers:
+            before("before_transition", resolver=o, suppress_errors=True, prepend=True)
+            on("on_transition", resolver=o, suppress_errors=True, prepend=True)
 
             for event in self._events:
-                before(f"before_{event}", cond=same_event_cond_builder(event))
-                on(f"on_{event}", cond=same_event_cond_builder(event))
-                after(f"after_{event}", cond=same_event_cond_builder(event))
+                same_event_cond = same_event_cond_builder(event)
+                before(
+                    f"before_{event}",
+                    resolver=o,
+                    suppress_errors=True,
+                    cond=same_event_cond,
+                )
+                on(
+                    f"on_{event}",
+                    resolver=o,
+                    suppress_errors=True,
+                    cond=same_event_cond,
+                )
+                after(
+                    f"after_{event}",
+                    resolver=o,
+                    suppress_errors=True,
+                    cond=same_event_cond,
+                )
 
-            after("after_transition")
+            after(
+                "after_transition",
+                resolver=o,
+                suppress_errors=True,
+            )
 
     def match(self, event):
         return self._events.match(event)

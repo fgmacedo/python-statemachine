@@ -36,7 +36,6 @@ def signature_cache(user_function):
 
         return sig
 
-    cached_function.get_cache = lambda: cache
     cached_function.clear_cache = cache.clear
     cached_function.make_key = make_key
 
