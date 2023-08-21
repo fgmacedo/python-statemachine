@@ -8,27 +8,28 @@ from types import MethodType
 from typing import Any
 
 
+def _make_key(method):
+    method = method.func if isinstance(method, partial) else method
+    if isinstance(method, MethodType):
+        return hash(
+            (
+                method.__qualname__,
+                method.__self__.__class__.__name__,
+                method.__code__.co_varnames,
+            )
+        )
+    else:
+        return hash((method.__qualname__, method.__code__.co_varnames))
+
+
 def signature_cache(user_function):
 
     cache = {}
     cache_get = cache.get
 
-    def make_key(method):
-        method = method.func if isinstance(method, partial) else method
-        if isinstance(method, MethodType):
-            return hash(
-                (
-                    method.__qualname__,
-                    method.__self__.__class__.__name__,
-                    method.__code__.co_varnames,
-                )
-            )
-        else:
-            return hash((method.__qualname__, method.__code__.co_varnames))
-
     @wraps(user_function)
     def cached_function(cls, method):
-        key = make_key(method)
+        key = _make_key(method)
         sig = cache_get(key)
         if sig is None:
             sig = user_function(cls, method)
@@ -37,7 +38,7 @@ def signature_cache(user_function):
         return sig
 
     cached_function.clear_cache = cache.clear
-    cached_function.make_key = make_key
+    cached_function.make_key = _make_key
 
     return cached_function
 
