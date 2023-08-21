@@ -2,8 +2,6 @@ from collections import namedtuple
 from functools import wraps
 from operator import attrgetter
 
-from .exceptions import AttrNotFound
-from .i18n import _
 from .signature import SignatureAdapter
 
 
@@ -29,12 +27,9 @@ def _get_func_by_attr(attr, *configs):
             continue
         func = getattr(config.obj, attr, None)
         if func is not None:
-            break
-    else:
-        raise AttrNotFound(
-            _("Did not found name '{}' from model or statemachine").format(attr)
-        )
-    return func, config.obj
+            return func, config.obj
+
+    return None, None
 
 
 def _build_attr_wrapper(attr: str, obj):
@@ -76,6 +71,8 @@ def ensure_callable(attr, *objects):
     configs = [ObjectConfig.from_obj(obj) for obj in objects]
 
     func, obj = _get_func_by_attr(attr, *configs)
+    if func is None:
+        return
 
     if not callable(func):
         return _build_attr_wrapper(attr, obj)

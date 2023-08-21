@@ -45,14 +45,18 @@ class CallbackWrapper:
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
         self.cond.setup(resolver)
-        try:
-            self._resolver_id = getattr(resolver, "id", id(resolver))
-            self._callback = resolver(self.func)
-            return True
-        except AttrNotFound:
+        self._resolver_id = getattr(resolver, "id", id(resolver))
+        self._callback = resolver(self.func)
+        if self._callback is None:
             if not self.suppress_errors:
-                raise
+                raise AttrNotFound(
+                    _("Did not found name '{}' from model or statemachine").format(
+                        self.func
+                    )
+                )
+
             return False
+        return True
 
     def __call__(self, *args, **kwargs):
         if self._callback is None:
