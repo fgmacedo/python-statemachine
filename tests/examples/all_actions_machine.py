@@ -149,7 +149,7 @@ spy = machine.spy
 
 
 # %%
-# Only before/on actions have their result collected.
+# All state (enter/exit) and transition (before/on/after) actions have their result collected.
 
 result = machine.go()
 assert result == [
@@ -158,11 +158,21 @@ assert result == [
     "before_go_inline_2",
     "before_go_decor",
     "before_go",
+    "on_exit_state",
+    "exit_initial_decor",
+    "on_exit_initial",
     "on_transition",
     "on_inline_1",
     "on_inline_2",
     "go_on_decor",
     "on_go",
+    "on_enter_state",
+    "on_enter_final",
+    "after_go_inline_1",
+    "after_go_inline_2",
+    "after_go_decor",
+    "after_go",
+    "after_transition"
 ]
 
 # %%
