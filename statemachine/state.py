@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict
+from weakref import ref
 
 from .callbacks import CallbackMetaList
 from .exceptions import StateMachineError
@@ -138,7 +140,9 @@ class State:
         )
 
     def __get__(self, machine, owner):
-        return InstanceState(self, machine=machine)
+        if machine is None:
+            return self
+        return self.for_instance(machine=machine, cache=machine._states_for_instance)
 
     def __set__(self, instance, value):
         raise StateMachineError(
@@ -147,13 +151,20 @@ class State:
             )
         )
 
+    def for_instance(
+        self, machine: "StateMachine", cache: Dict["State", "State"]
+    ) -> "State":
+        if self not in cache:
+            cache[self] = InstanceState(self, machine)
+
+        return cache[self]
+
     @property
     def id(self) -> str:
         return self._id
 
     def _set_id(self, id: str):
         self._id = id
-        self._storage = f"_{id}"
         if self.value is None:
             self.value = id
         if not self.name:
@@ -211,50 +222,50 @@ class InstanceState(State):
         state: State,
         machine: "StateMachine",
     ):
-        self._state = state
-        self._machine = machine
+        self._state = ref(state)
+        self._machine = ref(machine)
 
     @property
     def name(self):
-        return self._state.name
+        return self._state().name
 
     @property
     def value(self):
-        return self._state.value
+        return self._state().value
 
     @property
     def transitions(self):
-        return self._state.transitions
+        return self._state().transitions
 
     @property
     def enter(self):
-        return self._state.enter
+        return self._state().enter
 
     @property
     def exit(self):
-        return self._state.exit
+        return self._state().exit
 
     def __eq__(self, other):
-        return self._state == other
+        return self._state() == other
 
     def __hash__(self):
-        return hash(repr(self._state))
+        return hash(repr(self._state()))
 
     def __repr__(self):
-        return repr(self._state)
-
-    @property
-    def id(self) -> str:
-        return self._state._id
+        return repr(self._state())
 
     @property
     def initial(self):
-        return self._state._initial
+        return self._state()._initial
 
     @property
     def final(self):
-        return self._state._final
+        return self._state()._final
+
+    @property
+    def id(self) -> str:
+        return (self._state() or self)._id
 
     @property
     def is_active(self):
-        return self._machine.current_state == self
+        return self._machine().current_state == self

@@ -2,6 +2,7 @@ from collections import deque
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict
 
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
@@ -15,7 +16,6 @@ from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .i18n import _
 from .model import Model
-from .state import InstanceState
 from .transition import Transition
 
 if TYPE_CHECKING:
@@ -72,6 +72,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.__processing: bool = False
         self._external_queue: deque = deque()
         self._callbacks_registry = CallbacksRegistry()
+        self._states_for_instance: Dict["State", "State"] = {}
 
         assert hasattr(self, "_abstract")
         if self._abstract:
@@ -217,7 +218,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
         This is a low level API, that can be to assign any valid state
         completely bypassing all the hooks and validations.
         """
-        return InstanceState(self.states_map[self.current_state_value], machine=self)
+
+        state: State = self.states_map[self.current_state_value].for_instance(
+            machine=self,
+            cache=self._states_for_instance,
+        )
+        return state
 
     @current_state.setter
     def current_state(self, value):
