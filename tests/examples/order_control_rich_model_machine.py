@@ -60,7 +60,7 @@ try:
     control = OrderControl()
 except AttrNotFound as e:
     assert (  # noqa: PT017
-        str(e) == "Did not found name 'wait_for_payment' from model or statemachine"
+        str(e) == "Did not found name 'payment_received' from model or statemachine"
     )
 
 # %%

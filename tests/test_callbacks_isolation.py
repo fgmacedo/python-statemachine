@@ -17,7 +17,7 @@ def simple_sm_cls():
             self.name = name
             self.can_finish = False
             self.finalized = False
-            super().__init__()
+            super().__init__(allow_event_without_transition=True)
 
         def do_finish(self):
             return self.name, self.can_finish
@@ -35,9 +35,13 @@ class TestCallbacksIsolation:
         sm3 = simple_sm_cls("sm3")
 
         sm1.can_finish = True
-        assert sm1.initial.transitions[0].cond.call() == [True]
-        assert sm2.initial.transitions[0].cond.call() == [False]
-        assert sm3.initial.transitions[0].cond.call() == [False]
+        sm1.send("finish")
+        sm2.send("finish")
+        sm3.send("finish")
+
+        assert sm1.final.is_active
+        assert sm2.initial.is_active
+        assert sm2.initial.is_active
 
     def test_should_actions_be_isolated(self, simple_sm_cls):
         sm1 = simple_sm_cls("sm1")
@@ -67,14 +71,3 @@ class TestCallbacksIsolation:
         assert sm1.finalized is True
         assert not sm1.initial.is_active
         assert sm1.final.is_active
-
-    def test_instance_states_and_transitions_are_isolated(self, simple_sm_cls):
-        sm1 = simple_sm_cls("sm1")
-
-        assert sm1.initial == simple_sm_cls.initial
-        assert sm1.initial is not simple_sm_cls.initial
-
-        assert repr(sm1.initial.transitions[0]) == repr(
-            simple_sm_cls.initial.transitions[0]
-        )
-        assert sm1.initial.transitions[0] is not simple_sm_cls.initial.transitions[0]

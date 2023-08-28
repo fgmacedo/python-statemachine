@@ -70,6 +70,7 @@ doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGN
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
+disable_error_code = "annotation-unchecked"
 
 [[tool.mypy.overrides]]
 module = [

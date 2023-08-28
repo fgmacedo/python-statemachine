@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
-from .callbacks import Callbacks
-from .callbacks import ConditionWrapper
+from .callbacks import BoolCallbackMeta
+from .callbacks import CallbackMetaList
 from .event import same_event_cond_builder
 from .events import Events
 from .exceptions import InvalidDefinition
@@ -57,12 +57,12 @@ class Transition:
             raise InvalidDefinition("Internal transitions should be self-transitions.")
 
         self._events = Events().add(event)
-        self.validators = Callbacks().add(validators)
-        self.before = Callbacks().add(before)
-        self.on = Callbacks().add(on)
-        self.after = Callbacks().add(after)
+        self.validators = CallbackMetaList().add(validators)
+        self.before = CallbackMetaList().add(before)
+        self.on = CallbackMetaList().add(on)
+        self.after = CallbackMetaList().add(after)
         self.cond = (
-            Callbacks(factory=ConditionWrapper)
+            CallbackMetaList(factory=BoolCallbackMeta)
             .add(cond)
             .add(unless, expected_value=False)
         )
@@ -73,53 +73,48 @@ class Transition:
             f"internal={self.internal!r})"
         )
 
-    def _upd_state_refs(self, machine):
-        if self.source:
-            self.source = machine.__dict__[self.source._storage]
-        self.target = machine.__dict__[self.target._storage]
+    def _setup(self, register):
+        register(self.validators)
+        register(self.cond)
+        register(self.before)
+        register(self.on)
+        register(self.after)
 
-    def _setup(self, machine, resolver):
-        self._upd_state_refs(machine)
-        self.validators.setup(resolver)
-        self.cond.setup(resolver)
-        self.before.setup(resolver)
-        self.on.setup(resolver)
-        self.after.setup(resolver)
-
-    def _add_observer(self, *observers):
+    def _add_observer(self, registry):
         before = self.before.add
         on = self.on.add
         after = self.after.add
-        for o in observers:
-            before("before_transition", resolver=o, suppress_errors=True, prepend=True)
-            on("on_transition", resolver=o, suppress_errors=True, prepend=True)
+        before(
+            "before_transition", registry=registry, suppress_errors=True, prepend=True
+        )
+        on("on_transition", registry=registry, suppress_errors=True, prepend=True)
 
-            for event in self._events:
-                same_event_cond = same_event_cond_builder(event)
-                before(
-                    f"before_{event}",
-                    resolver=o,
-                    suppress_errors=True,
-                    cond=same_event_cond,
-                )
-                on(
-                    f"on_{event}",
-                    resolver=o,
-                    suppress_errors=True,
-                    cond=same_event_cond,
-                )
-                after(
-                    f"after_{event}",
-                    resolver=o,
-                    suppress_errors=True,
-                    cond=same_event_cond,
-                )
-
-            after(
-                "after_transition",
-                resolver=o,
+        for event in self._events:
+            same_event_cond = same_event_cond_builder(event)
+            before(
+                f"before_{event}",
+                registry=registry,
                 suppress_errors=True,
+                cond=same_event_cond,
             )
+            on(
+                f"on_{event}",
+                registry=registry,
+                suppress_errors=True,
+                cond=same_event_cond,
+            )
+            after(
+                f"after_{event}",
+                registry=registry,
+                suppress_errors=True,
+                cond=same_event_cond,
+            )
+
+        after(
+            "after_transition",
+            registry=registry,
+            suppress_errors=True,
+        )
 
     def match(self, event):
         return self._events.match(event)
@@ -136,11 +131,12 @@ class Transition:
         self._events.add(value)
 
     def execute(self, event_data: "EventData"):
+        machine = event_data.machine
         args, kwargs = event_data.args, event_data.extended_kwargs
-        self.validators.call(*args, **kwargs)
-        if not self.cond.all(*args, **kwargs):
+        machine._callbacks_registry[self.validators].call(*args, **kwargs)
+        if not machine._callbacks_registry[self.cond].all(*args, **kwargs):
             return False
 
-        result = event_data.machine._activate(event_data)
+        result = machine._activate(event_data)
         event_data.result = result
         return True

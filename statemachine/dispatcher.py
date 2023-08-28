@@ -90,7 +90,7 @@ def resolver_factory(*objects):
     def wrapper(attr):
         return ensure_callable(attr, *objects)
 
-    resolver_id = ".".join(str(id(obj.obj)) for obj in objects)
-    wrapper.id = resolver_id
+    resolver_ids = {str(id(obj.obj)) for obj in objects}
+    wrapper.resolver_ids = resolver_ids
 
     return wrapper

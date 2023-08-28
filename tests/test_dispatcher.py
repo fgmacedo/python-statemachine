@@ -121,4 +121,6 @@ class TestResolverFactory:
         resolver2 = resolver_factory(org, person)
         resolver3 = resolver_factory(org, person)
 
-        assert resolver1.id == resolver2.id == resolver3.id
+        assert (
+            resolver1.resolver_ids == resolver2.resolver_ids == resolver3.resolver_ids
+        )

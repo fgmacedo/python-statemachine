@@ -1,11 +1,47 @@
+from collections import defaultdict
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Set
+
 from .exceptions import AttrNotFound
-from .exceptions import InvalidDefinition
 from .i18n import _
 from .utils import ensure_iterable
 
 
 class CallbackWrapper:
-    """A thin wrapper that ensures the target callback is a proper callable.
+    def __init__(
+        self,
+        metadata: "CallbackMeta",
+        callback: Callable,
+        condition: Callable,
+        resolver_ids: Set[str],
+    ) -> None:
+        self._metadata = metadata
+        self._callback = callback
+        self.condition = condition
+        self.resolver_ids = resolver_ids
+
+    def __eq__(self, other):
+        return (
+            self._metadata == other._metadata and self.resolver_ids & other.resolver_ids
+        )
+
+    def __hash__(self):
+        return id(self)
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self._metadata.func!r}, resolver_ids={self.resolver_ids})"
+
+    def __call__(self, *args, **kwargs):
+        result = self._callback(*args, **kwargs)
+        if self._metadata.expected_value is not None:
+            return bool(result) == self._metadata.expected_value
+        return result
+
+
+class CallbackMeta:
+    """A thin wrapper that register info about actions and guards.
 
     At first, `func` can be a string or a callable, and even if it's already
     a callable, his signature can mismatch.
@@ -14,12 +50,11 @@ class CallbackWrapper:
     call is performed, to allow the proper callback resolution.
     """
 
-    def __init__(self, func, suppress_errors=False, cond=None):
+    def __init__(self, func, suppress_errors=False, cond=None, expected_value=None):
         self.func = func
         self.suppress_errors = suppress_errors
-        self.cond = Callbacks(factory=ConditionWrapper).add(cond)
-        self._callback = None
-        self._resolver_id = None
+        self.cond = CallbackMetaList().add(cond)
+        self.expected_value = expected_value
 
     def __repr__(self):
         return f"{type(self).__name__}({self.func!r})"
@@ -28,7 +63,7 @@ class CallbackWrapper:
         return getattr(self.func, "__name__", self.func)
 
     def __eq__(self, other):
-        return self.func == other.func and self._resolver_id == other._resolver_id
+        return self.func == other.func
 
     def __hash__(self):
         return id(self)
@@ -36,7 +71,7 @@ class CallbackWrapper:
     def _update_func(self, func):
         self.func = func
 
-    def setup(self, resolver):
+    def build(self, resolver) -> "CallbackWrapper | None":
         """
         Resolves the `func` into a usable callable.
 
@@ -44,45 +79,47 @@ class CallbackWrapper:
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
-        self.cond.setup(resolver)
-        self._resolver_id = getattr(resolver, "id", id(resolver))
-        self._callback = resolver(self.func)
-        if self._callback is None:
-            if not self.suppress_errors:
-                raise AttrNotFound(
-                    _("Did not found name '{}' from model or statemachine").format(
-                        self.func
-                    )
-                )
+        conditions = CallbacksExecutor()
+        conditions.add(self.cond, resolver)
 
-            return False
-        return True
-
-    def __call__(self, *args, **kwargs):
-        if self._callback is None:
-            raise InvalidDefinition(
-                _("Callback {!r} not property configured.").format(self)
+        callback = resolver(self.func)
+        if callback is not None:
+            return CallbackWrapper(
+                self,
+                callback=callback,
+                condition=conditions.all,
+                resolver_ids=getattr(resolver, "resolver_ids", set(str(id(resolver)))),
             )
-        return self._callback(*args, **kwargs)
+
+        if not self.suppress_errors:
+            raise AttrNotFound(
+                _("Did not found name '{}' from model or statemachine").format(
+                    self.func
+                )
+            )
+        return None
 
 
-class ConditionWrapper(CallbackWrapper):
-    def __init__(self, func, suppress_errors=False, expected_value=True):
-        super().__init__(func, suppress_errors)
+class BoolCallbackMeta(CallbackMeta):
+    """A thin wrapper that register info about actions and guards.
+
+    At first, `func` can be a string or a callable, and even if it's already
+    a callable, his signature can mismatch.
+
+    After instantiation, `.setup(resolver)` must be called before any real
+    call is performed, to allow the proper callback resolution.
+    """
+
+    def __init__(self, func, suppress_errors=False, cond=None, expected_value=True):
+        self.func = func
+        self.suppress_errors = suppress_errors
+        self.cond = CallbackMetaList().add(cond)
         self.expected_value = expected_value
 
-    def __str__(self):
-        name = super().__str__()
-        return name if self.expected_value else f"!{name}"
 
-    def __call__(self, *args, **kwargs):
-        return bool(super().__call__(*args, **kwargs)) == self.expected_value
-
-
-class Callbacks:
-    def __init__(self, resolver=None, factory=CallbackWrapper):
-        self.items = []
-        self._resolver = resolver
+class CallbackMetaList:
+    def __init__(self, factory=CallbackMeta):
+        self.items: List[CallbackMeta] = []
         self.factory = factory
 
     def __repr__(self):
@@ -90,13 +127,6 @@ class Callbacks:
 
     def __str__(self):
         return ", ".join(str(c) for c in self)
-
-    def setup(self, resolver):
-        """Validate configurations"""
-        self._resolver = resolver
-        self.items = [
-            callback for callback in self.items if callback.setup(self._resolver)
-        ]
 
     def _add_unbounded_callback(self, func, is_event=False, transitions=None, **kwargs):
         """This list was a target for adding a func using decorator
@@ -139,31 +169,19 @@ class Callbacks:
     def clear(self):
         self.items = []
 
-    def call(self, *args, **kwargs):
-        return [
-            callback(*args, **kwargs)
-            for callback in self.items
-            if callback.cond.all(*args, **kwargs)
-        ]
-
-    def all(self, *args, **kwargs):
-        return all(condition(*args, **kwargs) for condition in self)
-
-    def _add(self, func, resolver=None, prepend=False, **kwargs):
-        resolver = resolver or self._resolver
-
-        callback = self.factory(func, **kwargs)
-        if resolver is not None and not callback.setup(resolver):
+    def _add(self, func, registry=None, prepend=False, **kwargs):
+        meta = self.factory(func, **kwargs)
+        if registry is not None and not registry(self, meta, prepend=prepend):
             return
 
-        if callback in self.items:
+        if meta in self.items:
             return
 
         if prepend:
-            self.items.insert(0, callback)
+            self.items.insert(0, meta)
         else:
-            self.items.append(callback)
-        return callback
+            self.items.append(meta)
+        return meta
 
     def add(self, callbacks, **kwargs):
         if callbacks is None:
@@ -174,3 +192,71 @@ class Callbacks:
             self._add(func, **kwargs)
 
         return self
+
+
+class CallbacksExecutor:
+    def __init__(self):
+        self.items: List[CallbackWrapper] = []
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.items!r})"
+
+    def add_one(
+        self, callback_info: CallbackMeta, resolver: Callable, prepend: bool = False
+    ) -> "CallbackWrapper | None":
+        callback = callback_info.build(resolver)
+        if callback is None:
+            return None
+
+        if callback in self.items:
+            return None
+
+        if prepend:
+            self.items.insert(0, callback)
+        else:
+            self.items.append(callback)
+        return callback
+
+    def add(self, items: CallbackMetaList, resolver: Callable):
+        """Validate configurations"""
+        for item in items:
+            self.add_one(item, resolver)
+        return self
+
+    def call(self, *args, **kwargs):
+        return [
+            callback(*args, **kwargs)
+            for callback in self
+            if callback.condition(*args, **kwargs)
+        ]
+
+    def all(self, *args, **kwargs):
+        return all(condition(*args, **kwargs) for condition in self)
+
+
+class CallbacksRegistry:
+    def __init__(self) -> None:
+        self._registry: Dict[CallbackMetaList, CallbacksExecutor] = defaultdict(
+            CallbacksExecutor
+        )
+
+    def register(self, callbacks: CallbackMetaList, resolver):
+        executor_list = self[callbacks]
+        executor_list.add(callbacks, resolver)
+        return executor_list
+
+    def __getitem__(self, callbacks: CallbackMetaList) -> CallbacksExecutor:
+        return self._registry[callbacks]
+
+    def build_register_function_for_resolver(self, resolver):
+        def register(
+            meta_list: CallbackMetaList,
+            meta: CallbackMeta,
+            prepend: bool = False,
+        ):
+            return self[meta_list].add_one(meta, resolver, prepend=prepend)
+
+        return register

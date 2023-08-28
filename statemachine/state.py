@@ -1,11 +1,14 @@
-from copy import deepcopy
+from typing import TYPE_CHECKING
 from typing import Any
 
-from .callbacks import Callbacks
+from .callbacks import CallbackMetaList
 from .exceptions import StateMachineError
 from .i18n import _
 from .transition import Transition
 from .transition_list import TransitionList
+
+if TYPE_CHECKING:
+    from .statemachine import StateMachine
 
 
 class State:
@@ -101,10 +104,9 @@ class State:
         self._initial = initial
         self._final = final
         self._id: str = ""
-        self._storage: str = ""
         self.transitions = TransitionList()
-        self.enter = Callbacks().add(enter)
-        self.exit = Callbacks().add(exit)
+        self.enter = CallbackMetaList().add(enter)
+        self.exit = CallbackMetaList().add(exit)
 
     def __eq__(self, other):
         return (
@@ -114,23 +116,20 @@ class State:
     def __hash__(self):
         return hash(repr(self))
 
-    def _setup(self, machine, resolver):
-        self.machine = machine
-        self.enter.setup(resolver)
-        self.exit.setup(resolver)
-        machine.__dict__[self._storage] = self
+    def _setup(self, register):
+        register(self.enter)
+        register(self.exit)
         return self
 
-    def _add_observer(self, *resolvers):
-        for r in resolvers:
-            self.enter.add(
-                "on_enter_state", resolver=r, prepend=True, suppress_errors=True
-            )
-            self.enter.add(f"on_enter_{self.id}", resolver=r, suppress_errors=True)
-            self.exit.add(
-                "on_exit_state", resolver=r, prepend=True, suppress_errors=True
-            )
-            self.exit.add(f"on_exit_{self.id}", resolver=r, suppress_errors=True)
+    def _add_observer(self, registry):
+        self.enter.add(
+            "on_enter_state", registry=registry, prepend=True, suppress_errors=True
+        )
+        self.enter.add(f"on_enter_{self.id}", registry=registry, suppress_errors=True)
+        self.exit.add(
+            "on_exit_state", registry=registry, prepend=True, suppress_errors=True
+        )
+        self.exit.add(f"on_exit_{self.id}", registry=registry, suppress_errors=True)
 
     def __repr__(self):
         return (
@@ -139,9 +138,7 @@ class State:
         )
 
     def __get__(self, machine, owner):
-        if machine and self._storage in machine.__dict__:
-            return machine.__dict__[self._storage]
-        return self
+        return InstanceState(self, machine=machine)
 
     def __set__(self, instance, value):
         raise StateMachineError(
@@ -149,9 +146,6 @@ class State:
                 value, self.id
             )
         )
-
-    def clone(self):
-        return deepcopy(self)
 
     @property
     def id(self) -> str:
@@ -208,6 +202,59 @@ class State:
     def final(self):
         return self._final
 
+
+class InstanceState(State):
+    """ """
+
+    def __init__(
+        self,
+        state: State,
+        machine: "StateMachine",
+    ):
+        self._state = state
+        self._machine = machine
+
+    @property
+    def name(self):
+        return self._state.name
+
+    @property
+    def value(self):
+        return self._state.value
+
+    @property
+    def transitions(self):
+        return self._state.transitions
+
+    @property
+    def enter(self):
+        return self._state.enter
+
+    @property
+    def exit(self):
+        return self._state.exit
+
+    def __eq__(self, other):
+        return self._state == other
+
+    def __hash__(self):
+        return hash(repr(self._state))
+
+    def __repr__(self):
+        return repr(self._state)
+
+    @property
+    def id(self) -> str:
+        return self._state._id
+
+    @property
+    def initial(self):
+        return self._state._initial
+
+    @property
+    def final(self):
+        return self._state._final
+
     @property
     def is_active(self):
-        return self.machine.current_state == self
+        return self._machine.current_state == self

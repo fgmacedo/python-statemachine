@@ -4,8 +4,10 @@ import pytest
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.callbacks import Callbacks
-from statemachine.callbacks import CallbackWrapper
+from statemachine.callbacks import CallbackMeta
+from statemachine.callbacks import CallbackMetaList
+from statemachine.callbacks import CallbacksExecutor
+from statemachine.callbacks import CallbacksRegistry
 from statemachine.dispatcher import resolver_factory
 from statemachine.exceptions import InvalidDefinition
 
@@ -16,8 +18,12 @@ def ObjectWithCallbacks():
         def __init__(self):
             super().__init__()
             self.name = "statemachine"
-            self.callbacks = Callbacks(resolver=resolver_factory(self)).add(
-                ["life_meaning", "name", "a_method"]
+            self.callbacks = CallbackMetaList().add(
+                ["life_meaning", "name", "a_method"],
+            )
+            self.registry = CallbacksRegistry()
+            self.executor = self.registry.register(
+                self.callbacks, resolver=resolver_factory(self)
             )
 
         @property
@@ -31,42 +37,36 @@ def ObjectWithCallbacks():
 
 
 class TestCallbacksMachinery:
-    def test_raises_exception_without_setup_phase(self):
-        func = mock.Mock()
-
-        callbacks = Callbacks()
-        callbacks.add(func)
-
-        with pytest.raises(InvalidDefinition):
-            callbacks.call(1, 2, 3, a="x", b="y")
-
-        func.assert_not_called()
-
     def test_can_add_callback(self):
-        callbacks = Callbacks()
+        callbacks = CallbackMetaList()
+        executor = CallbacksExecutor()
+
         func = mock.Mock()
 
         callbacks.add(func)
-        callbacks.setup(lambda x: x)
+        executor.add(callbacks, lambda x: x)
 
-        callbacks.call(1, 2, 3, a="x", b="y")
+        executor.call(1, 2, 3, a="x", b="y")
 
         func.assert_called_once_with(1, 2, 3, a="x", b="y")
 
-    def test_callback_wrapper_is_hashable(self):
-        wrapper = CallbackWrapper("something")
+    def test_callback_meta_is_hashable(self):
+        wrapper = CallbackMeta("something")
         set().add(wrapper)
 
     def test_can_add_callback_that_is_a_string(self):
-        callbacks = Callbacks()
+        callbacks = CallbackMetaList()
         func = mock.Mock()
+
+        registry = CallbacksRegistry()
         resolver = mock.Mock(return_value=func)
 
         callbacks.add("my_method").add("other_method")
         callbacks.add("last_one")
-        callbacks.setup(resolver)
 
-        callbacks.call(1, 2, 3, a="x", b="y")
+        registry.register(callbacks, resolver)
+
+        registry[callbacks].call(1, 2, 3, a="x", b="y")
 
         resolver.assert_has_calls(
             [
@@ -81,7 +81,7 @@ class TestCallbacksMachinery:
         ]
 
     def test_callbacks_are_iterable(self):
-        callbacks = Callbacks()
+        callbacks = CallbackMetaList()
 
         callbacks.add("my_method").add("other_method")
         callbacks.add("last_one")
@@ -89,7 +89,7 @@ class TestCallbacksMachinery:
         assert [c.func for c in callbacks] == ["my_method", "other_method", "last_one"]
 
     def test_add_many_callbacks_at_once(self):
-        callbacks = Callbacks()
+        callbacks = CallbackMetaList()
         method_names = ["my_method", "other_method", "last_one"]
 
         callbacks.add(method_names)
@@ -98,24 +98,34 @@ class TestCallbacksMachinery:
 
     @pytest.mark.parametrize("suppress_errors", [False, True])
     def test_raise_error_if_didnt_found_attr(self, suppress_errors):
-        callbacks = Callbacks(resolver_factory(object()))
+        callbacks = CallbackMetaList()
+        registry = CallbacksRegistry()
+
+        register = registry.build_register_function_for_resolver(resolver_factory(self))
 
         if suppress_errors:
-            callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
+            callbacks.add(
+                "this_does_no_exist", registry=register, suppress_errors=suppress_errors
+            )
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add("this_does_no_exist", suppress_errors=suppress_errors)
+                callbacks.add(
+                    "this_does_no_exist",
+                    registry=register,
+                    suppress_errors=suppress_errors,
+                )
 
     def test_collect_results(self):
-        callbacks = Callbacks()
+        callbacks = CallbackMetaList()
+        registry = CallbacksRegistry()
         func1 = mock.Mock(return_value=10)
         func2 = mock.Mock(return_value=("a", True))
         func3 = mock.Mock(return_value={"key": "value"})
 
         callbacks.add([func1, func2, func3])
-        callbacks.setup(lambda x: x)
+        registry.register(callbacks, lambda x: x)
 
-        results = callbacks.call(1, 2, 3, a="x", b="y")
+        results = registry[callbacks].call(1, 2, 3, a="x", b="y")
 
         assert results == [
             10,
@@ -125,7 +135,7 @@ class TestCallbacksMachinery:
 
     def test_callbacks_values_resolution(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
-        assert x.callbacks.call(xablau=True) == [
+        assert x.executor.call(xablau=True) == [
             42,
             "statemachine",
             ((), {"xablau": True}),
@@ -144,7 +154,9 @@ class TestCallbacksAsDecorator:
         def race_uppercase(race):
             return race.upper()
 
-        assert x.callbacks.call(hero="Gandalf", race="Maia") == [
+        x.registry.register(x.callbacks, resolver=resolver_factory(x))
+
+        assert x.executor.call(hero="Gandalf", race="Maia") == [
             42,
             "statemachine",
             ((), {"hero": "Gandalf", "race": "Maia"}),
