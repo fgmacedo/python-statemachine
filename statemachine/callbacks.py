@@ -116,6 +116,10 @@ class BoolCallbackMeta(CallbackMeta):
         self.cond = CallbackMetaList().add(cond)
         self.expected_value = expected_value
 
+    def __str__(self):
+        name = super().__str__()
+        return name if self.expected_value else f"!{name}"
+
 
 class CallbackMetaList:
     def __init__(self, factory=CallbackMeta):
