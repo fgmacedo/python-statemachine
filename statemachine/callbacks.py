@@ -27,9 +27,6 @@ class CallbackWrapper:
             self._metadata == other._metadata and self.resolver_ids & other.resolver_ids
         )
 
-    def __hash__(self):
-        return id(self)
-
     def __repr__(self):
         return f"{type(self).__name__}({self._metadata.func!r}, resolver_ids={self.resolver_ids})"
 
