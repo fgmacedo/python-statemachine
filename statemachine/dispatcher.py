@@ -1,10 +1,11 @@
 from collections import namedtuple
 from operator import attrgetter
+from typing import Any
 
 from .signature import SignatureAdapter
 
 
-class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs")):
+class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs resolver_id")):
     """Configuration for objects passed to resolver_factory.
 
     Args:
@@ -13,73 +14,103 @@ class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs")):
     """
 
     @classmethod
-    def from_obj(cls, obj):
+    def from_obj(cls, obj, skip_attrs=None):
         if isinstance(obj, ObjectConfig):
             return obj
         else:
-            return cls(obj, set())
+            return cls(obj, set(skip_attrs) if skip_attrs else set(), str(id(obj)))
+
+    def getattr(self, attr):
+        if attr in self.skip_attrs:
+            return
+        return getattr(self.obj, attr, None)
 
 
-def _get_func_by_attr(attr, *configs):
-    for config in configs:
-        if attr in config.skip_attrs:
-            continue
-        func = getattr(config.obj, attr, None)
-        if func is not None:
-            return func, config.obj
+class WrapSearchResult:
+    is_empty = False
 
-    return None, None
+    def __init__(self, attribute, resolver_id) -> None:
+        self.attribute = attribute
+        self.resolver_id = resolver_id
+        self._cache = None
+        self.unique_key = f"{attribute}@{resolver_id}"
 
+    def __repr__(self):
+        return f"{type(self).__name__}({self.unique_key})"
 
-def _build_attr_wrapper(attr: str, obj):
-    # if `attr` is not callable, then it's an attribute or property,
-    # so `func` contains it's current value.
-    # we'll build a method that get's the fresh value for each call
-    getter = attrgetter(attr)
+    def wrap(self):  # pragma: no cover
+        pass
 
-    def wrapper(*args, **kwargs):
-        return getter(obj)
-
-    return wrapper
-
-
-def _build_sm_event_wrapper(func):
-    "Events already have the 'machine' parameter defined."
-
-    def wrapper(*args, **kwargs):
-        kwargs.pop("machine", None)
-        return func(*args, **kwargs)
-
-    return wrapper
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        if self._cache is None:
+            self._cache = self.wrap()
+        assert self._cache
+        return self._cache(*args, **kwds)
 
 
-def ensure_callable(attr, *objects):
-    """Ensure that `attr` is a callable, if not, tries to retrieve one from any of the given
-    `objects`.
+class EmptyWrapSearchResult(WrapSearchResult):
+    is_empty = True
 
-    Args:
-        attr (str or callable): A property/method name or a callable.
-        objects: A list of objects instances that will serve as lookup for the given attr.
-            The result `callable`, if any, will be a wrapper to the first object's attr that
-            has the given ``attr``.
-    """
+
+class CallableSearchResult(WrapSearchResult):
+    def __init__(self, attribute, a_callable, resolver_id) -> None:
+        self.a_callable = a_callable
+        super().__init__(attribute, resolver_id)
+
+    def wrap(self):
+        return SignatureAdapter.wrap(self.a_callable)
+
+
+class AttributeCallableSearchResult(WrapSearchResult):
+    def __init__(self, attribute, obj, resolver_id) -> None:
+        self.obj = obj
+        super().__init__(attribute, resolver_id)
+
+    def wrap(self):
+        # if `attr` is not callable, then it's an attribute or property,
+        # so `func` contains it's current value.
+        # we'll build a method that get's the fresh value for each call
+        getter = attrgetter(self.attribute)
+
+        def wrapper(*args, **kwargs):
+            return getter(self.obj)
+
+        return wrapper
+
+
+class EventSearchResult(WrapSearchResult):
+    def __init__(self, attribute, func, resolver_id) -> None:
+        self.func = func
+        super().__init__(attribute, resolver_id)
+
+    def wrap(self):
+        "Events already have the 'machine' parameter defined."
+
+        def wrapper(*args, **kwargs):
+            kwargs.pop("machine", None)
+            return self.func(*args, **kwargs)
+
+        return wrapper
+
+
+def search_callable(attr, *configs) -> WrapSearchResult:
     if callable(attr) or isinstance(attr, property):
-        return SignatureAdapter.wrap(attr)
+        return CallableSearchResult(attr, attr, None)
 
-    # Setup configuration if not present to normalize the internal API
-    configs = [ObjectConfig.from_obj(obj) for obj in objects]
+    for config in configs:
+        func = config.getattr(attr)
+        if func is not None:
+            if not callable(func):
+                return AttributeCallableSearchResult(
+                    attr, config.obj, config.resolver_id
+                )
 
-    func, obj = _get_func_by_attr(attr, *configs)
-    if func is None:
-        return
+            if getattr(func, "_is_sm_event", False):
+                return EventSearchResult(attr, func, config.resolver_id)
 
-    if not callable(func):
-        return _build_attr_wrapper(attr, obj)
+            return CallableSearchResult(attr, func, config.resolver_id)
 
-    if getattr(func, "_is_sm_event", False):
-        return _build_sm_event_wrapper(func)
-
-    return SignatureAdapter.wrap(func)
+    return EmptyWrapSearchResult(attr, None)
 
 
 def resolver_factory(*objects):
@@ -88,9 +119,6 @@ def resolver_factory(*objects):
     objects = [ObjectConfig.from_obj(obj) for obj in objects]
 
     def wrapper(attr):
-        return ensure_callable(attr, *objects)
-
-    resolver_ids = {str(id(obj.obj)) for obj in objects}
-    wrapper.resolver_ids = resolver_ids
+        return search_callable(attr, *objects)
 
     return wrapper

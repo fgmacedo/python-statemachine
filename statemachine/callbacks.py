@@ -1,8 +1,8 @@
 from collections import defaultdict
+from collections import deque
 from typing import Callable
 from typing import Dict
 from typing import List
-from typing import Set
 
 from .exceptions import AttrNotFound
 from .i18n import _
@@ -12,28 +12,23 @@ from .utils import ensure_iterable
 class CallbackWrapper:
     def __init__(
         self,
-        metadata: "CallbackMeta",
         callback: Callable,
         condition: Callable,
-        resolver_ids: Set[str],
+        unique_key: str,
+        expected_value: "bool | None" = None,
     ) -> None:
-        self._metadata = metadata
         self._callback = callback
         self.condition = condition
-        self.resolver_ids = resolver_ids
-
-    def __eq__(self, other):
-        return (
-            self._metadata == other._metadata and self.resolver_ids & other.resolver_ids
-        )
+        self.unique_key = unique_key
+        self.expected_value = expected_value
 
     def __repr__(self):
-        return f"{type(self).__name__}({self._metadata.func!r}, resolver_ids={self.resolver_ids})"
+        return f"{type(self).__name__}({self.unique_key})"
 
     def __call__(self, *args, **kwargs):
         result = self._callback(*args, **kwargs)
-        if self._metadata.expected_value is not None:
-            return bool(result) == self._metadata.expected_value
+        if self.expected_value is not None:
+            return bool(result) == self.expected_value
         return result
 
 
@@ -76,16 +71,16 @@ class CallbackMeta:
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
-        conditions = CallbacksExecutor()
-        conditions.add(self.cond, resolver)
-
         callback = resolver(self.func)
-        if callback is not None:
+        if not callback.is_empty:
+            conditions = CallbacksExecutor()
+            conditions.add(self.cond, resolver)
+
             return CallbackWrapper(
-                self,
                 callback=callback,
                 condition=conditions.all,
-                resolver_ids=getattr(resolver, "resolver_ids", set(str(id(resolver)))),
+                unique_key=callback.unique_key,
+                expected_value=self.expected_value,
             )
 
         if not self.suppress_errors:
@@ -197,7 +192,8 @@ class CallbackMetaList:
 
 class CallbacksExecutor:
     def __init__(self):
-        self.items: List[CallbackWrapper] = []
+        self.items: List[CallbackWrapper] = deque()
+        self.items_already_seen = set()
 
     def __iter__(self):
         return iter(self.items)
@@ -212,9 +208,10 @@ class CallbacksExecutor:
         if callback is None:
             return None
 
-        if callback in self.items:
+        if callback.unique_key in self.items_already_seen:
             return None
 
+        self.items_already_seen.add(callback.unique_key)
         if prepend:
             self.items.insert(0, callback)
         else:

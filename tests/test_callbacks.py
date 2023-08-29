@@ -43,8 +43,14 @@ class TestCallbacksMachinery:
 
         func = mock.Mock()
 
-        callbacks.add(func)
-        executor.add(callbacks, lambda x: x)
+        class MyObject:
+            def do_something(self, *args, **kwargs):
+                return func(*args, **kwargs)
+
+        obj = MyObject()
+
+        callbacks.add(obj.do_something)
+        executor.add(callbacks, resolver_factory(obj))
 
         executor.call(1, 2, 3, a="x", b="y")
 
@@ -59,25 +65,30 @@ class TestCallbacksMachinery:
         func = mock.Mock()
 
         registry = CallbacksRegistry()
-        resolver = mock.Mock(return_value=func)
+
+        class MyObject:
+            def my_method(self, *args, **kwargs):
+                return func("my_method", *args, **kwargs)
+
+            def other_method(self, *args, **kwargs):
+                return func("other_method", *args, **kwargs)
+
+            def last_one(self, *args, **kwargs):
+                return func("last_one", *args, **kwargs)
+
+        obj = MyObject()
 
         callbacks.add("my_method").add("other_method")
         callbacks.add("last_one")
 
-        registry.register(callbacks, resolver)
+        registry.register(callbacks, resolver_factory(obj))
 
         registry[callbacks].call(1, 2, 3, a="x", b="y")
 
-        resolver.assert_has_calls(
-            [
-                mock.call("my_method"),
-                mock.call("other_method"),
-            ]
-        )
         assert func.call_args_list == [
-            mock.call(1, 2, 3, a="x", b="y"),
-            mock.call(1, 2, 3, a="x", b="y"),
-            mock.call(1, 2, 3, a="x", b="y"),
+            mock.call("my_method", 1, 2, 3, a="x", b="y"),
+            mock.call("other_method", 1, 2, 3, a="x", b="y"),
+            mock.call("last_one", 1, 2, 3, a="x", b="y"),
         ]
 
     def test_callbacks_are_iterable(self):
@@ -118,12 +129,18 @@ class TestCallbacksMachinery:
     def test_collect_results(self):
         callbacks = CallbackMetaList()
         registry = CallbacksRegistry()
-        func1 = mock.Mock(return_value=10)
-        func2 = mock.Mock(return_value=("a", True))
-        func3 = mock.Mock(return_value={"key": "value"})
+
+        def func1():
+            return 10
+
+        def func2():
+            return ("a", True)
+
+        def func3():
+            return {"key": "value"}
 
         callbacks.add([func1, func2, func3])
-        registry.register(callbacks, lambda x: x)
+        registry.register(callbacks, resolver_factory(object()))
 
         results = registry[callbacks].call(1, 2, 3, a="x", b="y")
 

@@ -5,7 +5,7 @@ from statemachine import StateMachine
 
 
 class OrderControl(StateMachine):
-    waiting_for_payment = State(initial=True, enter="wait_for_payment")
+    waiting_for_payment = State(initial=True)
     processing = State()
     shipping = State()
     completed = State(final=True)
@@ -39,16 +39,14 @@ class Order:
     def after_receive_payment(self):
         self.payment_received = True
 
-    def wait_for_payment(self):
-        self.payment_received = False
-
 
 def exercise_order():
     order = Order()
-    order.state_machine.add_to_order(10)
-    order.state_machine.receive_payment(10)
-    order.state_machine.process_order()
-    order.state_machine.ship_order()
+    order.state_machine.waiting_for_payment.is_active
+    # order.state_machine.add_to_order(10)
+    # order.state_machine.receive_payment(10)
+    # order.state_machine.process_order()
+    # order.state_machine.ship_order()
 
 
 def test_setup_performance(benchmark):

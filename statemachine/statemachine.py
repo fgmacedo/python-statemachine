@@ -149,8 +149,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             initial_transition: A special :ref:`transition` that triggers the enter on the
                 `initial` :ref:`State`.
         """
-        machine = ObjectConfig(self, skip_attrs=self._get_protected_attrs())
-        model = ObjectConfig(self.model, skip_attrs={self.state_field})
+        machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
+        model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
         default_resolver = resolver_factory(machine, model)
 
         register = partial(self._callbacks_registry.register, resolver=default_resolver)
