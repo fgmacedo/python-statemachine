@@ -48,7 +48,6 @@ pdbpp = "^0.10.3"
 pytest-mock = "^3.10.0"
 pytest-profiling = "^1.7.0"
 pytest-benchmark = "^4.0.0"
-pytest-line-profiler = "^0.2.1"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "4.5.0"
