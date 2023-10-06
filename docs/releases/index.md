@@ -13,8 +13,9 @@ Below are release notes through StateMachine and its patch releases.
 ###  2.0 releases
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 
+2.1.2
 2.1.1
 2.1.0
 2.0.0

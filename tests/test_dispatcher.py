@@ -1,8 +1,8 @@
 import pytest
 
 from statemachine.dispatcher import ObjectConfig
-from statemachine.dispatcher import ensure_callable
 from statemachine.dispatcher import resolver_factory
+from statemachine.dispatcher import search_callable
 
 
 class Person:
@@ -46,14 +46,14 @@ class TestEnsureCallable:
     def test_return_same_object_if_already_a_callable(self):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        actual = ensure_callable(expected)
+        actual = search_callable(expected).wrap()
         assert actual.__name__ == expected.__name__
         assert actual.__doc__ == expected.__doc__
 
     def test_retrieve_a_method_from_its_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        method = ensure_callable("get_full_name", model)
+        method = search_callable("get_full_name", ObjectConfig.from_obj(model)).wrap()
 
         assert method.__name__ == expected.__name__
         assert method.__doc__ == expected.__doc__
@@ -61,7 +61,7 @@ class TestEnsureCallable:
 
     def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
-        method = ensure_callable("first_name", model)
+        method = search_callable("first_name", ObjectConfig.from_obj(model)).wrap()
 
         assert method(*args, **kwargs) == "Frodo"
 
@@ -69,7 +69,7 @@ class TestEnsureCallable:
         self, args, kwargs
     ):
         model = Person("Frodo", "Bolseiro")
-        method = ensure_callable("first_name", model)
+        method = search_callable("first_name", ObjectConfig.from_obj(model)).wrap()
 
         model.first_name = "Bilbo"
 
@@ -91,7 +91,7 @@ class TestResolverFactory:
         org = Organization("The Lord fo the Rings", "cnpj")
 
         resolver = resolver_factory(org, person)
-        resolved_method = resolver(attr)
+        resolved_method = resolver(attr).wrap()
         assert resolved_method() == expected_value
 
     @pytest.mark.parametrize(
@@ -107,18 +107,8 @@ class TestResolverFactory:
         person = Person("Frodo", "Bolseiro", "cpf")
         org = Organization("The Lord fo the Rings", "cnpj")
 
-        org_config = ObjectConfig(org, {"get_full_name"})
+        org_config = ObjectConfig.from_obj(org, {"get_full_name"})
 
         resolver = resolver_factory(org_config, person)
-        resolved_method = resolver(attr)
+        resolved_method = resolver(attr).wrap()
         assert resolved_method() == expected_value
-
-    def test_should_generate_unique_ids(self):
-        person = Person("Frodo", "Bolseiro", "cpf")
-        org = Organization("The Lord fo the Rings", "cnpj")
-
-        resolver1 = resolver_factory(org, person)
-        resolver2 = resolver_factory(org, person)
-        resolver3 = resolver_factory(org, person)
-
-        assert resolver1.id == resolver2.id == resolver3.id

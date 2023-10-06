@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-statemachine"
-version = "2.1.1"
+version = "2.1.2"
 description = "Python Finite State Machines made easy."
 authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
 maintainers = [
@@ -26,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries"
 ]
 
@@ -33,7 +34,7 @@ classifiers = [
 diagrams = ["pydot"]
 
 [tool.poetry.dependencies]
-python = ">=3.7, <3.12"
+python = ">=3.7, <3.13"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
@@ -46,6 +47,8 @@ mypy = "^0.991"
 black = "^22.12.0"
 pdbpp = "^0.10.3"
 pytest-mock = "^3.10.0"
+pytest-profiling = "^1.7.0"
+pytest-benchmark = "^4.0.0"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "4.5.0"
@@ -60,13 +63,14 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure"
+addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure --benchmark-autosave"
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
+disable_error_code = "annotation-unchecked"
 
 [[tool.mypy.overrides]]
 module = [

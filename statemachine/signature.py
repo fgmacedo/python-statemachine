@@ -3,29 +3,64 @@ from functools import partial
 from inspect import BoundArguments
 from inspect import Parameter
 from inspect import Signature
+from types import MethodType
 from typing import Any
-from typing import Callable
+
+
+def _make_key(method):
+    method = method.func if isinstance(method, partial) else method
+    if isinstance(method, MethodType):
+        return hash(
+            (
+                method.__qualname__,
+                method.__self__.__class__.__name__,
+                method.__code__.co_varnames,
+            )
+        )
+    else:
+        return hash((method.__qualname__, method.__code__.co_varnames))
+
+
+def signature_cache(user_function):
+
+    cache = {}
+    cache_get = cache.get
+
+    def cached_function(cls, method):
+        key = _make_key(method)
+        sig = cache_get(key)
+        if sig is None:
+            sig = user_function(cls, method)
+            cache[key] = sig
+
+        return sig
+
+    cached_function.clear_cache = cache.clear
+    cached_function.make_key = _make_key
+
+    return cached_function
 
 
 class SignatureAdapter(Signature):
-    method: Callable[..., Any]
-
     @classmethod
     def wrap(cls, method):
         """Build a wrapper that adapts the received arguments to the inner ``method`` signature"""
 
         sig = cls.from_callable(method)
-        sig.method = method
-        sig.__name__ = (
-            method.func.__name__ if isinstance(method, partial) else method.__name__
-        )
-        return sig
+        sig_bind_expected = sig.bind_expected
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        ba = self.bind_expected(*args, **kwargs)
-        return self.method(*ba.args, **ba.kwargs)
+        metadata_to_copy = method.func if isinstance(method, partial) else method
+
+        def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+            ba = sig_bind_expected(*args, **kwargs)
+            return method(*ba.args, **ba.kwargs)
+
+        method_wrapper.__name__ = metadata_to_copy.__name__
+
+        return method_wrapper
 
     @classmethod
+    @signature_cache
     def from_callable(cls, method):
         if hasattr(method, "__signature__"):
             sig = method.__signature__
