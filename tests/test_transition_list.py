@@ -1,6 +1,7 @@
 import pytest
 
 from statemachine import State
+from statemachine.callbacks import CallbacksRegistry
 from statemachine.dispatcher import resolver_factory
 
 
@@ -41,6 +42,8 @@ class TestDecorators:
     def test_should_assign_callback_to_transitions(
         self, callback_name, list_attr_name, expected_value
     ):
+        registry = CallbacksRegistry()
+
         if list_attr_name is None:
             list_attr_name = callback_name
 
@@ -55,6 +58,6 @@ class TestDecorators:
         transition = s1.transitions[0]
         callback_list = getattr(transition, list_attr_name)
 
-        callback_list.setup(resolver_factory(object()))
+        registry.register(callback_list, resolver_factory(object()))
 
-        assert callback_list.call() == [expected_value]
+        assert registry[callback_list].call() == [expected_value]

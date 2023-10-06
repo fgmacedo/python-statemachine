@@ -1,8 +1,10 @@
 from collections import deque
+from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict  # deprecated since 3.9: https://peps.python.org/pep-0585/
+from typing import Dict
 
+from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
 from .event import Event
@@ -14,7 +16,6 @@ from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .i18n import _
 from .model import Model
-from .states import States
 from .transition import Transition
 
 if TYPE_CHECKING:
@@ -70,6 +71,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.__rtc = rtc
         self.__processing: bool = False
         self._external_queue: deque = deque()
+        self._callbacks_registry = CallbacksRegistry()
+        self._states_for_instance: Dict["State", "State"] = {}
 
         assert hasattr(self, "_abstract")
         if self._abstract:
@@ -78,7 +81,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         initial_transition = Transition(
             None, self._get_initial_state(), event="__initial__"
         )
-        self._setup(self.states, initial_transition)
+        self._setup(initial_transition)
         self._activate_initial_state(initial_transition)
 
     if TYPE_CHECKING:
@@ -140,35 +143,20 @@ class StateMachine(metaclass=StateMachineMetaclass):
             for transition in state.transitions:
                 visitor(transition)
 
-    def _setup(self, class_states: States, initial_transition: Transition):
+    def _setup(self, initial_transition: Transition):
         """
         Args:
-            class_states: The original (shared) instances of :ref:`State` living on the
-                user's concrete :ref:`StateMachine` class. These instances cannot be modified.
-                So we will clone the states in order to bind the new instances with concrete
-                actions and event handlers.
-
             initial_transition: A special :ref:`transition` that triggers the enter on the
                 `initial` :ref:`State`.
         """
-        machine = ObjectConfig(self, skip_attrs=self._get_protected_attrs())
-        model = ObjectConfig(self.model, skip_attrs={self.state_field})
+        machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
+        model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
         default_resolver = resolver_factory(machine, model)
 
-        # clone states and transitions to avoid sharing callbacks references between instances
-        self.states = States(
-            {s.id: s.clone()._setup(self, default_resolver) for s in class_states}
-        )
+        register = partial(self._callbacks_registry.register, resolver=default_resolver)
+        self._visit_states_and_transitions(lambda x: x._setup(register))
 
-        self.states_map: Dict[Any, State] = {
-            state.value: state for state in self.states
-        }
-
-        for state in self.states:
-            for transition in state.transitions:
-                transition._setup(self, default_resolver)
-
-        initial_transition._setup(self, default_resolver)
+        initial_transition._setup(register)
         self.add_observer(machine, model)
 
     def add_observer(self, *observers):
@@ -183,7 +171,17 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
 
         resolvers = [resolver_factory(ObjectConfig.from_obj(o)) for o in observers]
-        self._visit_states_and_transitions(lambda x: x._add_observer(*resolvers))
+
+        def _add_observer_for_resolver(x):
+            for resolver in resolvers:
+                register = (
+                    self._callbacks_registry.build_register_function_for_resolver(
+                        resolver
+                    )
+                )
+                x._add_observer(register)
+
+        self._visit_states_and_transitions(lambda x: _add_observer_for_resolver(x))
         return self
 
     def _repr_html_(self):
@@ -220,7 +218,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
         This is a low level API, that can be to assign any valid state
         completely bypassing all the hooks and validations.
         """
-        return self.states_map[self.current_state_value]
+
+        state: State = self.states_map[self.current_state_value].for_instance(
+            machine=self,
+            cache=self._states_for_instance,
+        )
+        return state
 
     @current_state.setter
     def current_state(self, value):
@@ -302,18 +305,28 @@ class StateMachine(metaclass=StateMachineMetaclass):
         source = event_data.state
         target = transition.target
 
-        result = transition.before.call(*event_data.args, **event_data.extended_kwargs)
+        result = self._callbacks_registry[transition.before].call(
+            *event_data.args, **event_data.extended_kwargs
+        )
         if source is not None and not transition.internal:
-            source.exit.call(*event_data.args, **event_data.extended_kwargs)
+            self._callbacks_registry[source.exit].call(
+                *event_data.args, **event_data.extended_kwargs
+            )
 
-        result += transition.on.call(*event_data.args, **event_data.extended_kwargs)
+        result += self._callbacks_registry[transition.on].call(
+            *event_data.args, **event_data.extended_kwargs
+        )
 
         self.current_state = target
         event_data.state = target
 
         if not transition.internal:
-            target.enter.call(*event_data.args, **event_data.extended_kwargs)
-        transition.after.call(*event_data.args, **event_data.extended_kwargs)
+            self._callbacks_registry[target.enter].call(
+                *event_data.args, **event_data.extended_kwargs
+            )
+        self._callbacks_registry[transition.after].call(
+            *event_data.args, **event_data.extended_kwargs
+        )
 
         if len(result) == 0:
             result = None

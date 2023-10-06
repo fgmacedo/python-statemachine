@@ -5,12 +5,8 @@ def qualname(cls):
     return ".".join([cls.__module__, cls.__name__])
 
 
-def _is_string(obj):
-    return isinstance(obj, str)
-
-
 def ensure_iterable(obj):
-    if _is_string(obj):
+    if isinstance(obj, str):
         return [obj]
     try:
         return iter(obj)

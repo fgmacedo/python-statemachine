@@ -335,6 +335,17 @@ docs = ["furo (>=2023.5.20)", "sphinx (>=7.0.1)", "sphinx-autodoc-typehints (>=1
 testing = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "diff-cover (>=7.5)", "pytest (>=7.3.1)", "pytest-cov (>=4.1)", "pytest-mock (>=3.10)", "pytest-timeout (>=2.1)"]
 
 [[package]]
+name = "gprof2dot"
+version = "2022.7.29"
+description = "Generate a dot graph from the output of several profilers."
+optional = false
+python-versions = ">=2.7"
+files = [
+    {file = "gprof2dot-2022.7.29-py2.py3-none-any.whl", hash = "sha256:f165b3851d3c52ee4915eb1bd6cca571e5759823c2cd0f71a79bda93c2dc85d6"},
+    {file = "gprof2dot-2022.7.29.tar.gz", hash = "sha256:45b4d298bd36608fccf9511c3fd88a773f7a1abc04d6cd39445b11ba43133ec5"},
+]
+
+[[package]]
 name = "identify"
 version = "2.5.24"
 description = "File identification library for Python"
@@ -417,6 +428,62 @@ MarkupSafe = ">=2.0"
 
 [package.extras]
 i18n = ["Babel (>=2.7)"]
+
+[[package]]
+name = "line-profiler"
+version = "4.1.0"
+description = "Line-by-line profiler"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "line_profiler-4.1.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:e5986f4ae3b84fe3986bb5079df8f0ff7b1212831508b3ea283a66a0bed29ee4"},
+    {file = "line_profiler-4.1.0-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:f3fd75a74687c81a82ef70457050546ebdd64f8dabdf31c3497eeeaa13bedf26"},
+    {file = "line_profiler-4.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:60de42c5a6d02151d86f115aca6647e44ed47bb46cf2de4ea7718096472f62c9"},
+    {file = "line_profiler-4.1.0-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:558dd5099188320fd5cfd03b446499155f7b08a4752e4bbc1c940754d981b4a4"},
+    {file = "line_profiler-4.1.0-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:3ce9460d5201b28e42d61f2e4c53f50a962674a599a971f16ce00d8c9f158fa6"},
+    {file = "line_profiler-4.1.0-cp310-cp310-win_amd64.whl", hash = "sha256:f220b26e263bacb3c4c39ada33ad6fddeb810e37202b228b8590a993bb558873"},
+    {file = "line_profiler-4.1.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:9db0d09f982304f74a0dea273b1a55c9c2c6b429e6e5eb0bbf16f3d0c957a6df"},
+    {file = "line_profiler-4.1.0-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:361823d5b7a00f4384193f499a6052856ffa5ac15a4885f7d96a193659ca7ea1"},
+    {file = "line_profiler-4.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1f79a032554a63181e218cd3eb364afbca4df3dd42abbd876ed4681c99077d2f"},
+    {file = "line_profiler-4.1.0-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:0001c957fa9e164a481cd65e91928f4fbe521e848b283c72b30f3ce22ac2bb84"},
+    {file = "line_profiler-4.1.0-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:a736cdccf1f97c210c0c4b932cb8b5895f16a73e974ba32dd200c562c888090b"},
+    {file = "line_profiler-4.1.0-cp311-cp311-win_amd64.whl", hash = "sha256:13f7b4cee81393ca6dacaeb3ebbfa104841202d6c6c69c800fae1bbde7244cae"},
+    {file = "line_profiler-4.1.0-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:edfc8df182191757316e407f550269d1f58256911a7e8b5ded6f32aa0195ec66"},
+    {file = "line_profiler-4.1.0-cp36-cp36m-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:55bdc109355712d57231a5071592b6c49719914e1d7a9d9153a657508ea17607"},
+    {file = "line_profiler-4.1.0-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:02208c84e534d56e21454d3d9d7f7e1c313e0d134425f2487a76d283e3294a16"},
+    {file = "line_profiler-4.1.0-cp36-cp36m-musllinux_1_1_i686.whl", hash = "sha256:b2dc1423364f4c9bf7abb8bf1e5c18c35c6c4c514b35754ac7bc2e7a4e3618af"},
+    {file = "line_profiler-4.1.0-cp36-cp36m-musllinux_1_1_x86_64.whl", hash = "sha256:b9953f0becfdbc11c8f15a314a8d8869a1a475fa94d411d38d42c438b1a5689f"},
+    {file = "line_profiler-4.1.0-cp36-cp36m-win_amd64.whl", hash = "sha256:f0194dbb70f63b2d7753d1ba7a5cb96313c4205812a593704f1abea095dd2989"},
+    {file = "line_profiler-4.1.0-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:dc1b53dc4af9b67a9a123592e29176465ad19c1d3d0ec59b684280227bf5f955"},
+    {file = "line_profiler-4.1.0-cp37-cp37m-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:5b1e02f1bec7752a5e4c33dc2f5c7f2dd09d9c4da86c85f7301ed7a3847409ac"},
+    {file = "line_profiler-4.1.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:07d6629e636ca6c15e6fb3800e5ee7c3ce14f1326c1954bceea7574083f0264d"},
+    {file = "line_profiler-4.1.0-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:09c71fe28a03c089e64891bb7084a11f58703592fe078b9f565185d25ee28586"},
+    {file = "line_profiler-4.1.0-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:c7a1a2b99fc99bcdeb6e5e8d7dff27fa382f278b2522b610ead27a3d39c94be5"},
+    {file = "line_profiler-4.1.0-cp37-cp37m-win_amd64.whl", hash = "sha256:b0be243fee8b599f0ce55088cb780050dad58f74dce2f6c2e8776d31f9ca9b1d"},
+    {file = "line_profiler-4.1.0-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:18b511dd9bfe457c76bebf7c2f486f2896433e83c97aa6fff7686115be6c1ca9"},
+    {file = "line_profiler-4.1.0-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:f553f225aac5443bf5cf32040041d08c74f17f408d0eb654dcb29fe8fb657a32"},
+    {file = "line_profiler-4.1.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:32866bdebbc322a708d29d4b9f90c606f498d56a55132fcd316fb8ed2aba577c"},
+    {file = "line_profiler-4.1.0-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:4e20e1c0bf3fd899a54ec74786463c754a852542f2aee9c357344279286a147b"},
+    {file = "line_profiler-4.1.0-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:7debb28f33611aea8c54c86fbb8464ed58cd185bc26c829dc8581cc68b87f276"},
+    {file = "line_profiler-4.1.0-cp38-cp38-win_amd64.whl", hash = "sha256:34be7a8f305c7d625f6c40ac465010cd77c92383372869e9ba2fa5d85e4a63ae"},
+    {file = "line_profiler-4.1.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:950fd857238dd019274d1206b2440de749e631fd9f76f8c9ba6b1374cb0da2fc"},
+    {file = "line_profiler-4.1.0-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:23e1aa55a233cd64eb46b769362aab0e3004feabdebb9bf94eb3acea1a204748"},
+    {file = "line_profiler-4.1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:43aacb880d3b25bf47a3c1c1870bbee6ff4e533de5382636431f321a4d5dbe66"},
+    {file = "line_profiler-4.1.0-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:57adfc47a87d109d304e6463b583fd53b1191c5b663a204b7512a27b460e4ac2"},
+    {file = "line_profiler-4.1.0-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:f6ae40c37744ef97731aae8b4c413ce4d6277733aa5614c3f1e2242716c41b2e"},
+    {file = "line_profiler-4.1.0-cp39-cp39-win_amd64.whl", hash = "sha256:a82649c7f50e50c48125386434ca80e718c401bc65080a03ca862ebc4fab0440"},
+    {file = "line_profiler-4.1.0.tar.gz", hash = "sha256:dd93444373231e624aee354ceaf29ac35889660923cbf912124c9872cf410127"},
+]
+
+[package.extras]
+all = ["Cython (==3.0.0a11)", "Cython (>=0.29.24,<=3.0.0a11)", "IPython (>=7.14.0)", "IPython (>=7.18.0)", "IPython (>=8.12.2)", "IPython (>=8.14.0)", "cibuildwheel (>=2.11.2)", "cibuildwheel (>=2.11.2)", "cibuildwheel (>=2.11.2)", "cibuildwheel (>=2.11.2)", "cibuildwheel (>=2.11.2)", "cibuildwheel (>=2.8.1)", "cmake (>=3.21.2)", "coverage[toml] (>=5.3)", "ninja (>=1.10.2)", "pytest (>=4.6.0)", "pytest (>=4.6.0)", "pytest (>=4.6.0,<=4.6.11)", "pytest (>=4.6.0,<=4.6.11)", "pytest (>=4.6.0,<=6.1.2)", "pytest (>=6.2.5)", "pytest-cov (>=2.8.1)", "pytest-cov (>=2.8.1)", "pytest-cov (>=2.9.0)", "pytest-cov (>=3.0.0)", "rich (>=12.3.0)", "scikit-build (>=0.11.1)", "ubelt (>=1.3.3)", "xdoctest (>=1.1.1)"]
+all-strict = ["Cython (==0.29.24)", "Cython (==3.0.0a11)", "IPython (==7.14.0)", "IPython (==7.18.0)", "IPython (==8.12.2)", "IPython (==8.14.0)", "cibuildwheel (==2.11.2)", "cibuildwheel (==2.11.2)", "cibuildwheel (==2.11.2)", "cibuildwheel (==2.11.2)", "cibuildwheel (==2.11.2)", "cibuildwheel (==2.8.1)", "cmake (==3.21.2)", "coverage[toml] (==5.3)", "ninja (==1.10.2)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==6.2.5)", "pytest-cov (==2.8.1)", "pytest-cov (==2.8.1)", "pytest-cov (==2.9.0)", "pytest-cov (==3.0.0)", "rich (==12.3.0)", "scikit-build (==0.11.1)", "ubelt (==1.3.3)", "xdoctest (==1.1.1)"]
+ipython = ["IPython (>=7.14.0)", "IPython (>=7.18.0)", "IPython (>=8.12.2)", "IPython (>=8.14.0)"]
+ipython-strict = ["IPython (==7.14.0)", "IPython (==7.18.0)", "IPython (==8.12.2)", "IPython (==8.14.0)"]
+optional = ["rich (>=12.3.0)"]
+optional-strict = ["rich (==12.3.0)"]
+tests = ["IPython (>=7.14.0)", "IPython (>=7.18.0)", "IPython (>=8.12.2)", "IPython (>=8.14.0)", "coverage[toml] (>=5.3)", "pytest (>=4.6.0)", "pytest (>=4.6.0)", "pytest (>=4.6.0,<=4.6.11)", "pytest (>=4.6.0,<=4.6.11)", "pytest (>=4.6.0,<=6.1.2)", "pytest (>=6.2.5)", "pytest-cov (>=2.8.1)", "pytest-cov (>=2.8.1)", "pytest-cov (>=2.9.0)", "pytest-cov (>=3.0.0)", "ubelt (>=1.3.3)", "xdoctest (>=1.1.1)"]
+tests-strict = ["IPython (==7.14.0)", "IPython (==7.18.0)", "IPython (==8.12.2)", "IPython (==8.14.0)", "coverage[toml] (==5.3)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==6.2.5)", "pytest-cov (==2.8.1)", "pytest-cov (==2.8.1)", "pytest-cov (==2.9.0)", "pytest-cov (==3.0.0)", "ubelt (==1.3.3)", "xdoctest (==1.1.1)"]
 
 [[package]]
 name = "livereload"
@@ -826,6 +893,17 @@ pyyaml = ">=5.1"
 virtualenv = ">=20.10.0"
 
 [[package]]
+name = "py-cpuinfo"
+version = "9.0.0"
+description = "Get CPU info with pure Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"},
+    {file = "py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5"},
+]
+
+[[package]]
 name = "pydot"
 version = "1.4.2"
 description = "Python interface to Graphviz's Dot"
@@ -911,6 +989,26 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "pytest-benchmark"
+version = "4.0.0"
+description = "A ``pytest`` fixture for benchmarking code. It will group the tests into rounds that are calibrated to the chosen timer."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pytest-benchmark-4.0.0.tar.gz", hash = "sha256:fb0785b83efe599a6a956361c0691ae1dbb5318018561af10f3e915caa0048d1"},
+    {file = "pytest_benchmark-4.0.0-py3-none-any.whl", hash = "sha256:fdb7db64e31c8b277dff9850d2a2556d8b60bcb0ea6524e36e28ffd7c87f71d6"},
+]
+
+[package.dependencies]
+py-cpuinfo = "*"
+pytest = ">=3.8"
+
+[package.extras]
+aspect = ["aspectlib"]
+elasticsearch = ["elasticsearch"]
+histogram = ["pygal", "pygaljs"]
+
+[[package]]
 name = "pytest-cov"
 version = "4.1.0"
 description = "Pytest plugin for measuring coverage."
@@ -929,6 +1027,21 @@ pytest = ">=4.6"
 testing = ["fields", "hunter", "process-tests", "pytest-xdist", "six", "virtualenv"]
 
 [[package]]
+name = "pytest-line-profiler"
+version = "0.2.1"
+description = "Profile code executed by pytest"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pytest-line-profiler-0.2.1.tar.gz", hash = "sha256:a3d00809c322ea58e0f1701643d7ad16f2cd3133db4d9f5a4893122cc1593f77"},
+    {file = "pytest_line_profiler-0.2.1-py3-none-any.whl", hash = "sha256:3cfc38e729fb867ad5ab2674163dcc74eb3256ba77163c248781240851d28705"},
+]
+
+[package.dependencies]
+line-profiler = "*"
+pytest = ">=3.5.0"
+
+[[package]]
 name = "pytest-mock"
 version = "3.11.1"
 description = "Thin-wrapper around the mock package for easier use with pytest"
@@ -944,6 +1057,25 @@ pytest = ">=5.0"
 
 [package.extras]
 dev = ["pre-commit", "pytest-asyncio", "tox"]
+
+[[package]]
+name = "pytest-profiling"
+version = "1.7.0"
+description = "Profiling plugin for py.test"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pytest-profiling-1.7.0.tar.gz", hash = "sha256:93938f147662225d2b8bd5af89587b979652426a8a6ffd7e73ec4a23e24b7f29"},
+    {file = "pytest_profiling-1.7.0-py2.py3-none-any.whl", hash = "sha256:999cc9ac94f2e528e3f5d43465da277429984a1c237ae9818f8cfd0b06acb019"},
+]
+
+[package.dependencies]
+gprof2dot = "*"
+pytest = "*"
+six = "*"
+
+[package.extras]
+tests = ["pytest-virtualenv"]
 
 [[package]]
 name = "pytest-sugar"
@@ -1459,4 +1591,4 @@ diagrams = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7, <3.12"
-content-hash = "b0b43742909aa984bdf9fd4edb93d8e8143ca09aaff3d9aa7110eeb8902c3b55"
+content-hash = "a4b866587344046fcdd625d77290a6ee9af97a160cb8e2f9beb65da18c5b1d30"

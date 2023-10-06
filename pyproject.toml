@@ -46,6 +46,9 @@ mypy = "^0.991"
 black = "^22.12.0"
 pdbpp = "^0.10.3"
 pytest-mock = "^3.10.0"
+pytest-profiling = "^1.7.0"
+pytest-benchmark = "^4.0.0"
+pytest-line-profiler = "^0.2.1"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "4.5.0"
@@ -60,13 +63,14 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure"
+addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure --benchmark-autosave"
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
+disable_error_code = "annotation-unchecked"
 
 [[tool.mypy.overrides]]
 module = [
