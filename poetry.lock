@@ -1565,5 +1565,5 @@ diagrams = []
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.7, <3.12"
-content-hash = "71d9b3f581409c93a609df51df100626bed6c464e11628ddcd4f93574c5f8029"
+python-versions = ">=3.7, <3.13"
+content-hash = "6e801ad1dfdd7a3473d537bdf9061873889027a1ab2731fe4f96e2bafe13912e"

@@ -87,7 +87,7 @@ All actions and {ref}`guards` support multiple method signatures. They follow th
 
 For each defined {ref}`state`, you can declare `enter` and `exit` callbacks.
 
-### Declare state actions by naming convention
+### Bind state actions by naming convention
 
 Callbacks by naming convention will be searched on the StateMachine and on the
 model, using the patterns:
