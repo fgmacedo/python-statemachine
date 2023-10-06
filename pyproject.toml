@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-statemachine"
-version = "2.1.1"
+version = "2.1.2"
 description = "Python Finite State Machines made easy."
 authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
 maintainers = [
@@ -26,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries"
 ]
 
@@ -33,7 +34,7 @@ classifiers = [
 diagrams = ["pydot"]
 
 [tool.poetry.dependencies]
-python = ">=3.7, <3.12"
+python = ">=3.7, <3.13"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
@@ -66,7 +67,7 @@ addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_bui
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disable_error_code = "annotation-unchecked"
