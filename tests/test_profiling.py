@@ -43,10 +43,6 @@ class Order:
 def exercise_order():
     order = Order()
     order.state_machine.waiting_for_payment.is_active
-    # order.state_machine.add_to_order(10)
-    # order.state_machine.receive_payment(10)
-    # order.state_machine.process_order()
-    # order.state_machine.ship_order()
 
 
 def test_setup_performance(benchmark):

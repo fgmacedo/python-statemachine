@@ -154,10 +154,32 @@ class StateMachine(metaclass=StateMachineMetaclass):
         default_resolver = resolver_factory(machine, model)
 
         register = partial(self._callbacks_registry.register, resolver=default_resolver)
-        self._visit_states_and_transitions(lambda x: x._setup(register))
+
+        observer_visitor = self._build_observers_visitor(machine, model)
+
+        def setup_visitor(visited):
+            visited._setup(register)
+            observer_visitor(visited)
+
+        self._visit_states_and_transitions(setup_visitor)
 
         initial_transition._setup(register)
-        self.add_observer(machine, model)
+
+    def _build_observers_visitor(self, *observers):
+        registry_callbacks = [
+            (
+                self._callbacks_registry.build_register_function_for_resolver(
+                    resolver_factory(observer)
+                )
+            )
+            for observer in observers
+        ]
+
+        def _add_observer_for_resolver(visited):
+            for register in registry_callbacks:
+                visited._add_observer(register)
+
+        return _add_observer_for_resolver
 
     def add_observer(self, *observers):
         """Add an observer.
@@ -170,18 +192,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             :ref:`observers`.
         """
 
-        resolvers = [resolver_factory(ObjectConfig.from_obj(o)) for o in observers]
-
-        def _add_observer_for_resolver(x):
-            for resolver in resolvers:
-                register = (
-                    self._callbacks_registry.build_register_function_for_resolver(
-                        resolver
-                    )
-                )
-                x._add_observer(register)
-
-        self._visit_states_and_transitions(lambda x: _add_observer_for_resolver(x))
+        visitor = self._build_observers_visitor(*observers)
+        self._visit_states_and_transitions(visitor)
         return self
 
     def _repr_html_(self):
