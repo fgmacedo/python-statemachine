@@ -1,3 +1,4 @@
+import warnings
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -18,7 +19,11 @@ from .transition_list import TransitionList
 
 
 class StateMachineMetaclass(type):
-    def __init__(cls, name: str, bases: Tuple[type], attrs: Dict[str, Any]):
+    "Metaclass for constructing StateMachine classes"
+
+    def __init__(
+        cls, name: str, bases: Tuple[type], attrs: Dict[str, Any], strict_states: bool = False
+    ) -> None:
         super().__init__(name, bases, attrs)
         registry.register(cls)
         cls.name = cls.__name__
@@ -27,6 +32,7 @@ class StateMachineMetaclass(type):
         """Map of ``state.value`` to the corresponding :ref:`state`."""
 
         cls._abstract = True
+        cls._strict_states = strict_states
         cls._events: Dict[str, Event] = {}
 
         cls.add_inherited(bases)
@@ -66,6 +72,8 @@ class StateMachineMetaclass(type):
         cls._check_initial_state()
         cls._check_final_states()
         cls._check_disconnected_state()
+        cls._check_trap_states()
+        cls._check_reachable_final_states()
 
     def _check_initial_state(cls):
         initials = [s for s in cls.states if s.initial]
@@ -73,7 +81,7 @@ class StateMachineMetaclass(type):
             raise InvalidDefinition(
                 _(
                     "There should be one and only one initial state. "
-                    "Your currently have these: {!r}"
+                    "You currently have these: {!r}"
                 ).format([s.id for s in initials])
             )
 
@@ -88,6 +96,35 @@ class StateMachineMetaclass(type):
                     "Cannot declare transitions from final state. Invalid state(s): {}"
                 ).format([s.id for s in final_state_with_invalid_transitions])
             )
+
+    def _check_trap_states(cls):
+        trap_states = [s for s in cls.states if not s.final and not s.transitions]
+        if trap_states:
+            message = _(
+                "All non-final states should have at least one outgoing transition. "
+                "These states have no outgoing transition: {!r}"
+            ).format([s.id for s in trap_states])
+            if cls._strict_states:
+                raise InvalidDefinition(message)
+            else:
+                warnings.warn(message, UserWarning, stacklevel=1)
+
+    def _check_reachable_final_states(cls):
+        if any(s.final for s in cls.states):
+            disconnected_states = [
+                state for state in cls.states if not state.final 
+                and not any(s.final for s in visit_connected_states(state))
+            ]
+            if disconnected_states:
+                message = _(
+                    "All non-final states should have at least one path to a final state. "
+                    "These states have no path to a final state: {!r}"
+                ).format([s.id for s in disconnected_states])
+                if cls._strict_states:
+                    raise InvalidDefinition(message)
+                else:
+                    warnings.warn(message, UserWarning, stacklevel=1)
+
 
     def _disconnected_states(cls, starting_state):
         visitable_states = set(visit_connected_states(starting_state))
