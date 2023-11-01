@@ -77,7 +77,7 @@ def transition_callback_machine(request):
         class ApprovalMachine(StateMachine):
             "A workflow"
             requested = State(initial=True)
-            accepted = State()
+            accepted = State(final=True)
 
             validate = requested.to(accepted)
 
@@ -90,7 +90,7 @@ def transition_callback_machine(request):
         class ApprovalMachine(StateMachine):
             "A workflow"
             requested = State(initial=True)
-            accepted = State()
+            accepted = State(final=True)
 
             @requested.to(accepted)
             def validate(self):
@@ -175,8 +175,8 @@ def test_should_transition_with_a_dict_as_return():
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State(initial=True)
-        accepted = State()
-        rejected = State()
+        accepted = State(final=True)
+        rejected = State(final=True)
 
         accept = requested.to(accepted)
         reject = requested.to(rejected)

@@ -52,8 +52,8 @@ def test_transition_to_first_that_executes_if_multiple_targets():
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State(initial=True)
-        accepted = State()
-        rejected = State()
+        accepted = State(final=True)
+        rejected = State(final=True)
 
         validate = requested.to(accepted, rejected)
 
@@ -70,8 +70,8 @@ def test_do_not_transition_if_multiple_targets_with_guard():
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State(initial=True)
-        accepted = State()
-        rejected = State()
+        accepted = State(final=True)
+        rejected = State(final=True)
 
         validate = (
             requested.to(accepted, cond=never_will_pass)
@@ -97,8 +97,8 @@ def test_check_invalid_reference_to_conditions():
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State(initial=True)
-        accepted = State()
-        rejected = State()
+        accepted = State(final=True)
+        rejected = State(final=True)
 
         validate = requested.to(accepted, cond="not_found_condition") | requested.to(
             rejected
@@ -114,7 +114,7 @@ def test_should_change_to_returned_state_on_multiple_target_with_combined_transi
         requested = State(initial=True)
         accepted = State()
         rejected = State()
-        completed = State()
+        completed = State(final=True)
 
         validate = (
             requested.to(accepted, cond="is_ok")
@@ -179,8 +179,8 @@ def test_multiple_values_returned_with_multiple_targets():
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State(initial=True)
-        accepted = State()
-        denied = State()
+        accepted = State(final=True)
+        denied = State(final=True)
 
         @requested.to(accepted, denied)
         def validate(self):
@@ -206,7 +206,7 @@ def test_multiple_targets_using_or_starting_from_same_origin(
 ):
     class InvoiceStateMachine(StateMachine):
         unpaid = State(initial=True)
-        paid = State()
+        paid = State(final=True)
         failed = State()
 
         pay = (

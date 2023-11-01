@@ -8,7 +8,7 @@ def BaseMachine():
     from statemachine import State
     from statemachine import StateMachine
 
-    class BaseMachine(StateMachine):
+    class BaseMachine(StateMachine, strict_states=False):
         state_1 = State(initial=True)
         state_2 = State()
         trans_1_2 = state_1.to(state_2)
@@ -18,7 +18,7 @@ def BaseMachine():
 
 @pytest.fixture()
 def InheritedClass(BaseMachine):
-    class InheritedClass(BaseMachine):
+    class InheritedClass(BaseMachine, strict_states=False):
         pass
 
     return InheritedClass
@@ -29,7 +29,7 @@ def ExtendedClass(BaseMachine):
     from statemachine import State
 
     class ExtendedClass(BaseMachine):
-        state_3 = State()
+        state_3 = State(final=True)
         trans_2_3 = BaseMachine.state_2.to(state_3)
 
     return ExtendedClass
@@ -40,7 +40,7 @@ def OverridedClass(BaseMachine):
     from statemachine import State
 
     class OverridedClass(BaseMachine):
-        state_2 = State()
+        state_2 = State(final=True)
 
         trans_1_2 = BaseMachine.state_1.to(state_2)
 
@@ -52,7 +52,7 @@ def OverridedTransitionClass(BaseMachine):
     from statemachine import State
 
     class OverridedTransitionClass(BaseMachine):
-        state_3 = State()
+        state_3 = State(final=True)
         trans_1_2 = BaseMachine.state_1.to(state_3)
 
     return OverridedTransitionClass

@@ -18,7 +18,7 @@ def state_machine(event_mock):
     class CampaignMachine(StateMachine):
         draft = State(initial=True)
         producing = State()
-        closed = State()
+        closed = State(final=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
