@@ -127,6 +127,43 @@ def test_can_run_combined_transitions():
     assert machine.closed.is_active
 
 
+def test_can_detect_stuck_states():
+
+    with pytest.raises(
+        InvalidDefinition,
+        match="All non-final states should have at least one outgoing transition.",
+    ):
+
+        class CampaignMachine(StateMachine, strict_states=True):
+            "A workflow machine"
+            draft = State(initial=True)
+            producing = State()
+            paused = State()
+            closed = State()
+
+            abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+            produce = draft.to(producing)
+            pause = producing.to(paused)
+
+
+def test_can_detect_unreachable_final_states():
+
+    with pytest.raises(
+        InvalidDefinition,
+        match="All non-final states should have at least one path to a final state.",
+    ):
+
+        class CampaignMachine(StateMachine, strict_states=True):
+            "A workflow machine"
+            draft = State(initial=True)
+            producing = State()
+            paused = State()
+            closed = State(final=True)
+
+            abort = closed.from_(draft, producing)
+            produce = draft.to(producing)
+            pause = producing.to(paused) | paused.to.itself()
+
 def test_transitions_to_the_same_estate_as_itself():
     class CampaignMachine(StateMachine):
         "A workflow machine"
