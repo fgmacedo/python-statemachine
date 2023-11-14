@@ -110,21 +110,24 @@ class StateMachineMetaclass(type):
                 warnings.warn(message, UserWarning, stacklevel=1)
 
     def _check_reachable_final_states(cls):
-        if any(s.final for s in cls.states):
-            disconnected_states = [
-                state for state in cls.states if not state.final 
-                and not any(s.final for s in visit_connected_states(state))
-            ]
-            if disconnected_states:
-                message = _(
-                    "All non-final states should have at least one path to a final state. "
-                    "These states have no path to a final state: {!r}"
-                ).format([s.id for s in disconnected_states])
-                if cls._strict_states:
-                    raise InvalidDefinition(message)
-                else:
-                    warnings.warn(message, UserWarning, stacklevel=1)
+        if not any(s.final for s in cls.states):
+            return  # No need to check final reachability
+        disconnected_states = cls._states_without_path_to_final_states()
+        if disconnected_states:
+            message = _(
+                "All non-final states should have at least one path to a final state. "
+                "These states have no path to a final state: {!r}"
+            ).format([s.id for s in disconnected_states])
+            if cls._strict_states:
+                raise InvalidDefinition(message)
+            else:
+                warnings.warn(message, UserWarning, stacklevel=1)
 
+    def _states_without_path_to_final_states(cls):
+        return [
+            state for state in cls.states
+            if not state.final and not any(s.final for s in visit_connected_states(state))
+        ]
 
     def _disconnected_states(cls, starting_state):
         visitable_states = set(visit_connected_states(starting_state))
