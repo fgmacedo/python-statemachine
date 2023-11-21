@@ -28,6 +28,8 @@ All states should have at least one transition to and from another state.
 If any states are unreachable from the initial state, an `InvalidDefinition` exception will be thrown.
 
 ```py
+>>> from statemachine import StateMachine, State
+
 >>> class TrafficLightMachine(StateMachine):
 ...     "A workflow machine"
 ...     red = State('Red', initial=True, value=1)
@@ -51,6 +53,8 @@ This will currently issue a warning, but can be turned into an exception by sett
 ```
 
 ```py
+>>> from statemachine import StateMachine, State
+
 >>> class TrafficLightMachine(StateMachine, strict_states=True):
 ...     "A workflow machine"
 ...     red = State('Red', initial=True, value=1)
@@ -113,7 +117,7 @@ This will currently issue a warning, but can be turned into an exception by sett
 ...
 ...     add_job = draft.to.itself() | producing.to.itself()
 ...     produce = draft.to(producing)
-...     abandon = producing.to(abandoned)
+...     abandon = producing.to(abandoned) | abandoned.to(abandoned)
 ...     deliver = producing.to(closed)
 
 Traceback (most recent call last):
