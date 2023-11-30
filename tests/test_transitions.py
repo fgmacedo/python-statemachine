@@ -164,6 +164,7 @@ def test_can_detect_unreachable_final_states():
             produce = draft.to(producing)
             pause = producing.to(paused) | paused.to.itself()
 
+
 def test_transitions_to_the_same_estate_as_itself():
     class CampaignMachine(StateMachine):
         "A workflow machine"

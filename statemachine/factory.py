@@ -22,7 +22,11 @@ class StateMachineMetaclass(type):
     "Metaclass for constructing StateMachine classes"
 
     def __init__(
-        cls, name: str, bases: Tuple[type], attrs: Dict[str, Any], strict_states: bool = False
+        cls,
+        name: str,
+        bases: Tuple[type],
+        attrs: Dict[str, Any],
+        strict_states: bool = False,
     ) -> None:
         super().__init__(name, bases, attrs)
         registry.register(cls)
@@ -125,8 +129,10 @@ class StateMachineMetaclass(type):
 
     def _states_without_path_to_final_states(cls):
         return [
-            state for state in cls.states
-            if not state.final and not any(s.final for s in visit_connected_states(state))
+            state
+            for state in cls.states
+            if not state.final
+            and not any(s.final for s in visit_connected_states(state))
         ]
 
     def _disconnected_states(cls, starting_state):

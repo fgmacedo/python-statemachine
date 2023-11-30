@@ -84,7 +84,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._setup(initial_transition)
         self._activate_initial_state(initial_transition)
 
-
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
         super().__init_subclass__()

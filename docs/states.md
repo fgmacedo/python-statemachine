@@ -39,7 +39,6 @@ If any states are unreachable from the initial state, an `InvalidDefinition` exc
 ...
 ...     cycle = red.to(green) | green.to(orange) | orange.to(red)
 ...     blink = hazard.to.itself()
-
 Traceback (most recent call last):
 ...
 InvalidDefinition: There are unreachable states. The statemachine graph should have a single component. Disconnected states: ['hazard']
@@ -64,7 +63,6 @@ This will currently issue a warning, but can be turned into an exception by sett
 ...
 ...     cycle = red.to(green) | green.to(orange) | orange.to(red)
 ...     fault = red.to(hazard) | green.to(hazard) | orange.to(hazard)
-
 Traceback (most recent call last):
 ...
 InvalidDefinition: All non-final states should have at least one outgoing transition. These states have no outgoing transition: ['hazard']
@@ -94,7 +92,6 @@ Transitions from these states are not allowed and will raise exceptions.
 ...     add_job = draft.to.itself() | producing.to.itself() | closed.to(producing)
 ...     produce = draft.to(producing)
 ...     deliver = producing.to(closed)
-
 Traceback (most recent call last):
 ...
 InvalidDefinition: Cannot declare transitions from final state. Invalid state(s): ['closed']
@@ -119,10 +116,10 @@ This will currently issue a warning, but can be turned into an exception by sett
 ...     produce = draft.to(producing)
 ...     abandon = producing.to(abandoned) | abandoned.to(abandoned)
 ...     deliver = producing.to(closed)
-
 Traceback (most recent call last):
 ...
 InvalidDefinition: All non-final states should have at least one path to a final state. These states have no path to a final state: ['abandoned']
+
 ```
 
 ```{warning}
