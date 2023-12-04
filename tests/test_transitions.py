@@ -77,7 +77,7 @@ def transition_callback_machine(request):
         class ApprovalMachine(StateMachine):
             "A workflow"
             requested = State(initial=True)
-            accepted = State()
+            accepted = State(final=True)
 
             validate = requested.to(accepted)
 
@@ -90,7 +90,7 @@ def transition_callback_machine(request):
         class ApprovalMachine(StateMachine):
             "A workflow"
             requested = State(initial=True)
-            accepted = State()
+            accepted = State(final=True)
 
             @requested.to(accepted)
             def validate(self):
@@ -125,6 +125,44 @@ def test_can_run_combined_transitions():
     machine.abort()
 
     assert machine.closed.is_active
+
+
+def test_can_detect_stuck_states():
+
+    with pytest.raises(
+        InvalidDefinition,
+        match="All non-final states should have at least one outgoing transition.",
+    ):
+
+        class CampaignMachine(StateMachine, strict_states=True):
+            "A workflow machine"
+            draft = State(initial=True)
+            producing = State()
+            paused = State()
+            closed = State()
+
+            abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+            produce = draft.to(producing)
+            pause = producing.to(paused)
+
+
+def test_can_detect_unreachable_final_states():
+
+    with pytest.raises(
+        InvalidDefinition,
+        match="All non-final states should have at least one path to a final state.",
+    ):
+
+        class CampaignMachine(StateMachine, strict_states=True):
+            "A workflow machine"
+            draft = State(initial=True)
+            producing = State()
+            paused = State()
+            closed = State(final=True)
+
+            abort = closed.from_(draft, producing)
+            produce = draft.to(producing)
+            pause = producing.to(paused) | paused.to.itself()
 
 
 def test_transitions_to_the_same_estate_as_itself():
@@ -175,8 +213,8 @@ def test_should_transition_with_a_dict_as_return():
     class ApprovalMachine(StateMachine):
         "A workflow"
         requested = State(initial=True)
-        accepted = State()
-        rejected = State()
+        accepted = State(final=True)
+        rejected = State(final=True)
 
         accept = requested.to(accepted)
         reject = requested.to(rejected)

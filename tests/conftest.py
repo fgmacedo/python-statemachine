@@ -23,7 +23,7 @@ def campaign_machine():
         "A workflow machine"
         draft = State(initial=True)
         producing = State("Being produced")
-        closed = State()
+        closed = State(final=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -42,7 +42,7 @@ def campaign_machine_with_validator():
         "A workflow machine"
         draft = State(initial=True)
         producing = State("Being produced")
-        closed = State()
+        closed = State(final=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing, validators="can_produce")
@@ -84,7 +84,7 @@ def campaign_machine_with_values():
         "A workflow machine"
         draft = State(initial=True, value=1)
         producing = State("Being produced", value=2)
-        closed = State(value=3)
+        closed = State(value=3, final=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
@@ -164,7 +164,7 @@ def approval_machine(current_time):  # noqa: C901
         accepted = State()
         rejected = State()
 
-        completed = State()
+        completed = State(final=True)
 
         validate = requested.to(accepted, cond="is_ok") | requested.to(rejected)
 

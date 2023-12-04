@@ -9,7 +9,7 @@ In this example, the event callback must be registered only once.
 >>> from statemachine import State
 >>> from statemachine import StateMachine
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateMachine, strict_states=False):
 ...     Created = State(initial=True)
 ...     Inited = State()
 ...

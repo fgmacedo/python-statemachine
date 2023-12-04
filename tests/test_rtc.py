@@ -13,7 +13,7 @@ def chained_after_sm_class():  # noqa: C901
     class ChainedSM(StateMachine):
         a = State(initial=True)
         b = State()
-        c = State()
+        c = State(final=True)
 
         t1 = a.to(b, after="t1") | b.to(c)
 
@@ -52,7 +52,7 @@ def chained_on_sm_class():  # noqa: C901
         s1 = State(initial=True)
         s2 = State()
         s3 = State()
-        s4 = State()
+        s4 = State(final=True)
 
         t1 = s1.to(s2)
         t2a = s2.to(s2)

@@ -54,7 +54,7 @@ def test_machine_should_activate_initial_state():
     class CampaignMachine(StateMachine):
         "A workflow machine"
         producing = State()
-        closed = State()
+        closed = State(final=True)
         draft = State(initial=True)
 
         add_job = draft.to(draft) | producing.to(producing)
@@ -381,7 +381,7 @@ def test_state_value_is_correct():
     STATE_NEW = 0
     STATE_DRAFT = 1
 
-    class ValueTestModel(StateMachine):
+    class ValueTestModel(StateMachine, strict_states=False):
         new = State(STATE_NEW, value=STATE_NEW, initial=True)
         draft = State(STATE_DRAFT, value=STATE_DRAFT)
 
