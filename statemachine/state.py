@@ -13,6 +13,25 @@ if TYPE_CHECKING:
     from .statemachine import StateMachine
 
 
+class NestedStateFactory(type):
+    def __new__(  # type: ignore [misc]
+        cls, classname, bases, attrs, name=None, **kwargs
+    ) -> "State":
+
+        if not bases:
+            return super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
+
+        substates = []
+        for key, value in attrs.items():
+            if isinstance(value, State):
+                value._set_id(key)
+                substates.append(value)
+            if isinstance(value, TransitionList):
+                value.add_event(key)
+
+        return State(name=name, substates=substates, **kwargs)
+
+
 class State:
     """
     A State in a :ref:`StateMachine` describes a particular behavior of the machine.
@@ -92,23 +111,59 @@ class State:
 
     """
 
+    class Builder(metaclass=NestedStateFactory):
+
+        # Mimic the :ref:`State` public API to help linters discover the result of the Builder
+        # class.
+
+        @classmethod
+        def to(cls, *args: "State", **kwargs) -> "TransitionList":  # pragma: no cover
+            """Create transitions to the given target states.
+
+            .. note: This method is only a type hint for mypy.
+                The actual implementation belongs to the :ref:`State` class.
+            """
+            return TransitionList()
+
+        @classmethod
+        def from_(
+            cls, *args: "State", **kwargs
+        ) -> "TransitionList":  # pragma: no cover
+            """Create transitions from the given target states (reversed).
+
+            .. note: This method is only a type hint for mypy.
+                The actual implementation belongs to the :ref:`State` class.
+            """
+            return TransitionList()
+
     def __init__(
         self,
         name: str = "",
         value: Any = None,
         initial: bool = False,
         final: bool = False,
+        parallel: bool = False,
+        substates: Any = None,
         enter: Any = None,
         exit: Any = None,
     ):
         self.name = name
         self.value = value
+        self.parallel = parallel
+        self.substates = substates or []
         self._initial = initial
         self._final = final
         self._id: str = ""
+        self.parent: "State" = None
         self.transitions = TransitionList()
         self.enter = CallbackMetaList().add(enter)
         self.exit = CallbackMetaList().add(exit)
+        self._init_substates()
+
+    def _init_substates(self):
+        for substate in self.substates:
+            substate.parent = self
+            setattr(self, substate.id, substate)
 
     def __eq__(self, other):
         return (
