@@ -21,12 +21,14 @@ TrafficLightIsolatedTransitions
     between states.
 
 """
+
 from statemachine import State
 from statemachine import StateMachine
 
 
 class TrafficLightMachine(StateMachine):
     "A traffic light machine"
+
     green = State(initial=True)
     yellow = State()
     red = State()
@@ -63,6 +65,7 @@ sm.send("cycle")
 
 class TrafficLightIsolatedTransitions(StateMachine):
     "A traffic light machine"
+
     green = State(initial=True)
     yellow = State()
     red = State()

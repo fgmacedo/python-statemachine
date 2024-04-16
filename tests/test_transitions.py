@@ -40,9 +40,7 @@ def test_transition_as_decorator_should_call_method_before_activating_state(
 ):
     machine = traffic_light_machine()
     assert machine.current_state == machine.green
-    assert (
-        machine.cycle(1, 2, number=3, text="x") == "Running cycle from green to yellow"
-    )
+    assert machine.cycle(1, 2, number=3, text="x") == "Running cycle from green to yellow"
     assert machine.current_state == machine.yellow
 
 
@@ -76,6 +74,7 @@ def transition_callback_machine(request):
 
         class ApprovalMachine(StateMachine):
             "A workflow"
+
             requested = State(initial=True)
             accepted = State(final=True)
 
@@ -89,6 +88,7 @@ def transition_callback_machine(request):
 
         class ApprovalMachine(StateMachine):
             "A workflow"
+
             requested = State(initial=True)
             accepted = State(final=True)
 
@@ -113,6 +113,7 @@ def test_statemachine_transition_callback(transition_callback_machine):
 def test_can_run_combined_transitions():
     class CampaignMachine(StateMachine):
         "A workflow machine"
+
         draft = State(initial=True)
         producing = State()
         closed = State()
@@ -128,7 +129,6 @@ def test_can_run_combined_transitions():
 
 
 def test_can_detect_stuck_states():
-
     with pytest.raises(
         InvalidDefinition,
         match="All non-final states should have at least one outgoing transition.",
@@ -136,6 +136,7 @@ def test_can_detect_stuck_states():
 
         class CampaignMachine(StateMachine, strict_states=True):
             "A workflow machine"
+
             draft = State(initial=True)
             producing = State()
             paused = State()
@@ -147,7 +148,6 @@ def test_can_detect_stuck_states():
 
 
 def test_can_detect_unreachable_final_states():
-
     with pytest.raises(
         InvalidDefinition,
         match="All non-final states should have at least one path to a final state.",
@@ -155,6 +155,7 @@ def test_can_detect_unreachable_final_states():
 
         class CampaignMachine(StateMachine, strict_states=True):
             "A workflow machine"
+
             draft = State(initial=True)
             producing = State()
             paused = State()
@@ -168,6 +169,7 @@ def test_can_detect_unreachable_final_states():
 def test_transitions_to_the_same_estate_as_itself():
     class CampaignMachine(StateMachine):
         "A workflow machine"
+
         draft = State(initial=True)
         producing = State()
         closed = State()
@@ -212,6 +214,7 @@ def test_should_transition_with_a_dict_as_return():
 
     class ApprovalMachine(StateMachine):
         "A workflow"
+
         requested = State(initial=True)
         accepted = State(final=True)
         rejected = State(final=True)
@@ -239,7 +242,6 @@ class TestInternalTransition:
     def test_should_not_execute_state_actions_on_internal_transitions(
         self, internal, expected_calls
     ):
-
         calls = []
 
         class TestStateMachine(StateMachine):
@@ -259,7 +261,6 @@ class TestInternalTransition:
         assert calls == expected_calls
 
     def test_should_not_allow_internal_transitions_from_distinct_states(self):
-
         with pytest.raises(
             InvalidDefinition, match="Internal transitions should be self-transitions."
         ):
@@ -278,9 +279,7 @@ class TestAllowEventWithoutTransition:
         sm.send("unknow_event")
         assert sm.green.is_active
 
-    def test_send_not_valid_for_the_current_state_event(
-        self, classic_traffic_light_machine
-    ):
+    def test_send_not_valid_for_the_current_state_event(self, classic_traffic_light_machine):
         sm = classic_traffic_light_machine(allow_event_without_transition=True)
         assert sm.green.is_active
         sm.stop()

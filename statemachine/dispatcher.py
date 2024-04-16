@@ -101,9 +101,7 @@ def search_callable(attr, *configs) -> WrapSearchResult:
         func = config.getattr(attr)
         if func is not None:
             if not callable(func):
-                return AttributeCallableSearchResult(
-                    attr, config.obj, config.resolver_id
-                )
+                return AttributeCallableSearchResult(attr, config.obj, config.resolver_id)
 
             if getattr(func, "_is_sm_event", False):
                 return EventSearchResult(attr, func, config.resolver_id)

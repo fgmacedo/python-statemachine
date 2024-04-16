@@ -15,6 +15,7 @@ def traffic_light_machine(event_mock):  # noqa: C901
 
     class TrafficLightMachineStateEvents(StateMachine):
         "A traffic light machine"
+
         green = State(initial=True)
         yellow = State()
         red = State()
@@ -49,9 +50,7 @@ def traffic_light_machine(event_mock):  # noqa: C901
 
 
 class TestStateCallbacks:
-    def test_should_call_on_enter_generic_state(
-        self, event_mock, traffic_light_machine
-    ):
+    def test_should_call_on_enter_generic_state(self, event_mock, traffic_light_machine):
         machine = traffic_light_machine()
         machine.cycle()
         assert event_mock.on_enter_state.call_args_list == [
@@ -64,23 +63,17 @@ class TestStateCallbacks:
         machine.cycle()
         event_mock.on_exit_state.assert_called_once_with(machine.green)
 
-    def test_should_call_on_enter_of_specific_state(
-        self, event_mock, traffic_light_machine
-    ):
+    def test_should_call_on_enter_of_specific_state(self, event_mock, traffic_light_machine):
         machine = traffic_light_machine()
         machine.cycle()
         event_mock.on_enter_yellow.assert_called_once_with(machine)
 
-    def test_should_call_on_exit_of_specific_state(
-        self, event_mock, traffic_light_machine
-    ):
+    def test_should_call_on_exit_of_specific_state(self, event_mock, traffic_light_machine):
         machine = traffic_light_machine()
         machine.cycle()
         event_mock.on_exit_green.assert_called_once_with(machine)
 
-    def test_should_be_on_the_previous_state_when_exiting(
-        self, event_mock, traffic_light_machine
-    ):
+    def test_should_be_on_the_previous_state_when_exiting(self, event_mock, traffic_light_machine):
         machine = traffic_light_machine()
 
         def assert_is_green_from_state(s):
@@ -94,9 +87,7 @@ class TestStateCallbacks:
 
         machine.cycle()
 
-    def test_should_be_on_the_next_state_when_entering(
-        self, event_mock, traffic_light_machine
-    ):
+    def test_should_be_on_the_next_state_when_entering(self, event_mock, traffic_light_machine):
         machine = traffic_light_machine()
 
         def assert_is_yellow_from_state(s):

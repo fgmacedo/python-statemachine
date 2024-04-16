@@ -48,7 +48,6 @@ class Transition:
         before=None,
         after=None,
     ):
-
         self.source = source
         self.target = target
         self.internal = internal
@@ -62,9 +61,7 @@ class Transition:
         self.on = CallbackMetaList().add(on)
         self.after = CallbackMetaList().add(after)
         self.cond = (
-            CallbackMetaList(factory=BoolCallbackMeta)
-            .add(cond)
-            .add(unless, expected_value=False)
+            CallbackMetaList(factory=BoolCallbackMeta).add(cond).add(unless, expected_value=False)
         )
 
     def __repr__(self):
@@ -84,9 +81,7 @@ class Transition:
         before = self.before.add
         on = self.on.add
         after = self.after.add
-        before(
-            "before_transition", registry=registry, suppress_errors=True, prepend=True
-        )
+        before("before_transition", registry=registry, suppress_errors=True, prepend=True)
         on("on_transition", registry=registry, suppress_errors=True, prepend=True)
 
         for event in self._events:

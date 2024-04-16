@@ -39,9 +39,7 @@ def chained_after_sm_class():  # noqa: C901
             )
 
         def on_exit_state(self, state: State, source: State, value: int = 0):
-            return self.spy(
-                "on_exit_state", state=state.id, source=source.id, value=value
-            )
+            return self.spy("on_exit_state", state=state.id, source=source.id, value=value)
 
     return ChainedSM
 
@@ -82,9 +80,7 @@ def chained_on_sm_class():  # noqa: C901
             return event
 
         def after_transition(self, event: str, source: State, target: State):
-            self.spy(
-                "after_transition", event=event, source=source.id, target=target.id
-            )
+            self.spy("after_transition", event=event, source=source.id, target=target.id)
 
     return ChainedSM
 
@@ -143,9 +139,7 @@ class TestChainedTransition:
             (
                 True,
                 [
-                    mock.call(
-                        "on_enter_state", event="__initial__", state="s1", source=""
-                    ),
+                    mock.call("on_enter_state", event="__initial__", state="s1", source=""),
                     mock.call("on_exit_state", event="t1", state="s1", target="s2"),
                     mock.call("on_transition", event="t1", source="s1", target="s2"),
                     mock.call("on_enter_state", event="t1", state="s2", source="s1"),
@@ -153,15 +147,11 @@ class TestChainedTransition:
                     mock.call("on_exit_state", event="t2a", state="s2", target="s2"),
                     mock.call("on_transition", event="t2a", source="s2", target="s2"),
                     mock.call("on_enter_state", event="t2a", state="s2", source="s2"),
-                    mock.call(
-                        "after_transition", event="t2a", source="s2", target="s2"
-                    ),
+                    mock.call("after_transition", event="t2a", source="s2", target="s2"),
                     mock.call("on_exit_state", event="t2b", state="s2", target="s3"),
                     mock.call("on_transition", event="t2b", source="s2", target="s3"),
                     mock.call("on_enter_state", event="t2b", state="s3", source="s2"),
-                    mock.call(
-                        "after_transition", event="t2b", source="s2", target="s3"
-                    ),
+                    mock.call("after_transition", event="t2b", source="s2", target="s3"),
                     mock.call("on_exit_state", event="t3", state="s3", target="s4"),
                     mock.call("on_transition", event="t3", source="s3", target="s4"),
                     mock.call("on_enter_state", event="t3", state="s4", source="s3"),

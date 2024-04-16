@@ -85,9 +85,7 @@ class CallbackMeta:
 
         if not self.suppress_errors:
             raise AttrNotFound(
-                _("Did not found name '{}' from model or statemachine").format(
-                    self.func
-                )
+                _("Did not found name '{}' from model or statemachine").format(self.func)
             )
         return None
 
@@ -226,9 +224,7 @@ class CallbacksExecutor:
 
     def call(self, *args, **kwargs):
         return [
-            callback(*args, **kwargs)
-            for callback in self
-            if callback.condition(*args, **kwargs)
+            callback(*args, **kwargs) for callback in self if callback.condition(*args, **kwargs)
         ]
 
     def all(self, *args, **kwargs):
@@ -237,9 +233,7 @@ class CallbacksExecutor:
 
 class CallbacksRegistry:
     def __init__(self) -> None:
-        self._registry: Dict[CallbackMetaList, CallbacksExecutor] = defaultdict(
-            CallbacksExecutor
-        )
+        self._registry: Dict[CallbackMetaList, CallbacksExecutor] = defaultdict(CallbacksExecutor)
 
     def register(self, callbacks: CallbackMetaList, resolver):
         executor_list = self[callbacks]

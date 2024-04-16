@@ -4,8 +4,7 @@ from statemachine import StateMachine
 
 def test_minimal(mocker):
     class Observer:
-        def on_enter_state(self, event, model, source, target, state):
-            ...
+        def on_enter_state(self, event, model, source, target, state): ...
 
     obs = Observer()
     on_enter_state = mocker.spy(obs, "on_enter_state")

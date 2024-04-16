@@ -22,9 +22,7 @@ def ObjectWithCallbacks():
                 ["life_meaning", "name", "a_method"],
             )
             self.registry = CallbacksRegistry()
-            self.executor = self.registry.register(
-                self.callbacks, resolver=resolver_factory(self)
-            )
+            self.executor = self.registry.register(self.callbacks, resolver=resolver_factory(self))
 
         @property
         def life_meaning(self):
@@ -115,9 +113,7 @@ class TestCallbacksMachinery:
         register = registry.build_register_function_for_resolver(resolver_factory(self))
 
         if suppress_errors:
-            callbacks.add(
-                "this_does_no_exist", registry=register, suppress_errors=suppress_errors
-            )
+            callbacks.add("this_does_no_exist", registry=register, suppress_errors=suppress_errors)
         else:
             with pytest.raises(InvalidDefinition):
                 callbacks.add(
@@ -185,7 +181,6 @@ class TestCallbacksAsDecorator:
 
     def test_decorate_unbounded_machine_methods(self):
         class MiniHeroJourneyMachine(StateMachine, strict_states=False):
-
             ordinary_world = State(initial=True)
             call_to_adventure = State()
             refusal_of_call = State()

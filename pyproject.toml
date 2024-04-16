@@ -37,13 +37,13 @@ diagrams = ["pydot"]
 python = ">=3.9, <3.13"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.2.0"
-pytest-cov = "^4.0.0"
-pytest-sugar = "^0.9.6"
-pydot = "^1.4.2"
-ruff = "^0.0.257"
-pre-commit = "^2.21.0"
-mypy = "^0.991"
+pytest = "^8.1.1"
+pytest-cov = "^5.0.0"
+pytest-sugar = "^1.0.0"
+pydot = "^2.0.0"
+ruff = "^0.3.7"
+pre-commit = "^3.7.0"
+mypy = "^1.9.0"
 pdbpp = "^0.10.3"
 pytest-mock = "^3.10.0"
 pytest-profiling = "^1.7.0"
@@ -90,24 +90,8 @@ max-line-length = 99
 [tool.ruff]
 src = ["statemachine"]
 
-# Enable Pyflakes and pycodestyle rules.
-select = [
-    "E", # pycodestyle errors
-    "W", # pycodestyle warnings
-    "F", # pyflakes
-    "I", # isort
-    "UP", # pyupgrade
-    "C",  # flake8-comprehensions
-    "B",  # flake8-bugbear
-    "PT", # flake8-pytest-style
-]
-ignore = [
-    "UP006", # `use-pep585-annotation` Requires Python3.9+
-    "UP035", # `use-pep585-annotation` Requires Python3.9+
-    "UP038", # `use-pep585-annotation` Requires Python3.9+
-]
-
 line-length = 99
+target-version = "py312"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -130,19 +114,41 @@ exclude = [
     "venv",
 ]
 
+[tool.ruff.lint]
+
+# Enable Pyflakes and pycodestyle rules.
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "UP", # pyupgrade
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "PT", # flake8-pytest-style
+]
+ignore = [
+    "UP006", # `use-pep585-annotation` Requires Python3.9+
+    "UP035", # `use-pep585-annotation` Requires Python3.9+
+    "UP038", # `use-pep585-annotation` Requires Python3.9+
+]
+
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Assume Python 3.11.
-target-version = "py311"
+[tool.ruff.lint.per-file-ignores]
+# Ignore `E402` (import violations) in all `__init__.py` files, and in `path/to/file.py`.
+"__init__.py" = ["E402"]
+"path/to/file.py" = ["E402"]
+"tests/examples/**.py" = ["B018"]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 6
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 force-single-line = true
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 # Use Google-style docstrings.
 convention = "google"
 

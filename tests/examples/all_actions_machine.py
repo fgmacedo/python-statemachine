@@ -5,6 +5,7 @@ All actions machine
 A StateMachine that exercises all possible :ref:`Actions` and :ref:`Guards`.
 
 """
+
 from unittest import mock
 
 from statemachine import State
@@ -12,7 +13,6 @@ from statemachine import StateMachine
 
 
 class AllActionsMachine(StateMachine):
-
     initial = State(initial=True)
     final = State(final=True)
 
