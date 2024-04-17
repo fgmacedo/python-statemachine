@@ -111,9 +111,7 @@ class State:
         self.exit = CallbackMetaList().add(exit)
 
     def __eq__(self, other):
-        return (
-            isinstance(other, State) and self.name == other.name and self.id == other.id
-        )
+        return isinstance(other, State) and self.name == other.name and self.id == other.id
 
     def __hash__(self):
         return hash(repr(self))
@@ -124,13 +122,9 @@ class State:
         return self
 
     def _add_observer(self, registry):
-        self.enter.add(
-            "on_enter_state", registry=registry, prepend=True, suppress_errors=True
-        )
+        self.enter.add("on_enter_state", registry=registry, prepend=True, suppress_errors=True)
         self.enter.add(f"on_enter_{self.id}", registry=registry, suppress_errors=True)
-        self.exit.add(
-            "on_exit_state", registry=registry, prepend=True, suppress_errors=True
-        )
+        self.exit.add("on_exit_state", registry=registry, prepend=True, suppress_errors=True)
         self.exit.add(f"on_exit_{self.id}", registry=registry, suppress_errors=True)
 
     def __repr__(self):
@@ -146,14 +140,10 @@ class State:
 
     def __set__(self, instance, value):
         raise StateMachineError(
-            _("State overriding is not allowed. Trying to add '{}' to {}").format(
-                value, self.id
-            )
+            _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
         )
 
-    def for_instance(
-        self, machine: "StateMachine", cache: Dict["State", "State"]
-    ) -> "State":
+    def for_instance(self, machine: "StateMachine", cache: Dict["State", "State"]) -> "State":
         if self not in cache:
             cache[self] = InstanceState(self, machine)
 
@@ -171,9 +161,7 @@ class State:
             self.name = self._id.replace("_", " ").capitalize()
 
     def _to_(self, *states: "State", **kwargs):
-        transitions = TransitionList(
-            Transition(self, state, **kwargs) for state in states
-        )
+        transitions = TransitionList(Transition(self, state, **kwargs) for state in states)
         self.transitions.add_transitions(transitions)
         return transitions
 

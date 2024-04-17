@@ -147,7 +147,6 @@ class TestSignatureAdapter:
         ],
     )
     def test_wrap_fn_single_positional_parameter(self, func, args, kwargs, expected):
-
         wrapped_func = SignatureAdapter.wrap(func)
         assert wrapped_func.__name__ == func.__name__
 

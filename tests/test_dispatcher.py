@@ -65,9 +65,7 @@ class TestEnsureCallable:
 
         assert method(*args, **kwargs) == "Frodo"
 
-    def test_retrieve_callable_from_a_property_name_that_should_keep_reference(
-        self, args, kwargs
-    ):
+    def test_retrieve_callable_from_a_property_name_that_should_keep_reference(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
         method = search_callable("first_name", ObjectConfig.from_obj(model)).wrap()
 

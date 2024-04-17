@@ -9,13 +9,13 @@ repos:
         exclude: docs/auto_examples
 - repo: https://github.com/charliermarsh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.0.257'
+  rev: v0.3.7
   hooks:
+    # Run the linter.
     - id: ruff
--   repo: https://github.com/psf/black
-    rev: 22.10.0
-    hooks:
-    -   id: black
+      args: [ --fix ]
+    # Run the formatter.
+    - id: ruff-format
 
 - repo: local
   hooks:

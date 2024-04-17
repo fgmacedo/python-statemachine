@@ -19,7 +19,6 @@ def sm_class():
 
 class TestState:
     def test_name_derived_from_id(self, sm_class):
-
         assert sm_class.pending.name == "Pending"
         assert sm_class.waiting_approval.name == "Waiting approval"
         assert sm_class.approved.name == "Approved"

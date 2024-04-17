@@ -78,9 +78,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
-        initial_transition = Transition(
-            None, self._get_initial_state(), event="__initial__"
-        )
+        initial_transition = Transition(None, self._get_initial_state(), event="__initial__")
         self._setup(initial_transition)
         self._activate_initial_state(initial_transition)
 
@@ -91,8 +89,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
     if TYPE_CHECKING:
         """Makes mypy happy with dynamic created attributes"""
 
-        def __getattr__(self, attribute: str) -> Any:
-            ...
+        def __getattr__(self, attribute: str) -> Any: ...
 
     def __repr__(self):
         current_state_id = self.current_state.id if self.current_state_value else None
@@ -102,9 +99,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         )
 
     def _get_initial_state(self):
-        current_state_value = (
-            self.start_value if self.start_value else self.initial_state.value
-        )
+        current_state_value = self.start_value if self.start_value else self.initial_state.value
         try:
             return self.states_map[current_state_value]
         except KeyError as err:
@@ -252,10 +247,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
     @property
     def allowed_events(self):
         """List of the current allowed events."""
-        return [
-            getattr(self, event)
-            for event in self.current_state.transitions.unique_events
-        ]
+        return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
     def _process(self, trigger):
         """Process event triggers.

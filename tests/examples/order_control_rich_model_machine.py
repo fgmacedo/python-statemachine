@@ -5,6 +5,7 @@ Order control machine (rich model)
 An StateMachine that demonstrates :ref:`Actions` being used on a rich model.
 
 """
+
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.exceptions import AttrNotFound

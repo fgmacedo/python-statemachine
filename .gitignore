@@ -78,3 +78,4 @@ target/
 # Sphinx-galery
 docs/auto_examples/sg_execution_times.*
 docs/auto_examples/*.pickle
+docs/sg_execution_times.rst

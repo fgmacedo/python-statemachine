@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 
 # We support Python 3.8+ positional only syntax
-if sys.version_info[:2] < (3, 8):
+if sys.version_info[:2] < (3, 8):  # noqa: UP036
     collect_ignore_glob = ["*_positional_only.py"]
 
 
@@ -21,6 +21,7 @@ def campaign_machine():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
+
         draft = State(initial=True)
         producing = State("Being produced")
         closed = State(final=True)
@@ -40,6 +41,7 @@ def campaign_machine_with_validator():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
+
         draft = State(initial=True)
         producing = State("Being produced")
         closed = State(final=True)
@@ -63,6 +65,7 @@ def campaign_machine_with_final_state():
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
+
         draft = State(initial=True)
         producing = State("Being produced")
         closed = State(final=True)
@@ -82,6 +85,7 @@ def campaign_machine_with_values():
 
     class CampaignMachineWithKeys(StateMachine):
         "A workflow machine"
+
         draft = State(initial=True, value=1)
         producing = State("Being produced", value=2)
         closed = State(value=3, final=True)
@@ -138,17 +142,13 @@ def reverse_traffic_light_machine():
 
     class ReverseTrafficLightMachine(StateMachine):
         "A traffic light machine"
+
         green = State(initial=True)
         yellow = State()
         red = State()
 
         stop = red.from_(yellow, green, red)
-        cycle = (
-            green.from_(red)
-            | yellow.from_(green)
-            | red.from_(yellow)
-            | red.from_.itself()
-        )
+        cycle = green.from_(red) | yellow.from_(green) | red.from_(yellow) | red.from_.itself()
 
     return ReverseTrafficLightMachine
 
@@ -160,6 +160,7 @@ def approval_machine(current_time):  # noqa: C901
 
     class ApprovalMachine(StateMachine):
         "A workflow machine"
+
         requested = State(initial=True)
         accepted = State()
         rejected = State()

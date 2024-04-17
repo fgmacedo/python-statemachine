@@ -54,8 +54,7 @@ class StateMachineMetaclass(type):
     if TYPE_CHECKING:
         """Makes mypy happy with dynamic created attributes"""
 
-        def __getattr__(self, attribute: str) -> Any:
-            ...
+        def __getattr__(self, attribute: str) -> Any: ...
 
     def _check(cls):
         has_states = bool(cls.states)
@@ -96,9 +95,9 @@ class StateMachineMetaclass(type):
 
         if final_state_with_invalid_transitions:
             raise InvalidDefinition(
-                _(
-                    "Cannot declare transitions from final state. Invalid state(s): {}"
-                ).format([s.id for s in final_state_with_invalid_transitions])
+                _("Cannot declare transitions from final state. Invalid state(s): {}").format(
+                    [s.id for s in final_state_with_invalid_transitions]
+                )
             )
 
     def _check_trap_states(cls):
@@ -131,8 +130,7 @@ class StateMachineMetaclass(type):
         return [
             state
             for state in cls.states
-            if not state.final
-            and not any(s.final for s in visit_connected_states(state))
+            if not state.final and not any(s.final for s in visit_connected_states(state))
         ]
 
     def _disconnected_states(cls, starting_state):

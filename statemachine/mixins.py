@@ -20,9 +20,7 @@ class MachineMixin:
         super().__init__(*args, **kwargs)
         if not self.state_machine_name:
             raise ValueError(
-                _("{!r} is not a valid state machine name.").format(
-                    self.state_machine_name
-                )
+                _("{!r} is not a valid state machine name.").format(self.state_machine_name)
             )
         machine_cls = registry.get_machine_cls(self.state_machine_name)
         setattr(

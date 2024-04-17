@@ -42,7 +42,7 @@ class Order:
 
 def exercise_order():
     order = Order()
-    order.state_machine.waiting_for_payment.is_active
+    assert order.state_machine.waiting_for_payment.is_active
 
 
 def test_setup_performance(benchmark):

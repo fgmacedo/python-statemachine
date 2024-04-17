@@ -10,6 +10,7 @@ def test_should_register_a_state_machine(caplog):
 
     class CampaignMachine(StateMachine):
         "A workflow machine"
+
         draft = State(initial=True)
         producing = State()
 
@@ -17,10 +18,7 @@ def test_should_register_a_state_machine(caplog):
         produce = draft.to(producing)
 
     assert "CampaignMachine" in registry._REGISTRY
-    assert (
-        registry.get_machine_cls("tests.test_registry.CampaignMachine")
-        == CampaignMachine
-    )
+    assert registry.get_machine_cls("tests.test_registry.CampaignMachine") == CampaignMachine
 
     with pytest.warns(DeprecationWarning):
         assert registry.get_machine_cls("CampaignMachine") == CampaignMachine
@@ -45,9 +43,7 @@ def django_autodiscover_modules():
     sys.modules["django"] = django
     sys.modules["django.utils.module_loading"] = module_loading
 
-    with mock.patch(
-        "statemachine.registry.autodiscover_modules", new=auto_discover_modules
-    ):
+    with mock.patch("statemachine.registry.autodiscover_modules", new=auto_discover_modules):
         yield auto_discover_modules
 
     del sys.modules["django"]
