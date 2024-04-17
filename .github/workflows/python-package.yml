@@ -49,15 +49,8 @@ jobs:
       if: matrix.python-version == 3.11
       run: |
         source .venv/bin/activate
-        ruff .
-      #----------------------------------------------
-      #              run black
-      #----------------------------------------------
-    - name: Linter with black
-      if: matrix.python-version == 3.11
-      run: |
-        source .venv/bin/activate
-        black . --check --diff
+        ruff check .
+        ruff format --check .
       #----------------------------------------------
       #              run pytest
       #----------------------------------------------
