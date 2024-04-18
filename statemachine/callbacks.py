@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections import deque
+from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import List
@@ -14,11 +15,13 @@ class CallbackWrapper:
         self,
         callback: Callable,
         condition: Callable,
+        meta: "CallbackMeta",
         unique_key: str,
         expected_value: "bool | None" = None,
     ) -> None:
         self._callback = callback
         self.condition = condition
+        self.meta = meta
         self.unique_key = unique_key
         self.expected_value = expected_value
 
@@ -49,7 +52,7 @@ class CallbackMeta:
         self.expected_value = expected_value
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.func!r})"
+        return f"{type(self).__name__}({self.func!r}, suppress_errors={self.suppress_errors!r})"
 
     def __str__(self):
         return getattr(self.func, "__name__", self.func)
@@ -79,14 +82,11 @@ class CallbackMeta:
             return CallbackWrapper(
                 callback=callback,
                 condition=conditions.all,
+                meta=self,
                 unique_key=callback.unique_key,
                 expected_value=self.expected_value,
             )
 
-        if not self.suppress_errors:
-            raise AttrNotFound(
-                _("Did not found name '{}' from model or statemachine").format(self.func)
-            )
         return None
 
 
@@ -112,6 +112,8 @@ class BoolCallbackMeta(CallbackMeta):
 
 
 class CallbackMetaList:
+    """List of `CallbackMeta` instances"""
+
     def __init__(self, factory=CallbackMeta):
         self.items: List[CallbackMeta] = []
         self.factory = factory
@@ -155,6 +157,7 @@ class CallbackMetaList:
         return func
 
     def __call__(self, callback):
+        """Allows usage of the callback list as a decorator."""
         return self._add_unbounded_callback(callback)
 
     def __iter__(self):
@@ -168,6 +171,7 @@ class CallbackMetaList:
         if registry is not None and not registry(self, meta, prepend=prepend):
             return
 
+        # TODO: Is this necessary? How to test it?
         if meta in self.items:
             return
 
@@ -189,6 +193,8 @@ class CallbackMetaList:
 
 
 class CallbacksExecutor:
+    """A list of callbacks that can be executed in order."""
+
     def __init__(self):
         self.items: List[CallbackWrapper] = deque()
         self.items_already_seen = set()
@@ -247,6 +253,8 @@ class CallbacksRegistry:
         return self._registry[callbacks]
 
     def build_register_function_for_resolver(self, resolver):
+        _register = partial(self.register, resolver=resolver)
+
         def register(
             meta_list: CallbackMetaList,
             meta: CallbackMeta,
@@ -254,4 +262,18 @@ class CallbacksRegistry:
         ):
             return self[meta_list].add_one(meta, resolver, prepend=prepend)
 
+        register.register = _register
+
         return register
+
+    def check(self, meta_list: CallbackMetaList):
+        executor = self[meta_list]
+        for meta in meta_list:
+            if meta.suppress_errors:
+                continue
+
+            if any(callback for callback in executor if callback.meta == meta):
+                continue
+            raise AttrNotFound(
+                _("Did not found name '{}' from model or statemachine").format(meta.func)
+            )

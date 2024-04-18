@@ -70,14 +70,20 @@ class Transition:
             f"internal={self.internal!r})"
         )
 
-    def _setup(self, register):
-        register(self.validators)
-        register(self.cond)
-        register(self.before)
-        register(self.on)
-        register(self.after)
+    def _check_callbacks(self, registry):
+        registry.check(self.validators)
+        registry.check(self.cond)
+        registry.check(self.before)
+        registry.check(self.on)
+        registry.check(self.after)
 
     def _add_observer(self, registry):
+        registry.register(self.validators)
+        registry.register(self.cond)
+        registry.register(self.before)
+        registry.register(self.on)
+        registry.register(self.after)
+
         before = self.before.add
         on = self.on.add
         after = self.after.add

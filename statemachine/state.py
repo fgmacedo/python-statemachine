@@ -116,16 +116,18 @@ class State:
     def __hash__(self):
         return hash(repr(self))
 
-    def _setup(self, register):
-        register(self.enter)
-        register(self.exit)
-        return self
-
     def _add_observer(self, registry):
+        registry.register(self.enter)
+        registry.register(self.exit)
+
         self.enter.add("on_enter_state", registry=registry, prepend=True, suppress_errors=True)
         self.enter.add(f"on_enter_{self.id}", registry=registry, suppress_errors=True)
         self.exit.add("on_exit_state", registry=registry, prepend=True, suppress_errors=True)
         self.exit.add(f"on_exit_{self.id}", registry=registry, suppress_errors=True)
+
+    def _check_callbacks(self, registry):
+        registry.check(self.enter)
+        registry.check(self.exit)
 
     def __repr__(self):
         return (

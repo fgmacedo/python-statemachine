@@ -112,15 +112,17 @@ class TestCallbacksMachinery:
 
         register = registry.build_register_function_for_resolver(resolver_factory(self))
 
+        callbacks.add(
+            "this_does_no_exist",
+            suppress_errors=suppress_errors,
+        )
+        register.register(callbacks)
+
         if suppress_errors:
-            callbacks.add("this_does_no_exist", registry=register, suppress_errors=suppress_errors)
+            registry.check(callbacks)
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add(
-                    "this_does_no_exist",
-                    registry=register,
-                    suppress_errors=suppress_errors,
-                )
+                registry.check(callbacks)
 
     def test_collect_results(self):
         callbacks = CallbackMetaList()

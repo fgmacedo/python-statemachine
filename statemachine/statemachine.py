@@ -1,9 +1,9 @@
 from collections import deque
 from copy import deepcopy
-from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Set
 
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
@@ -74,6 +74,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._external_queue: deque = deque()
         self._callbacks_registry = CallbacksRegistry()
         self._states_for_instance: Dict["State", "State"] = {}
+        self._observers: Set[Any] = set()
 
         assert hasattr(self, "_abstract")
         if self._abstract:
@@ -109,6 +110,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             cp.__deepcopy__ = deepcopy_method
         cp._callbacks_registry.clear()
         cp._setup()
+        cp.add_observer(*cp._observers)
         return cp
 
     def _get_initial_state(self):
@@ -158,35 +160,24 @@ class StateMachine(metaclass=StateMachineMetaclass):
     def _setup(self):
         machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
         model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
-        default_resolver = resolver_factory(machine, model)
-
-        register = partial(self._callbacks_registry.register, resolver=default_resolver)
 
         observer_visitor = self._build_observers_visitor(machine, model)
 
-        def setup_visitor(visited):
-            visited._setup(register)
-            observer_visitor(visited)
-
-        self._visit_states_and_transitions(setup_visitor)
-
-        self._initial_transition._setup(register)
+        self._visit_states_and_transitions(observer_visitor)
+        self._visit_states_and_transitions(self._check_callbacks)
 
     def _build_observers_visitor(self, *observers):
-        registry_callbacks = [
-            (
-                self._callbacks_registry.build_register_function_for_resolver(
-                    resolver_factory(observer)
-                )
-            )
-            for observer in observers
-        ]
+        register = self._callbacks_registry.build_register_function_for_resolver(
+            resolver_factory(*observers)
+        )
 
         def _add_observer_for_resolver(visited):
-            for register in registry_callbacks:
-                visited._add_observer(register)
+            visited._add_observer(register)
 
         return _add_observer_for_resolver
+
+    def _check_callbacks(self, visited):
+        visited._check_callbacks(self._callbacks_registry)
 
     def add_observer(self, *observers):
         """Add an observer.
@@ -198,6 +189,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
             :ref:`observers`.
         """
+        self._observers.update(observers)
 
         visitor = self._build_observers_visitor(*observers)
         self._visit_states_and_transitions(visitor)
