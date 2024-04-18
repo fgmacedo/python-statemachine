@@ -1,4 +1,5 @@
 from collections import deque
+from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
@@ -78,9 +79,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
-        initial_transition = Transition(None, self._get_initial_state(), event="__initial__")
-        self._setup(initial_transition)
-        self._activate_initial_state(initial_transition)
+        self._initial_transition = Transition(None, self._get_initial_state(), event="__initial__")
+        self._setup()
+        self._activate_initial_state()
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -98,6 +99,18 @@ class StateMachine(metaclass=StateMachineMetaclass):
             f"current_state={current_state_id!r})"
         )
 
+    def __deepcopy__(self, memo):
+        deepcopy_method = self.__deepcopy__
+        self.__deepcopy__ = None
+        try:
+            cp = deepcopy(self, memo)
+        finally:
+            self.__deepcopy__ = deepcopy_method
+            cp.__deepcopy__ = deepcopy_method
+        cp._callbacks_registry.clear()
+        cp._setup()
+        return cp
+
     def _get_initial_state(self):
         current_state_value = self.start_value if self.start_value else self.initial_state.value
         try:
@@ -105,20 +118,20 @@ class StateMachine(metaclass=StateMachineMetaclass):
         except KeyError as err:
             raise InvalidStateValue(current_state_value) from err
 
-    def _activate_initial_state(self, initial_transition):
+    def _activate_initial_state(self):
         if self.current_state_value is None:
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
-            initial_transition.before.clear()
-            initial_transition.on.clear()
-            initial_transition.after.clear()
+            self._initial_transition.before.clear()
+            self._initial_transition.on.clear()
+            self._initial_transition.after.clear()
 
             event_data = EventData(
                 trigger_data=TriggerData(
                     machine=self,
-                    event=initial_transition.event,
+                    event=self._initial_transition.event,
                 ),
-                transition=initial_transition,
+                transition=self._initial_transition,
             )
             self._activate(event_data)
 
@@ -142,12 +155,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             for transition in state.transitions:
                 visitor(transition)
 
-    def _setup(self, initial_transition: Transition):
-        """
-        Args:
-            initial_transition: A special :ref:`transition` that triggers the enter on the
-                `initial` :ref:`State`.
-        """
+    def _setup(self):
         machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
         model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
         default_resolver = resolver_factory(machine, model)
@@ -162,7 +170,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         self._visit_states_and_transitions(setup_visitor)
 
-        initial_transition._setup(register)
+        self._initial_transition._setup(register)
 
     def _build_observers_visitor(self, *observers):
         registry_callbacks = [

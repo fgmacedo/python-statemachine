@@ -240,6 +240,9 @@ class CallbacksRegistry:
         executor_list.add(callbacks, resolver)
         return executor_list
 
+    def clear(self):
+        self._registry.clear()
+
     def __getitem__(self, callbacks: CallbackMetaList) -> CallbacksExecutor:
         return self._registry[callbacks]
 
