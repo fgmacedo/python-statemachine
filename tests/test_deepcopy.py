@@ -73,7 +73,7 @@ def test_deepcopy_with_observers(caplog):
 
     caplog.set_level(logging.DEBUG)
 
-    def assertions(sm):
+    def assertions(sm, _reference):
         caplog.clear()
         if not sm._observers:
             pytest.fail("did not found any observer")
@@ -95,20 +95,24 @@ def test_deepcopy_with_observers(caplog):
         sm.send("publish")
 
         assert caplog.record_tuples == [
-            ("tests.test_deepcopy", 10, "MySM let_me_be_visible: True"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_1') let_me_be_visible: False"),
-            ("tests.test_deepcopy", 10, "MySM let_me_be_visible: True"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_1') let_me_be_visible: False"),
-            ("tests.test_deepcopy", 10, "MySM let_me_be_visible: True"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_1') let_me_be_visible: True"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_2') let_me_be_visible: False"),
-            ("tests.test_deepcopy", 10, "MySM let_me_be_visible: True"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_1') let_me_be_visible: True"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_2') let_me_be_visible: True"),
-            ("tests.test_deepcopy", 10, "MySM recorded publish transition"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_1') recorded publish transition"),
-            ("tests.test_deepcopy", 10, "MyModel('observer_2') recorded publish transition"),
+            ("tests.test_deepcopy", DEBUG, "MySM let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('main_model') let_me_be_visible: False"),
+            ("tests.test_deepcopy", DEBUG, "MySM let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('main_model') let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('observer_1') let_me_be_visible: False"),
+            ("tests.test_deepcopy", DEBUG, "MySM let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('main_model') let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('observer_1') let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('observer_2') let_me_be_visible: False"),
+            ("tests.test_deepcopy", DEBUG, "MySM let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('main_model') let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('observer_1') let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('observer_2') let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('main_model') recorded publish transition"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('observer_1') recorded publish transition"),
+            ("tests.test_deepcopy", DEBUG, "MyModel('observer_2') recorded publish transition"),
+            ("tests.test_deepcopy", DEBUG, "MySM recorded publish transition"),
         ]
 
-    assertions(sm1)
-    assertions(sm2)
+    assertions(sm1, "original")
+    assertions(sm2, "copy")

@@ -66,11 +66,25 @@ class DotGraphMachine:
             fontsize=self.transition_font_size,
         )
 
+    def _actions_getter(self):
+        if isinstance(self.machine, StateMachine):
+
+            def getter(x):
+                return self.machine._callbacks(x)
+        else:
+
+            def getter(x):
+                return x
+
+        return getter
+
     def _state_actions(self, state):
-        entry = ", ".join([str(action) for action in state.enter])
-        exit = ", ".join([str(action) for action in state.exit])
+        getter = self._actions_getter()
+
+        entry = str(getter(state.enter))
+        exit = str(getter(state.exit))
         internal = ", ".join(
-            f"{transition.event} / {transition.on!s}"
+            f"{transition.event} / {str(getter(transition.on))}"
             for transition in state.transitions
             if transition.internal
         )
