@@ -94,14 +94,15 @@ def search_callable(attr, *configs) -> Generator[WrapSearchResult, None, None]:
     else:
         for config in configs:
             func = config.getattr(attr)
-            if func is not None:
-                if not callable(func):
-                    yield AttributeCallableSearchResult(attr, config.obj, config.resolver_id)
+            if func is None:
+                continue
+            if not callable(func):
+                yield AttributeCallableSearchResult(attr, config.obj, config.resolver_id)
 
-                if getattr(func, "_is_sm_event", False):
-                    yield EventSearchResult(attr, func, config.resolver_id)
+            if getattr(func, "_is_sm_event", False):
+                yield EventSearchResult(attr, func, config.resolver_id)
 
-                yield CallableSearchResult(attr, func, config.resolver_id)
+            yield CallableSearchResult(attr, func, config.resolver_id)
 
 
 def resolver_factory(*objects):
