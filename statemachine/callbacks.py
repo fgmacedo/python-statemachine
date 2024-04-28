@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections import deque
-from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import List
@@ -168,8 +167,6 @@ class CallbackMetaList:
 
     def _add(self, func, registry=None, prepend=False, **kwargs):
         meta = self.factory(func, **kwargs)
-        if registry is not None and not registry(self, meta, prepend=prepend):
-            return
 
         # TODO: Is this necessary? How to test it?
         if meta in self.items:
@@ -205,7 +202,7 @@ class CallbacksExecutor:
     def __repr__(self):
         return f"{type(self).__name__}({self.items!r})"
 
-    def add_one(
+    def _add(
         self, callback_info: CallbackMeta, resolver: Callable, prepend: bool = False
     ) -> "CallbackWrapper | None":
         callback = callback_info.build(resolver)
@@ -222,10 +219,10 @@ class CallbacksExecutor:
             self.items.append(callback)
         return callback
 
-    def add(self, items: CallbackMetaList, resolver: Callable):
+    def add(self, items: CallbackMetaList, resolver: Callable, prepend: bool = False):
         """Validate configurations"""
         for item in items:
-            self.add_one(item, resolver)
+            self._add(item, resolver, prepend=prepend)
         return self
 
     def call(self, *args, **kwargs):
@@ -241,30 +238,16 @@ class CallbacksRegistry:
     def __init__(self) -> None:
         self._registry: Dict[CallbackMetaList, CallbacksExecutor] = defaultdict(CallbacksExecutor)
 
-    def register(self, callbacks: CallbackMetaList, resolver):
-        executor_list = self[callbacks]
-        executor_list.add(callbacks, resolver)
+    def register(self, meta_list: CallbackMetaList, resolver, prepend: bool = False):
+        executor_list = self[meta_list]
+        executor_list.add(meta_list, resolver, prepend=prepend)
         return executor_list
 
     def clear(self):
         self._registry.clear()
 
-    def __getitem__(self, callbacks: CallbackMetaList) -> CallbacksExecutor:
-        return self._registry[callbacks]
-
-    def build_register_function_for_resolver(self, resolver):
-        _register = partial(self.register, resolver=resolver)
-
-        def register(
-            meta_list: CallbackMetaList,
-            meta: CallbackMeta,
-            prepend: bool = False,
-        ):
-            return self[meta_list].add_one(meta, resolver, prepend=prepend)
-
-        register.register = _register
-
-        return register
+    def __getitem__(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
+        return self._registry[meta_list]
 
     def check(self, meta_list: CallbackMetaList):
         executor = self[meta_list]

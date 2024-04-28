@@ -70,52 +70,50 @@ class Transition:
             f"internal={self.internal!r})"
         )
 
-    def _check_callbacks(self, registry):
-        registry.check(self.validators)
-        registry.check(self.cond)
-        registry.check(self.before)
-        registry.check(self.on)
-        registry.check(self.after)
-
-    def _add_observer(self, registry):
-        registry.register(self.validators)
-        registry.register(self.cond)
-        registry.register(self.before)
-        registry.register(self.on)
-        registry.register(self.after)
-
+    def _setup(self):
         before = self.before.add
         on = self.on.add
         after = self.after.add
-        before("before_transition", registry=registry, suppress_errors=True, prepend=True)
-        on("on_transition", registry=registry, suppress_errors=True, prepend=True)
+
+        before("before_transition", suppress_errors=True, prepend=True)
+        on("on_transition", suppress_errors=True, prepend=True)
 
         for event in self._events:
             same_event_cond = same_event_cond_builder(event)
             before(
                 f"before_{event}",
-                registry=registry,
                 suppress_errors=True,
                 cond=same_event_cond,
             )
             on(
                 f"on_{event}",
-                registry=registry,
                 suppress_errors=True,
                 cond=same_event_cond,
             )
             after(
                 f"after_{event}",
-                registry=registry,
                 suppress_errors=True,
                 cond=same_event_cond,
             )
 
         after(
             "after_transition",
-            registry=registry,
             suppress_errors=True,
         )
+
+    def _add_observer(self, register):
+        register(self.validators)
+        register(self.cond)
+        register(self.before)
+        register(self.on)
+        register(self.after)
+
+    def _check_callbacks(self, registry):
+        registry.check(self.validators)
+        registry.check(self.cond)
+        registry.check(self.before)
+        registry.check(self.on)
+        registry.check(self.after)
 
     def match(self, event):
         return self._events.match(event)

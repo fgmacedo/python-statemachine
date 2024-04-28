@@ -1,5 +1,6 @@
 from collections import deque
 from copy import deepcopy
+from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -161,22 +162,23 @@ class StateMachine(metaclass=StateMachineMetaclass):
         machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
         model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
 
-        observer_visitor = self._build_observers_visitor(machine, model)
-
-        self._visit_states_and_transitions(observer_visitor)
-        self._visit_states_and_transitions(self._check_callbacks)
+        self._visit_states_and_transitions(self._visitor_setup)
+        self._visit_states_and_transitions(self._build_observers_visitor(machine, model))
+        self._visit_states_and_transitions(self._visitor_check_callbacks)
 
     def _build_observers_visitor(self, *observers):
-        register = self._callbacks_registry.build_register_function_for_resolver(
-            resolver_factory(*observers)
-        )
+        resolver = resolver_factory(*observers)
+        _register = partial(self._callbacks_registry.register, resolver=resolver)
 
-        def _add_observer_for_resolver(visited):
-            visited._add_observer(register)
+        def add_observer_visitor(visited):
+            visited._add_observer(_register)
 
-        return _add_observer_for_resolver
+        return add_observer_visitor
 
-    def _check_callbacks(self, visited):
+    def _visitor_setup(self, visited):
+        visited._setup()
+
+    def _visitor_check_callbacks(self, visited):
         visited._check_callbacks(self._callbacks_registry)
 
     def add_observer(self, *observers):
