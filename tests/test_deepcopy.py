@@ -108,10 +108,10 @@ def test_deepcopy_with_observers(caplog):
             ("tests.test_deepcopy", DEBUG, "MyModel('main_model') let_me_be_visible: True"),
             ("tests.test_deepcopy", DEBUG, "MyModel('observer_1') let_me_be_visible: True"),
             ("tests.test_deepcopy", DEBUG, "MyModel('observer_2') let_me_be_visible: True"),
+            ("tests.test_deepcopy", DEBUG, "MySM recorded publish transition"),
             ("tests.test_deepcopy", DEBUG, "MyModel('main_model') recorded publish transition"),
             ("tests.test_deepcopy", DEBUG, "MyModel('observer_1') recorded publish transition"),
             ("tests.test_deepcopy", DEBUG, "MyModel('observer_2') recorded publish transition"),
-            ("tests.test_deepcopy", DEBUG, "MySM recorded publish transition"),
         ]
 
     assertions(sm1, "original")

@@ -1,5 +1,7 @@
+from bisect import insort
 from collections import defaultdict
 from collections import deque
+from enum import IntEnum
 from typing import Callable
 from typing import Dict
 from typing import Generator
@@ -8,6 +10,14 @@ from typing import List
 from .exceptions import AttrNotFound
 from .i18n import _
 from .utils import ensure_iterable
+
+
+class CallbackPriority(IntEnum):
+    GENERIC = 0
+    INLINE = 10
+    DECORATOR = 20
+    NAMING = 30
+    AFTER = 40
 
 
 class CallbackWrapper:
@@ -31,6 +41,9 @@ class CallbackWrapper:
     def __str__(self):
         return getattr(self.meta.func, "__name__", self.meta.func)
 
+    def __lt__(self, other):
+        return self.meta.priority < other.meta.priority
+
     def __call__(self, *args, **kwargs):
         result = self._callback(*args, **kwargs)
         if self.expected_value is not None:
@@ -49,13 +62,18 @@ class CallbackMeta:
     """
 
     def __init__(
-        self, func, suppress_errors=False, cond=None, prepend: bool = False, expected_value=None
+        self,
+        func,
+        suppress_errors=False,
+        cond=None,
+        priority: CallbackPriority = CallbackPriority.NAMING,
+        expected_value=None,
     ):
         self.func = func
         self.suppress_errors = suppress_errors
-        self.cond = CallbackMetaList().add(cond)
+        self.cond = CallbackMetaList(factory=BoolCallbackMeta).add(cond)
         self.expected_value = expected_value
-        self.prepend = prepend
+        self.priority = priority
 
     def __repr__(self):
         return f"{type(self).__name__}({self.func!r}, suppress_errors={self.suppress_errors!r})"
@@ -104,10 +122,15 @@ class BoolCallbackMeta(CallbackMeta):
     """
 
     def __init__(
-        self, func, suppress_errors=False, cond=None, prepend: bool = False, expected_value=True
+        self,
+        func,
+        suppress_errors=False,
+        cond=None,
+        priority: CallbackPriority = CallbackPriority.NAMING,
+        expected_value=True,
     ):
         super().__init__(
-            func, suppress_errors, cond, prepend=prepend, expected_value=expected_value
+            func, suppress_errors, cond, priority=priority, expected_value=expected_value
         )
 
     def __str__(self):
@@ -206,24 +229,13 @@ class CallbacksExecutor:
     def __str__(self):
         return ", ".join(str(c) for c in self)
 
-    def _last_index_of_same_callback_meta(self, callback_meta: CallbackMeta) -> int:
-        last_index = 0
-        for index, callback in enumerate(self.items):
-            if callback.meta == callback_meta:
-                last_index = index
-        return last_index
-
     def _add(self, callback_meta: CallbackMeta, resolver: Callable):
         for callback in callback_meta.build(resolver):
             if callback.unique_key in self.items_already_seen:
                 continue
 
             self.items_already_seen.add(callback.unique_key)
-            if callback_meta.prepend:
-                insert_index = self._last_index_of_same_callback_meta(callback_meta)
-                self.items.insert(insert_index, callback)
-            else:
-                self.items.append(callback)
+            insort(self.items, callback)
 
     def add(self, items: CallbackMetaList, resolver: Callable):
         """Validate configurations"""

@@ -4,6 +4,7 @@ from typing import Dict
 from weakref import ref
 
 from .callbacks import CallbackMetaList
+from .callbacks import CallbackPriority
 from .exceptions import StateMachineError
 from .i18n import _
 from .transition import Transition
@@ -107,8 +108,8 @@ class State:
         self._final = final
         self._id: str = ""
         self.transitions = TransitionList()
-        self.enter = CallbackMetaList().add(enter)
-        self.exit = CallbackMetaList().add(exit)
+        self.enter = CallbackMetaList().add(enter, priority=CallbackPriority.INLINE)
+        self.exit = CallbackMetaList().add(exit, priority=CallbackPriority.INLINE)
 
     def __eq__(self, other):
         return isinstance(other, State) and self.name == other.name and self.id == other.id
@@ -117,10 +118,12 @@ class State:
         return hash(repr(self))
 
     def _setup(self):
-        self.enter.add("on_enter_state", prepend=True, suppress_errors=True)
-        self.enter.add(f"on_enter_{self.id}", suppress_errors=True)
-        self.exit.add("on_exit_state", prepend=True, suppress_errors=True)
-        self.exit.add(f"on_exit_{self.id}", suppress_errors=True)
+        self.enter.add("on_enter_state", priority=CallbackPriority.GENERIC, suppress_errors=True)
+        self.enter.add(
+            f"on_enter_{self.id}", priority=CallbackPriority.NAMING, suppress_errors=True
+        )
+        self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, suppress_errors=True)
+        self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, suppress_errors=True)
 
     def _add_observer(self, register):
         register(self.enter)
