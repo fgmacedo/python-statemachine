@@ -129,9 +129,9 @@ class State:
         register(self.enter)
         register(self.exit)
 
-    def _check_callbacks(self, registry):
-        registry.check(self.enter)
-        registry.check(self.exit)
+    def _check_callbacks(self, check):
+        check(self.enter)
+        check(self.exit)
 
     def __repr__(self):
         return (

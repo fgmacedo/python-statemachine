@@ -161,6 +161,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
         model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
         add_observer_visitor = self._build_observers_visitor(machine, model)
+        check_callbacks = self._callbacks_registry.check
 
         for visited in self._iterate_states_and_transitions():
             visited._setup()
@@ -169,7 +170,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             add_observer_visitor(visited)
 
         for visited in self._iterate_states_and_transitions():
-            visited._check_callbacks(self._callbacks_registry)
+            visited._check_callbacks(check_callbacks)
 
     def _build_observers_visitor(self, *observers):
         resolver = resolver_factory(*observers)
@@ -192,9 +193,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         self._observers.update({o: None for o in observers})
 
-        visitor = self._build_observers_visitor(*observers)
+        add_observer_visitor = self._build_observers_visitor(*observers)
         for visited in self._iterate_states_and_transitions():
-            visitor(visited)
+            add_observer_visitor(visited)
         return self
 
     def _repr_html_(self):

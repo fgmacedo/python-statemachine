@@ -115,12 +115,12 @@ class Transition:
         register(self.on)
         register(self.after)
 
-    def _check_callbacks(self, registry):
-        registry.check(self.validators)
-        registry.check(self.cond)
-        registry.check(self.before)
-        registry.check(self.on)
-        registry.check(self.after)
+    def _check_callbacks(self, check):
+        check(self.validators)
+        check(self.cond)
+        check(self.before)
+        check(self.on)
+        check(self.after)
 
     def match(self, event):
         return self._events.match(event)
