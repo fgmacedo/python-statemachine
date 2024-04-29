@@ -20,6 +20,10 @@ class CallbackPriority(IntEnum):
     AFTER = 40
 
 
+def allways_true(*args, **kwargs):
+    return True
+
+
 class CallbackWrapper:
     def __init__(
         self,
@@ -66,7 +70,7 @@ class CallbackMeta:
     ):
         self.func = func
         self.suppress_errors = suppress_errors
-        self.cond = CallbackMetaList(factory=BoolCallbackMeta).add(cond)
+        self.cond = cond
         self.expected_value = expected_value
         self.priority = priority
 
@@ -97,10 +101,10 @@ class CallbackMeta:
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
         for callback in resolver(self.func):
-            conditions = CallbacksExecutor().add(self.cond, resolver)
+            condition = next(resolver(self.cond)) if self.cond is not None else allways_true
             yield CallbackWrapper(
                 callback=self._wrap_callable(callback, self.expected_value),
-                condition=conditions.all,
+                condition=condition,
                 meta=self,
                 unique_key=callback.unique_key,
             )
