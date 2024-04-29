@@ -82,7 +82,7 @@ class DotGraphMachine:
         getter = self._actions_getter()
 
         entry = str(getter(state.enter))
-        exit = str(getter(state.exit))
+        exit_ = str(getter(state.exit))
         internal = ", ".join(
             f"{transition.event} / {str(getter(transition.on))}"
             for transition in state.transitions
@@ -91,10 +91,10 @@ class DotGraphMachine:
 
         if entry:
             entry = f"entry / {entry}"
-        if exit:
-            exit = f"exit / {exit}"
+        if exit_:
+            exit_ = f"exit / {exit_}"
 
-        actions = "\n".join(x for x in [entry, exit, internal] if x)
+        actions = "\n".join(x for x in [entry, exit_, internal] if x)
 
         if actions:
             actions = f"\n{actions}"

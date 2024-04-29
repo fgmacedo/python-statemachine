@@ -27,28 +27,23 @@ class CallbackWrapper:
         condition: Callable,
         meta: "CallbackMeta",
         unique_key: str,
-        expected_value: "bool | None" = None,
     ) -> None:
         self._callback = callback
         self.condition = condition
         self.meta = meta
         self.unique_key = unique_key
-        self.expected_value = expected_value
 
     def __repr__(self):
         return f"{type(self).__name__}({self.unique_key})"
 
     def __str__(self):
-        return getattr(self.meta.func, "__name__", self.meta.func)
+        return str(self.meta)
 
     def __lt__(self, other):
         return self.meta.priority < other.meta.priority
 
     def __call__(self, *args, **kwargs):
-        result = self._callback(*args, **kwargs)
-        if self.expected_value is not None:
-            return bool(result) == self.expected_value
-        return result
+        return self._callback(*args, **kwargs)
 
 
 class CallbackMeta:
@@ -90,6 +85,9 @@ class CallbackMeta:
     def _update_func(self, func):
         self.func = func
 
+    def _wrap_callable(self, func, _expected_value):
+        return func
+
     def build(self, resolver) -> Generator["CallbackWrapper", None, None]:
         """
         Resolves the `func` into a usable callable.
@@ -99,15 +97,12 @@ class CallbackMeta:
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
         for callback in resolver(self.func):
-            conditions = CallbacksExecutor()
-            conditions.add(self.cond, resolver)
-
+            conditions = CallbacksExecutor().add(self.cond, resolver)
             yield CallbackWrapper(
-                callback=callback,
+                callback=self._wrap_callable(callback, self.expected_value),
                 condition=conditions.all,
                 meta=self,
                 unique_key=callback.unique_key,
-                expected_value=self.expected_value,
             )
 
 
@@ -136,6 +131,12 @@ class BoolCallbackMeta(CallbackMeta):
     def __str__(self):
         name = super().__str__()
         return name if self.expected_value else f"!{name}"
+
+    def _wrap_callable(self, func, expected_value):
+        def bool_wrapper(*args, **kwargs):
+            return bool(func(*args, **kwargs)) == expected_value
+
+        return bool_wrapper
 
 
 class CallbackMetaList:
