@@ -1,7 +1,10 @@
+from bisect import insort
 from collections import defaultdict
 from collections import deque
+from enum import IntEnum
 from typing import Callable
 from typing import Dict
+from typing import Generator
 from typing import List
 
 from .exceptions import AttrNotFound
@@ -9,27 +12,42 @@ from .i18n import _
 from .utils import ensure_iterable
 
 
+class CallbackPriority(IntEnum):
+    GENERIC = 0
+    INLINE = 10
+    DECORATOR = 20
+    NAMING = 30
+    AFTER = 40
+
+
+def allways_true(*args, **kwargs):
+    return True
+
+
 class CallbackWrapper:
     def __init__(
         self,
         callback: Callable,
         condition: Callable,
+        meta: "CallbackMeta",
         unique_key: str,
-        expected_value: "bool | None" = None,
     ) -> None:
         self._callback = callback
         self.condition = condition
+        self.meta = meta
         self.unique_key = unique_key
-        self.expected_value = expected_value
 
     def __repr__(self):
         return f"{type(self).__name__}({self.unique_key})"
 
+    def __str__(self):
+        return str(self.meta)
+
+    def __lt__(self, other):
+        return self.meta.priority < other.meta.priority
+
     def __call__(self, *args, **kwargs):
-        result = self._callback(*args, **kwargs)
-        if self.expected_value is not None:
-            return bool(result) == self.expected_value
-        return result
+        return self._callback(*args, **kwargs)
 
 
 class CallbackMeta:
@@ -42,14 +60,22 @@ class CallbackMeta:
     call is performed, to allow the proper callback resolution.
     """
 
-    def __init__(self, func, suppress_errors=False, cond=None, expected_value=None):
+    def __init__(
+        self,
+        func,
+        suppress_errors=False,
+        cond=None,
+        priority: CallbackPriority = CallbackPriority.NAMING,
+        expected_value=None,
+    ):
         self.func = func
         self.suppress_errors = suppress_errors
-        self.cond = CallbackMetaList().add(cond)
+        self.cond = cond
         self.expected_value = expected_value
+        self.priority = priority
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.func!r})"
+        return f"{type(self).__name__}({self.func!r}, suppress_errors={self.suppress_errors!r})"
 
     def __str__(self):
         return getattr(self.func, "__name__", self.func)
@@ -63,7 +89,10 @@ class CallbackMeta:
     def _update_func(self, func):
         self.func = func
 
-    def build(self, resolver) -> "CallbackWrapper | None":
+    def _wrap_callable(self, func, _expected_value):
+        return func
+
+    def build(self, resolver) -> Generator["CallbackWrapper", None, None]:
         """
         Resolves the `func` into a usable callable.
 
@@ -71,23 +100,14 @@ class CallbackMeta:
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
-        callback = resolver(self.func)
-        if not callback.is_empty:
-            conditions = CallbacksExecutor()
-            conditions.add(self.cond, resolver)
-
-            return CallbackWrapper(
-                callback=callback,
-                condition=conditions.all,
+        for callback in resolver(self.func):
+            condition = next(resolver(self.cond)) if self.cond is not None else allways_true
+            yield CallbackWrapper(
+                callback=self._wrap_callable(callback, self.expected_value),
+                condition=condition,
+                meta=self,
                 unique_key=callback.unique_key,
-                expected_value=self.expected_value,
             )
-
-        if not self.suppress_errors:
-            raise AttrNotFound(
-                _("Did not found name '{}' from model or statemachine").format(self.func)
-            )
-        return None
 
 
 class BoolCallbackMeta(CallbackMeta):
@@ -100,18 +120,32 @@ class BoolCallbackMeta(CallbackMeta):
     call is performed, to allow the proper callback resolution.
     """
 
-    def __init__(self, func, suppress_errors=False, cond=None, expected_value=True):
-        self.func = func
-        self.suppress_errors = suppress_errors
-        self.cond = CallbackMetaList().add(cond)
-        self.expected_value = expected_value
+    def __init__(
+        self,
+        func,
+        suppress_errors=False,
+        cond=None,
+        priority: CallbackPriority = CallbackPriority.NAMING,
+        expected_value=True,
+    ):
+        super().__init__(
+            func, suppress_errors, cond, priority=priority, expected_value=expected_value
+        )
 
     def __str__(self):
         name = super().__str__()
         return name if self.expected_value else f"!{name}"
 
+    def _wrap_callable(self, func, expected_value):
+        def bool_wrapper(*args, **kwargs):
+            return bool(func(*args, **kwargs)) == expected_value
+
+        return bool_wrapper
+
 
 class CallbackMetaList:
+    """List of `CallbackMeta` instances"""
+
     def __init__(self, factory=CallbackMeta):
         self.items: List[CallbackMeta] = []
         self.factory = factory
@@ -155,6 +189,7 @@ class CallbackMetaList:
         return func
 
     def __call__(self, callback):
+        """Allows usage of the callback list as a decorator."""
         return self._add_unbounded_callback(callback)
 
     def __iter__(self):
@@ -163,18 +198,13 @@ class CallbackMetaList:
     def clear(self):
         self.items = []
 
-    def _add(self, func, registry=None, prepend=False, **kwargs):
+    def _add(self, func, **kwargs):
         meta = self.factory(func, **kwargs)
-        if registry is not None and not registry(self, meta, prepend=prepend):
-            return
 
         if meta in self.items:
             return
 
-        if prepend:
-            self.items.insert(0, meta)
-        else:
-            self.items.append(meta)
+        self.items.append(meta)
         return meta
 
     def add(self, callbacks, **kwargs):
@@ -189,6 +219,8 @@ class CallbackMetaList:
 
 
 class CallbacksExecutor:
+    """A list of callbacks that can be executed in order."""
+
     def __init__(self):
         self.items: List[CallbackWrapper] = deque()
         self.items_already_seen = set()
@@ -199,27 +231,21 @@ class CallbacksExecutor:
     def __repr__(self):
         return f"{type(self).__name__}({self.items!r})"
 
-    def add_one(
-        self, callback_info: CallbackMeta, resolver: Callable, prepend: bool = False
-    ) -> "CallbackWrapper | None":
-        callback = callback_info.build(resolver)
-        if callback is None:
-            return None
+    def __str__(self):
+        return ", ".join(str(c) for c in self)
 
-        if callback.unique_key in self.items_already_seen:
-            return None
+    def _add(self, callback_meta: CallbackMeta, resolver: Callable):
+        for callback in callback_meta.build(resolver):
+            if callback.unique_key in self.items_already_seen:
+                continue
 
-        self.items_already_seen.add(callback.unique_key)
-        if prepend:
-            self.items.insert(0, callback)
-        else:
-            self.items.append(callback)
-        return callback
+            self.items_already_seen.add(callback.unique_key)
+            insort(self.items, callback)
 
     def add(self, items: CallbackMetaList, resolver: Callable):
         """Validate configurations"""
         for item in items:
-            self.add_one(item, resolver)
+            self._add(item, resolver)
         return self
 
     def call(self, *args, **kwargs):
@@ -235,23 +261,25 @@ class CallbacksRegistry:
     def __init__(self) -> None:
         self._registry: Dict[CallbackMetaList, CallbacksExecutor] = defaultdict(CallbacksExecutor)
 
-    def register(self, callbacks: CallbackMetaList, resolver):
-        executor_list = self[callbacks]
-        executor_list.add(callbacks, resolver)
+    def register(self, meta_list: CallbackMetaList, resolver):
+        executor_list = self[meta_list]
+        executor_list.add(meta_list, resolver)
         return executor_list
 
     def clear(self):
         self._registry.clear()
 
-    def __getitem__(self, callbacks: CallbackMetaList) -> CallbacksExecutor:
-        return self._registry[callbacks]
+    def __getitem__(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
+        return self._registry[meta_list]
 
-    def build_register_function_for_resolver(self, resolver):
-        def register(
-            meta_list: CallbackMetaList,
-            meta: CallbackMeta,
-            prepend: bool = False,
-        ):
-            return self[meta_list].add_one(meta, resolver, prepend=prepend)
+    def check(self, meta_list: CallbackMetaList):
+        executor = self[meta_list]
+        for meta in meta_list:
+            if meta.suppress_errors:
+                continue
 
-        return register
+            if any(callback for callback in executor if callback.meta == meta):
+                continue
+            raise AttrNotFound(
+                _("Did not found name '{}' from model or statemachine").format(meta.func)
+            )

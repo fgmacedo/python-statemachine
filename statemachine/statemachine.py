@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 
+from .callbacks import CallbackMetaList
+from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
 from .dispatcher import resolver_factory
@@ -74,8 +76,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._external_queue: deque = deque()
         self._callbacks_registry = CallbacksRegistry()
         self._states_for_instance: Dict["State", "State"] = {}
+        self._observers: Dict[Any, Any] = {}
 
-        assert hasattr(self, "_abstract")
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
@@ -109,6 +111,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             cp.__deepcopy__ = deepcopy_method
         cp._callbacks_registry.clear()
         cp._setup()
+        cp.add_observer(*cp._observers.keys())
         return cp
 
     def _get_initial_state(self):
@@ -149,44 +152,34 @@ class StateMachine(metaclass=StateMachineMetaclass):
             "send",
         } | {s.id for s in self.states}
 
-    def _visit_states_and_transitions(self, visitor):
+    def _iterate_states_and_transitions(self):
         for state in self.states:
-            visitor(state)
-            for transition in state.transitions:
-                visitor(transition)
+            yield state
+            yield from state.transitions
 
     def _setup(self):
         machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
         model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
-        default_resolver = resolver_factory(machine, model)
+        add_observer_visitor = self._build_observers_visitor(machine, model)
+        check_callbacks = self._callbacks_registry.check
 
-        register = partial(self._callbacks_registry.register, resolver=default_resolver)
+        for visited in self._iterate_states_and_transitions():
+            visited._setup()
 
-        observer_visitor = self._build_observers_visitor(machine, model)
+        for visited in self._iterate_states_and_transitions():
+            add_observer_visitor(visited)
 
-        def setup_visitor(visited):
-            visited._setup(register)
-            observer_visitor(visited)
-
-        self._visit_states_and_transitions(setup_visitor)
-
-        self._initial_transition._setup(register)
+        for visited in self._iterate_states_and_transitions():
+            visited._check_callbacks(check_callbacks)
 
     def _build_observers_visitor(self, *observers):
-        registry_callbacks = [
-            (
-                self._callbacks_registry.build_register_function_for_resolver(
-                    resolver_factory(observer)
-                )
-            )
-            for observer in observers
-        ]
+        resolver = resolver_factory(*observers)
+        _register = partial(self._callbacks_registry.register, resolver=resolver)
 
-        def _add_observer_for_resolver(visited):
-            for register in registry_callbacks:
-                visited._add_observer(register)
+        def add_observer_visitor(visited):
+            visited._add_observer(_register)
 
-        return _add_observer_for_resolver
+        return add_observer_visitor
 
     def add_observer(self, *observers):
         """Add an observer.
@@ -198,9 +191,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
             :ref:`observers`.
         """
+        self._observers.update({o: None for o in observers})
 
-        visitor = self._build_observers_visitor(*observers)
-        self._visit_states_and_transitions(visitor)
+        add_observer_visitor = self._build_observers_visitor(*observers)
+        for visited in self._iterate_states_and_transitions():
+            add_observer_visitor(visited)
         return self
 
     def _repr_html_(self):
@@ -321,15 +316,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
         source = event_data.state
         target = transition.target
 
-        result = self._callbacks_registry[transition.before].call(
+        result = self._callbacks(transition.before).call(
             *event_data.args, **event_data.extended_kwargs
         )
         if source is not None and not transition.internal:
-            self._callbacks_registry[source.exit].call(
-                *event_data.args, **event_data.extended_kwargs
-            )
+            self._callbacks(source.exit).call(*event_data.args, **event_data.extended_kwargs)
 
-        result += self._callbacks_registry[transition.on].call(
+        result += self._callbacks(transition.on).call(
             *event_data.args, **event_data.extended_kwargs
         )
 
@@ -337,12 +330,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_data.state = target
 
         if not transition.internal:
-            self._callbacks_registry[target.enter].call(
-                *event_data.args, **event_data.extended_kwargs
-            )
-        self._callbacks_registry[transition.after].call(
-            *event_data.args, **event_data.extended_kwargs
-        )
+            self._callbacks(target.enter).call(*event_data.args, **event_data.extended_kwargs)
+        self._callbacks(transition.after).call(*event_data.args, **event_data.extended_kwargs)
 
         if len(result) == 0:
             result = None
@@ -361,3 +350,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         event = Event(event)
         return event.trigger(self, *args, **kwargs)
+
+    def _callbacks(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
+        return self._callbacks_registry[meta_list]

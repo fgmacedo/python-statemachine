@@ -1,3 +1,4 @@
+from functools import partial
 from unittest import mock
 
 import pytest
@@ -36,7 +37,7 @@ def ObjectWithCallbacks():
 
 class TestCallbacksMachinery:
     def test_can_add_callback(self):
-        callbacks = CallbackMetaList()
+        meta_list = CallbackMetaList()
         executor = CallbacksExecutor()
 
         func = mock.Mock()
@@ -47,8 +48,8 @@ class TestCallbacksMachinery:
 
         obj = MyObject()
 
-        callbacks.add(obj.do_something)
-        executor.add(callbacks, resolver_factory(obj))
+        meta_list.add(obj.do_something)
+        executor.add(meta_list, resolver_factory(obj))
 
         executor.call(1, 2, 3, a="x", b="y")
 
@@ -110,17 +111,19 @@ class TestCallbacksMachinery:
         callbacks = CallbackMetaList()
         registry = CallbacksRegistry()
 
-        register = registry.build_register_function_for_resolver(resolver_factory(self))
+        register = partial(registry.register, resolver=resolver_factory(self))
+
+        callbacks.add(
+            "this_does_no_exist",
+            suppress_errors=suppress_errors,
+        )
+        register(callbacks)
 
         if suppress_errors:
-            callbacks.add("this_does_no_exist", registry=register, suppress_errors=suppress_errors)
+            registry.check(callbacks)
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add(
-                    "this_does_no_exist",
-                    registry=register,
-                    suppress_errors=suppress_errors,
-                )
+                registry.check(callbacks)
 
     def test_collect_results(self):
         callbacks = CallbackMetaList()

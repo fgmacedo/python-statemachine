@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from .callbacks import BoolCallbackMeta
 from .callbacks import CallbackMetaList
+from .callbacks import CallbackPriority
 from .event import same_event_cond_builder
 from .events import Events
 from .exceptions import InvalidDefinition
@@ -56,12 +57,14 @@ class Transition:
             raise InvalidDefinition("Internal transitions should be self-transitions.")
 
         self._events = Events().add(event)
-        self.validators = CallbackMetaList().add(validators)
-        self.before = CallbackMetaList().add(before)
-        self.on = CallbackMetaList().add(on)
-        self.after = CallbackMetaList().add(after)
+        self.validators = CallbackMetaList().add(validators, priority=CallbackPriority.INLINE)
+        self.before = CallbackMetaList().add(before, priority=CallbackPriority.INLINE)
+        self.on = CallbackMetaList().add(on, priority=CallbackPriority.INLINE)
+        self.after = CallbackMetaList().add(after, priority=CallbackPriority.INLINE)
         self.cond = (
-            CallbackMetaList(factory=BoolCallbackMeta).add(cond).add(unless, expected_value=False)
+            CallbackMetaList(factory=BoolCallbackMeta)
+            .add(cond, priority=CallbackPriority.INLINE)
+            .add(unless, priority=CallbackPriority.INLINE, expected_value=False)
         )
 
     def __repr__(self):
@@ -70,46 +73,54 @@ class Transition:
             f"internal={self.internal!r})"
         )
 
-    def _setup(self, register):
-        register(self.validators)
-        register(self.cond)
-        register(self.before)
-        register(self.on)
-        register(self.after)
-
-    def _add_observer(self, registry):
+    def _setup(self):
         before = self.before.add
         on = self.on.add
         after = self.after.add
-        before("before_transition", registry=registry, suppress_errors=True, prepend=True)
-        on("on_transition", registry=registry, suppress_errors=True, prepend=True)
+
+        before("before_transition", priority=CallbackPriority.GENERIC, suppress_errors=True)
+        on("on_transition", priority=CallbackPriority.GENERIC, suppress_errors=True)
 
         for event in self._events:
             same_event_cond = same_event_cond_builder(event)
             before(
                 f"before_{event}",
-                registry=registry,
+                priority=CallbackPriority.NAMING,
                 suppress_errors=True,
                 cond=same_event_cond,
             )
             on(
                 f"on_{event}",
-                registry=registry,
+                priority=CallbackPriority.NAMING,
                 suppress_errors=True,
                 cond=same_event_cond,
             )
             after(
                 f"after_{event}",
-                registry=registry,
+                priority=CallbackPriority.NAMING,
                 suppress_errors=True,
                 cond=same_event_cond,
             )
 
         after(
             "after_transition",
-            registry=registry,
+            priority=CallbackPriority.AFTER,
             suppress_errors=True,
         )
+
+    def _add_observer(self, register):
+        register(self.validators)
+        register(self.cond)
+        register(self.before)
+        register(self.on)
+        register(self.after)
+
+    def _check_callbacks(self, check):
+        check(self.validators)
+        check(self.cond)
+        check(self.before)
+        check(self.on)
+        check(self.after)
 
     def match(self, event):
         return self._events.match(event)

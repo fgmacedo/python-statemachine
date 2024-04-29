@@ -1,6 +1,7 @@
 from collections import namedtuple
 from operator import attrgetter
 from typing import Any
+from typing import Generator
 
 from .signature import SignatureAdapter
 
@@ -27,8 +28,6 @@ class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs resolver_id")):
 
 
 class WrapSearchResult:
-    is_empty = False
-
     def __init__(self, attribute, resolver_id) -> None:
         self.attribute = attribute
         self.resolver_id = resolver_id
@@ -46,10 +45,6 @@ class WrapSearchResult:
             self._cache = self.wrap()
         assert self._cache
         return self._cache(*args, **kwds)
-
-
-class EmptyWrapSearchResult(WrapSearchResult):
-    is_empty = True
 
 
 class CallableSearchResult(WrapSearchResult):
@@ -93,22 +88,21 @@ class EventSearchResult(WrapSearchResult):
         return wrapper
 
 
-def search_callable(attr, *configs) -> WrapSearchResult:
+def search_callable(attr, *configs) -> Generator[WrapSearchResult, None, None]:
     if callable(attr) or isinstance(attr, property):
-        return CallableSearchResult(attr, attr, None)
-
-    for config in configs:
-        func = config.getattr(attr)
-        if func is not None:
+        yield CallableSearchResult(attr, attr, None)
+    else:
+        for config in configs:
+            func = config.getattr(attr)
+            if func is None:
+                continue
             if not callable(func):
-                return AttributeCallableSearchResult(attr, config.obj, config.resolver_id)
+                yield AttributeCallableSearchResult(attr, config.obj, config.resolver_id)
 
             if getattr(func, "_is_sm_event", False):
-                return EventSearchResult(attr, func, config.resolver_id)
+                yield EventSearchResult(attr, func, config.resolver_id)
 
-            return CallableSearchResult(attr, func, config.resolver_id)
-
-    return EmptyWrapSearchResult(attr, None)
+            yield CallableSearchResult(attr, func, config.resolver_id)
 
 
 def resolver_factory(*objects):
@@ -116,7 +110,7 @@ def resolver_factory(*objects):
 
     objects = [ObjectConfig.from_obj(obj) for obj in objects]
 
-    def wrapper(attr):
-        return search_callable(attr, *objects)
+    def wrapper(attr) -> Generator[WrapSearchResult, None, None]:
+        yield from search_callable(attr, *objects)
 
     return wrapper
