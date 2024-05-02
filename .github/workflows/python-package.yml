@@ -63,7 +63,7 @@ jobs:
       #          upload coverage
       #----------------------------------------------
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       if: matrix.python-version == 3.12
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
