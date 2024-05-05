@@ -157,24 +157,18 @@ class StateMachine(metaclass=StateMachineMetaclass):
             yield state
             yield from state.transitions
 
-    def _build_register(self, observers):
-        return partial(self._callbacks_registry.register, resolver=resolver_factory(observers))
-
     def _setup(self):
-        register = self._build_register(
+        for visited in self._iterate_states_and_transitions():
+            visited._setup()
+
+        self._add_observer(
             (
                 ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs()),
                 ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
             )
         )
+
         check_callbacks = self._callbacks_registry.check
-
-        for visited in self._iterate_states_and_transitions():
-            visited._setup()
-
-        for visited in self._iterate_states_and_transitions():
-            visited._add_observer(register)
-
         for visited in self._iterate_states_and_transitions():
             try:
                 visited._check_callbacks(check_callbacks)
@@ -182,6 +176,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 raise InvalidDefinition(
                     f"Error on {visited!s} when resolving callbacks: {err}"
                 ) from err
+
+    def _add_observer(self, observers):
+        register = partial(self._callbacks_registry.register, resolver=resolver_factory(observers))
+        for visited in self._iterate_states_and_transitions():
+            visited._add_observer(register)
+
+        return self
 
     def add_observer(self, *observers):
         """Add an observer.
@@ -194,13 +195,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             :ref:`observers`.
         """
         self._observers.update({o: None for o in observers})
-        observers = tuple(ObjectConfig.from_obj(o) for o in observers)
-
-        register = self._build_register(observers)
-        for visited in self._iterate_states_and_transitions():
-            visited._add_observer(register)
-
-        return self
+        return self._add_observer(tuple(ObjectConfig.from_obj(o) for o in observers))
 
     def _repr_html_(self):
         return f'<div class="statemachine">{self._repr_svg_()}</div>'
