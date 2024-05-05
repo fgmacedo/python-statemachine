@@ -9,7 +9,7 @@ from statemachine.callbacks import CallbackMeta
 from statemachine.callbacks import CallbackMetaList
 from statemachine.callbacks import CallbacksExecutor
 from statemachine.callbacks import CallbacksRegistry
-from statemachine.dispatcher import resolver_factory
+from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.exceptions import InvalidDefinition
 
 
@@ -23,7 +23,9 @@ def ObjectWithCallbacks():
                 ["life_meaning", "name", "a_method"],
             )
             self.registry = CallbacksRegistry()
-            self.executor = self.registry.register(self.callbacks, resolver=resolver_factory(self))
+            self.executor = self.registry.register(
+                self.callbacks, resolver=resolver_factory_from_objects(self)
+            )
 
         @property
         def life_meaning(self):
@@ -49,7 +51,7 @@ class TestCallbacksMachinery:
         obj = MyObject()
 
         meta_list.add(obj.do_something)
-        executor.add(meta_list, resolver_factory(obj))
+        executor.add(meta_list, resolver_factory_from_objects(obj))
 
         executor.call(1, 2, 3, a="x", b="y")
 
@@ -80,7 +82,7 @@ class TestCallbacksMachinery:
         callbacks.add("my_method").add("other_method")
         callbacks.add("last_one")
 
-        registry.register(callbacks, resolver_factory(obj))
+        registry.register(callbacks, resolver_factory_from_objects(obj))
 
         registry[callbacks].call(1, 2, 3, a="x", b="y")
 
@@ -111,7 +113,7 @@ class TestCallbacksMachinery:
         callbacks = CallbackMetaList()
         registry = CallbacksRegistry()
 
-        register = partial(registry.register, resolver=resolver_factory(self))
+        register = partial(registry.register, resolver=resolver_factory_from_objects(self))
 
         callbacks.add(
             "this_does_no_exist",
@@ -139,7 +141,7 @@ class TestCallbacksMachinery:
             return {"key": "value"}
 
         callbacks.add([func1, func2, func3])
-        registry.register(callbacks, resolver_factory(object()))
+        registry.register(callbacks, resolver_factory_from_objects(object()))
 
         results = registry[callbacks].call(1, 2, 3, a="x", b="y")
 
@@ -170,7 +172,7 @@ class TestCallbacksAsDecorator:
         def race_uppercase(race):
             return race.upper()
 
-        x.registry.register(x.callbacks, resolver=resolver_factory(x))
+        x.registry.register(x.callbacks, resolver=resolver_factory_from_objects(x))
 
         assert x.executor.call(hero="Gandalf", race="Maia") == [
             42,

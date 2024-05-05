@@ -1,7 +1,7 @@
 import pytest
 
 from statemachine.dispatcher import ObjectConfig
-from statemachine.dispatcher import resolver_factory
+from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.dispatcher import search_callable
 
 
@@ -46,14 +46,14 @@ class TestEnsureCallable:
     def test_return_same_object_if_already_a_callable(self):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        actual = next(search_callable(expected)).wrap()
+        actual = next(search_callable(expected, [])).wrap()
         assert actual.__name__ == expected.__name__
         assert actual.__doc__ == expected.__doc__
 
     def test_retrieve_a_method_from_its_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        method = next(search_callable("get_full_name", ObjectConfig.from_obj(model))).wrap()
+        method = next(search_callable("get_full_name", [ObjectConfig.from_obj(model)])).wrap()
 
         assert method.__name__ == expected.__name__
         assert method.__doc__ == expected.__doc__
@@ -61,13 +61,13 @@ class TestEnsureCallable:
 
     def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
-        method = next(search_callable("first_name", ObjectConfig.from_obj(model))).wrap()
+        method = next(search_callable("first_name", [ObjectConfig.from_obj(model)])).wrap()
 
         assert method(*args, **kwargs) == "Frodo"
 
     def test_retrieve_callable_from_a_property_name_that_should_keep_reference(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
-        method = next(search_callable("first_name", ObjectConfig.from_obj(model))).wrap()
+        method = next(search_callable("first_name", [ObjectConfig.from_obj(model)])).wrap()
 
         model.first_name = "Bilbo"
 
@@ -88,7 +88,7 @@ class TestResolverFactory:
         person = Person("Frodo", "Bolseiro", "cpf")
         org = Organization("The Lord fo the Rings", "cnpj")
 
-        resolver = resolver_factory(org, person)
+        resolver = resolver_factory_from_objects(org, person)
         resolved_method = next(resolver(attr)).wrap()
         assert resolved_method() == expected_value
 
@@ -107,6 +107,6 @@ class TestResolverFactory:
 
         org_config = ObjectConfig.from_obj(org, {"get_full_name"})
 
-        resolver = resolver_factory(org_config, person)
+        resolver = resolver_factory_from_objects(org_config, person)
         resolved_method = next(resolver(attr)).wrap()
         assert resolved_method() == expected_value

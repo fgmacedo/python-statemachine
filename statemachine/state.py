@@ -139,6 +139,9 @@ class State:
             f"initial={self.initial!r}, final={self.final!r})"
         )
 
+    def __str__(self):
+        return self.name
+
     def __get__(self, machine, owner):
         if machine is None:
             return self

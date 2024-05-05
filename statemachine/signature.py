@@ -9,6 +9,7 @@ from typing import Any
 
 def _make_key(method):
     method = method.func if isinstance(method, partial) else method
+    method = method.fget if isinstance(method, property) else method
     if isinstance(method, MethodType):
         return hash(
             (

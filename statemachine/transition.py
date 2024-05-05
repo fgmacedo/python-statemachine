@@ -73,6 +73,9 @@ class Transition:
             f"internal={self.internal!r})"
         )
 
+    def __str__(self):
+        return f"transition {self.event!s} from {self.source!s} to {self.target!s}"
+
     def _setup(self):
         before = self.before.add
         on = self.on.add
