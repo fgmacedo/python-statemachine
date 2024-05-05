@@ -2,7 +2,7 @@ import pytest
 
 from statemachine import State
 from statemachine.callbacks import CallbacksRegistry
-from statemachine.dispatcher import resolver_factory
+from statemachine.dispatcher import resolver_factory_from_objects
 
 
 def test_transition_list_or_operator():
@@ -58,6 +58,6 @@ class TestDecorators:
         transition = s1.transitions[0]
         callback_list = getattr(transition, list_attr_name)
 
-        registry.register(callback_list, resolver_factory(object()))
+        registry.register(callback_list, resolver_factory_from_objects(object()))
 
         assert registry[callback_list].call() == [expected_value]

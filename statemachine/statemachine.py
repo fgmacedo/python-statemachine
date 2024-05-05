@@ -81,7 +81,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
-        self._initial_transition = Transition(None, self._get_initial_state(), event="__initial__")
         self._setup()
         self._activate_initial_state()
 
@@ -125,16 +124,17 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self.current_state_value is None:
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
-            self._initial_transition.before.clear()
-            self._initial_transition.on.clear()
-            self._initial_transition.after.clear()
+            initial_transition = Transition(None, self._get_initial_state(), event="__initial__")
+            initial_transition.before.clear()
+            initial_transition.on.clear()
+            initial_transition.after.clear()
 
             event_data = EventData(
                 trigger_data=TriggerData(
                     machine=self,
-                    event=self._initial_transition.event,
+                    event=initial_transition.event,
                 ),
-                transition=self._initial_transition,
+                transition=initial_transition,
             )
             self._activate(event_data)
 
@@ -157,29 +157,31 @@ class StateMachine(metaclass=StateMachineMetaclass):
             yield state
             yield from state.transitions
 
+    def _build_register(self, observers):
+        return partial(self._callbacks_registry.register, resolver=resolver_factory(observers))
+
     def _setup(self):
-        machine = ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs())
-        model = ObjectConfig.from_obj(self.model, skip_attrs={self.state_field})
-        add_observer_visitor = self._build_observers_visitor(machine, model)
+        register = self._build_register(
+            (
+                ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs()),
+                ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
+            )
+        )
         check_callbacks = self._callbacks_registry.check
 
         for visited in self._iterate_states_and_transitions():
             visited._setup()
 
         for visited in self._iterate_states_and_transitions():
-            add_observer_visitor(visited)
+            visited._add_observer(register)
 
         for visited in self._iterate_states_and_transitions():
-            visited._check_callbacks(check_callbacks)
-
-    def _build_observers_visitor(self, *observers):
-        resolver = resolver_factory(*observers)
-        _register = partial(self._callbacks_registry.register, resolver=resolver)
-
-        def add_observer_visitor(visited):
-            visited._add_observer(_register)
-
-        return add_observer_visitor
+            try:
+                visited._check_callbacks(check_callbacks)
+            except Exception as err:
+                raise InvalidDefinition(
+                    f"Error on {visited!s} when resolving callbacks: {err}"
+                ) from err
 
     def add_observer(self, *observers):
         """Add an observer.
@@ -192,10 +194,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
             :ref:`observers`.
         """
         self._observers.update({o: None for o in observers})
+        observers = tuple(ObjectConfig.from_obj(o) for o in observers)
 
-        add_observer_visitor = self._build_observers_visitor(*observers)
+        register = self._build_register(observers)
         for visited in self._iterate_states_and_transitions():
-            add_observer_visitor(visited)
+            visited._add_observer(register)
+
         return self
 
     def _repr_html_(self):
