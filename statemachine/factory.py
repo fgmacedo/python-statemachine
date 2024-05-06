@@ -10,6 +10,7 @@ from . import registry
 from .event import Event
 from .event import trigger_event_factory
 from .exceptions import InvalidDefinition
+from .graph import iterate_states_and_transitions
 from .graph import visit_connected_states
 from .i18n import _
 from .state import State
@@ -38,6 +39,7 @@ class StateMachineMetaclass(type):
         cls._abstract = True
         cls._strict_states = strict_states
         cls._events: Dict[str, Event] = {}
+        cls._protected_attrs: set = set()
 
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
@@ -50,6 +52,7 @@ class StateMachineMetaclass(type):
         cls.final_states: List[State] = [state for state in cls.states if state.final]
 
         cls._check()
+        cls._setup()
 
     if TYPE_CHECKING:
         """Makes mypy happy with dynamic created attributes"""
@@ -147,6 +150,23 @@ class StateMachineMetaclass(type):
                     "Disconnected states: {}"
                 ).format([s.id for s in disconnected_states])
             )
+
+    def _setup(cls):
+        for visited in iterate_states_and_transitions(cls.states):
+            visited._setup()
+
+        cls._protected_attrs = {
+            "_abstract",
+            "model",
+            "state_field",
+            "start_value",
+            "initial_state",
+            "final_states",
+            "states",
+            "_events",
+            "states_map",
+            "send",
+        } | {s.id for s in cls.states}
 
     def add_inherited(cls, bases):
         for base in bases:

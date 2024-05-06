@@ -66,7 +66,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Python State Machine"
-copyright = "2023, Fernando Macedo"
+copyright = "2024, Fernando Macedo"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout

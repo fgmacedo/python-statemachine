@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 
+from statemachine.graph import iterate_states_and_transitions
+
 from .callbacks import CallbackMetaList
 from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
@@ -81,7 +83,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
-        self._setup()
+        self._register_callbacks()
         self._activate_initial_state()
 
     def __init_subclass__(cls, strict_states: bool = False):
@@ -109,7 +111,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             self.__deepcopy__ = deepcopy_method
             cp.__deepcopy__ = deepcopy_method
         cp._callbacks_registry.clear()
-        cp._setup()
+        cp._register_callbacks()
         cp.add_observer(*cp._observers.keys())
         return cp
 
@@ -138,38 +140,16 @@ class StateMachine(metaclass=StateMachineMetaclass):
             )
             self._activate(event_data)
 
-    def _get_protected_attrs(self):
-        return {
-            "_abstract",
-            "model",
-            "state_field",
-            "start_value",
-            "initial_state",
-            "final_states",
-            "states",
-            "_events",
-            "states_map",
-            "send",
-        } | {s.id for s in self.states}
-
-    def _iterate_states_and_transitions(self):
-        for state in self.states:
-            yield state
-            yield from state.transitions
-
-    def _setup(self):
-        for visited in self._iterate_states_and_transitions():
-            visited._setup()
-
+    def _register_callbacks(self):
         self._add_observer(
             (
-                ObjectConfig.from_obj(self, skip_attrs=self._get_protected_attrs()),
+                ObjectConfig.from_obj(self, skip_attrs=self._protected_attrs),
                 ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
             )
         )
 
         check_callbacks = self._callbacks_registry.check
-        for visited in self._iterate_states_and_transitions():
+        for visited in iterate_states_and_transitions(self.states):
             try:
                 visited._check_callbacks(check_callbacks)
             except Exception as err:
@@ -179,7 +159,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _add_observer(self, observers):
         register = partial(self._callbacks_registry.register, resolver=resolver_factory(observers))
-        for visited in self._iterate_states_and_transitions():
+        for visited in iterate_states_and_transitions(self.states):
             visited._add_observer(register)
 
         return self
