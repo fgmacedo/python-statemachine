@@ -25,8 +25,8 @@ Given a state machine definition:
 ...     "A workflow machine"
 ...     draft = State('Draft', initial=True, value=1)
 ...     producing = State('Being produced', value=2)
-...     closed = State('Closed', value=3)
-...     cancelled = State('Cancelled', value=4)
+...     closed = State('Closed', value=3, final=True)
+...     cancelled = State('Cancelled', value=4, final=True)
 ...
 ...     add_job = draft.to.itself() | producing.to.itself()
 ...     produce = draft.to(producing)

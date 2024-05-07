@@ -113,7 +113,7 @@ class StateMachineMetaclass(type):
             if cls._strict_states:
                 raise InvalidDefinition(message)
             else:
-                warnings.warn(message, UserWarning, stacklevel=1)
+                warnings.warn(message, UserWarning, stacklevel=4)
 
     def _check_reachable_final_states(cls):
         if not any(s.final for s in cls.states):

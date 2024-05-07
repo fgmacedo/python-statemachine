@@ -383,7 +383,7 @@ def test_state_value_is_correct():
 
     class ValueTestModel(StateMachine, strict_states=False):
         new = State(STATE_NEW, value=STATE_NEW, initial=True)
-        draft = State(STATE_DRAFT, value=STATE_DRAFT)
+        draft = State(STATE_DRAFT, value=STATE_DRAFT, final=True)
 
         write = new.to(draft)
 
