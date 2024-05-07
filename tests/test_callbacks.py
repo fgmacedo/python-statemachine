@@ -1,3 +1,4 @@
+from functools import partial
 from unittest import mock
 
 import pytest
@@ -8,7 +9,7 @@ from statemachine.callbacks import CallbackMeta
 from statemachine.callbacks import CallbackMetaList
 from statemachine.callbacks import CallbacksExecutor
 from statemachine.callbacks import CallbacksRegistry
-from statemachine.dispatcher import resolver_factory
+from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.exceptions import InvalidDefinition
 
 
@@ -23,7 +24,7 @@ def ObjectWithCallbacks():
             )
             self.registry = CallbacksRegistry()
             self.executor = self.registry.register(
-                self.callbacks, resolver=resolver_factory(self)
+                self.callbacks, resolver=resolver_factory_from_objects(self)
             )
 
         @property
@@ -38,7 +39,7 @@ def ObjectWithCallbacks():
 
 class TestCallbacksMachinery:
     def test_can_add_callback(self):
-        callbacks = CallbackMetaList()
+        meta_list = CallbackMetaList()
         executor = CallbacksExecutor()
 
         func = mock.Mock()
@@ -49,8 +50,8 @@ class TestCallbacksMachinery:
 
         obj = MyObject()
 
-        callbacks.add(obj.do_something)
-        executor.add(callbacks, resolver_factory(obj))
+        meta_list.add(obj.do_something)
+        executor.add(meta_list, resolver_factory_from_objects(obj))
 
         executor.call(1, 2, 3, a="x", b="y")
 
@@ -81,7 +82,7 @@ class TestCallbacksMachinery:
         callbacks.add("my_method").add("other_method")
         callbacks.add("last_one")
 
-        registry.register(callbacks, resolver_factory(obj))
+        registry.register(callbacks, resolver_factory_from_objects(obj))
 
         registry[callbacks].call(1, 2, 3, a="x", b="y")
 
@@ -112,19 +113,19 @@ class TestCallbacksMachinery:
         callbacks = CallbackMetaList()
         registry = CallbacksRegistry()
 
-        register = registry.build_register_function_for_resolver(resolver_factory(self))
+        register = partial(registry.register, resolver=resolver_factory_from_objects(self))
+
+        callbacks.add(
+            "this_does_no_exist",
+            suppress_errors=suppress_errors,
+        )
+        register(callbacks)
 
         if suppress_errors:
-            callbacks.add(
-                "this_does_no_exist", registry=register, suppress_errors=suppress_errors
-            )
+            registry.check(callbacks)
         else:
             with pytest.raises(InvalidDefinition):
-                callbacks.add(
-                    "this_does_no_exist",
-                    registry=register,
-                    suppress_errors=suppress_errors,
-                )
+                registry.check(callbacks)
 
     def test_collect_results(self):
         callbacks = CallbackMetaList()
@@ -140,7 +141,7 @@ class TestCallbacksMachinery:
             return {"key": "value"}
 
         callbacks.add([func1, func2, func3])
-        registry.register(callbacks, resolver_factory(object()))
+        registry.register(callbacks, resolver_factory_from_objects(object()))
 
         results = registry[callbacks].call(1, 2, 3, a="x", b="y")
 
@@ -171,7 +172,7 @@ class TestCallbacksAsDecorator:
         def race_uppercase(race):
             return race.upper()
 
-        x.registry.register(x.callbacks, resolver=resolver_factory(x))
+        x.registry.register(x.callbacks, resolver=resolver_factory_from_objects(x))
 
         assert x.executor.call(hero="Gandalf", race="Maia") == [
             42,
@@ -184,11 +185,10 @@ class TestCallbacksAsDecorator:
         assert race_uppercase("Hobbit") == "HOBBIT"
 
     def test_decorate_unbounded_machine_methods(self):
-        class MiniHeroJourneyMachine(StateMachine):
-
+        class MiniHeroJourneyMachine(StateMachine, strict_states=False):
             ordinary_world = State(initial=True)
-            call_to_adventure = State()
-            refusal_of_call = State()
+            call_to_adventure = State(final=True)
+            refusal_of_call = State(final=True)
 
             adventure_called = ordinary_world.to(call_to_adventure)
 

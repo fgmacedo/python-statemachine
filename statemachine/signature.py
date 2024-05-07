@@ -9,6 +9,7 @@ from typing import Any
 
 def _make_key(method):
     method = method.func if isinstance(method, partial) else method
+    method = method.fget if isinstance(method, property) else method
     if isinstance(method, MethodType):
         return hash(
             (
@@ -22,7 +23,6 @@ def _make_key(method):
 
 
 def signature_cache(user_function):
-
     cache = {}
     cache_get = cache.get
 
@@ -113,8 +113,7 @@ class SignatureAdapter(Signature):
                         parameters_ex = (param,)
                         break
                     elif (
-                        param.kind == Parameter.VAR_KEYWORD
-                        or param.default is not Parameter.empty
+                        param.kind == Parameter.VAR_KEYWORD or param.default is not Parameter.empty
                     ):
                         # That's fine too - we have a default value for this
                         # parameter.  So, lets start parsing `kwargs`, starting

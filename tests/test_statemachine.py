@@ -39,6 +39,7 @@ def test_machine_should_only_allow_only_one_initial_state():
 
         class CampaignMachine(StateMachine):
             "A workflow machine"
+
             draft = State(initial=True)
             producing = State()
             closed = State(
@@ -53,8 +54,9 @@ def test_machine_should_only_allow_only_one_initial_state():
 def test_machine_should_activate_initial_state():
     class CampaignMachine(StateMachine):
         "A workflow machine"
+
         producing = State()
-        closed = State()
+        closed = State(final=True)
         draft = State(initial=True)
 
         add_job = draft.to(draft) | producing.to(producing)
@@ -72,6 +74,7 @@ def test_machine_should_not_allow_transitions_from_final_state():
 
         class CampaignMachine(StateMachine):
             "A workflow machine"
+
             draft = State(initial=True)
             producing = State()
             closed = State(final=True)
@@ -145,7 +148,6 @@ def test_should_change_state_with_multiple_machine_instances(campaign_machine):
 def test_call_to_transition_that_is_not_in_the_current_state_should_raise_exception(
     campaign_machine, current_state, transition
 ):
-
     model = MyModel(state=current_state)
     machine = campaign_machine(model)
 
@@ -156,7 +158,6 @@ def test_call_to_transition_that_is_not_in_the_current_state_should_raise_except
 
 
 def test_machine_should_list_allowed_events_in_the_current_state(campaign_machine):
-
     model = MyModel()
     machine = campaign_machine(model)
 
@@ -175,7 +176,6 @@ def test_machine_should_list_allowed_events_in_the_current_state(campaign_machin
 
 
 def test_machine_should_run_a_transition_by_his_key(campaign_machine):
-
     model = MyModel()
     machine = campaign_machine(model)
 
@@ -305,9 +305,7 @@ def test_state_machine_with_a_start_value(request, model, machine_name, start_va
         (MyModel(), "campaign_machine_with_values", 99),
     ],
 )
-def test_state_machine_with_a_invalid_start_value(
-    request, model, machine_name, start_value
-):
+def test_state_machine_with_a_invalid_start_value(request, model, machine_name, start_value):
     machine_cls = request.getfixturevalue(machine_name)
     with pytest.raises(exceptions.InvalidStateValue):
         machine_cls(model, start_value=start_value)
@@ -316,6 +314,7 @@ def test_state_machine_with_a_invalid_start_value(
 def test_should_not_create_instance_of_abstract_machine():
     class EmptyMachine(StateMachine):
         "An empty machine"
+
         pass
 
     with pytest.raises(exceptions.InvalidDefinition):
@@ -331,16 +330,15 @@ def test_should_not_create_instance_of_machine_without_states():
 
 
 def test_should_not_create_instance_of_machine_without_transitions():
-
     with pytest.raises(exceptions.InvalidDefinition):
 
         class NoTransitionsMachine(StateMachine):
             "A machine without transitions"
+
             initial = State(initial=True)
 
 
 def test_should_not_create_disconnected_machine():
-
     expected = (
         r"There are unreachable states. The statemachine graph should have a single component. "
         r"Disconnected states: \['blue'\]"
@@ -349,6 +347,7 @@ def test_should_not_create_disconnected_machine():
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
+
             green = State(initial=True)
             yellow = State()
             blue = State()  # This state is unreachable
@@ -365,6 +364,7 @@ def test_should_not_create_big_disconnected_machine():
 
         class BrokenTrafficLightMachine(StateMachine):
             "A broken traffic light machine"
+
             green = State(initial=True)
             yellow = State()
             magenta = State()  # This state is unreachable
@@ -381,9 +381,9 @@ def test_state_value_is_correct():
     STATE_NEW = 0
     STATE_DRAFT = 1
 
-    class ValueTestModel(StateMachine):
+    class ValueTestModel(StateMachine, strict_states=False):
         new = State(STATE_NEW, value=STATE_NEW, initial=True)
-        draft = State(STATE_DRAFT, value=STATE_DRAFT)
+        draft = State(STATE_DRAFT, value=STATE_DRAFT, final=True)
 
         write = new.to(draft)
 
@@ -401,12 +401,8 @@ def test_final_states(campaign_machine_with_final_state):
 
 
 def test_should_not_override_states_properties(campaign_machine):
-
     machine = campaign_machine()
     with pytest.raises(exceptions.StateMachineError) as e:
         machine.draft = "something else"
 
-    assert (
-        "State overriding is not allowed. Trying to add 'something else' to draft"
-        in str(e)
-    )
+    assert "State overriding is not allowed. Trying to add 'something else' to draft" in str(e)

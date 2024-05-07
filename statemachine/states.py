@@ -15,21 +15,23 @@ class States:
     Helps creating :ref:`StateMachine`'s :ref:`state` definitions from other
     sources, like an ``Enum`` class, using :meth:`States.from_enum`.
 
+    >>> states_def = [('open', {'initial': True}), ('closed', {'final': True})]
+
     >>> from statemachine import StateMachine
     >>> class SM(StateMachine):
     ...
     ...     states = States({
-    ...         name: State(initial=idx == 0) for idx, name in enumerate(["initial", "final"])
+    ...         name: State(**params) for name, params in states_def
     ...     })
     ...
-    ...     finish = states.initial.to(states.final)
+    ...     close = states.open.to(states.closed)
 
     And states can be used as usual.
 
     >>> sm = SM()
-    >>> sm.send("finish")
+    >>> sm.send("close")
     >>> sm.current_state.id
-    'final'
+    'closed'
 
     """
 

@@ -5,9 +5,10 @@ Order control machine (rich model)
 An StateMachine that demonstrates :ref:`Actions` being used on a rich model.
 
 """
+
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import AttrNotFound
+from statemachine.exceptions import InvalidDefinition
 
 
 class Order:
@@ -58,10 +59,15 @@ class OrderControl(StateMachine):
 
 try:
     control = OrderControl()
-except AttrNotFound as e:
+except InvalidDefinition as e:
     assert (  # noqa: PT017
-        str(e) == "Did not found name 'payment_received' from model or statemachine"
+        str(e)
+        == (
+            "Error on transition process_order from Processing to Shipping when resolving "
+            "callbacks: Did not found name 'payment_received' from model or statemachine"
+        )
     )
+
 
 # %%
 # Now initializing with a proper ``order`` instance.

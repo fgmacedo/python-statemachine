@@ -219,8 +219,8 @@ an action that `echoes` back the parameters informed.
 ```
 
 
-This action is executed before the transition associated with `cycle` event is activated, so you
-can also raise an exception at this point to stop a transition to occur.
+This action is executed before the transition associated with `cycle` event is activated.
+You can raise an exception at this point to stop a transition from completing.
 
 ```py
 >>> machine.current_state.id

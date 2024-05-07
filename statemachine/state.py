@@ -4,6 +4,7 @@ from typing import Dict
 from weakref import ref
 
 from .callbacks import CallbackMetaList
+from .callbacks import CallbackPriority
 from .exceptions import StateMachineError
 from .i18n import _
 from .transition import Transition
@@ -107,37 +108,39 @@ class State:
         self._final = final
         self._id: str = ""
         self.transitions = TransitionList()
-        self.enter = CallbackMetaList().add(enter)
-        self.exit = CallbackMetaList().add(exit)
+        self.enter = CallbackMetaList().add(enter, priority=CallbackPriority.INLINE)
+        self.exit = CallbackMetaList().add(exit, priority=CallbackPriority.INLINE)
 
     def __eq__(self, other):
-        return (
-            isinstance(other, State) and self.name == other.name and self.id == other.id
-        )
+        return isinstance(other, State) and self.name == other.name and self.id == other.id
 
     def __hash__(self):
         return hash(repr(self))
 
-    def _setup(self, register):
+    def _setup(self):
+        self.enter.add("on_enter_state", priority=CallbackPriority.GENERIC, suppress_errors=True)
+        self.enter.add(
+            f"on_enter_{self.id}", priority=CallbackPriority.NAMING, suppress_errors=True
+        )
+        self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, suppress_errors=True)
+        self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, suppress_errors=True)
+
+    def _add_observer(self, register):
         register(self.enter)
         register(self.exit)
-        return self
 
-    def _add_observer(self, registry):
-        self.enter.add(
-            "on_enter_state", registry=registry, prepend=True, suppress_errors=True
-        )
-        self.enter.add(f"on_enter_{self.id}", registry=registry, suppress_errors=True)
-        self.exit.add(
-            "on_exit_state", registry=registry, prepend=True, suppress_errors=True
-        )
-        self.exit.add(f"on_exit_{self.id}", registry=registry, suppress_errors=True)
+    def _check_callbacks(self, check):
+        check(self.enter)
+        check(self.exit)
 
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
             f"initial={self.initial!r}, final={self.final!r})"
         )
+
+    def __str__(self):
+        return self.name
 
     def __get__(self, machine, owner):
         if machine is None:
@@ -146,14 +149,10 @@ class State:
 
     def __set__(self, instance, value):
         raise StateMachineError(
-            _("State overriding is not allowed. Trying to add '{}' to {}").format(
-                value, self.id
-            )
+            _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
         )
 
-    def for_instance(
-        self, machine: "StateMachine", cache: Dict["State", "State"]
-    ) -> "State":
+    def for_instance(self, machine: "StateMachine", cache: Dict["State", "State"]) -> "State":
         if self not in cache:
             cache[self] = InstanceState(self, machine)
 
@@ -171,9 +170,7 @@ class State:
             self.name = self._id.replace("_", " ").capitalize()
 
     def _to_(self, *states: "State", **kwargs):
-        transitions = TransitionList(
-            Transition(self, state, **kwargs) for state in states
-        )
+        transitions = TransitionList(Transition(self, state, **kwargs) for state in states)
         self.transitions.add_transitions(transitions)
         return transitions
 

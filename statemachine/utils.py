@@ -6,6 +6,10 @@ def qualname(cls):
 
 
 def ensure_iterable(obj):
+    """
+    Returns an iterator if obj is not an instance of string or if it
+    encounters type error, otherwise it returns a list.
+    """
     if isinstance(obj, str):
         return [obj]
     try:

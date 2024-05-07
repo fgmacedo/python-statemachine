@@ -6,6 +6,7 @@ A :ref:`StateMachine` that demonstrates declaring :ref:`States from Enum types` 
 ``States`` definition.
 
 """
+
 from enum import Enum
 
 from statemachine import StateMachine

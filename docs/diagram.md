@@ -87,7 +87,7 @@ A handy shortcut to have the graph representation:
 
 ```py
 >>> machine._graph()
-<pydot.Dot ...
+<pydot.core.Dot ...
 
 ```
 
