@@ -32,7 +32,7 @@ Consider this state machine:
 >>> class ServerConnection(StateMachine):
 ...     disconnected = State(initial=True)
 ...     connecting = State()
-...     connected = State()
+...     connected = State(final=True)
 ...
 ...     connect = disconnected.to(connecting, after="connection_succeed")
 ...     connection_succeed = connecting.to(connected)
