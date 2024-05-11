@@ -1,3 +1,4 @@
+import asyncio
 from collections import deque
 from copy import deepcopy
 from functools import partial
@@ -84,7 +85,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
             raise InvalidDefinition(_("There are no states or transitions."))
 
         self._register_callbacks()
-        self._activate_initial_state()
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._activate_initial_state())
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -122,7 +128,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         except KeyError as err:
             raise InvalidStateValue(current_state_value) from err
 
-    def _activate_initial_state(self):
+    async def _activate_initial_state(self):
         if self.current_state_value is None:
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
@@ -138,7 +144,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 ),
                 transition=initial_transition,
             )
-            self._activate(event_data)
+            await self._activate(event_data)
 
     def _register_callbacks(self):
         self._add_observer(
@@ -231,7 +237,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """List of the current allowed events."""
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
-    def _process(self, trigger):
+    async def _process(self, trigger):
         """Process event triggers.
 
         The simplest implementation is the non-RTC (synchronous),
@@ -252,7 +258,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         if not self.__rtc:
             # The machine is in "synchronous" mode
-            return trigger()
+            return await trigger()
 
         # The machine is in "queued" mode
         # Add the trigger to queue and start processing in a loop.
@@ -263,9 +269,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self.__processing:
             return
 
-        return self._processing_loop()
+        return await self._processing_loop()
 
-    def _processing_loop(self):
+    async def _processing_loop(self):
         """Execute the triggers in the queue in order until the queue is empty"""
         self.__processing = True
 
@@ -278,7 +284,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             while self._external_queue:
                 trigger = self._external_queue.popleft()
                 try:
-                    result = trigger()
+                    result = await trigger()
                     if first_result is sentinel:
                         first_result = result
                 except Exception:
@@ -290,18 +296,18 @@ class StateMachine(metaclass=StateMachineMetaclass):
             self.__processing = False
         return first_result if first_result is not sentinel else None
 
-    def _activate(self, event_data: EventData):
+    async def _activate(self, event_data: EventData):
         transition = event_data.transition
         source = event_data.state
         target = transition.target
 
-        result = self._callbacks(transition.before).call(
+        result = await self._callbacks(transition.before).call(
             *event_data.args, **event_data.extended_kwargs
         )
         if source is not None and not transition.internal:
-            self._callbacks(source.exit).call(*event_data.args, **event_data.extended_kwargs)
+            await self._callbacks(source.exit).call(*event_data.args, **event_data.extended_kwargs)
 
-        result += self._callbacks(transition.on).call(
+        result += await self._callbacks(transition.on).call(
             *event_data.args, **event_data.extended_kwargs
         )
 
@@ -309,8 +315,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_data.state = target
 
         if not transition.internal:
-            self._callbacks(target.enter).call(*event_data.args, **event_data.extended_kwargs)
-        self._callbacks(transition.after).call(*event_data.args, **event_data.extended_kwargs)
+            await self._callbacks(target.enter).call(
+                *event_data.args, **event_data.extended_kwargs
+            )
+        await self._callbacks(transition.after).call(
+            *event_data.args, **event_data.extended_kwargs
+        )
 
         if len(result) == 0:
             result = None
@@ -327,8 +337,22 @@ class StateMachine(metaclass=StateMachineMetaclass):
             See: :ref:`triggering events`.
 
         """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.async_send(event, *args, **kwargs))
+
+    async def async_send(self, event, *args, **kwargs):
+        """Send an :ref:`Event` to the state machine.
+
+        .. seealso::
+
+            See: :ref:`triggering events`.
+
+        """
         event = Event(event)
-        return event.trigger(self, *args, **kwargs)
+        return await event.trigger(self, *args, **kwargs)
 
     def _callbacks(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
         return self._callbacks_registry[meta_list]

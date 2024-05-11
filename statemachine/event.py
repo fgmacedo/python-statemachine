@@ -1,3 +1,4 @@
+import asyncio
 from typing import TYPE_CHECKING
 
 from .event_data import EventData
@@ -15,8 +16,8 @@ class Event:
     def __repr__(self):
         return f"{type(self).__name__}({self.name!r})"
 
-    def trigger(self, machine: "StateMachine", *args, **kwargs):
-        def trigger_wrapper():
+    async def trigger(self, machine: "StateMachine", *args, **kwargs):
+        async def trigger_wrapper():
             """Wrapper that captures event_data as closure."""
             trigger_data = TriggerData(
                 machine=machine,
@@ -24,11 +25,11 @@ class Event:
                 args=args,
                 kwargs=kwargs,
             )
-            return self._trigger(trigger_data)
+            return await self._trigger(trigger_data)
 
-        return machine._process(trigger_wrapper)
+        return await machine._process(trigger_wrapper)
 
-    def _trigger(self, trigger_data: TriggerData):
+    async def _trigger(self, trigger_data: TriggerData):
         event_data = None
         state = trigger_data.machine.current_state
         for transition in state.transitions:
@@ -36,7 +37,7 @@ class Event:
                 continue
 
             event_data = EventData(trigger_data=trigger_data, transition=transition)
-            if transition.execute(event_data):
+            if await transition.execute(event_data):
                 event_data.executed = True
                 break
         else:
@@ -46,18 +47,24 @@ class Event:
         return event_data.result if event_data else None
 
 
-def trigger_event_factory(event):
+def trigger_event_factory(event_instance, is_async: bool = False):
     """Build a method that sends specific `event` to the machine"""
-    event_instance = Event(event)
 
     def trigger_event(self, *args, **kwargs):
-        return event_instance.trigger(self, *args, **kwargs)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return loop.run_until_complete(event_instance.trigger(self, *args, **kwargs))
 
-    trigger_event.name = event
-    trigger_event.identifier = event
+    async def async_trigger_event(self, *args, **kwargs):
+        return await event_instance.trigger(self, *args, **kwargs)
+
+    trigger_event.name = event_instance.name
+    trigger_event.identifier = event_instance.name
     trigger_event._is_sm_event = True
 
-    return trigger_event
+    return async_trigger_event if is_async else trigger_event
 
 
 def same_event_cond_builder(expected_event: str):

@@ -1,3 +1,4 @@
+import asyncio
 from bisect import insort
 from collections import defaultdict
 from collections import deque
@@ -20,7 +21,7 @@ class CallbackPriority(IntEnum):
     AFTER = 40
 
 
-def allways_true(*args, **kwargs):
+async def allways_true(*args, **kwargs):
     return True
 
 
@@ -46,8 +47,8 @@ class CallbackWrapper:
     def __lt__(self, other):
         return self.meta.priority < other.meta.priority
 
-    def __call__(self, *args, **kwargs):
-        return self._callback(*args, **kwargs)
+    async def __call__(self, *args, **kwargs):
+        return await self._callback(*args, **kwargs)
 
 
 class CallbackMeta:
@@ -137,8 +138,8 @@ class BoolCallbackMeta(CallbackMeta):
         return name if self.expected_value else f"!{name}"
 
     def _wrap_callable(self, func, expected_value):
-        def bool_wrapper(*args, **kwargs):
-            return bool(func(*args, **kwargs)) == expected_value
+        async def bool_wrapper(*args, **kwargs):
+            return bool(await func(*args, **kwargs)) == expected_value
 
         return bool_wrapper
 
@@ -248,13 +249,20 @@ class CallbacksExecutor:
             self._add(item, resolver)
         return self
 
-    def call(self, *args, **kwargs):
+    async def call(self, *args, **kwargs):
         return [
-            callback(*args, **kwargs) for callback in self if callback.condition(*args, **kwargs)
+            await callback(*args, **kwargs)
+            for callback in self
+            if await callback.condition(*args, **kwargs)
         ]
 
-    def all(self, *args, **kwargs):
-        return all(condition(*args, **kwargs) for condition in self)
+    async def all(self, *args, **kwargs):
+        coros = [condition(*args, **kwargs) for condition in self]
+        for coro in asyncio.as_completed(coros):
+            if not await coro:
+                return False
+        else:
+            return True
 
 
 class CallbacksRegistry:

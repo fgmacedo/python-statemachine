@@ -1,4 +1,5 @@
 import itertools
+from asyncio import iscoroutinefunction
 from functools import partial
 from inspect import BoundArguments
 from inspect import Parameter
@@ -51,9 +52,12 @@ class SignatureAdapter(Signature):
 
         metadata_to_copy = method.func if isinstance(method, partial) else method
 
-        def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+        async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
             ba = sig_bind_expected(*args, **kwargs)
-            return method(*ba.args, **ba.kwargs)
+            if iscoroutinefunction(method):
+                return await method(*ba.args, **ba.kwargs)
+            else:
+                return method(*ba.args, **ba.kwargs)
 
         method_wrapper.__name__ = metadata_to_copy.__name__
 

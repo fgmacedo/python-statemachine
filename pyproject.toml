@@ -47,6 +47,7 @@ mypy = "^1.9.0"
 pytest-mock = "^3.10.0"
 pytest-profiling = "^1.7.0"
 pytest-benchmark = "^4.0.0"
+pytest-asyncio = "^0.23.6"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "7.2.6"
@@ -63,6 +64,10 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure --benchmark-autosave"
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
+asyncio_mode = "auto"
+markers = [
+    """slow: marks tests as slow (deselect with '-m "not slow"')""",
+]
 
 [tool.mypy]
 python_version = "3.12"

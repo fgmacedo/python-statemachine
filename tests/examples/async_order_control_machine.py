@@ -1,6 +1,10 @@
-import weakref
+"""
+Order control machine
+---------------------
 
-import pytest
+An StateMachine that demonstrates :ref:`Guards` being used to control the state flow.
+
+"""
 
 from statemachine import State
 from statemachine import StateMachine
@@ -19,34 +23,25 @@ class OrderControl(StateMachine):
     process_order = processing.to(shipping, cond="payment_received")
     ship_order = shipping.to(completed)
 
-
-class Order:
     def __init__(self):
         self.order_total = 0
         self.payments = []
         self.payment_received = False
-        self.state_machine = OrderControl(model=weakref.proxy(self))
+        super().__init__()
 
-    def payments_enough(self, amount):
+    async def payments_enough(self, amount):
         return sum(self.payments) + amount >= self.order_total
 
-    def before_add_to_order(self, amount):
+    async def before_add_to_order(self, amount):
         self.order_total += amount
         return self.order_total
 
-    def on_receive_payment(self, amount):
+    async def before_receive_payment(self, amount):
         self.payments.append(amount)
         return self.payments
 
-    def after_receive_payment(self):
+    async def after_receive_payment(self):
         self.payment_received = True
 
-
-def exercise_order():
-    order = Order()
-    assert order.state_machine.waiting_for_payment.is_active
-
-
-@pytest.mark.slow()
-def test_setup_performance(benchmark):
-    benchmark.pedantic(exercise_order, rounds=10, iterations=1000)
+    async def on_enter_waiting_for_payment(self):
+        self.payment_received = False
