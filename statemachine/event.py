@@ -31,6 +31,8 @@ class Event:
 
     async def _trigger(self, trigger_data: TriggerData):
         event_data = None
+        await trigger_data.machine._ensure_is_initialized()
+
         state = trigger_data.machine.current_state
         for transition in state.transitions:
             if not transition.match(trigger_data.event):

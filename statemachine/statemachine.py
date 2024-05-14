@@ -74,6 +74,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
+        self.__initialized = False
         self.__rtc = rtc
         self.__processing: bool = False
         self._external_queue: deque = deque()
@@ -125,6 +126,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
             raise InvalidStateValue(current_state_value) from err
 
     async def _activate_initial_state(self):
+        if self.__initialized:
+            return
+        self.__initialized = True
         if self.current_state_value is None:
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
@@ -141,6 +145,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 transition=initial_transition,
             )
             await self._activate(event_data)
+
+    async def _ensure_is_initialized(self):
+        await self._activate_initial_state()
 
     def _register_callbacks(self):
         self._add_observer(
