@@ -1,3 +1,4 @@
+from functools import partial
 from typing import TYPE_CHECKING
 
 from statemachine.utils import run_async_from_sync
@@ -18,15 +19,13 @@ class Event:
         return f"{type(self).__name__}({self.name!r})"
 
     async def trigger(self, machine: "StateMachine", *args, **kwargs):
-        async def trigger_wrapper():
-            """Wrapper that captures event_data as closure."""
-            trigger_data = TriggerData(
-                machine=machine,
-                event=self.name,
-                args=args,
-                kwargs=kwargs,
-            )
-            return await self._trigger(trigger_data)
+        trigger_data = TriggerData(
+            machine=machine,
+            event=self.name,
+            args=args,
+            kwargs=kwargs,
+        )
+        trigger_wrapper = partial(self._trigger, trigger_data=trigger_data)
 
         return await machine._process(trigger_wrapper)
 
