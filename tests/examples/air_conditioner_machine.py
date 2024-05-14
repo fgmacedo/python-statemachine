@@ -6,11 +6,11 @@ A StateMachine that exercises reading from a stream of events.
 
 """
 
-import asyncio
 import random
 
 from statemachine import State
 from statemachine import StateMachine
+from statemachine.utils import run_async_from_sync
 
 
 def sensor_temperature_reader(seed: int, lower: int = 15, higher: int = 35):
@@ -63,4 +63,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    run_async_from_sync(main())
