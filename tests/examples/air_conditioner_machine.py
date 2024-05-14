@@ -6,7 +6,7 @@ A StateMachine that exercises reading from a stream of events.
 
 """
 
-import doctest
+import asyncio
 import random
 
 from statemachine import State
@@ -21,35 +21,6 @@ def sensor_temperature_reader(seed: int, lower: int = 15, higher: int = 35):
 
 
 class AirConditioner(StateMachine):
-    """
-    >>> sensor = sensor_temperature_reader(123456)
-    >>> sm = AirConditioner()
-    >>> for i in range(20):
-    ...    temperature = next(sensor)
-    ...    sm.send("sensor_updated", temperature=temperature)
-    Running sensor_updated from Off to Off: {'temperature': 24}
-    Running sensor_updated from Off to Off: {'temperature': 15}
-    Running sensor_updated from Off to Off: {'temperature': 20}
-    Running sensor_updated from Off to Off: {'temperature': 15}
-    Running sensor_updated from Off to Off: {'temperature': 17}
-    Running sensor_updated from Off to Off: {'temperature': 16}
-    Running sensor_updated from Off to Off: {'temperature': 23}
-    Running sensor_updated from Off to Off: {'temperature': 15}
-    Running sensor_updated from Off to Off: {'temperature': 18}
-    Running sensor_updated from Off to Off: {'temperature': 22}
-    Running sensor_updated from Off to Cooling: {'temperature': 35}
-    Running sensor_updated from Cooling to Cooling: {'temperature': 30}
-    Running sensor_updated from Cooling to Cooling: {'temperature': 20}
-    Running sensor_updated from Cooling to Standby: {'temperature': 15}
-    Running sensor_updated from Standby to Cooling: {'temperature': 31}
-    Running sensor_updated from Cooling to Standby: {'temperature': 19}
-    Running sensor_updated from Standby to Cooling: {'temperature': 27}
-    Running sensor_updated from Cooling to Cooling: {'temperature': 35}
-    Running sensor_updated from Cooling to Cooling: {'temperature': 26}
-    Running sensor_updated from Cooling to Standby: {'temperature': 16}
-
-    """
-
     off = State(initial=True)
     cooling = State()
     standby = State()
@@ -64,17 +35,32 @@ class AirConditioner(StateMachine):
         | standby.to.itself(internal=True)
     )
 
-    def is_hot(self, temperature: int):
+    async def is_hot(self, temperature: int):
         return temperature > 25
 
-    def is_good(self, temperature: int):
+    async def is_good(self, temperature: int):
         return temperature < 20
 
-    def is_cool(self, temperature: int):
+    async def is_cool(self, temperature: int):
         return temperature < 18
 
-    def after_transition(self, event: str, source: State, target: State, event_data):
+    async def after_transition(self, event: str, source: State, target: State, event_data):
         print(f"Running {event} from {source!s} to {target!s}: {event_data.trigger_data.kwargs!r}")
 
 
-doctest.testmod()
+# %%
+# Testing
+
+
+async def main():
+    sensor = sensor_temperature_reader(123456)
+    print("Will create AirConditioner machine")
+    sm = AirConditioner()
+
+    generator = (("sensor_updated", next(sensor)) for _ in range(20))
+    for event, temperature in generator:
+        await sm.async_send(event, temperature=temperature)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
