@@ -1,4 +1,3 @@
-import asyncio
 from collections import deque
 from copy import deepcopy
 from functools import partial
@@ -7,6 +6,7 @@ from typing import Any
 from typing import Dict
 
 from statemachine.graph import iterate_states_and_transitions
+from statemachine.utils import run_async_from_sync
 
 from .callbacks import CallbackMetaList
 from .callbacks import CallbacksExecutor
@@ -86,11 +86,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         self._register_callbacks()
 
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.get_event_loop()
-        loop.run_until_complete(self._activate_initial_state())
+        run_async_from_sync(self._activate_initial_state())
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -337,11 +333,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             See: :ref:`triggering events`.
 
         """
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.async_send(event, *args, **kwargs))
+        return run_async_from_sync(self.async_send(event, *args, **kwargs))
 
     async def async_send(self, event, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.

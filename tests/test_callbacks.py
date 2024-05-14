@@ -38,7 +38,7 @@ def ObjectWithCallbacks():
 
 
 class TestCallbacksMachinery:
-    def test_can_add_callback(self):
+    async def test_can_add_callback(self):
         meta_list = CallbackMetaList()
         executor = CallbacksExecutor()
 
@@ -53,7 +53,7 @@ class TestCallbacksMachinery:
         meta_list.add(obj.do_something)
         executor.add(meta_list, resolver_factory_from_objects(obj))
 
-        executor.call(1, 2, 3, a="x", b="y")
+        await executor.call(1, 2, 3, a="x", b="y")
 
         func.assert_called_once_with(1, 2, 3, a="x", b="y")
 
@@ -61,7 +61,7 @@ class TestCallbacksMachinery:
         wrapper = CallbackMeta("something")
         set().add(wrapper)
 
-    def test_can_add_callback_that_is_a_string(self):
+    async def test_can_add_callback_that_is_a_string(self):
         callbacks = CallbackMetaList()
         func = mock.Mock()
 
@@ -84,7 +84,7 @@ class TestCallbacksMachinery:
 
         registry.register(callbacks, resolver_factory_from_objects(obj))
 
-        registry[callbacks].call(1, 2, 3, a="x", b="y")
+        await registry[callbacks].call(1, 2, 3, a="x", b="y")
 
         assert func.call_args_list == [
             mock.call("my_method", 1, 2, 3, a="x", b="y"),
@@ -127,7 +127,7 @@ class TestCallbacksMachinery:
             with pytest.raises(InvalidDefinition):
                 registry.check(callbacks)
 
-    def test_collect_results(self):
+    async def test_collect_results(self):
         callbacks = CallbackMetaList()
         registry = CallbacksRegistry()
 
@@ -143,7 +143,7 @@ class TestCallbacksMachinery:
         callbacks.add([func1, func2, func3])
         registry.register(callbacks, resolver_factory_from_objects(object()))
 
-        results = registry[callbacks].call(1, 2, 3, a="x", b="y")
+        results = await registry[callbacks].call(1, 2, 3, a="x", b="y")
 
         assert results == [
             10,
@@ -151,9 +151,9 @@ class TestCallbacksMachinery:
             {"key": "value"},
         ]
 
-    def test_callbacks_values_resolution(self, ObjectWithCallbacks):
+    async def test_callbacks_values_resolution(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
-        assert x.executor.call(xablau=True) == [
+        assert await x.executor.call(xablau=True) == [
             42,
             "statemachine",
             ((), {"xablau": True}),
@@ -161,7 +161,7 @@ class TestCallbacksMachinery:
 
 
 class TestCallbacksAsDecorator:
-    def test_decorate_unbounded_function(self, ObjectWithCallbacks):
+    async def test_decorate_unbounded_function(self, ObjectWithCallbacks):
         x = ObjectWithCallbacks()
 
         @x.callbacks
@@ -174,7 +174,7 @@ class TestCallbacksAsDecorator:
 
         x.registry.register(x.callbacks, resolver=resolver_factory_from_objects(x))
 
-        assert x.executor.call(hero="Gandalf", race="Maia") == [
+        assert await x.executor.call(hero="Gandalf", race="Maia") == [
             42,
             "statemachine",
             ((), {"hero": "Gandalf", "race": "Maia"}),

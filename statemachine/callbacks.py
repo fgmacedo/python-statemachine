@@ -1,4 +1,3 @@
-import asyncio
 from bisect import insort
 from collections import defaultdict
 from collections import deque
@@ -257,12 +256,10 @@ class CallbacksExecutor:
         ]
 
     async def all(self, *args, **kwargs):
-        coros = [condition(*args, **kwargs) for condition in self]
-        for coro in asyncio.as_completed(coros):
-            if not await coro:
+        for condition in self:
+            if not await condition(*args, **kwargs):
                 return False
-        else:
-            return True
+        return True
 
 
 class CallbacksRegistry:

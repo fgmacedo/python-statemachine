@@ -164,12 +164,13 @@ class TestChainedTransition:
             ),
         ],
     )
-    def test_should_preserve_event_order(self, chained_on_sm_class, rtc, expected):
+    async def test_should_preserve_event_order(self, chained_on_sm_class, rtc, expected):
         sm = chained_on_sm_class(rtc=rtc)
 
         if inspect.isclass(expected) and issubclass(expected, Exception):
             with pytest.raises(expected):
-                sm.send("t1")
+                await sm.send("t1")
         else:
-            assert sm.send("t1") == ["t1", [None, None, None]]
+            result = await sm.send("t1")
+            assert result == ["t1", [None, None, None]]
             assert sm.spy.call_args_list == expected

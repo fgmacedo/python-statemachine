@@ -20,7 +20,7 @@ class TestSignatureAdapter:
             ),
         ],
     )
-    def test_positional_ony(self, args, kwargs, expected):
+    async def test_positional_ony(self, args, kwargs, expected):
         def func(pos_only, /, pos_or_kw_param, *, kw_only_param):
             # https://peps.python.org/pep-0570/
             return pos_only, pos_or_kw_param, kw_only_param
@@ -29,6 +29,6 @@ class TestSignatureAdapter:
 
         if inspect.isclass(expected) and issubclass(expected, Exception):
             with pytest.raises(expected):
-                wrapped_func(*args, **kwargs)
+                await wrapped_func(*args, **kwargs)
         else:
-            assert wrapped_func(*args, **kwargs) == expected
+            assert await wrapped_func(*args, **kwargs) == expected
