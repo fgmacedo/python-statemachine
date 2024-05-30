@@ -239,7 +239,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                         "(e.g., `await sm.activate_initial_state()`)"
                     ),
                 ) from err
-            raise
+            raise InvalidStateValue(self.current_state_value) from err
 
     @current_state.setter
     def current_state(self, value):
