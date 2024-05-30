@@ -87,7 +87,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         self._register_callbacks()
 
-        run_async_from_sync(self._activate_initial_state())
+        # Activate the initial state, this only works if the outer scope is sync code.
+        # for async code, the user should manually call `await sm.activate_initial_state()`
+        # after state machine creation.
+        run_async_from_sync(self.activate_initial_state())
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -125,7 +128,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         except KeyError as err:
             raise InvalidStateValue(current_state_value) from err
 
-    async def _activate_initial_state(self):
+    async def activate_initial_state(self):
         if self.__initialized:
             return
         self.__initialized = True
@@ -147,7 +150,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             await self._activate(event_data)
 
     async def _ensure_is_initialized(self):
-        await self._activate_initial_state()
+        await self.activate_initial_state()
 
     def _register_callbacks(self):
         self._add_observer(
@@ -204,8 +207,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         This is a low level API, that can be used to assign any valid state value
         completely bypassing all the hooks and validations.
         """
-        value = getattr(self.model, self.state_field, None)
-        return value
+        return getattr(self.model, self.state_field, None)
 
     @current_state_value.setter
     def current_state_value(self, value):
@@ -221,11 +223,23 @@ class StateMachine(metaclass=StateMachineMetaclass):
         completely bypassing all the hooks and validations.
         """
 
-        state: State = self.states_map[self.current_state_value].for_instance(
-            machine=self,
-            cache=self._states_for_instance,
-        )
-        return state
+        try:
+            state: State = self.states_map[self.current_state_value].for_instance(
+                machine=self,
+                cache=self._states_for_instance,
+            )
+            return state
+        except KeyError as err:
+            if self.current_state_value is None:
+                raise InvalidStateValue(
+                    self.current_state_value,
+                    _(
+                        "There's no current state set. In async code, "
+                        "did you activate the initial state? "
+                        "(e.g., `await sm.activate_initial_state()`)"
+                    ),
+                ) from err
+            raise
 
     @current_state.setter
     def current_state(self, value):

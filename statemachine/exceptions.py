@@ -12,9 +12,10 @@ class InvalidDefinition(StateMachineError):
 class InvalidStateValue(InvalidDefinition):
     "The current model state value is not mapped to a state definition."
 
-    def __init__(self, value):
+    def __init__(self, value, msg=None):
         self.value = value
-        msg = _("{!r} is not a valid state value.").format(value)
+        if msg is None:
+            msg = _("{!r} is not a valid state value.").format(value)
         super().__init__(msg)
 
 
