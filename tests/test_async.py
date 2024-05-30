@@ -1,7 +1,10 @@
+import re
+
 import pytest
 
 from statemachine import State
 from statemachine import StateMachine
+from statemachine.exceptions import InvalidStateValue
 
 
 @pytest.fixture()
@@ -42,11 +45,11 @@ def async_order_control_machine():  # noqa: C901
         async def on_enter_waiting_for_payment(self):
             self.payment_received = False
 
-    return OrderControl()
+    return OrderControl
 
 
 async def test_async_order_control_machine(async_order_control_machine):
-    sm = async_order_control_machine
+    sm = async_order_control_machine()
 
     assert await sm.async_add_to_order(3) == 3
     assert await sm.async_add_to_order(7) == 10
@@ -66,3 +69,28 @@ async def test_async_order_control_machine(async_order_control_machine):
     assert sm.order_total == 10
     assert sm.payments == [4, 6]
     assert sm.completed.is_active
+
+
+async def test_async_state_should_be_initialized(async_order_control_machine):
+    """Test that the state machine is initialized before any event is triggered
+
+    Given how async works on python, there's no built-in way to activate the initial state that
+    may depend on async code from the StateMachine.__init__ method.
+
+    We do a "_ensure_is_initialized()` check before each event, but to check the current state
+    just before the state machine is created, the user must await the activation of the initial
+    state explicitly.
+    """
+
+    sm = async_order_control_machine()
+    with pytest.raises(
+        InvalidStateValue,
+        match=re.escape(
+            r"There's no current state set. In async code, "
+            r"did you activate the initial state? (e.g., `await sm.activate_initial_state()`)"
+        ),
+    ):
+        assert sm.current_state == sm.waiting_for_payment
+
+    await sm.activate_initial_state()
+    assert sm.current_state == sm.waiting_for_payment
