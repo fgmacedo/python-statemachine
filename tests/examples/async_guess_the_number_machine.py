@@ -145,6 +145,5 @@ async def main():
     writer.close()
 
 
-if __name__ == "__main__":
-    if "-i" in sys.argv:
-        asyncio.run(main())
+if __name__ == "__main__" and "-i" in sys.argv:
+    asyncio.run(main())
