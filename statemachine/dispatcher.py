@@ -145,10 +145,10 @@ def search_callable(attr, configs: tuple) -> Generator[WrapSearchResult, None, N
 def resolver_factory(objects: tuple[ObjectConfig]):
     """Factory that returns a configured resolver."""
 
-    def wrapper(attr) -> Generator[WrapSearchResult, None, None]:
+    def resolver(attr) -> Generator[WrapSearchResult, None, None]:
         yield from search_callable(attr, objects)
 
-    return wrapper
+    return resolver
 
 
 def resolver_factory_from_objects(*objects: tuple[Any]):
