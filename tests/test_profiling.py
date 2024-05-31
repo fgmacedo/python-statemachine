@@ -42,11 +42,21 @@ class Order:
         self.payment_received = True
 
 
-def exercise_order():
+def create_order():
     order = Order()
     assert order.state_machine.waiting_for_payment.is_active
 
 
+def add_to_order(sm, amount):
+    sm.add_to_order(amount)
+
+
 @pytest.mark.slow()
 def test_setup_performance(benchmark):
-    benchmark.pedantic(exercise_order, rounds=10, iterations=1000)
+    benchmark.pedantic(create_order, rounds=10, iterations=1000)
+
+
+@pytest.mark.slow()
+def test_event_performance(benchmark):
+    order = Order()
+    benchmark.pedantic(add_to_order, args=(order.state_machine, 1), rounds=10, iterations=1000)

@@ -140,7 +140,7 @@ async def main():
         res = await reader.read(100)
         if not res:
             break
-        await sm.async_send("guess", int(res))
+        await sm.send("guess", int(res))
         await writer.drain()
     writer.close()
 

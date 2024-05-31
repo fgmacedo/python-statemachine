@@ -1,4 +1,9 @@
+from typing import TYPE_CHECKING
+
 from .i18n import _
+
+if TYPE_CHECKING:
+    from .state import State
 
 
 class StateMachineError(Exception):
@@ -26,7 +31,7 @@ class AttrNotFound(InvalidDefinition):
 class TransitionNotAllowed(StateMachineError):
     "Raised when there's no transition that can run from the current :ref:`state`."
 
-    def __init__(self, event, state):
+    def __init__(self, event: str, state: "State"):
         self.event = event
         self.state = state
         msg = _("Can't {} when in {}.").format(self.event, self.state.name)

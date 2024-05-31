@@ -129,6 +129,19 @@ class StateMachine(metaclass=StateMachineMetaclass):
             raise InvalidStateValue(current_state_value) from err
 
     async def activate_initial_state(self):
+        """
+        Activate the initial state.
+
+        Called automatically on state machine creation from sync code, but in
+        async code, the user must call this method explicitly.
+
+        Given how async works on python, there's no built-in way to activate the initial state that
+        may depend on async code from the StateMachine.__init__ method.
+
+        We do a `_ensure_is_initialized()` check before each event, but to check the current state
+        just before the state machine is created, the user must await the activation of the initial
+        state explicitly.
+        """
         if self.__initialized:
             return
         self.__initialized = True
@@ -346,8 +359,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         return result
 
-    def send(self, event, *args, **kwargs):
+    def send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
+
+        This is a thin wrapper around :meth:`async_send` to allow synchronous
+        code to send events.
 
         .. seealso::
 
@@ -356,7 +372,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         return run_async_from_sync(self.async_send(event, *args, **kwargs))
 
-    async def async_send(self, event, *args, **kwargs):
+    async def async_send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
 
         .. seealso::
@@ -364,8 +380,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             See: :ref:`triggering events`.
 
         """
-        event = Event(event)
-        return await event.trigger(self, *args, **kwargs)
+        event_instance: Event = Event(event)
+        return await event_instance.trigger(self, *args, **kwargs)
 
     def _callbacks(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
         return self._callbacks_registry[meta_list]

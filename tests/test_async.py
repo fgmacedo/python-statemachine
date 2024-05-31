@@ -51,21 +51,21 @@ def async_order_control_machine():  # noqa: C901
 async def test_async_order_control_machine(async_order_control_machine):
     sm = async_order_control_machine()
 
-    assert await sm.async_add_to_order(3) == 3
-    assert await sm.async_add_to_order(7) == 10
+    assert await sm.add_to_order(3) == 3
+    assert await sm.add_to_order(7) == 10
 
-    assert await sm.async_receive_payment(4) == [4]
+    assert await sm.receive_payment(4) == [4]
     assert sm.waiting_for_payment.is_active
 
     with pytest.raises(sm.TransitionNotAllowed):
-        await sm.async_process_order()
+        await sm.process_order()
 
     assert sm.waiting_for_payment.is_active
 
-    assert await sm.async_receive_payment(6) == [4, 6]
-    await sm.async_process_order()
+    assert await sm.receive_payment(6) == [4, 6]
+    await sm.process_order()
 
-    await sm.async_ship_order()
+    await sm.ship_order()
     assert sm.order_total == 10
     assert sm.payments == [4, 6]
     assert sm.completed.is_active
@@ -77,7 +77,7 @@ async def test_async_state_should_be_initialized(async_order_control_machine):
     Given how async works on python, there's no built-in way to activate the initial state that
     may depend on async code from the StateMachine.__init__ method.
 
-    We do a "_ensure_is_initialized()` check before each event, but to check the current state
+    We do a `_ensure_is_initialized()` check before each event, but to check the current state
     just before the state machine is created, the user must await the activation of the initial
     state explicitly.
     """

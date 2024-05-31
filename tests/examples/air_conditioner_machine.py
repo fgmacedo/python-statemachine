@@ -59,8 +59,10 @@ async def main():
 
     generator = (("sensor_updated", next(sensor)) for _ in range(20))
     for event, temperature in generator:
-        await sm.async_send(event, temperature=temperature)
+        await sm.send(event, temperature=temperature)
 
 
 if __name__ == "__main__":
+    # using `run_async_from_sync` to better integration with an already running loop.
+    # on real life you sould use `asyncio.run(main())`
     run_async_from_sync(main())

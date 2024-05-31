@@ -49,21 +49,16 @@ class Event:
         return event_data.result if event_data else None
 
 
-def trigger_event_factory(event_instance: Event, is_async: bool = False):
+def trigger_event_factory(event_instance: Event):
     """Build a method that sends specific `event` to the machine"""
 
     def trigger_event(self, *args, **kwargs):
         return run_async_from_sync(event_instance.trigger(self, *args, **kwargs))
 
-    async def async_trigger_event(self, *args, **kwargs):
-        return await event_instance.trigger(self, *args, **kwargs)
-
-    trigger = async_trigger_event if is_async else trigger_event
-
-    trigger.name = event_instance.name  # type: ignore[attr-defined]
-    trigger.identifier = event_instance.name  # type: ignore[attr-defined]
-    trigger._is_sm_event = True  # type: ignore[attr-defined]
-    return trigger
+    trigger_event.name = event_instance.name  # type: ignore[attr-defined]
+    trigger_event.identifier = event_instance.name  # type: ignore[attr-defined]
+    trigger_event._is_sm_event = True  # type: ignore[attr-defined]
+    return trigger_event
 
 
 def same_event_cond_builder(expected_event: str):

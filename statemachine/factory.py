@@ -223,7 +223,6 @@ class StateMachineMetaclass(type):
             event_instance = Event(event)
             cls._events[event] = event_instance
             setattr(cls, event, trigger_event_factory(event_instance))
-            setattr(cls, f"async_{event}", trigger_event_factory(event_instance, is_async=True))
 
         return cls._events[event]
 
