@@ -51,7 +51,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
     "sphinx_gallery.gen_gallery",
-    # "sphinx.ext.autodoc.typehints",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -275,10 +274,8 @@ sphinx_gallery_conf = {
 }
 
 
-# patch gen_gallery to disable write_computation_times
-
-
 def dummy_write_computation_times(gallery_conf, target_dir, costs):
+    "patch gen_gallery to disable write_computation_times"
     pass
 
 

@@ -383,12 +383,9 @@ For {ref}`RTC model`, only the main event will get its value list, while the cha
 {ref}`statemachine` implements a dependency injection mechanism on all available {ref}`Actions` and
 {ref}`Conditions` that automatically inspects and matches the expected callback params with those available by the library in conjunction with any values informed when calling an event using `*args` and `**kwargs`.
 
-This means that the library will match your method signature of what's expected to receive with the provided arguments.
+The library ensures that your method signatures match the expected arguments.
 
-For example, if on your `on_enter_<state.id>()` or `on_<event>()` method, you need to know
-the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
-argument passed with the trigger, just add this parameter to the method and It will be passed
-by the dependency inection dispatch mechanics.
+For example, if you need to access the source (state), the event (event), or any keyword arguments passed with the trigger in any method, simply include these parameters in the method. They will be automatically passed by the dependency injection dispatch mechanics.
 
 In other words, if you implement a method to handle an event and don't declare any parameter,
 you'll be fine, if you declare an expected parameter, you'll also be covered.
