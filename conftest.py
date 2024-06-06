@@ -12,7 +12,7 @@ def add_doctest_context(doctest_namespace):  # noqa: PT004
         Using `run_async_from_sync` to be injected in the doctests to better integration with an
         already running loop, as all of our examples are also automated executed as doctests.
 
-        On real life code you sould use starndard `import asyncio; asyncio.run(main())`.
+        On real life code you should use standard `import asyncio; asyncio.run(main())`.
         """
 
         def __init__(self):

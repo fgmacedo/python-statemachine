@@ -64,5 +64,5 @@ async def main():
 
 if __name__ == "__main__":
     # using `run_async_from_sync` to better integration with an already running loop.
-    # on real life you sould use `asyncio.run(main())`
+    # on real life you should use `asyncio.run(main())`
     run_async_from_sync(main())
