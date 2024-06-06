@@ -11,6 +11,11 @@ On the root folder of the project, run:
 
     ``python tests/examples/async_guess_the_number_machine.py -i``
 
+It's worth to mention that the same state machine can be used in syncronous code, as shown in the
+docstring of the class. You can play on sync contextif you also pass the `-s` flag:
+
+    ``python tests/examples/async_guess_the_number_machine.py -i -s``
+
 """
 
 import asyncio
@@ -130,7 +135,7 @@ async def connect_stdin_stdout():
 # This is done by calling ``await sm.activate_initial_state()``.
 
 
-async def main():
+async def main_async():
     reader, writer = await connect_stdin_stdout()
     sm = GuessTheNumberMachine(
         lambda s: writer.write(b"\n" + s.encode("utf-8")), seed=random.randint(1, 1000)
@@ -145,5 +150,17 @@ async def main():
     writer.close()
 
 
+def main():
+    sm = GuessTheNumberMachine(print, seed=random.randint(1, 1000))
+    while not sm.current_state.final:
+        res = sys.stdin.readline()
+        if not res:
+            break
+        sm.send("guess", int(res))
+
+
 if __name__ == "__main__" and "-i" in sys.argv:
-    asyncio.run(main())
+    if "-s" in sys.argv:
+        main()
+    else:
+        asyncio.run(main_async())
