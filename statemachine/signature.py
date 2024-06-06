@@ -1,8 +1,9 @@
-import itertools
 from functools import partial
 from inspect import BoundArguments
 from inspect import Parameter
 from inspect import Signature
+from inspect import iscoroutinefunction
+from itertools import chain
 from types import MethodType
 from typing import Any
 
@@ -51,9 +52,16 @@ class SignatureAdapter(Signature):
 
         metadata_to_copy = method.func if isinstance(method, partial) else method
 
-        def method_wrapper(*args: Any, **kwargs: Any) -> Any:
-            ba = sig_bind_expected(*args, **kwargs)
-            return method(*ba.args, **ba.kwargs)
+        if iscoroutinefunction(method):
+
+            async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+                ba = sig_bind_expected(*args, **kwargs)
+                return await method(*ba.args, **ba.kwargs)
+        else:
+
+            async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+                ba = sig_bind_expected(*args, **kwargs)
+                return method(*ba.args, **ba.kwargs)
 
         method_wrapper.__name__ = metadata_to_copy.__name__
 
@@ -160,7 +168,7 @@ class SignatureAdapter(Signature):
 
         # Now, we iterate through the remaining parameters to process
         # keyword arguments
-        for param in itertools.chain(parameters_ex, parameters):
+        for param in chain(parameters_ex, parameters):
             if param.kind == Parameter.VAR_KEYWORD:
                 # Memorize that we have a '**kwargs'-like parameter
                 kwargs_param = param

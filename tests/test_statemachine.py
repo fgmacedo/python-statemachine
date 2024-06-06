@@ -311,6 +311,17 @@ def test_state_machine_with_a_invalid_start_value(request, model, machine_name, 
         machine_cls(model, start_value=start_value)
 
 
+def test_state_machine_with_a_invalid_model_state_value(request, campaign_machine):
+    machine_cls = campaign_machine
+    model = MyModel(state="tapioca")
+    sm = machine_cls(model)
+
+    with pytest.raises(
+        exceptions.InvalidStateValue, match="'tapioca' is not a valid state value."
+    ):
+        assert sm.current_state == sm.draft
+
+
 def test_should_not_create_instance_of_abstract_machine():
     class EmptyMachine(StateMachine):
         "An empty machine"

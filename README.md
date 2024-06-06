@@ -65,7 +65,7 @@ Define your state machine:
 ...         | red.to(green)
 ...     )
 ...
-...     def before_cycle(self, event: str, source: State, target: State, message: str = ""):
+...     async def before_cycle(self, event: str, source: State, target: State, message: str = ""):
 ...         message = ". " + message if message else ""
 ...         return f"Running {event} from {source.id} to {target.id}{message}"
 ...
@@ -237,6 +237,34 @@ and in diagrams:
 ```py
 >>> sm.current_state.name
 'Yellow'
+
+```
+
+## Async support
+
+We support native coroutine using `asyncio`, enabling seamless integration with asynchronous code.
+There's no change on the public API of the library to work on async codebases.
+
+
+```py
+>>> class AsyncStateMachine(StateMachine):
+...     initial = State('Initial', initial=True)
+...     final = State('Final', final=True)
+...
+...     advance = initial.to(final)
+...
+...     async def on_advance(self):
+...         return 42
+
+>>> async def run_sm():
+...     sm = AsyncStateMachine()
+...     result = await sm.advance()
+...     print(f"Result is {result}")
+...     print(sm.current_state)
+
+>>> asyncio.run(run_sm())
+Result is 42
+Final
 
 ```
 

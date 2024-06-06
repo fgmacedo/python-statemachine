@@ -139,13 +139,13 @@ class Transition:
     def add_event(self, value):
         self._events.add(value)
 
-    def execute(self, event_data: "EventData"):
+    async def execute(self, event_data: "EventData"):
         machine = event_data.machine
         args, kwargs = event_data.args, event_data.extended_kwargs
-        machine._callbacks_registry[self.validators].call(*args, **kwargs)
-        if not machine._callbacks_registry[self.cond].all(*args, **kwargs):
+        await machine._callbacks_registry[self.validators].call(*args, **kwargs)
+        if not await machine._callbacks_registry[self.cond].all(*args, **kwargs):
             return False
 
-        result = machine._activate(event_data)
+        result = await machine._activate(event_data)
         event_data.result = result
         return True

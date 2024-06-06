@@ -6,6 +6,7 @@ from typing import Any
 from typing import Dict
 
 from statemachine.graph import iterate_states_and_transitions
+from statemachine.utils import run_async_from_sync
 
 from .callbacks import CallbackMetaList
 from .callbacks import CallbacksExecutor
@@ -73,6 +74,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
+        self.__initialized = False
         self.__rtc = rtc
         self.__processing: bool = False
         self._external_queue: deque = deque()
@@ -84,7 +86,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
             raise InvalidDefinition(_("There are no states or transitions."))
 
         self._register_callbacks()
-        self._activate_initial_state()
+
+        # Activate the initial state, this only works if the outer scope is sync code.
+        # for async code, the user should manually call `await sm.activate_initial_state()`
+        # after state machine creation.
+        run_async_from_sync(self.activate_initial_state())
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -122,7 +128,23 @@ class StateMachine(metaclass=StateMachineMetaclass):
         except KeyError as err:
             raise InvalidStateValue(current_state_value) from err
 
-    def _activate_initial_state(self):
+    async def activate_initial_state(self):
+        """
+        Activate the initial state.
+
+        Called automatically on state machine creation from sync code, but in
+        async code, the user must call this method explicitly.
+
+        Given how async works on python, there's no built-in way to activate the initial state that
+        may depend on async code from the StateMachine.__init__ method.
+
+        We do a `_ensure_is_initialized()` check before each event, but to check the current state
+        just before the state machine is created, the user must await the activation of the initial
+        state explicitly.
+        """
+        if self.__initialized:
+            return
+        self.__initialized = True
         if self.current_state_value is None:
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
@@ -138,7 +160,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 ),
                 transition=initial_transition,
             )
-            self._activate(event_data)
+            await self._activate(event_data)
+
+    async def _ensure_is_initialized(self):
+        await self.activate_initial_state()
 
     def _register_callbacks(self):
         self._add_observer(
@@ -195,8 +220,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         This is a low level API, that can be used to assign any valid state value
         completely bypassing all the hooks and validations.
         """
-        value = getattr(self.model, self.state_field, None)
-        return value
+        return getattr(self.model, self.state_field, None)
 
     @current_state_value.setter
     def current_state_value(self, value):
@@ -212,11 +236,23 @@ class StateMachine(metaclass=StateMachineMetaclass):
         completely bypassing all the hooks and validations.
         """
 
-        state: State = self.states_map[self.current_state_value].for_instance(
-            machine=self,
-            cache=self._states_for_instance,
-        )
-        return state
+        try:
+            state: State = self.states_map[self.current_state_value].for_instance(
+                machine=self,
+                cache=self._states_for_instance,
+            )
+            return state
+        except KeyError as err:
+            if self.current_state_value is None:
+                raise InvalidStateValue(
+                    self.current_state_value,
+                    _(
+                        "There's no current state set. In async code, "
+                        "did you activate the initial state? "
+                        "(e.g., `await sm.activate_initial_state()`)"
+                    ),
+                ) from err
+            raise InvalidStateValue(self.current_state_value) from err
 
     @current_state.setter
     def current_state(self, value):
@@ -231,7 +267,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """List of the current allowed events."""
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
-    def _process(self, trigger):
+    async def _process(self, trigger):
         """Process event triggers.
 
         The simplest implementation is the non-RTC (synchronous),
@@ -252,7 +288,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         if not self.__rtc:
             # The machine is in "synchronous" mode
-            return trigger()
+            return await trigger()
 
         # The machine is in "queued" mode
         # Add the trigger to queue and start processing in a loop.
@@ -263,9 +299,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self.__processing:
             return
 
-        return self._processing_loop()
+        return await self._processing_loop()
 
-    def _processing_loop(self):
+    async def _processing_loop(self):
         """Execute the triggers in the queue in order until the queue is empty"""
         self.__processing = True
 
@@ -278,7 +314,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             while self._external_queue:
                 trigger = self._external_queue.popleft()
                 try:
-                    result = trigger()
+                    result = await trigger()
                     if first_result is sentinel:
                         first_result = result
                 except Exception:
@@ -290,18 +326,18 @@ class StateMachine(metaclass=StateMachineMetaclass):
             self.__processing = False
         return first_result if first_result is not sentinel else None
 
-    def _activate(self, event_data: EventData):
+    async def _activate(self, event_data: EventData):
         transition = event_data.transition
         source = event_data.state
         target = transition.target
 
-        result = self._callbacks(transition.before).call(
+        result = await self._callbacks(transition.before).call(
             *event_data.args, **event_data.extended_kwargs
         )
         if source is not None and not transition.internal:
-            self._callbacks(source.exit).call(*event_data.args, **event_data.extended_kwargs)
+            await self._callbacks(source.exit).call(*event_data.args, **event_data.extended_kwargs)
 
-        result += self._callbacks(transition.on).call(
+        result += await self._callbacks(transition.on).call(
             *event_data.args, **event_data.extended_kwargs
         )
 
@@ -309,8 +345,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_data.state = target
 
         if not transition.internal:
-            self._callbacks(target.enter).call(*event_data.args, **event_data.extended_kwargs)
-        self._callbacks(transition.after).call(*event_data.args, **event_data.extended_kwargs)
+            await self._callbacks(target.enter).call(
+                *event_data.args, **event_data.extended_kwargs
+            )
+        await self._callbacks(transition.after).call(
+            *event_data.args, **event_data.extended_kwargs
+        )
 
         if len(result) == 0:
             result = None
@@ -319,7 +359,20 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         return result
 
-    def send(self, event, *args, **kwargs):
+    def send(self, event: str, *args, **kwargs):
+        """Send an :ref:`Event` to the state machine.
+
+        This is a thin wrapper around :meth:`async_send` to allow synchronous
+        code to send events.
+
+        .. seealso::
+
+            See: :ref:`triggering events`.
+
+        """
+        return run_async_from_sync(self.async_send(event, *args, **kwargs))
+
+    async def async_send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
 
         .. seealso::
@@ -327,8 +380,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             See: :ref:`triggering events`.
 
         """
-        event = Event(event)
-        return event.trigger(self, *args, **kwargs)
+        event_instance: Event = Event(event)
+        return await event_instance.trigger(self, *args, **kwargs)
 
     def _callbacks(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
         return self._callbacks_registry[meta_list]

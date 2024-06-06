@@ -1,3 +1,6 @@
+import asyncio
+
+
 def qualname(cls):
     """
     Returns a fully qualified name of the class, to avoid name collisions.
@@ -16,3 +19,15 @@ def ensure_iterable(obj):
         return iter(obj)
     except TypeError:
         return [obj]
+
+
+def run_async_from_sync(coroutine):
+    """
+    Run an async coroutine from a synchronous context.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        return asyncio.ensure_future(coroutine)
+    except RuntimeError:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(coroutine)

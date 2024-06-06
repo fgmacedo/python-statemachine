@@ -5,7 +5,7 @@ outside world, and indeed they are the main reason why they exist at all.
 
 The main point of introducing a state machine is for the
 actions to be invoked at the right times, depending on the sequence of events
-and the state of the guards.
+and the state of the {ref}`conditions`.
 
 Actions are most commonly performed on entry or exit of a state, although
 it is possible to add them before/after a transition.
@@ -79,7 +79,7 @@ After 'go', on the 'final' state.
 
 
 ```{seealso}
-All actions and {ref}`guards` support multiple method signatures. They follow the
+All actions and {ref}`conditions` support multiple method signatures. They follow the
 {ref}`dynamic-dispatch` method calling implemented on this library.
 ```
 
@@ -298,7 +298,7 @@ On loop
 In addition to {ref}`actions`, you can specify {ref}`validators and guards` that are checked before a transition is started. They are meant to stop a transition to occur.
 
 ```{seealso}
-See {ref}`guards` and {ref}`validators`.
+See {ref}`conditions` and {ref}`validators`.
 ```
 
 
@@ -377,21 +377,20 @@ For {ref}`RTC model`, only the main event will get its value list, while the cha
 
 
 (dynamic-dispatch)=
-## Dynamic dispatch
+(dynamic dispatch)=
+## Dependency injection
 
-{ref}`statemachine` implements a custom dispatch mechanism on all those available Actions and
-Guards. This means that you can declare an arbitrary number of `*args` and `**kwargs`, and the
-library will match your method signature of what's expected to receive with the provided arguments.
+{ref}`statemachine` implements a dependency injection mechanism on all available {ref}`Actions` and
+{ref}`Conditions` that automatically inspects and matches the expected callback params with those available by the library in conjunction with any values informed when calling an event using `*args` and `**kwargs`.
 
-This means that if on your `on_enter_<state.id>()` or `on_<event>()` method, you need to know
-the `source` ({ref}`state`), or the `event` ({ref}`event`), or access a keyword
-argument passed with the trigger, just add this parameter to the method and It will be passed
-by the dispatch mechanics.
+The library ensures that your method signatures match the expected arguments.
+
+For example, if you need to access the source (state), the event (event), or any keyword arguments passed with the trigger in any method, simply include these parameters in the method. They will be automatically passed by the dependency injection dispatch mechanics.
 
 In other words, if you implement a method to handle an event and don't declare any parameter,
 you'll be fine, if you declare an expected parameter, you'll also be covered.
 
-For your convenience, all these parameters are available for you on any Action or Guard:
+For your convenience, all these parameters are available for you on any callback:
 
 
 `*args`

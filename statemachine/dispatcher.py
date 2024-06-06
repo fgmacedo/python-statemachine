@@ -35,11 +35,11 @@ class WrapSearchResult:
     def wrap(self):  # pragma: no cover
         pass
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    async def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self._cache is None:
             self._cache = self.wrap()
         assert self._cache
-        return self._cache(*args, **kwds)
+        return await self._cache(*args, **kwds)
 
 
 class CallableSearchResult(WrapSearchResult):
@@ -62,7 +62,7 @@ class AttributeCallableSearchResult(WrapSearchResult):
         # we'll build a method that get's the fresh value for each call
         getter = attrgetter(self.attribute)
 
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             return getter(self.obj)
 
         return wrapper
@@ -76,9 +76,9 @@ class EventSearchResult(WrapSearchResult):
     def wrap(self):
         "Events already have the 'machine' parameter defined."
 
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             kwargs.pop("machine", None)
-            return self.func(*args, **kwargs)
+            return await self.func(*args, **kwargs)
 
         return wrapper
 
@@ -145,10 +145,10 @@ def search_callable(attr, configs: tuple) -> Generator[WrapSearchResult, None, N
 def resolver_factory(objects: tuple[ObjectConfig]):
     """Factory that returns a configured resolver."""
 
-    def wrapper(attr) -> Generator[WrapSearchResult, None, None]:
+    def resolver(attr) -> Generator[WrapSearchResult, None, None]:
         yield from search_callable(attr, objects)
 
-    return wrapper
+    return resolver
 
 
 def resolver_factory_from_objects(*objects: tuple[Any]):

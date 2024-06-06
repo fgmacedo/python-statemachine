@@ -222,8 +222,7 @@ class StateMachineMetaclass(type):
         if event not in cls._events:
             event_instance = Event(event)
             cls._events[event] = event_instance
-            event_trigger = trigger_event_factory(event)
-            setattr(cls, event, event_trigger)
+            setattr(cls, event, trigger_event_factory(event_instance))
 
         return cls._events[event]
 

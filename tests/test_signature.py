@@ -146,19 +146,19 @@ class TestSignatureAdapter:
             (default_kw_arguments, [1, 2], {"event": "wait"}, (1, 2, "wait")),
         ],
     )
-    def test_wrap_fn_single_positional_parameter(self, func, args, kwargs, expected):
+    async def test_wrap_fn_single_positional_parameter(self, func, args, kwargs, expected):
         wrapped_func = SignatureAdapter.wrap(func)
         assert wrapped_func.__name__ == func.__name__
 
         if inspect.isclass(expected) and issubclass(expected, Exception):
             with pytest.raises(expected):
-                wrapped_func(*args, **kwargs)
+                await wrapped_func(*args, **kwargs)
         else:
-            assert wrapped_func(*args, **kwargs) == expected
+            assert await wrapped_func(*args, **kwargs) == expected
 
-    def test_support_for_partial(self):
+    async def test_support_for_partial(self):
         part = partial(positional_and_kw_arguments, event="activated")
         wrapped_func = SignatureAdapter.wrap(part)
 
-        assert wrapped_func("A", "B") == ("A", "B", "activated")
+        assert await wrapped_func("A", "B") == ("A", "B", "activated")
         assert wrapped_func.__name__ == positional_and_kw_arguments.__name__
