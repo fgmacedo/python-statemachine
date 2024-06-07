@@ -79,7 +79,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.__processing: bool = False
         self._external_queue: deque = deque()
         self._callbacks_registry = CallbacksRegistry()
-        self._states_for_instance: Dict["State", "State"] = {}
+        self._states_for_instance: Dict[State, State] = {}
         self._observers: Dict[Any, Any] = {}
 
         if self._abstract:
