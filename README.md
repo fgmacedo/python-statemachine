@@ -1,8 +1,8 @@
 # Python StateMachine
 
 [![pypi](https://img.shields.io/pypi/v/python-statemachine.svg)](https://pypi.python.org/pypi/python-statemachine)
+[![downloads total](https://static.pepy.tech/badge/python-statemachine)](https://pepy.tech/project/python-statemachine)
 [![downloads](https://img.shields.io/pypi/dm/python-statemachine.svg)](https://pypi.python.org/pypi/python-statemachine)
-[![build status](https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml/badge.svg?branch=develop)](https://github.com/fgmacedo/python-statemachine/actions/workflows/python-package.yml?query=branch%3Adevelop)
 [![Coverage report](https://codecov.io/gh/fgmacedo/python-statemachine/branch/develop/graph/badge.svg)](https://codecov.io/gh/fgmacedo/python-statemachine)
 [![Documentation Status](https://readthedocs.org/projects/python-statemachine/badge/?version=latest)](https://python-statemachine.readthedocs.io/en/latest/?badge=latest)
 [![GitHub commits since last release (main)](https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/main/develop)](https://github.com/fgmacedo/python-statemachine/compare/main...develop)
@@ -10,33 +10,43 @@
 
 Python [finite-state machines](https://en.wikipedia.org/wiki/Finite-state_machine) made easy.
 
+<div align="center">
 
-* Free software: MIT license
-* Documentation: https://python-statemachine.readthedocs.io.
+![](https://github.com/fgmacedo/python-statemachine/blob/develop/docs/images/python-statemachine.png?raw=true)
 
+</div>
 
 Welcome to python-statemachine, an intuitive and powerful state machine framework designed for a
-great developer experience.
+great developer experience. We provide an _pythonic_ and expressive API for implementing state
+machines in sync or asynchonous Python codebases.
 
-🚀 With StateMachine, you can easily create complex, dynamic systems with clean, readable code.
+## Features
 
-💡 Our framework makes it easy to understand and reason about the different states, events and
-transitions in your system, so you can focus on building great products.
+- ✨ **Basic components**: Easily define **States**, **Events**, and **Transitions** to model your logic.
+- ⚙️ **Actions and handlers**: Attach actions and handlers to states, events, and transitions to control behavior dynamically.
+- 🛡️ **Conditional transitions**: Implement **Guards** and **Validators** to conditionally control transitions, ensuring they only occur when specific conditions are met.
+- 🚀 **Full async support**: Enjoy full asynchronous support. Await events, and dispatch callbacks asynchronously for seamless integration with async codebases.
+- 🔄 **Full sync support**: Use the same state machine from synchronous codebases without any modifications.
+- 🎨 **Declarative and simple API**: Utilize a clean, elegant, and readable API to define your state machine, making it easy to maintain and understand.
+- 👀 **Observer pattern support**: Register external and generic objects to watch events and register callbacks.
+- 🔍 **Decoupled design**: Separate concerns with a decoupled "state machine" and "model" design, promoting cleaner architecture and easier maintenance.
+- ✅ **Correctness guarantees**: Ensured correctness with validations at class definition time:
+   - Ensures exactly one `initial` state.
+   - Disallows transitions from `final` states.
+   - Requires ongoing transitions for all non-final states.
+   - Guarantees all non-final states have at least one path to a final state if final states are declared.
+   - Validates the state machine graph representation has a single component.
+- 📦 **Flexible event dispatching**: Dispatch events with any extra data, making it available to all callbacks, including actions and guards.
+- 🔧 **Dependency injection**: Needed parameters are injected into callbacks.
+- 📊 **Graphical representation**: Generate and output graphical representations of state machines. Create diagrams from the command line, at runtime, or even in Jupyter notebooks.
+- 🌍 **Internationalization support**: Provides error messages in different languages, making the library accessible to a global audience.
+- 🛡️ **Robust testing**: Ensured reliability with a codebase that is 100% covered by automated tests, including all docs examples. Releases follow semantic versioning for predictable releases.
+- 🏛️ **Domain model integration**: Seamlessly integrate with domain models using Mixins.
+- 🔧 **Django integration**: Automatically discover state machines in Django applications.
 
-🔒 python-statemachine also provides robust error handling and ensures that your system stays
-in a valid state at all times.
 
 
-A few reasons why you may consider using it:
-
-* 📈 python-statemachine is designed to help you build scalable,
-  maintainable systems that can handle any complexity.
-* 💪 You can easily create and manage multiple state machines within a single application.
-* 🚫 Prevents common mistakes and ensures that your system stays in a valid state at all times.
-
-
-## Getting started
-
+## Installing
 
 To install Python State Machine, run this command in your terminal:
 
@@ -47,6 +57,8 @@ install this library already with `pydot` dependency using the `extras` install 
 our docs for more details.
 
     pip install python-statemachine[diagrams]
+
+## First example
 
 Define your state machine:
 
@@ -108,7 +120,27 @@ Then start sending events to your new state machine:
 
 ```
 
-That's it. This is all an external object needs to know about your state machine: How to send events.
+You can use the exactly same state machine from an async codebase:
+
+
+```py
+>>> async def run_sm():
+...    asm = TrafficLightMachine()
+...    results = []
+...    for _i in range(4):
+...        result = await asm.send("cycle")
+...        results.append(result)
+...    return results
+
+>>> asyncio.run(run_sm())
+Don't move.
+Go ahead!
+['Running cycle from green to yellow', 'Running cycle from yellow to red', ...
+
+```
+
+
+**That's it.** This is all an external object needs to know about your state machine: How to send events.
 Ideally, all states, transitions, and actions should be kept internally and not checked externally to avoid unnecessary coupling.
 
 But if your use case needs, you can inspect state machine properties, like the current state:
