@@ -36,28 +36,29 @@ classifiers = [
 diagrams = ["pydot"]
 
 [tool.poetry.dependencies]
-python = ">=3.9, <3.13"
+python = ">=3.7"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
-pytest-cov = "^5.0.0"
+pytest = "*"
+pytest-cov = "*"
 pytest-sugar = "^1.0.0"
 pydot = "^2.0.0"
-ruff = "^0.3.7"
-pre-commit = "^3.7.0"
-mypy = "^1.9.0"
+ruff = "^0.4.8"
+pre-commit = "*"
+mypy = "*"
 pytest-mock = "^3.10.0"
 pytest-profiling = "^1.7.0"
 pytest-benchmark = "^4.0.0"
-pytest-asyncio = "^0.23.6"
+pytest-asyncio = "*"
+sphinx-rtd-theme = "^2.0.0"
 
 [tool.poetry.group.docs.dependencies]
-Sphinx = "7.2.6"
+Sphinx = "*"
 sphinx-rtd-theme = "2.0.0"
-myst-parser = "^2.0.0"
-sphinx-gallery = "^0.15.0"
-pillow = "^10.3.0"
-sphinx-autobuild = "^2024.4.16"
+myst-parser = "*"
+sphinx-gallery = "*"
+pillow = "*"
+sphinx-autobuild = "*"
 
 [build-system]
 requires = ["poetry-core"]
