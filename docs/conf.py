@@ -15,6 +15,7 @@ import os
 import sys
 
 import sphinx_rtd_theme
+from sphinx_gallery import gen_gallery
 
 # If extensions (or modules to document with autodoc) are in another
 # directory, add these directories to sys.path here. If the directory is
@@ -271,3 +272,11 @@ sphinx_gallery_conf = {
     "image_scrapers": (MachineScraper(project_root),),
     "reset_modules": [],
 }
+
+
+def dummy_write_computation_times(gallery_conf, target_dir, costs):
+    "patch gen_gallery to disable write_computation_times"
+    pass
+
+
+gen_gallery.write_computation_times = dummy_write_computation_times

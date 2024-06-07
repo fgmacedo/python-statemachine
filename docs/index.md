@@ -13,6 +13,7 @@ actions
 guards
 models
 observers
+async
 mixins
 integrations
 diagram

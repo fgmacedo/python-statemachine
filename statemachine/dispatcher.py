@@ -2,6 +2,7 @@ from collections import namedtuple
 from operator import attrgetter
 from typing import Any
 from typing import Generator
+from typing import Tuple
 
 from .signature import SignatureAdapter
 
@@ -15,7 +16,7 @@ class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs resolver_id")):
     """
 
     @classmethod
-    def from_obj(cls, obj, skip_attrs=None):
+    def from_obj(cls, obj, skip_attrs=None) -> "ObjectConfig":
         if isinstance(obj, ObjectConfig):
             return obj
         else:
@@ -35,11 +36,11 @@ class WrapSearchResult:
     def wrap(self):  # pragma: no cover
         pass
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    async def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self._cache is None:
             self._cache = self.wrap()
         assert self._cache
-        return self._cache(*args, **kwds)
+        return await self._cache(*args, **kwds)
 
 
 class CallableSearchResult(WrapSearchResult):
@@ -62,7 +63,7 @@ class AttributeCallableSearchResult(WrapSearchResult):
         # we'll build a method that get's the fresh value for each call
         getter = attrgetter(self.attribute)
 
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             return getter(self.obj)
 
         return wrapper
@@ -76,15 +77,15 @@ class EventSearchResult(WrapSearchResult):
     def wrap(self):
         "Events already have the 'machine' parameter defined."
 
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             kwargs.pop("machine", None)
-            return self.func(*args, **kwargs)
+            return await self.func(*args, **kwargs)
 
         return wrapper
 
 
 def _search_callable_attr_is_property(
-    attr, configs: tuple[ObjectConfig]
+    attr, configs: Tuple[ObjectConfig, ...]
 ) -> "WrapSearchResult | None":
     # if the attr is a property, we'll try to find the object that has the
     # property on the configs
@@ -96,7 +97,7 @@ def _search_callable_attr_is_property(
     return None
 
 
-def _search_callable_attr_is_callable(attr, configs: tuple[ObjectConfig]) -> WrapSearchResult:
+def _search_callable_attr_is_callable(attr, configs: Tuple[ObjectConfig, ...]) -> WrapSearchResult:
     # if the attr is an unbounded method, we'll try to find the bounded method
     # on the configs
     if not hasattr(attr, "__self__"):
@@ -109,7 +110,7 @@ def _search_callable_attr_is_callable(attr, configs: tuple[ObjectConfig]) -> Wra
 
 
 def _search_callable_in_configs(
-    attr, configs: tuple[ObjectConfig]
+    attr, configs: Tuple[ObjectConfig, ...]
 ) -> Generator[WrapSearchResult, None, None]:
     for obj, skip_attrs, resolver_id in configs:
         if attr in skip_attrs:
@@ -128,7 +129,9 @@ def _search_callable_in_configs(
         yield CallableSearchResult(attr, func, resolver_id)
 
 
-def search_callable(attr, configs: tuple) -> Generator[WrapSearchResult, None, None]:  # noqa: C901
+def search_callable(
+    attr, configs: Tuple[ObjectConfig, ...]
+) -> Generator[WrapSearchResult, None, None]:  # noqa: C901
     if isinstance(attr, property):
         result = _search_callable_attr_is_property(attr, configs)
         if result is not None:
@@ -142,15 +145,15 @@ def search_callable(attr, configs: tuple) -> Generator[WrapSearchResult, None, N
     yield from _search_callable_in_configs(attr, configs)
 
 
-def resolver_factory(objects: tuple[ObjectConfig]):
+def resolver_factory(objects: Tuple[ObjectConfig, ...]):
     """Factory that returns a configured resolver."""
 
-    def wrapper(attr) -> Generator[WrapSearchResult, None, None]:
+    def resolver(attr) -> Generator[WrapSearchResult, None, None]:
         yield from search_callable(attr, objects)
 
-    return wrapper
+    return resolver
 
 
-def resolver_factory_from_objects(*objects: tuple[Any]):
-    configs = tuple(ObjectConfig.from_obj(o) for o in objects)
+def resolver_factory_from_objects(*objects: Tuple[Any, ...]):
+    configs: Tuple[ObjectConfig, ...] = tuple(ObjectConfig.from_obj(o) for o in objects)
     return resolver_factory(configs)

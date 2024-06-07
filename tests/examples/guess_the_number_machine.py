@@ -23,7 +23,7 @@ class GuessTheNumberMachine(StateMachine):
 
     guess = (
         lose.from_(low, high, cond="max_guesses_reached")
-        | won.from_(low, high, cond="guess_is_equal")
+        | won.from_(low, high, start, cond="guess_is_equal")
         | low.from_(low, high, start, cond="guess_is_lower")
         | high.from_(low, high, start, cond="guess_is_higher")
     )
