@@ -195,7 +195,7 @@ callback method.
 Note how `before_cycle` was declared:
 
 ```py
-def before_cycle(self, event: str, source: State, target: State, message: str = ""):
+async def before_cycle(self, event: str, source: State, target: State, message: str = ""):
     message = ". " + message if message else ""
     return f"Running {event} from {source.id} to {target.id}{message}"
 ```
