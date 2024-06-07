@@ -1,70 +1,91 @@
-# This file is distributed under the same license as the PROJECT project.
-# Fernando Macedo <fgmacedo@gmail.com>, 2023.
+# This file is distributed under the same license as the  project.
+# Fernando Macedo <fgmacedo@gmail.com>, 2024.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: 2.1.0\n"
+"Project-Id-Version:  2.3.0\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
 "POT-Creation-Date: 2023-03-04 16:10-0300\n"
-"PO-Revision-Date: 2023-03-04 16:10-0300\n"
+"PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.12.1\n"
+"Generated-By: Babel 2.14.0\n"
 
-#: statemachine/callbacks.py:56
-msgid "Callback {!r} not property configured."
-msgstr "Callback {!r} não está configurado corretamente."
-
-#: statemachine/dispatcher.py:35
+#: statemachine/callbacks.py:289
 msgid "Did not found name '{}' from model or statemachine"
-msgstr "Não foi encontrado o nome '{}' no modelo ou na máquina de estados"
+msgstr "Não encontrou o nome '{}' no modelo ou na máquina de estados"
 
-#: statemachine/exceptions.py:17
+#: statemachine/exceptions.py:23
 msgid "{!r} is not a valid state value."
 msgstr "{!r} não é um valor de estado válido."
 
-#: statemachine/exceptions.py:31
+#: statemachine/exceptions.py:37
 msgid "Can't {} when in {}."
-msgstr "Não é possível {} quando em {}."
+msgstr "Não é possível {} quando está em {}."
 
-#: statemachine/factory.py:35
+#: statemachine/factory.py:73
+msgid "There are no states."
+msgstr "Não há estados."
+
+#: statemachine/factory.py:76
+msgid "There are no events."
+msgstr "Não há eventos."
+
+#: statemachine/factory.py:88
 msgid ""
-"There should be one and only one initial state. Your currently have "
-"these: {!r}"
-msgstr ""
-"Deve haver um e apenas um estado inicial. Atualmente, você tem "
-"os seguintes: {!r}"
+"There should be one and only one initial state. You currently have these:"
+" {!r}"
+msgstr "Deve haver um e apenas um estado inicial. Você atualmente tem estes: {!r}"
 
-#: statemachine/factory.py:51
+#: statemachine/factory.py:101
+msgid "Cannot declare transitions from final state. Invalid state(s): {}"
+msgstr ""
+"Não é possível declarar transições a partir do estado final. Estado(s) "
+"inválido(s): {}"
+
+#: statemachine/factory.py:109
+msgid ""
+"All non-final states should have at least one outgoing transition. These "
+"states have no outgoing transition: {!r}"
+msgstr ""
+"Todos os estados não finais devem ter pelo menos uma transição de saída. "
+"Esses estados não têm transição de saída: {!r}"
+
+#: statemachine/factory.py:123
+msgid ""
+"All non-final states should have at least one path to a final state. "
+"These states have no path to a final state: {!r}"
+msgstr ""
+"Todos os estados não finais devem ter pelo menos um caminho para um "
+"estado final. Esses estados não têm caminho para um estado final: {!r}"
+
+#: statemachine/factory.py:147
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
 msgstr ""
-"Há estados inalcançáveis. O grafo da máquina de estados deve ter apenas um"
-" componente. Estados desconectados: {}"
+"Há estados inacessíveis. O gráfico da máquina de estados deve ter um "
+"único componente. Estados desconectados: {}"
 
-#: statemachine/factory.py:69
-msgid "There are no states."
-msgstr "Não há estados."
-
-#: statemachine/factory.py:72
-msgid "There are no events."
-msgstr "Não há eventos."
-
-#: statemachine/factory.py:82
-msgid "Cannot declare transitions from final state. Invalid state(s): {}"
-msgstr "Não é possível declarar transições a partir do estado final. Estado(s) inválido(s): {}"
-
-#: statemachine/mixins.py:30
+#: statemachine/mixins.py:23
 msgid "{!r} is not a valid state machine name."
-msgstr "{!r} não é um nome válido para a máquina de estados."
+msgstr "{!r} não é um nome válido para uma máquina de estados."
 
-#: statemachine/state.py:148
+#: statemachine/state.py:152
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
-msgstr "A substituição de estado não é permitida. Tentando adicionar '{}' a {}"
+msgstr "Sobrescrever estados não é permitido. Tentando adicionar '{}' a {}"
 
-#: statemachine/statemachine.py:48
+#: statemachine/statemachine.py:86
 msgid "There are no states or transitions."
 msgstr "Não há estados ou transições."
+
+#: statemachine/statemachine.py:249
+msgid ""
+"There's no current state set. In async code, did you activate the initial"
+" state? (e.g., `await sm.activate_initial_state()`)"
+msgstr ""
+"Não há estado atual definido. No código assíncrono, você ativou o estado"
+" inicial? (por exemplo, `await sm.activate_initial_state()`)"
