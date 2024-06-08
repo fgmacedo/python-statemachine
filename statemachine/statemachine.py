@@ -8,8 +8,8 @@ from typing import Dict
 from statemachine.graph import iterate_states_and_transitions
 from statemachine.utils import run_async_from_sync
 
-from .callbacks import CallbackMetaList
 from .callbacks import CallbacksExecutor
+from .callbacks import CallbackSpecList
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
 from .dispatcher import ObjectConfigs
@@ -388,5 +388,5 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_instance: Event = Event(event)
         return await event_instance.trigger(self, *args, **kwargs)
 
-    def _callbacks(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
+    def _callbacks(self, meta_list: CallbackSpecList) -> CallbacksExecutor:
         return self._callbacks_registry[meta_list]

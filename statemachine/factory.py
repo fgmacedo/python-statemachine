@@ -185,7 +185,7 @@ class StateMachineMetaclass(type):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
                 cls.add_event(key, value)
-            elif getattr(value, "_callbacks_to_update", None):
+            elif getattr(value, "_specs_to_update", None):
                 cls._add_unbounded_callback(key, value)
 
     def _add_states_from_dict(cls, states):
@@ -201,7 +201,7 @@ class StateMachineMetaclass(type):
             attr_name = f"_{attr_name}_{uuid4().hex}"
             setattr(cls, attr_name, func)
 
-        for ref in func._callbacks_to_update:
+        for ref in func._specs_to_update:
             ref(attr_name)
 
     def add_state(cls, id, state: State):

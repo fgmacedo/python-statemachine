@@ -20,38 +20,18 @@ class CallbackPriority(IntEnum):
     AFTER = 40
 
 
+class SpecReference(IntEnum):
+    NAME = 1
+    CALLABLE = 2
+    PROPERTY = 3
+
+
 async def allways_true(*args, **kwargs):
     return True
 
 
-class CallbackWrapper:
-    def __init__(
-        self,
-        callback: Callable,
-        condition: Callable,
-        meta: "CallbackMeta",
-        unique_key: str,
-    ) -> None:
-        self._callback = callback
-        self.condition = condition
-        self.meta = meta
-        self.unique_key = unique_key
-
-    def __repr__(self):
-        return f"{type(self).__name__}({self.unique_key})"
-
-    def __str__(self):
-        return str(self.meta)
-
-    def __lt__(self, other):
-        return self.meta.priority < other.meta.priority
-
-    async def __call__(self, *args, **kwargs):
-        return await self._callback(*args, **kwargs)
-
-
-class CallbackMeta:
-    """Description info about actions and guards.
+class CallbackSpec:
+    """Specs about callbacks.
 
     At first, `func` can be a name (string), a property or a callable.
 
@@ -62,19 +42,19 @@ class CallbackMeta:
     def __init__(
         self,
         func,
-        suppress_errors=False,
+        is_convention=False,
         cond=None,
         priority: CallbackPriority = CallbackPriority.NAMING,
         expected_value=None,
     ):
         self.func = func
-        self.suppress_errors = suppress_errors
+        self.is_convention = is_convention
         self.cond = cond
         self.expected_value = expected_value
         self.priority = priority
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.func!r}, suppress_errors={self.suppress_errors!r})"
+        return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"
 
     def __str__(self):
         return getattr(self.func, "__name__", self.func)
@@ -109,7 +89,7 @@ class CallbackMeta:
             )
 
 
-class BoolCallbackMeta(CallbackMeta):
+class BoolCallbackSpec(CallbackSpec):
     """A thin wrapper that register info about actions and guards.
 
     At first, `func` can be a string or a callable, and even if it's already
@@ -122,13 +102,13 @@ class BoolCallbackMeta(CallbackMeta):
     def __init__(
         self,
         func,
-        suppress_errors=False,
+        is_convention=False,
         cond=None,
         priority: CallbackPriority = CallbackPriority.NAMING,
         expected_value=True,
     ):
         super().__init__(
-            func, suppress_errors, cond, priority=priority, expected_value=expected_value
+            func, is_convention, cond, priority=priority, expected_value=expected_value
         )
 
     def __str__(self):
@@ -142,11 +122,11 @@ class BoolCallbackMeta(CallbackMeta):
         return bool_wrapper
 
 
-class CallbackMetaList:
-    """List of `CallbackMeta` instances"""
+class CallbackSpecList:
+    """List of {ref}`CallbackSpec` instances"""
 
-    def __init__(self, factory=CallbackMeta):
-        self.items: List[CallbackMeta] = []
+    def __init__(self, factory=CallbackSpec):
+        self.items: List[CallbackSpec] = []
         self.factory = factory
 
     def __repr__(self):
@@ -178,10 +158,10 @@ class CallbackMetaList:
                 event.
 
         """
-        callback = self._add(func, **kwargs)
-        if not getattr(func, "_callbacks_to_update", None):
-            func._callbacks_to_update = set()
-        func._callbacks_to_update.add(callback._update_func)
+        spec = self._add(func, **kwargs)
+        if not getattr(func, "_specs_to_update", None):
+            func._specs_to_update = set()
+        func._specs_to_update.add(spec._update_func)
         func._is_event = is_event
         func._transitions = transitions
 
@@ -198,13 +178,13 @@ class CallbackMetaList:
         self.items = []
 
     def _add(self, func, **kwargs):
-        meta = self.factory(func, **kwargs)
+        spec = self.factory(func, **kwargs)
 
-        if meta in self.items:
+        if spec in self.items:
             return
 
-        self.items.append(meta)
-        return meta
+        self.items.append(spec)
+        return spec
 
     def add(self, callbacks, **kwargs):
         if callbacks is None:
@@ -215,6 +195,32 @@ class CallbackMetaList:
             self._add(func, **kwargs)
 
         return self
+
+
+class CallbackWrapper:
+    def __init__(
+        self,
+        callback: Callable,
+        condition: Callable,
+        meta: "CallbackSpec",
+        unique_key: str,
+    ) -> None:
+        self._callback = callback
+        self.condition = condition
+        self.meta = meta
+        self.unique_key = unique_key
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.unique_key})"
+
+    def __str__(self):
+        return str(self.meta)
+
+    def __lt__(self, other):
+        return self.meta.priority < other.meta.priority
+
+    async def __call__(self, *args, **kwargs):
+        return await self._callback(*args, **kwargs)
 
 
 class CallbacksExecutor:
@@ -233,15 +239,15 @@ class CallbacksExecutor:
     def __str__(self):
         return ", ".join(str(c) for c in self)
 
-    def _add(self, callback_meta: CallbackMeta, resolver: Callable):
-        for callback in callback_meta.build(resolver):
+    def _add(self, spec: CallbackSpec, resolver: Callable):
+        for callback in spec.build(resolver):
             if callback.unique_key in self.items_already_seen:
                 continue
 
             self.items_already_seen.add(callback.unique_key)
             insort(self.items, callback)
 
-    def add(self, items: CallbackMetaList, resolver: Callable):
+    def add(self, items: CallbackSpecList, resolver: Callable):
         """Validate configurations"""
         for item in items:
             self._add(item, resolver)
@@ -263,23 +269,23 @@ class CallbacksExecutor:
 
 class CallbacksRegistry:
     def __init__(self) -> None:
-        self._registry: Dict[CallbackMetaList, CallbacksExecutor] = defaultdict(CallbacksExecutor)
+        self._registry: Dict[CallbackSpecList, CallbacksExecutor] = defaultdict(CallbacksExecutor)
 
-    def register(self, meta_list: CallbackMetaList, resolver):
-        executor_list = self[meta_list]
-        executor_list.add(meta_list, resolver)
+    def register(self, specs: CallbackSpecList, resolver):
+        executor_list = self[specs]
+        executor_list.add(specs, resolver)
         return executor_list
 
     def clear(self):
         self._registry.clear()
 
-    def __getitem__(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
-        return self._registry[meta_list]
+    def __getitem__(self, specs: CallbackSpecList) -> CallbacksExecutor:
+        return self._registry[specs]
 
-    def check(self, meta_list: CallbackMetaList):
-        executor = self[meta_list]
-        for meta in meta_list:
-            if meta.suppress_errors:
+    def check(self, specs: CallbackSpecList):
+        executor = self[specs]
+        for meta in specs:
+            if meta.is_convention:
                 continue
 
             if any(callback for callback in executor if callback.meta == meta):

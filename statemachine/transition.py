@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
-from .callbacks import BoolCallbackMeta
-from .callbacks import CallbackMetaList
+from .callbacks import BoolCallbackSpec
 from .callbacks import CallbackPriority
+from .callbacks import CallbackSpecList
 from .event import same_event_cond_builder
 from .events import Events
 from .exceptions import InvalidDefinition
@@ -57,12 +57,12 @@ class Transition:
             raise InvalidDefinition("Internal transitions should be self-transitions.")
 
         self._events = Events().add(event)
-        self.validators = CallbackMetaList().add(validators, priority=CallbackPriority.INLINE)
-        self.before = CallbackMetaList().add(before, priority=CallbackPriority.INLINE)
-        self.on = CallbackMetaList().add(on, priority=CallbackPriority.INLINE)
-        self.after = CallbackMetaList().add(after, priority=CallbackPriority.INLINE)
+        self.validators = CallbackSpecList().add(validators, priority=CallbackPriority.INLINE)
+        self.before = CallbackSpecList().add(before, priority=CallbackPriority.INLINE)
+        self.on = CallbackSpecList().add(on, priority=CallbackPriority.INLINE)
+        self.after = CallbackSpecList().add(after, priority=CallbackPriority.INLINE)
         self.cond = (
-            CallbackMetaList(factory=BoolCallbackMeta)
+            CallbackSpecList(factory=BoolCallbackSpec)
             .add(cond, priority=CallbackPriority.INLINE)
             .add(unless, priority=CallbackPriority.INLINE, expected_value=False)
         )
@@ -81,34 +81,34 @@ class Transition:
         on = self.on.add
         after = self.after.add
 
-        before("before_transition", priority=CallbackPriority.GENERIC, suppress_errors=True)
-        on("on_transition", priority=CallbackPriority.GENERIC, suppress_errors=True)
+        before("before_transition", priority=CallbackPriority.GENERIC, is_convention=True)
+        on("on_transition", priority=CallbackPriority.GENERIC, is_convention=True)
 
         for event in self._events:
             same_event_cond = same_event_cond_builder(event)
             before(
                 f"before_{event}",
                 priority=CallbackPriority.NAMING,
-                suppress_errors=True,
+                is_convention=True,
                 cond=same_event_cond,
             )
             on(
                 f"on_{event}",
                 priority=CallbackPriority.NAMING,
-                suppress_errors=True,
+                is_convention=True,
                 cond=same_event_cond,
             )
             after(
                 f"after_{event}",
                 priority=CallbackPriority.NAMING,
-                suppress_errors=True,
+                is_convention=True,
                 cond=same_event_cond,
             )
 
         after(
             "after_transition",
             priority=CallbackPriority.AFTER,
-            suppress_errors=True,
+            is_convention=True,
         )
 
     def _add_observer(self, register):
