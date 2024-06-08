@@ -100,7 +100,7 @@ class EventSearchResult(WrapSearchResult):
         return wrapper
 
 
-def _search_callable_attr_is_property(attr, configs: ObjectConfigs) -> "WrapSearchResult | None":
+def _search_property(attr, configs: ObjectConfigs) -> "WrapSearchResult | None":
     # if the attr is a property, we'll try to find the object that has the
     # property on the configs
     attr_name = attr.fget.__name__
@@ -113,7 +113,7 @@ def _search_callable_attr_is_property(attr, configs: ObjectConfigs) -> "WrapSear
     return None
 
 
-def _search_callable_attr_is_callable(attr, configs: ObjectConfigs) -> WrapSearchResult:
+def _search_callable(attr, configs: ObjectConfigs) -> WrapSearchResult:
     # if the attr is an unbounded method, we'll try to find the bounded method
     # on the configs
     if not hasattr(attr, "__self__"):
@@ -125,38 +125,36 @@ def _search_callable_attr_is_callable(attr, configs: ObjectConfigs) -> WrapSearc
     return CallableSearchResult(attr, attr, None)
 
 
-def _search_callable_in_configs(
-    attr, configs: ObjectConfigs
-) -> Generator[WrapSearchResult, None, None]:
+def _search_name(name, configs: ObjectConfigs) -> Generator[WrapSearchResult, None, None]:
     for obj, all_attrs, resolver_id in configs.items:
-        if attr not in all_attrs:
+        if name not in all_attrs:
             continue
 
-        func = getattr(obj, attr)
+        func = getattr(obj, name)
         if not callable(func):
-            yield AttributeCallableSearchResult(attr, obj, resolver_id)
+            yield AttributeCallableSearchResult(name, obj, resolver_id)
 
         if getattr(func, "_is_sm_event", False):
-            yield EventSearchResult(attr, func, resolver_id)
+            yield EventSearchResult(name, func, resolver_id)
 
-        yield CallableSearchResult(attr, func, resolver_id)
+        yield CallableSearchResult(name, func, resolver_id)
 
 
 def search_callable(attr, configs: ObjectConfigs) -> Generator[WrapSearchResult, None, None]:  # noqa: C901
     if isinstance(attr, property):
-        result = _search_callable_attr_is_property(attr, configs)
+        result = _search_property(attr, configs)
         if result is not None:
             yield result
         return
 
     if callable(attr):
-        yield _search_callable_attr_is_callable(attr, configs)
+        yield _search_callable(attr, configs)
         return
 
     if attr not in configs.all_attrs:
         return
 
-    yield from _search_callable_in_configs(attr, configs)
+    yield from _search_name(attr, configs)
 
 
 def resolver_factory(objects: ObjectConfigs):

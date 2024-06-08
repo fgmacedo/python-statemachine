@@ -51,13 +51,12 @@ class CallbackWrapper:
 
 
 class CallbackMeta:
-    """A thin wrapper that register info about actions and guards.
+    """Description info about actions and guards.
 
-    At first, `func` can be a string or a callable, and even if it's already
-    a callable, his signature can mismatch.
+    At first, `func` can be a name (string), a property or a callable.
 
-    After instantiation, `.setup(resolver)` must be called before any real
-    call is performed, to allow the proper callback resolution.
+    Names, properties and unbounded callables should be resolved to a callable
+    before any real call is performed.
     """
 
     def __init__(
