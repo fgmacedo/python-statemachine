@@ -12,6 +12,7 @@ from .callbacks import CallbackMetaList
 from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
+from .dispatcher import ObjectConfigs
 from .dispatcher import resolver_factory
 from .event import Event
 from .event_data import EventData
@@ -167,9 +168,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _register_callbacks(self):
         self._add_observer(
-            (
-                ObjectConfig.from_obj(self, skip_attrs=self._protected_attrs),
-                ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
+            ObjectConfigs.from_configs(
+                [
+                    ObjectConfig.from_obj(self, skip_attrs=self._protected_attrs),
+                    ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
+                ]
             )
         )
 
@@ -200,7 +203,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
             :ref:`observers`.
         """
         self._observers.update({o: None for o in observers})
-        return self._add_observer(tuple(ObjectConfig.from_obj(o) for o in observers))
+        return self._add_observer(
+            ObjectConfigs.from_configs(ObjectConfig.from_obj(o) for o in observers)
+        )
 
     def _repr_html_(self):
         return f'<div class="statemachine">{self._repr_svg_()}</div>'
