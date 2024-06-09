@@ -13,7 +13,6 @@ from .callbacks import CallbackSpecList
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
 from .dispatcher import ObjectConfigs
-from .dispatcher import resolver_factory
 from .event import Event
 from .event_data import EventData
 from .event_data import TriggerData
@@ -186,7 +185,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 ) from err
 
     def _add_observer(self, observers):
-        register = partial(self._callbacks_registry.register, resolver=resolver_factory(observers))
+        register = partial(self._callbacks_registry.register, resolver=observers)
         for visited in iterate_states_and_transitions(self.states):
             visited._add_observer(register)
 

@@ -1,20 +1,31 @@
-from collections import namedtuple
+from dataclasses import dataclass
 from operator import attrgetter
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Generator
 from typing import Iterable
+from typing import Set
 from typing import Tuple
 
 from .signature import SignatureAdapter
 
+if TYPE_CHECKING:
+    from .callbacks import CallbacksExecutor
+    from .callbacks import CallbackSpecList
 
-class ObjectConfig(namedtuple("ObjectConfig", "obj all_attrs resolver_id")):
+
+@dataclass
+class ObjectConfig:
     """Configuration for objects passed to resolver_factory.
 
     Args:
         obj: Any object that will serve as lookup for attributes.
         skip_attrs: Protected attrs that will be ignored on the search.
     """
+
+    obj: object
+    all_attrs: Set[str]
+    resolver_id: str
 
     @classmethod
     def from_obj(cls, obj, skip_attrs=None) -> "ObjectConfig":
@@ -27,8 +38,12 @@ class ObjectConfig(namedtuple("ObjectConfig", "obj all_attrs resolver_id")):
             return cls(obj, all_attrs, str(id(obj)))
 
 
-class ObjectConfigs(namedtuple("ObjectConfigs", "items all_attrs")):
+@dataclass
+class ObjectConfigs:
     """Configuration for objects passed to resolver_factory."""
+
+    items: Tuple[ObjectConfig, ...]
+    all_attrs: Set[str]
 
     @classmethod
     def from_configs(cls, configs: Iterable["ObjectConfig"]) -> "ObjectConfigs":
@@ -37,6 +52,12 @@ class ObjectConfigs(namedtuple("ObjectConfigs", "items all_attrs")):
         for config in configs:
             all_attrs.update(config.all_attrs)
         return cls(configs, all_attrs)
+
+    def resolve(self, specs: "CallbackSpecList", callbacks: "CallbacksExecutor"):
+        callbacks.add(specs, self)
+
+    def __call__(self, attr) -> Generator["WrapSearchResult", None, None]:
+        yield from search_callable(attr, self)
 
 
 class WrapSearchResult:
@@ -106,10 +127,10 @@ def _search_property(attr, configs: ObjectConfigs) -> "WrapSearchResult | None":
     attr_name = attr.fget.__name__
     if attr_name not in configs.all_attrs:
         return None
-    for obj, _all_attrs, resolver_id in configs.items:
-        func = getattr(type(obj), attr_name, None)
+    for config in configs.items:
+        func = getattr(type(config.obj), attr_name, None)
         if func is not None and func is attr:
-            return AttributeCallableSearchResult(attr_name, obj, resolver_id)
+            return AttributeCallableSearchResult(attr_name, config.obj, config.resolver_id)
     return None
 
 
@@ -117,27 +138,27 @@ def _search_callable(attr, configs: ObjectConfigs) -> WrapSearchResult:
     # if the attr is an unbounded method, we'll try to find the bounded method
     # on the configs
     if not hasattr(attr, "__self__"):
-        for obj, _all_attrs, resolver_id in configs.items:
-            func = getattr(obj, attr.__name__, None)
+        for config in configs.items:
+            func = getattr(config.obj, attr.__name__, None)
             if func is not None and func.__func__ is attr:
-                return CallableSearchResult(attr.__name__, func, resolver_id)
+                return CallableSearchResult(attr.__name__, func, config.resolver_id)
 
     return CallableSearchResult(attr, attr, None)
 
 
 def _search_name(name, configs: ObjectConfigs) -> Generator[WrapSearchResult, None, None]:
-    for obj, all_attrs, resolver_id in configs.items:
-        if name not in all_attrs:
+    for config in configs.items:
+        if name not in config.all_attrs:
             continue
 
-        func = getattr(obj, name)
+        func = getattr(config.obj, name)
         if not callable(func):
-            yield AttributeCallableSearchResult(name, obj, resolver_id)
+            yield AttributeCallableSearchResult(name, config.obj, config.resolver_id)
 
         if getattr(func, "_is_sm_event", False):
-            yield EventSearchResult(name, func, resolver_id)
+            yield EventSearchResult(name, func, config.resolver_id)
 
-        yield CallableSearchResult(name, func, resolver_id)
+        yield CallableSearchResult(name, func, config.resolver_id)
 
 
 def search_callable(attr, configs: ObjectConfigs) -> Generator[WrapSearchResult, None, None]:  # noqa: C901
@@ -157,15 +178,5 @@ def search_callable(attr, configs: ObjectConfigs) -> Generator[WrapSearchResult,
     yield from _search_name(attr, configs)
 
 
-def resolver_factory(objects: ObjectConfigs):
-    """Factory that returns a configured resolver."""
-
-    def resolver(attr) -> Generator[WrapSearchResult, None, None]:
-        yield from search_callable(attr, objects)
-
-    return resolver
-
-
 def resolver_factory_from_objects(*objects: Tuple[Any, ...]):
-    configs: ObjectConfigs = ObjectConfigs.from_configs(ObjectConfig.from_obj(o) for o in objects)
-    return resolver_factory(configs)
+    return ObjectConfigs.from_configs(ObjectConfig.from_obj(o) for o in objects)

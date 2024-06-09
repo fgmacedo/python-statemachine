@@ -273,7 +273,7 @@ class CallbacksRegistry:
 
     def register(self, specs: CallbackSpecList, resolver):
         executor_list = self[specs]
-        executor_list.add(specs, resolver)
+        resolver.resolve(specs, executor_list)
         return executor_list
 
     def clear(self):
