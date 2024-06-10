@@ -9,6 +9,7 @@
 * [Guilherme Nepomuceno](mailto:piercio@loggi.com)
 * [Rafael Rêgo](mailto:crafards@gmail.com)
 * [Raphael Schrader](mailto:raphael@schradercloud.de)
+* [João S. O. Bueno](mailto:gwidion@gmail.com)
 
 
 ## Scaffolding
