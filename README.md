@@ -17,7 +17,7 @@ Python [finite-state machines](https://en.wikipedia.org/wiki/Finite-state_machin
 </div>
 
 Welcome to python-statemachine, an intuitive and powerful state machine library designed for a
-great developer experience. We provide an _pythonic_ and expressive API for implementing state
+great developer experience. We provide a _pythonic_ and expressive API for implementing state
 machines in sync or asynchonous Python codebases.
 
 ## Features
