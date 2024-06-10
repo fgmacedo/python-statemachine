@@ -71,7 +71,7 @@ def test_deepcopy_with_observers(caplog):
 
     assert sm1.model is not sm2.model
 
-    caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.DEBUG, logger="tests")
 
     def assertions(sm, _reference):
         caplog.clear()
