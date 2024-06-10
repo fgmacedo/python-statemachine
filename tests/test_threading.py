@@ -34,9 +34,9 @@ def test_regression_443():
     """
     Test for https://github.com/fgmacedo/python-statemachine/issues/443
     """
-    time_to_collect = 0.2
+    time_collecting = 0.2
     time_to_send = 0.125
-    time_to_collect_step = 0.05
+    time_sampling_current_state = 0.05
 
     class TrafficLightMachine(StateMachine):
         "A traffic light machine"
@@ -49,6 +49,7 @@ def test_regression_443():
 
     class Controller:
         def __init__(self):
+            self.statuses_history = []
             self.fsm = TrafficLightMachine()
             # set up thread
             t = threading.Thread(target=self.recv_cmds)
@@ -56,16 +57,71 @@ def test_regression_443():
 
         def recv_cmds(self):
             """Pretend we receive a command triggering a state change after Xs."""
-            time.sleep(time_to_send)
-            self.fsm.cycle()
+            waiting_time = 0
+            sent = False
+            while waiting_time < time_collecting:
+                if waiting_time >= time_to_send and not sent:
+                    self.fsm.cycle()
+                    sent = True
 
-        def collect_statuses(self):
-            wait = time_to_collect
-            while wait > 0:
-                yield self.fsm.current_state.id
-                time.sleep(time_to_collect_step)
-                wait -= time_to_collect_step
+                waiting_time += time_sampling_current_state
+                self.statuses_history.append(self.fsm.current_state.id)
+                time.sleep(time_sampling_current_state)
 
-    c = Controller()
-    statuses = list(c.collect_statuses())
-    assert statuses == ["green", "green", "green", "yellow", "yellow"]
+    c1 = Controller()
+    c2 = Controller()
+    time.sleep(time_collecting + 0.01)
+    assert c1.statuses_history == ["green", "green", "green", "yellow"]
+    assert c2.statuses_history == ["green", "green", "green", "yellow"]
+
+
+def test_regression_443_with_modifications():
+    """
+    Test for https://github.com/fgmacedo/python-statemachine/issues/443
+    """
+    time_collecting = 0.2
+    time_to_send = 0.125
+    time_sampling_current_state = 0.05
+
+    class TrafficLightMachine(StateMachine):
+        "A traffic light machine"
+
+        green = State(initial=True)
+        yellow = State()
+        red = State()
+
+        cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+        def __init__(self, name):
+            self.name = name
+            self.statuses_history = []
+            super().__init__()
+
+        def beat(self):
+            waiting_time = 0
+            sent = False
+            while waiting_time < time_collecting:
+                if waiting_time >= time_to_send and not sent:
+                    self.cycle()
+                    sent = True
+
+                self.statuses_history.append(f"{self.name}.{self.current_state.id}")
+
+                time.sleep(time_sampling_current_state)
+                waiting_time += time_sampling_current_state
+
+    class Controller:
+        def __init__(self, name):
+            self.fsm = TrafficLightMachine(name)
+            # set up thread
+            t = threading.Thread(target=self.fsm.beat)
+            t.start()
+
+    c1 = Controller("c1")
+    c2 = Controller("c2")
+    c3 = Controller("c3")
+    time.sleep(time_collecting + 0.01)
+
+    assert c1.fsm.statuses_history == ["c1.green", "c1.green", "c1.green", "c1.yellow"]
+    assert c2.fsm.statuses_history == ["c2.green", "c2.green", "c2.green", "c2.yellow"]
+    assert c3.fsm.statuses_history == ["c3.green", "c3.green", "c3.green", "c3.yellow"]
