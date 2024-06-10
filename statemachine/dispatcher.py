@@ -7,10 +7,13 @@ from typing import Iterable
 from typing import Set
 from typing import Tuple
 
+from statemachine.callbacks import SpecReference
+
 from .signature import SignatureAdapter
 
 if TYPE_CHECKING:
     from .callbacks import CallbacksExecutor
+    from .callbacks import CallbackSpec
     from .callbacks import CallbackSpecList
 
 
@@ -47,17 +50,75 @@ class ObjectConfigs:
 
     @classmethod
     def from_configs(cls, configs: Iterable["ObjectConfig"]) -> "ObjectConfigs":
-        all_attrs = set()
         configs = tuple(configs)
-        for config in configs:
-            all_attrs.update(config.all_attrs)
+        all_attrs = set().union(*(config.all_attrs for config in configs))
         return cls(configs, all_attrs)
 
     def resolve(self, specs: "CallbackSpecList", callbacks: "CallbacksExecutor"):
-        callbacks.add(specs, self)
+        convention_specs = {spec.func for spec in specs if spec.is_convention}
+        found_convention_specs = convention_specs & self.all_attrs
+        filtered_specs = [
+            spec for spec in specs if not spec.is_convention or spec.func in found_convention_specs
+        ]
+        if not filtered_specs:
+            return
+
+        callbacks.add(filtered_specs, self)
 
     def __call__(self, attr) -> Generator["WrapSearchResult", None, None]:
         yield from search_callable(attr, self)
+
+    def search(self, spec: "CallbackSpec") -> Generator["WrapSearchResult", None, None]:
+        if spec.reference is SpecReference.NAME:
+            yield from self._search_name(spec.func)
+            return
+        elif spec.reference is SpecReference.CALLABLE:
+            yield self._search_callable(spec)
+            return
+        elif spec.reference is SpecReference.PROPERTY:
+            result = self._search_property(spec)
+            if result is not None:
+                yield result
+            return
+        else:
+            raise ValueError(f"Invalid reference {spec.reference}")
+
+    def _search_property(self, spec) -> "WrapSearchResult | None":
+        # if the attr is a property, we'll try to find the object that has the
+        # property on the configs
+        attr_name = spec.attr_name
+        if attr_name not in self.all_attrs:
+            return None
+        for config in self.items:
+            func = getattr(type(config.obj), attr_name, None)
+            if func is not None and func is spec.func:
+                return AttributeCallableSearchResult(attr_name, config.obj, config.resolver_id)
+        return None
+
+    def _search_callable(self, spec) -> "WrapSearchResult":
+        # if the attr is an unbounded method, we'll try to find the bounded method
+        # on the self
+        if not spec.is_bounded:
+            for config in self.items:
+                func = getattr(config.obj, spec.attr_name, None)
+                if func is not None and func.__func__ is spec.func:
+                    return CallableSearchResult(spec.attr_name, func, config.resolver_id)
+
+        return CallableSearchResult(spec.func, spec.func, None)
+
+    def _search_name(self, name) -> Generator["WrapSearchResult", None, None]:
+        for config in self.items:
+            if name not in config.all_attrs:
+                continue
+
+            func = getattr(config.obj, name)
+            if not callable(func):
+                yield AttributeCallableSearchResult(name, config.obj, config.resolver_id)
+
+            if getattr(func, "_is_sm_event", False):
+                yield EventSearchResult(name, func, config.resolver_id)
+
+            yield CallableSearchResult(name, func, config.resolver_id)
 
 
 class WrapSearchResult:

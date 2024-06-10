@@ -5,6 +5,7 @@ from enum import IntEnum
 from typing import Callable
 from typing import Dict
 from typing import Generator
+from typing import Iterable
 from typing import List
 
 from .exceptions import AttrNotFound
@@ -53,6 +54,17 @@ class CallbackSpec:
         self.expected_value = expected_value
         self.priority = priority
 
+        if isinstance(func, property):
+            self.reference = SpecReference.PROPERTY
+            self.attr_name: str = func and func.fget and func.fget.__name__ or ""
+        elif callable(func):
+            self.reference = SpecReference.CALLABLE
+            self.is_bounded = hasattr(func, "__self__")
+            self.attr_name = func.__name__
+        else:
+            self.reference = SpecReference.NAME
+            self.attr_name = func
+
     def __repr__(self):
         return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"
 
@@ -65,8 +77,10 @@ class CallbackSpec:
     def __hash__(self):
         return id(self)
 
-    def _update_func(self, func):
+    def _update_func(self, func: str):
         self.func = func
+        self.reference = SpecReference.NAME
+        self.attr_name = func
 
     def _wrap_callable(self, func, _expected_value):
         return func
@@ -79,8 +93,12 @@ class CallbackSpec:
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
-        for callback in resolver(self.func):
-            condition = next(resolver(self.cond)) if self.cond is not None else allways_true
+        for callback in resolver.search(self):
+            condition = (
+                next(resolver.search(CallbackSpec(self.cond)))
+                if self.cond is not None
+                else allways_true
+            )
             yield CallbackWrapper(
                 callback=self._wrap_callable(callback, self.expected_value),
                 condition=condition,
@@ -174,6 +192,9 @@ class CallbackSpecList:
     def __iter__(self):
         return iter(self.items)
 
+    def __len__(self):
+        return len(self.items)
+
     def clear(self):
         self.items = []
 
@@ -247,7 +268,7 @@ class CallbacksExecutor:
             self.items_already_seen.add(callback.unique_key)
             insort(self.items, callback)
 
-    def add(self, items: CallbackSpecList, resolver: Callable):
+    def add(self, items: Iterable[CallbackSpec], resolver: Callable):
         """Validate configurations"""
         for item in items:
             self._add(item, resolver)
