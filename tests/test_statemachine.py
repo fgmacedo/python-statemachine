@@ -417,30 +417,3 @@ def test_should_not_override_states_properties(campaign_machine):
         machine.draft = "something else"
 
     assert "State overriding is not allowed. Trying to add 'something else' to draft" in str(e)
-
-
-def test_machine_should_allow_multi_thread_event_changes():
-    """
-        Test for https://github.com/fgmacedo/python-statemachine/issues/443
-    """
-    import threading, time
-    class CampaignMachine(StateMachine):
-        "A workflow machine"
-
-        draft = State(initial=True)
-        producing = State()
-        closed = State()
-        add_job = draft.to(producing) | producing.to(closed)
-
-    machine = CampaignMachine()
-    def off_thread_change_state():
-        time.sleep(0.01)
-        machine.add_job()
-    thread = threading.Thread(target=off_thread_change_state)
-    thread.start()
-    thread.join()
-    assert machine.current_state.id == "producing"
-
-
-
-

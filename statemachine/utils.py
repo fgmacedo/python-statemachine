@@ -1,5 +1,7 @@
 import asyncio
 
+_cached_loop = None
+
 
 def qualname(cls):
     """
@@ -25,9 +27,11 @@ def run_async_from_sync(coroutine):
     """
     Run an async coroutine from a synchronous context.
     """
+    global _cached_loop
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
         return asyncio.ensure_future(coroutine)
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        return loop.run_until_complete(coroutine)
+        if _cached_loop is None:
+            _cached_loop = asyncio.new_event_loop()
+        return _cached_loop.run_until_complete(coroutine)
