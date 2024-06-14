@@ -1,13 +1,24 @@
-from collections import namedtuple
+from dataclasses import dataclass
 from operator import attrgetter
+from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
 from typing import Generator
+from typing import Iterable
+from typing import Set
 from typing import Tuple
+
+from statemachine.callbacks import SpecReference
 
 from .signature import SignatureAdapter
 
+if TYPE_CHECKING:
+    from .callbacks import CallbackSpec
+    from .callbacks import CallbackSpecList
 
-class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs resolver_id")):
+
+@dataclass
+class ObjectConfig:
     """Configuration for objects passed to resolver_factory.
 
     Args:
@@ -15,145 +26,133 @@ class ObjectConfig(namedtuple("ObjectConfig", "obj skip_attrs resolver_id")):
         skip_attrs: Protected attrs that will be ignored on the search.
     """
 
+    obj: object
+    all_attrs: Set[str]
+    resolver_id: str
+
     @classmethod
     def from_obj(cls, obj, skip_attrs=None) -> "ObjectConfig":
         if isinstance(obj, ObjectConfig):
             return obj
         else:
-            return cls(obj, skip_attrs or set(), str(id(obj)))
+            if skip_attrs is None:
+                skip_attrs = set()
+            all_attrs = set(dir(obj)) - skip_attrs
+            return cls(obj, all_attrs, str(id(obj)))
 
 
-class WrapSearchResult:
-    def __init__(self, attribute, resolver_id) -> None:
-        self.attribute = attribute
-        self.resolver_id = resolver_id
-        self._cache = None
-        self.unique_key = f"{attribute}@{resolver_id}"
+@dataclass
+class ObjectConfigs:
+    """Configuration for objects passed to resolver_factory."""
 
-    def __repr__(self):
-        return f"{type(self).__name__}({self.unique_key})"
+    items: Tuple[ObjectConfig, ...]
+    all_attrs: Set[str]
 
-    def wrap(self):  # pragma: no cover
-        pass
+    @classmethod
+    def from_configs(cls, configs: Iterable["ObjectConfig"]) -> "ObjectConfigs":
+        configs = tuple(configs)
+        all_attrs = set().union(*(config.all_attrs for config in configs))
+        return cls(configs, all_attrs)
 
-    async def __call__(self, *args: Any, **kwds: Any) -> Any:
-        if self._cache is None:
-            self._cache = self.wrap()
-        assert self._cache
-        return await self._cache(*args, **kwds)
+    def resolve(self, specs: "CallbackSpecList", registry):
+        found_convention_specs = specs.conventional_specs & self.all_attrs
+        filtered_specs = [
+            spec for spec in specs if not spec.is_convention or spec.func in found_convention_specs
+        ]
+        if not filtered_specs:
+            return
 
+        for spec in filtered_specs:
+            registry[spec.group.build_key(specs)]._add(spec, self)
 
-class CallableSearchResult(WrapSearchResult):
-    def __init__(self, attribute, a_callable, resolver_id) -> None:
-        self.a_callable = a_callable
-        super().__init__(attribute, resolver_id)
+    def search(self, spec: "CallbackSpec") -> Generator["Callable", None, None]:
+        if spec.reference is SpecReference.NAME:
+            yield from self._search_name(spec.func)
+            return
+        elif spec.reference is SpecReference.CALLABLE:
+            yield self._search_callable(spec)
+            return
+        elif spec.reference is SpecReference.PROPERTY:
+            result = self._search_property(spec)
+            if result is not None:
+                yield result
+            return
+        else:  # never reached here from tests but put an exception for safety. pragma: no cover
+            raise ValueError(f"Invalid reference {spec.reference}")
 
-    def wrap(self):
-        return SignatureAdapter.wrap(self.a_callable)
+    def _search_property(self, spec) -> "Callable | None":
+        # if the attr is a property, we'll try to find the object that has the
+        # property on the configs
+        attr_name = spec.attr_name
+        if attr_name not in self.all_attrs:
+            return None
+        for config in self.items:
+            func = getattr(type(config.obj), attr_name, None)
+            if func is not None and func is spec.func:
+                return attr_method(attr_name, config.obj, config.resolver_id)
+        return None
 
+    def _search_callable(self, spec) -> "Callable":
+        # if the attr is an unbounded method, we'll try to find the bounded method
+        # on the self
+        if not spec.is_bounded:
+            for config in self.items:
+                func = getattr(config.obj, spec.attr_name, None)
+                if func is not None and func.__func__ is spec.func:
+                    return callable_method(spec.attr_name, func, config.resolver_id)
 
-class AttributeCallableSearchResult(WrapSearchResult):
-    def __init__(self, attribute, obj, resolver_id) -> None:
-        self.obj = obj
-        super().__init__(attribute, resolver_id)
+        return callable_method(spec.func, spec.func, None)
 
-    def wrap(self):
-        # if `attr` is not callable, then it's an attribute or property,
-        # so `func` contains it's current value.
-        # we'll build a method that get's the fresh value for each call
-        getter = attrgetter(self.attribute)
+    def _search_name(self, name) -> Generator["Callable", None, None]:
+        for config in self.items:
+            if name not in config.all_attrs:
+                continue
 
-        async def wrapper(*args, **kwargs):
-            return getter(self.obj)
+            func = getattr(config.obj, name)
+            if not callable(func):
+                yield attr_method(name, config.obj, config.resolver_id)
+                continue
 
-        return wrapper
+            if getattr(func, "_is_sm_event", False):
+                yield event_method(name, func, config.resolver_id)
+                continue
 
-
-class EventSearchResult(WrapSearchResult):
-    def __init__(self, attribute, func, resolver_id) -> None:
-        self.func = func
-        super().__init__(attribute, resolver_id)
-
-    def wrap(self):
-        "Events already have the 'machine' parameter defined."
-
-        async def wrapper(*args, **kwargs):
-            kwargs.pop("machine", None)
-            return await self.func(*args, **kwargs)
-
-        return wrapper
-
-
-def _search_callable_attr_is_property(
-    attr, configs: Tuple[ObjectConfig, ...]
-) -> "WrapSearchResult | None":
-    # if the attr is a property, we'll try to find the object that has the
-    # property on the configs
-    attr_name = attr.fget.__name__
-    for obj, _skip_attrs, resolver_id in configs:
-        func = getattr(type(obj), attr_name, None)
-        if func is not None and func is attr:
-            return AttributeCallableSearchResult(attr_name, obj, resolver_id)
-    return None
-
-
-def _search_callable_attr_is_callable(attr, configs: Tuple[ObjectConfig, ...]) -> WrapSearchResult:
-    # if the attr is an unbounded method, we'll try to find the bounded method
-    # on the configs
-    if not hasattr(attr, "__self__"):
-        for obj, _skip_attrs, resolver_id in configs:
-            func = getattr(obj, attr.__name__, None)
-            if func is not None and func.__func__ is attr:
-                return CallableSearchResult(attr.__name__, func, resolver_id)
-
-    return CallableSearchResult(attr, attr, None)
+            yield callable_method(name, func, config.resolver_id)
 
 
-def _search_callable_in_configs(
-    attr, configs: Tuple[ObjectConfig, ...]
-) -> Generator[WrapSearchResult, None, None]:
-    for obj, skip_attrs, resolver_id in configs:
-        if attr in skip_attrs:
-            continue
+def callable_method(attribute, a_callable, resolver_id) -> Callable:
+    cache = None
 
-        if not hasattr(obj, attr):
-            continue
+    def method(*args: Any, **kwds: Any) -> Any:
+        nonlocal cache
+        if cache is None:
+            cache = SignatureAdapter.wrap(a_callable)
+        return cache(*args, **kwds)
 
-        func = getattr(obj, attr)
-        if not callable(func):
-            yield AttributeCallableSearchResult(attr, obj, resolver_id)
-
-        if getattr(func, "_is_sm_event", False):
-            yield EventSearchResult(attr, func, resolver_id)
-
-        yield CallableSearchResult(attr, func, resolver_id)
+    method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
+    method.__name__ = a_callable.__name__
+    method.__doc__ = a_callable.__doc__
+    return method
 
 
-def search_callable(
-    attr, configs: Tuple[ObjectConfig, ...]
-) -> Generator[WrapSearchResult, None, None]:  # noqa: C901
-    if isinstance(attr, property):
-        result = _search_callable_attr_is_property(attr, configs)
-        if result is not None:
-            yield result
-        return
+def attr_method(attribute, obj, resolver_id) -> Callable:
+    getter = attrgetter(attribute)
 
-    if callable(attr):
-        yield _search_callable_attr_is_callable(attr, configs)
-        return
+    async def method(*args, **kwargs):
+        return getter(obj)
 
-    yield from _search_callable_in_configs(attr, configs)
+    method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
+    return method
 
 
-def resolver_factory(objects: Tuple[ObjectConfig, ...]):
-    """Factory that returns a configured resolver."""
+def event_method(attribute, func, resolver_id) -> Callable:
+    async def method(*args, **kwargs):
+        kwargs.pop("machine", None)
+        return await func(*args, **kwargs)
 
-    def resolver(attr) -> Generator[WrapSearchResult, None, None]:
-        yield from search_callable(attr, objects)
-
-    return resolver
+    method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
+    return method
 
 
 def resolver_factory_from_objects(*objects: Tuple[Any, ...]):
-    configs: Tuple[ObjectConfig, ...] = tuple(ObjectConfig.from_obj(o) for o in objects)
-    return resolver_factory(configs)
+    return ObjectConfigs.from_configs(ObjectConfig.from_obj(o) for o in objects)

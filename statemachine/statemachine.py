@@ -8,11 +8,10 @@ from typing import Dict
 from statemachine.graph import iterate_states_and_transitions
 from statemachine.utils import run_async_from_sync
 
-from .callbacks import CallbackMetaList
 from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
-from .dispatcher import resolver_factory
+from .dispatcher import ObjectConfigs
 from .event import Event
 from .event_data import EventData
 from .event_data import TriggerData
@@ -149,9 +148,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
             initial_transition = Transition(None, self._get_initial_state(), event="__initial__")
-            initial_transition.before.clear()
-            initial_transition.on.clear()
-            initial_transition.after.clear()
+            initial_transition._specs.clear()
 
             event_data = EventData(
                 trigger_data=TriggerData(
@@ -167,9 +164,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _register_callbacks(self):
         self._add_observer(
-            (
-                ObjectConfig.from_obj(self, skip_attrs=self._protected_attrs),
-                ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
+            ObjectConfigs.from_configs(
+                [
+                    ObjectConfig.from_obj(self, skip_attrs=self._protected_attrs),
+                    ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
+                ]
             )
         )
 
@@ -183,7 +182,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 ) from err
 
     def _add_observer(self, observers):
-        register = partial(self._callbacks_registry.register, resolver=resolver_factory(observers))
+        register = partial(observers.resolve, registry=self._callbacks_registry)
         for visited in iterate_states_and_transitions(self.states):
             visited._add_observer(register)
 
@@ -200,7 +199,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
             :ref:`observers`.
         """
         self._observers.update({o: None for o in observers})
-        return self._add_observer(tuple(ObjectConfig.from_obj(o) for o in observers))
+        return self._add_observer(
+            ObjectConfigs.from_configs(ObjectConfig.from_obj(o) for o in observers)
+        )
 
     def _repr_html_(self):
         return f'<div class="statemachine">{self._repr_svg_()}</div>'
@@ -331,13 +332,15 @@ class StateMachine(metaclass=StateMachineMetaclass):
         source = event_data.state
         target = transition.target
 
-        result = await self._callbacks(transition.before).call(
+        result = await self._get_callbacks(transition.before.key).call(
             *event_data.args, **event_data.extended_kwargs
         )
         if source is not None and not transition.internal:
-            await self._callbacks(source.exit).call(*event_data.args, **event_data.extended_kwargs)
+            await self._get_callbacks(source.exit.key).call(
+                *event_data.args, **event_data.extended_kwargs
+            )
 
-        result += await self._callbacks(transition.on).call(
+        result += await self._get_callbacks(transition.on.key).call(
             *event_data.args, **event_data.extended_kwargs
         )
 
@@ -345,10 +348,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_data.state = target
 
         if not transition.internal:
-            await self._callbacks(target.enter).call(
+            await self._get_callbacks(target.enter.key).call(
                 *event_data.args, **event_data.extended_kwargs
             )
-        await self._callbacks(transition.after).call(
+        await self._get_callbacks(transition.after.key).call(
             *event_data.args, **event_data.extended_kwargs
         )
 
@@ -383,5 +386,5 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_instance: Event = Event(event)
         return await event_instance.trigger(self, *args, **kwargs)
 
-    def _callbacks(self, meta_list: CallbackMetaList) -> CallbacksExecutor:
-        return self._callbacks_registry[meta_list]
+    def _get_callbacks(self, key) -> CallbacksExecutor:
+        return self._callbacks_registry[key]

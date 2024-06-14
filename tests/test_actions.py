@@ -1,4 +1,5 @@
-from statemachine.callbacks import CallbackMeta
+from statemachine.callbacks import CallbackGroup
+from statemachine.callbacks import CallbackSpec
 
 
 class TestActions:
@@ -12,10 +13,10 @@ class TestActions:
     def test_should_should_compute_callbacks_meta_list(self, campaign_machine):
         sm = campaign_machine()
         assert list(sm.draft.enter) == [
-            CallbackMeta("on_enter_state", suppress_errors=True),
-            CallbackMeta("on_enter_draft", suppress_errors=True),
+            CallbackSpec("on_enter_state", CallbackGroup.ENTER, is_convention=True),
+            CallbackSpec("on_enter_draft", CallbackGroup.ENTER, is_convention=True),
         ]
         assert list(sm.draft.exit) == [
-            CallbackMeta("on_exit_state", suppress_errors=True),
-            CallbackMeta("on_exit_draft", suppress_errors=True),
+            CallbackSpec("on_exit_state", CallbackGroup.EXIT, is_convention=True),
+            CallbackSpec("on_exit_draft", CallbackGroup.EXIT, is_convention=True),
         ]

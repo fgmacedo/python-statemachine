@@ -10,6 +10,21 @@ Just to be sure, we've added a lot of variations.
 >>> from statemachine import State
 >>> from statemachine import StateMachine
 
+>>> class Model:
+...     def __init__(self, counter: int = 0):
+...         self.state = None
+...         self.counter = counter
+...
+...     def can_be_started_on_model(self) -> bool:
+...         return self.counter > 0
+...
+...     @property
+...     def can_be_started_as_property_on_model(self) -> bool:
+...         return self.counter > 1
+...
+...     @property
+...     def can_be_started_as_property_str_on_model(self) -> bool:
+...         return self.counter > 2
 
 >>> class ExampleStateMachine(StateMachine):
 ...     created = State(initial=True)
@@ -28,19 +43,24 @@ Just to be sure, we've added a lot of variations.
 ...
 ...     start = created.to(
 ...          started,
-...          cond=[can_be_started, can_be_started_as_property, "can_be_started_as_property_str"]
+...          cond=[
+...              can_be_started, can_be_started_as_property, "can_be_started_as_property_str",
+...              Model.can_be_started_on_model, Model.can_be_started_as_property_on_model,
+...              "can_be_started_as_property_str_on_model"
+...          ]
 ...     )
 ...
-...     def __init__(self, counter: bool = False):
+...     def __init__(self, model=None, counter: int = 0):
 ...         self.counter = counter
-...         super().__init__()
+...         super().__init__(model=model)
 ...
 ...     def on_start(self):
 ...         print("started")
 ...
 
 >>> def test_machine(counter):
-...     sm = ExampleStateMachine(counter)
+...     model = Model(counter)
+...     sm = ExampleStateMachine(model, counter)
 ...     sm.start()
 
 ```

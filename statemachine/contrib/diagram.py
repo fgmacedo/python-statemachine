@@ -69,12 +69,15 @@ class DotGraphMachine:
     def _actions_getter(self):
         if isinstance(self.machine, StateMachine):
 
-            def getter(x):
-                return self.machine._callbacks(x)
+            def getter(grouper):
+                return self.machine._get_callbacks(grouper.key)
         else:
 
-            def getter(x):
-                return x
+            def getter(grouper):
+                all_names = set(dir(self.machine))
+                return ", ".join(
+                    str(c) for c in grouper if not c.is_convention or c.func in all_names
+                )
 
         return getter
 
