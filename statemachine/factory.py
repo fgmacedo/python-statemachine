@@ -202,7 +202,7 @@ class StateMachineMetaclass(type):
             setattr(cls, attr_name, func)
 
         for ref in func._specs_to_update:
-            ref(attr_name)
+            ref(getattr(cls, attr_name), attr_name)
 
     def add_state(cls, id, state: State):
         state._set_id(id)

@@ -94,10 +94,10 @@ class CallbackSpec:
     def __hash__(self):
         return id(self)
 
-    def _update_func(self, func: str):
+    def _update_func(self, func: Callable, attr_name: str):
         self.func = func
-        self.reference = SpecReference.NAME
-        self.attr_name = func
+        self.reference = SpecReference.CALLABLE
+        self.attr_name = attr_name
 
     def _wrap_callable(self, func, _expected_value):
         return func
@@ -230,7 +230,8 @@ class CallbackSpecList:
         spec = self._add(func, **kwargs)
         if not getattr(func, "_specs_to_update", None):
             func._specs_to_update = set()
-        func._specs_to_update.add(spec._update_func)
+        if is_event:
+            func._specs_to_update.add(spec._update_func)
         func._is_event = is_event
         func._transitions = transitions
 
