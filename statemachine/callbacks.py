@@ -187,9 +187,6 @@ class SpecListGrouper:
     def __iter__(self):
         return (item for item in self.list if item.group == self.group)
 
-    def __str__(self):
-        return ", ".join(str(c) for c in self)
-
 
 class CallbackSpecList:
     """List of {ref}`CallbackSpec` instances"""
@@ -201,9 +198,6 @@ class CallbackSpecList:
 
     def __repr__(self):
         return f"{type(self).__name__}({self.items!r}, factory={self.factory!r})"
-
-    def __str__(self):
-        return ", ".join(str(c) for c in self)
 
     def _add_unbounded_callback(self, func, is_event=False, transitions=None, **kwargs):
         """This list was a target for adding a func using decorator
@@ -233,7 +227,6 @@ class CallbackSpecList:
             func._specs_to_update = set()
         if is_event:
             func._specs_to_update.add(spec._update_func)
-        func._is_event = is_event
         func._transitions = transitions
 
         return func

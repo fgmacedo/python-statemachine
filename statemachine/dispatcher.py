@@ -77,7 +77,7 @@ class ObjectConfigs:
             if result is not None:
                 yield result
             return
-        else:
+        else:  # never reached here from tests but put an exception for safety. pragma: no cover
             raise ValueError(f"Invalid reference {spec.reference}")
 
     def _search_property(self, spec) -> "Callable | None":

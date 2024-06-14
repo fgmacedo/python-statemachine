@@ -5,6 +5,9 @@ from statemachine.callbacks import CallbackSpec
 from statemachine.dispatcher import ObjectConfig
 from statemachine.dispatcher import ObjectConfigs
 from statemachine.dispatcher import resolver_factory_from_objects
+from statemachine.exceptions import InvalidDefinition
+from statemachine.state import State
+from statemachine.statemachine import StateMachine
 
 
 class Person:
@@ -130,3 +133,23 @@ class TestResolverFactory:
         resolver = resolver_factory_from_objects(org_config, person)
         resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
         assert await resolved_method() == expected_value
+
+
+class TestSearchProperty:
+    def test_not_found_property_with_same_name(self):
+        class StrangeObject:
+            @property
+            def can_change_to_start(self):
+                return False
+
+        class StartMachine(StateMachine):
+            created = State(initial=True)
+            started = State()
+
+            start = created.to(started, cond=StrangeObject.can_change_to_start)
+
+            def can_change_to_start(self):
+                return True
+
+        with pytest.raises(InvalidDefinition, match="not found name"):
+            StartMachine()
