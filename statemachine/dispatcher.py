@@ -55,8 +55,7 @@ class ObjectConfigs:
         return cls(configs, all_attrs)
 
     def resolve(self, specs: "CallbackSpecList", registry):
-        convention_specs = {spec.func for spec in specs if spec.is_convention}
-        found_convention_specs = convention_specs & self.all_attrs
+        found_convention_specs = specs.conventional_specs & self.all_attrs
         filtered_specs = [
             spec for spec in specs if not spec.is_convention or spec.func in found_convention_specs
         ]

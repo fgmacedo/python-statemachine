@@ -182,7 +182,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 ) from err
 
     def _add_observer(self, observers):
-        register = partial(self._callbacks_registry.register, resolver=observers)
+        register = partial(observers.resolve, registry=self._callbacks_registry)
         for visited in iterate_states_and_transitions(self.states):
             visited._add_observer(register)
 

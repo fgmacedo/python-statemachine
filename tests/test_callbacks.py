@@ -1,4 +1,3 @@
-from functools import partial
 from unittest import mock
 
 import pytest
@@ -26,7 +25,7 @@ def ObjectWithCallbacks():
             )
             self.can_be_called = self.callbacks.grouper(CallbackGroup.ON)
             self.registry = CallbacksRegistry()
-            self.registry.register(self.callbacks, resolver=resolver_factory_from_objects(self))
+            resolver_factory_from_objects(self).resolve(self.callbacks, registry=self.registry)
 
         @property
         def life_meaning(self):
@@ -83,7 +82,7 @@ class TestCallbacksMachinery:
         specs.add("my_method", group=CallbackGroup.ON).add("other_method", group=CallbackGroup.ON)
         specs.add("last_one", group=CallbackGroup.ON)
 
-        registry.register(specs, resolver_factory_from_objects(obj))
+        resolver_factory_from_objects(obj).resolve(specs, registry)
 
         await registry[CallbackGroup.ON.build_key(specs)].call(1, 2, 3, a="x", b="y")
 
@@ -114,14 +113,12 @@ class TestCallbacksMachinery:
         specs = CallbackSpecList()
         registry = CallbacksRegistry()
 
-        register = partial(registry.register, resolver=resolver_factory_from_objects(self))
-
         specs.add(
             "this_does_no_exist",
             group=CallbackGroup.ON,
             is_convention=is_convention,
         )
-        register(specs)
+        resolver_factory_from_objects(self).resolve(specs, registry=registry)
 
         if is_convention:
             registry.check(specs)
@@ -143,7 +140,7 @@ class TestCallbacksMachinery:
             return {"key": "value"}
 
         specs.add([func1, func2, func3], group=CallbackGroup.ON)
-        registry.register(specs, resolver_factory_from_objects(object()))
+        resolver_factory_from_objects(object()).resolve(specs, registry=registry)
 
         results = await registry[CallbackGroup.ON.build_key(specs)].call(1, 2, 3, a="x", b="y")
 
@@ -174,7 +171,7 @@ class TestCallbacksAsDecorator:
         def race_uppercase(race):
             return race.upper()
 
-        x.registry.register(x.callbacks, resolver=resolver_factory_from_objects(x))
+        resolver_factory_from_objects(x).resolve(x.callbacks, registry=x.registry)
 
         assert await x.registry[CallbackGroup.ON.build_key(x.callbacks)].call(
             hero="Gandalf", race="Maia"

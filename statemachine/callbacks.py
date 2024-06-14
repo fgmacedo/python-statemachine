@@ -196,6 +196,7 @@ class CallbackSpecList:
 
     def __init__(self, factory=CallbackSpec):
         self.items: List[CallbackSpec] = []
+        self.conventional_specs = set()
         self.factory = factory
 
     def __repr__(self):
@@ -257,6 +258,8 @@ class CallbackSpecList:
             return
 
         self.items.append(spec)
+        if spec.is_convention:
+            self.conventional_specs.add(spec.func)
         return spec
 
     def add(self, callbacks, group: CallbackGroup, **kwargs):
@@ -343,9 +346,6 @@ class CallbacksExecutor:
 class CallbacksRegistry:
     def __init__(self) -> None:
         self._registry: Dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
-
-    def register(self, specs: CallbackSpecList, resolver) -> None:
-        resolver.resolve(specs, self)
 
     def clear(self):
         self._registry.clear()

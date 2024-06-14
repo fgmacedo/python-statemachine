@@ -58,6 +58,6 @@ class TestDecorators:
         transition = s1.transitions[0]
         specs_grouper = getattr(transition, list_attr_name)
 
-        registry.register(transition._specs, resolver_factory_from_objects(object()))
+        resolver_factory_from_objects(object()).resolve(transition._specs, registry=registry)
 
         assert await registry[specs_grouper.key].call() == [expected_value]
