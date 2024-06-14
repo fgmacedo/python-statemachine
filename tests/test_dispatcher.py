@@ -1,9 +1,10 @@
 import pytest
 
+from statemachine.callbacks import CallbackGroup
+from statemachine.callbacks import CallbackSpec
 from statemachine.dispatcher import ObjectConfig
 from statemachine.dispatcher import ObjectConfigs
 from statemachine.dispatcher import resolver_factory_from_objects
-from statemachine.dispatcher import search_callable
 
 
 class Person:
@@ -47,7 +48,11 @@ class TestEnsureCallable:
     def test_return_same_object_if_already_a_callable(self):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        actual = next(search_callable(expected, [])).wrap()
+        actual = next(
+            resolver_factory_from_objects([]).search(
+                CallbackSpec(model.get_full_name, group=CallbackGroup.ON)
+            )
+        )
         assert actual.__name__ == expected.__name__
         assert actual.__doc__ == expected.__doc__
 
@@ -55,10 +60,10 @@ class TestEnsureCallable:
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
         method = next(
-            search_callable(
-                "get_full_name", ObjectConfigs.from_configs([ObjectConfig.from_obj(model)])
+            ObjectConfigs.from_configs([ObjectConfig.from_obj(model)]).search(
+                CallbackSpec("get_full_name", group=CallbackGroup.ON)
             )
-        ).wrap()
+        )
 
         assert method.__name__ == expected.__name__
         assert method.__doc__ == expected.__doc__
@@ -67,10 +72,10 @@ class TestEnsureCallable:
     async def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
         method = next(
-            search_callable(
-                "first_name", ObjectConfigs.from_configs([ObjectConfig.from_obj(model)])
+            ObjectConfigs.from_configs([ObjectConfig.from_obj(model)]).search(
+                CallbackSpec("first_name", group=CallbackGroup.ON)
             )
-        ).wrap()
+        )
 
         assert await method(*args, **kwargs) == "Frodo"
 
@@ -79,10 +84,10 @@ class TestEnsureCallable:
     ):
         model = Person("Frodo", "Bolseiro")
         method = next(
-            search_callable(
-                "first_name", ObjectConfigs.from_configs([ObjectConfig.from_obj(model)])
+            ObjectConfigs.from_configs([ObjectConfig.from_obj(model)]).search(
+                CallbackSpec("first_name", group=CallbackGroup.ON)
             )
-        ).wrap()
+        )
 
         model.first_name = "Bilbo"
 
@@ -104,7 +109,7 @@ class TestResolverFactory:
         org = Organization("The Lord fo the Rings", "cnpj")
 
         resolver = resolver_factory_from_objects(org, person)
-        resolved_method = next(resolver(attr)).wrap()
+        resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
         assert await resolved_method() == expected_value
 
     @pytest.mark.parametrize(
@@ -123,5 +128,5 @@ class TestResolverFactory:
         org_config = ObjectConfig.from_obj(org, {"get_full_name"})
 
         resolver = resolver_factory_from_objects(org_config, person)
-        resolved_method = next(resolver(attr)).wrap()
+        resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
         assert await resolved_method() == expected_value
