@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from .callbacks import BoolCallbackSpec
+from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .event import same_event_cond_builder
@@ -57,12 +58,19 @@ class Transition:
             raise InvalidDefinition("Internal transitions should be self-transitions.")
 
         self._events = Events().add(event)
-        self.validators = CallbackSpecList().add(validators, priority=CallbackPriority.INLINE)
-        self.before = CallbackSpecList().add(before, priority=CallbackPriority.INLINE)
-        self.on = CallbackSpecList().add(on, priority=CallbackPriority.INLINE)
-        self.after = CallbackSpecList().add(after, priority=CallbackPriority.INLINE)
+        self._specs = CallbackSpecList()
+        self.validators = self._specs.grouper(CallbackGroup.VALIDATOR).add(
+            validators, priority=CallbackPriority.INLINE
+        )
+        self.before = self._specs.grouper(CallbackGroup.BEFORE).add(
+            before, priority=CallbackPriority.INLINE
+        )
+        self.on = self._specs.grouper(CallbackGroup.ON).add(on, priority=CallbackPriority.INLINE)
+        self.after = self._specs.grouper(CallbackGroup.AFTER).add(
+            after, priority=CallbackPriority.INLINE
+        )
         self.cond = (
-            CallbackSpecList(factory=BoolCallbackSpec)
+            self._specs.grouper(CallbackGroup.COND, factory=BoolCallbackSpec)
             .add(cond, priority=CallbackPriority.INLINE)
             .add(unless, priority=CallbackPriority.INLINE, expected_value=False)
         )
@@ -112,18 +120,10 @@ class Transition:
         )
 
     def _add_observer(self, register):
-        register(self.validators)
-        register(self.cond)
-        register(self.before)
-        register(self.on)
-        register(self.after)
+        register(self._specs)
 
     def _check_callbacks(self, check):
-        check(self.validators)
-        check(self.cond)
-        check(self.before)
-        check(self.on)
-        check(self.after)
+        check(self._specs)
 
     def match(self, event):
         return self._events.match(event)
@@ -142,8 +142,8 @@ class Transition:
     async def execute(self, event_data: "EventData"):
         machine = event_data.machine
         args, kwargs = event_data.args, event_data.extended_kwargs
-        await machine._callbacks_registry[self.validators].call(*args, **kwargs)
-        if not await machine._callbacks_registry[self.cond].all(*args, **kwargs):
+        await machine._get_callbacks(self.validators.key).call(*args, **kwargs)
+        if not await machine._get_callbacks(self.cond.key).all(*args, **kwargs):
             return False
 
         result = await machine._activate(event_data)

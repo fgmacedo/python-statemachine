@@ -9,7 +9,6 @@ from statemachine.graph import iterate_states_and_transitions
 from statemachine.utils import run_async_from_sync
 
 from .callbacks import CallbacksExecutor
-from .callbacks import CallbackSpecList
 from .callbacks import CallbacksRegistry
 from .dispatcher import ObjectConfig
 from .dispatcher import ObjectConfigs
@@ -149,9 +148,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             # send an one-time event `__initial__` to enter the current state.
             # current_state = self.current_state
             initial_transition = Transition(None, self._get_initial_state(), event="__initial__")
-            initial_transition.before.clear()
-            initial_transition.on.clear()
-            initial_transition.after.clear()
+            initial_transition._specs.clear()
 
             event_data = EventData(
                 trigger_data=TriggerData(
@@ -335,13 +332,15 @@ class StateMachine(metaclass=StateMachineMetaclass):
         source = event_data.state
         target = transition.target
 
-        result = await self._callbacks(transition.before).call(
+        result = await self._get_callbacks(transition.before.key).call(
             *event_data.args, **event_data.extended_kwargs
         )
         if source is not None and not transition.internal:
-            await self._callbacks(source.exit).call(*event_data.args, **event_data.extended_kwargs)
+            await self._get_callbacks(source.exit.key).call(
+                *event_data.args, **event_data.extended_kwargs
+            )
 
-        result += await self._callbacks(transition.on).call(
+        result += await self._get_callbacks(transition.on.key).call(
             *event_data.args, **event_data.extended_kwargs
         )
 
@@ -349,10 +348,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_data.state = target
 
         if not transition.internal:
-            await self._callbacks(target.enter).call(
+            await self._get_callbacks(target.enter.key).call(
                 *event_data.args, **event_data.extended_kwargs
             )
-        await self._callbacks(transition.after).call(
+        await self._get_callbacks(transition.after.key).call(
             *event_data.args, **event_data.extended_kwargs
         )
 
@@ -387,5 +386,5 @@ class StateMachine(metaclass=StateMachineMetaclass):
         event_instance: Event = Event(event)
         return await event_instance.trigger(self, *args, **kwargs)
 
-    def _callbacks(self, meta_list: CallbackSpecList) -> CallbacksExecutor:
-        return self._callbacks_registry[meta_list]
+    def _get_callbacks(self, key) -> CallbacksExecutor:
+        return self._callbacks_registry[key]

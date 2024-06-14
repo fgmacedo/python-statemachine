@@ -12,7 +12,6 @@ from statemachine.callbacks import SpecReference
 from .signature import SignatureAdapter
 
 if TYPE_CHECKING:
-    from .callbacks import CallbacksExecutor
     from .callbacks import CallbackSpec
     from .callbacks import CallbackSpecList
 
@@ -54,7 +53,7 @@ class ObjectConfigs:
         all_attrs = set().union(*(config.all_attrs for config in configs))
         return cls(configs, all_attrs)
 
-    def resolve(self, specs: "CallbackSpecList", callbacks: "CallbacksExecutor"):
+    def resolve(self, specs: "CallbackSpecList", registry):
         convention_specs = {spec.func for spec in specs if spec.is_convention}
         found_convention_specs = convention_specs & self.all_attrs
         filtered_specs = [
@@ -63,7 +62,8 @@ class ObjectConfigs:
         if not filtered_specs:
             return
 
-        callbacks.add(filtered_specs, self)
+        for spec in filtered_specs:
+            registry[spec.group.build_key(specs)]._add(spec, self)
 
     def __call__(self, attr) -> Generator["WrapSearchResult", None, None]:
         yield from search_callable(attr, self)

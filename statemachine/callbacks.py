@@ -2,11 +2,13 @@ from bisect import insort
 from collections import defaultdict
 from collections import deque
 from enum import IntEnum
+from enum import auto
 from typing import Callable
 from typing import Dict
 from typing import Generator
 from typing import Iterable
 from typing import List
+from typing import Type
 
 from .exceptions import AttrNotFound
 from .i18n import _
@@ -27,6 +29,19 @@ class SpecReference(IntEnum):
     PROPERTY = 3
 
 
+class CallbackGroup(IntEnum):
+    ENTER = auto()
+    EXIT = auto()
+    VALIDATOR = auto()
+    BEFORE = auto()
+    ON = auto()
+    AFTER = auto()
+    COND = auto()
+
+    def build_key(self, specs: "CallbackSpecList") -> str:
+        return f"{self.name}@{id(specs)}"
+
+
 async def allways_true(*args, **kwargs):
     return True
 
@@ -43,12 +58,14 @@ class CallbackSpec:
     def __init__(
         self,
         func,
+        group: CallbackGroup,
         is_convention=False,
         cond=None,
         priority: CallbackPriority = CallbackPriority.NAMING,
         expected_value=None,
     ):
         self.func = func
+        self.group = group
         self.is_convention = is_convention
         self.cond = cond
         self.expected_value = expected_value
@@ -72,7 +89,7 @@ class CallbackSpec:
         return getattr(self.func, "__name__", self.func)
 
     def __eq__(self, other):
-        return self.func == other.func
+        return self.func == other.func and self.group == other.group
 
     def __hash__(self):
         return id(self)
@@ -95,7 +112,7 @@ class CallbackSpec:
         """
         for callback in resolver.search(self):
             condition = (
-                next(resolver.search(CallbackSpec(self.cond)))
+                next(resolver.search(CallbackSpec(self.cond, CallbackGroup.COND)))
                 if self.cond is not None
                 else allways_true
             )
@@ -120,13 +137,14 @@ class BoolCallbackSpec(CallbackSpec):
     def __init__(
         self,
         func,
+        group: CallbackGroup,
         is_convention=False,
         cond=None,
         priority: CallbackPriority = CallbackPriority.NAMING,
         expected_value=True,
     ):
         super().__init__(
-            func, is_convention, cond, priority=priority, expected_value=expected_value
+            func, group, is_convention, cond, priority=priority, expected_value=expected_value
         )
 
     def __str__(self):
@@ -138,6 +156,39 @@ class BoolCallbackSpec(CallbackSpec):
             return bool(await func(*args, **kwargs)) == expected_value
 
         return bool_wrapper
+
+
+class SpecListGrouper:
+    def __init__(
+        self, list: "CallbackSpecList", group: CallbackGroup, factory=CallbackSpec
+    ) -> None:
+        self.list = list
+        self.group = group
+        self.factory = factory
+        self.key = group.build_key(list)
+
+    def add(self, callbacks, **kwargs):
+        self.list.add(callbacks, group=self.group, factory=self.factory, **kwargs)
+        return self
+
+    def __call__(self, callback):
+        return self.list._add_unbounded_callback(callback, group=self.group, factory=self.factory)
+
+    def _add_unbounded_callback(self, func, is_event=False, transitions=None, **kwargs):
+        self.list._add_unbounded_callback(
+            func,
+            is_event=is_event,
+            transitions=transitions,
+            group=self.group,
+            factory=self.factory,
+            **kwargs,
+        )
+
+    def __iter__(self):
+        return (item for item in self.list if item.group == self.group)
+
+    def __str__(self):
+        return ", ".join(str(c) for c in self)
 
 
 class CallbackSpecList:
@@ -185,21 +236,21 @@ class CallbackSpecList:
 
         return func
 
-    def __call__(self, callback):
-        """Allows usage of the callback list as a decorator."""
-        return self._add_unbounded_callback(callback)
-
     def __iter__(self):
         return iter(self.items)
-
-    def __len__(self):
-        return len(self.items)
 
     def clear(self):
         self.items = []
 
-    def _add(self, func, **kwargs):
-        spec = self.factory(func, **kwargs)
+    def grouper(
+        self, group: CallbackGroup, factory: Type[CallbackSpec] = CallbackSpec
+    ) -> SpecListGrouper:
+        return SpecListGrouper(self, group, factory=factory)
+
+    def _add(self, func, group: CallbackGroup, factory=None, **kwargs):
+        if factory is None:
+            factory = self.factory
+        spec = factory(func, group, **kwargs)
 
         if spec in self.items:
             return
@@ -207,13 +258,13 @@ class CallbackSpecList:
         self.items.append(spec)
         return spec
 
-    def add(self, callbacks, **kwargs):
+    def add(self, callbacks, group: CallbackGroup, **kwargs):
         if callbacks is None:
             return self
 
         unprepared = ensure_iterable(callbacks)
         for func in unprepared:
-            self._add(func, **kwargs)
+            self._add(func, group=group, **kwargs)
 
         return self
 
@@ -290,26 +341,25 @@ class CallbacksExecutor:
 
 class CallbacksRegistry:
     def __init__(self) -> None:
-        self._registry: Dict[CallbackSpecList, CallbacksExecutor] = defaultdict(CallbacksExecutor)
+        self._registry: Dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
 
-    def register(self, specs: CallbackSpecList, resolver):
-        executor_list = self[specs]
-        resolver.resolve(specs, executor_list)
-        return executor_list
+    def register(self, specs: CallbackSpecList, resolver) -> None:
+        resolver.resolve(specs, self)
 
     def clear(self):
         self._registry.clear()
 
-    def __getitem__(self, specs: CallbackSpecList) -> CallbacksExecutor:
-        return self._registry[specs]
+    def __getitem__(self, key: str) -> CallbacksExecutor:
+        return self._registry[key]
 
     def check(self, specs: CallbackSpecList):
-        executor = self[specs]
         for meta in specs:
             if meta.is_convention:
                 continue
 
-            if any(callback for callback in executor if callback.meta == meta):
+            if any(
+                callback for callback in self[meta.group.build_key(specs)] if callback.meta == meta
+            ):
                 continue
             raise AttrNotFound(
                 _("Did not found name '{}' from model or statemachine").format(meta.func)

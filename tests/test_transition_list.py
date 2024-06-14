@@ -56,8 +56,8 @@ class TestDecorators:
             return 42
 
         transition = s1.transitions[0]
-        callback_list = getattr(transition, list_attr_name)
+        specs_grouper = getattr(transition, list_attr_name)
 
-        registry.register(callback_list, resolver_factory_from_objects(object()))
+        registry.register(transition._specs, resolver_factory_from_objects(object()))
 
-        assert await registry[callback_list].call() == [expected_value]
+        assert await registry[specs_grouper.key].call() == [expected_value]
