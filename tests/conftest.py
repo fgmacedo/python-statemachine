@@ -3,9 +3,15 @@ from datetime import datetime
 
 import pytest
 
+collect_ignore_glob = []
+
 # We support Python 3.8+ positional only syntax
 if sys.version_info[:2] < (3, 8):  # noqa: UP036
-    collect_ignore_glob = ["*_positional_only.py"]
+    collect_ignore_glob.append("*_positional_only.py")
+
+if sys.version_info < (3, 10):  # noqa: UP036
+    # "Django tests Requires Python 3.10+
+    collect_ignore_glob.append("django_project/**/*")
 
 
 @pytest.fixture()
