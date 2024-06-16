@@ -21,7 +21,7 @@ repos:
   hooks:
   - id: mypy
     name: Mypy
-    entry: poetry run mypy statemachine/ tests/
+    entry: poetry run mypy --namespace-packages --explicit-package-bases statemachine/ tests/
     types: [python]
     language: system
     pass_filenames: false
