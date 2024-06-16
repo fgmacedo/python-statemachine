@@ -1,11 +1,14 @@
 import sys
 from datetime import datetime
+from typing import List
 
 import pytest
 
+collect_ignore_glob: List[str] = []
+
 # We support Python 3.8+ positional only syntax
 if sys.version_info[:2] < (3, 8):  # noqa: UP036
-    collect_ignore_glob = ["*_positional_only.py"]
+    collect_ignore_glob.append("*_positional_only.py")
 
 
 @pytest.fixture()
