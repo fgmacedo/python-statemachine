@@ -1,10 +1,8 @@
 import sys
 
 import pytest
-from django.contrib.auth import get_user_model
 
 from statemachine.exceptions import TransitionNotAllowed
-from workflow.models import Workflow
 from workflow.statemachines import WorfklowStateMachine
 
 pytestmark = [
@@ -13,11 +11,22 @@ pytestmark = [
 ]
 
 
-User = get_user_model()
+@pytest.fixture()
+def Workflow():
+    from workflow.models import Workflow
+
+    return Workflow
 
 
 @pytest.fixture()
-def one():
+def User():
+    from django.contrib.auth import get_user_model
+
+    return get_user_model()
+
+
+@pytest.fixture()
+def one(Workflow):
     return Workflow.objects.create()
 
 
@@ -33,7 +42,7 @@ class TestWorkflow:
         with pytest.raises(TransitionNotAllowed):
             wf.send("publish")
 
-    def test_async_with_db_operation(self, one):
+    def test_async_with_db_operation(self, one, User, Workflow):
         """Regression test for https://github.com/fgmacedo/python-statemachine/issues/446"""
 
         user = User.objects.create_user("user")
