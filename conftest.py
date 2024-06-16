@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 
@@ -21,3 +23,11 @@ def add_doctest_context(doctest_namespace):  # noqa: PT004
     doctest_namespace["State"] = State
     doctest_namespace["StateMachine"] = StateMachine
     doctest_namespace["asyncio"] = ContribAsyncio()
+
+
+def pytest_ignore_collect(collection_path, path, config):
+    if sys.version_info >= (3, 10):  # noqa: UP036
+        return None
+
+    if "django_project" in str(path):
+        return True

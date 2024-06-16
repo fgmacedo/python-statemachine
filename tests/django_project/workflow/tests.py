@@ -1,5 +1,3 @@
-import sys
-
 import pytest
 
 from statemachine.exceptions import TransitionNotAllowed
@@ -7,7 +5,6 @@ from workflow.statemachines import WorfklowStateMachine
 
 pytestmark = [
     pytest.mark.django_db,
-    pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10"),
 ]
 
 

@@ -9,10 +9,6 @@ collect_ignore_glob = []
 if sys.version_info[:2] < (3, 8):  # noqa: UP036
     collect_ignore_glob.append("*_positional_only.py")
 
-if sys.version_info < (3, 10):  # noqa: UP036
-    # "Django tests Requires Python 3.10+
-    collect_ignore_glob.append("django_project/**/*")
-
 
 @pytest.fixture()
 def current_time():
