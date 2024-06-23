@@ -15,7 +15,7 @@ def test_minimal(mocker):
 
         cycle = a.to(b) | b.to(a)
 
-    state = Machine().add_observer(obs)
+    state = Machine().add_listener(obs)
     assert state.a.is_active
 
     state.cycle()

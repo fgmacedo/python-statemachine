@@ -12,7 +12,7 @@ transitions
 actions
 guards
 models
-observers
+listeners
 async
 mixins
 integrations

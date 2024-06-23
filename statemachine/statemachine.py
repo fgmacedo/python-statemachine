@@ -1,17 +1,19 @@
+import warnings
 from collections import deque
 from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import List
 
 from statemachine.graph import iterate_states_and_transitions
 from statemachine.utils import run_async_from_sync
 
 from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
-from .dispatcher import ObjectConfig
-from .dispatcher import ObjectConfigs
+from .dispatcher import Listener
+from .dispatcher import Listeners
 from .event import Event
 from .event_data import EventData
 from .event_data import TriggerData
@@ -48,6 +50,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
             :ref:`transition`, including tolerance to unknown :ref:`event` triggers.
             Default: ``False``.
 
+        listeners: An optional list of objects that provies attributes to be used as callbacks.
+            See {ref}`listeners` for more details.
+
     """
 
     TransitionNotAllowed = TransitionNotAllowed
@@ -68,6 +73,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         start_value: Any = None,
         rtc: bool = True,
         allow_event_without_transition: bool = False,
+        listeners: "List[object] | None" = None,
     ):
         self.model = model if model else Model()
         self.state_field = state_field
@@ -79,12 +85,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._external_queue: deque = deque()
         self._callbacks_registry = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
-        self._observers: Dict[Any, Any] = {}
+
+        self._listeners: Dict[Any, Any] = {}
+        """Listeners that provides attributes to be used as callbacks."""
 
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
-        self._register_callbacks()
+        self._register_callbacks(listeners or [])
 
         # Activate the initial state, this only works if the outer scope is sync code.
         # for async code, the user should manually call `await sm.activate_initial_state()`
@@ -116,8 +124,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             self.__deepcopy__ = deepcopy_method
             cp.__deepcopy__ = deepcopy_method
         cp._callbacks_registry.clear()
-        cp._register_callbacks()
-        cp.add_observer(*cp._observers.keys())
+        cp._register_callbacks([])
+        cp.add_listener(*cp._listeners.keys())
         return cp
 
     def _get_initial_state(self):
@@ -162,45 +170,56 @@ class StateMachine(metaclass=StateMachineMetaclass):
     async def _ensure_is_initialized(self):
         await self.activate_initial_state()
 
-    def _register_callbacks(self):
-        self._add_observer(
-            ObjectConfigs.from_configs(
-                [
-                    ObjectConfig.from_obj(self, skip_attrs=self._protected_attrs),
-                    ObjectConfig.from_obj(self.model, skip_attrs={self.state_field}),
-                ]
+    def _add_listener(self, listeners: "Listeners"):
+        register = partial(listeners.resolve, registry=self._callbacks_registry)
+        for visited in iterate_states_and_transitions(self.states):
+            register(visited._specs)
+
+        return self
+
+    def _register_callbacks(self, listeners: List[object]):
+        self._listeners.update({listener: None for listener in listeners})
+        self._add_listener(
+            Listeners.from_listeners(
+                (
+                    Listener.from_obj(self, skip_attrs=self._protected_attrs),
+                    Listener.from_obj(self.model, skip_attrs={self.state_field}),
+                    *(Listener.from_obj(listener) for listener in listeners),
+                )
             )
         )
 
         check_callbacks = self._callbacks_registry.check
         for visited in iterate_states_and_transitions(self.states):
             try:
-                visited._check_callbacks(check_callbacks)
+                check_callbacks(visited._specs)
             except Exception as err:
                 raise InvalidDefinition(
                     f"Error on {visited!s} when resolving callbacks: {err}"
                 ) from err
 
-    def _add_observer(self, observers):
-        register = partial(observers.resolve, registry=self._callbacks_registry)
-        for visited in iterate_states_and_transitions(self.states):
-            visited._add_observer(register)
-
-        return self
-
     def add_observer(self, *observers):
-        """Add an observer.
+        """Add a listener."""
+        warnings.warn(
+            """The `add_observer` was rebranded to `add_listener`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.add_listener(*observers)
 
-        Observers are a way to generically add behavior to a :ref:`StateMachine` without changing
+    def add_listener(self, *listeners):
+        """Add a listener.
+
+        Listener are a way to generically add behavior to a :ref:`StateMachine` without changing
         its internal implementation.
 
         .. seealso::
 
-            :ref:`observers`.
+            :ref:`listeners`.
         """
-        self._observers.update({o: None for o in observers})
-        return self._add_observer(
-            ObjectConfigs.from_configs(ObjectConfig.from_obj(o) for o in observers)
+        self._listeners.update({o: None for o in listeners})
+        return self._add_listener(
+            Listeners.from_listeners(Listener.from_obj(o) for o in listeners)
         )
 
     def _repr_html_(self):

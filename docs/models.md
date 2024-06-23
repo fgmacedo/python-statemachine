@@ -20,7 +20,7 @@ domain object to hold attributes and methods to be used on the `StateMachine` de
 ```
 
 ```{hint}
-Domain models are registered as {ref}`observers`, so you can have the same level of functionalities
+Domain models are registered as {ref}`listeners`, so you can have the same level of functionalities
 provided to the built-in {ref}`StateMachine`, such as implementing all {ref}`actions` and
 {ref}`guards` on your domain model and keeping only the definition of {ref}`states` and
 {ref}`transitions` on the {ref}`StateMachine`.

@@ -119,12 +119,6 @@ class Transition:
             is_convention=True,
         )
 
-    def _add_observer(self, register):
-        register(self._specs)
-
-    def _check_callbacks(self, check):
-        check(self._specs)
-
     def match(self, event):
         return self._events.match(event)
 
