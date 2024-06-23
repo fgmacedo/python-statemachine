@@ -2,8 +2,8 @@ import pytest
 
 from statemachine.callbacks import CallbackGroup
 from statemachine.callbacks import CallbackSpec
-from statemachine.dispatcher import ObjectConfig
-from statemachine.dispatcher import ObjectConfigs
+from statemachine.dispatcher import Listener
+from statemachine.dispatcher import Listeners
 from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.exceptions import InvalidDefinition
 from statemachine.state import State
@@ -63,7 +63,7 @@ class TestEnsureCallable:
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
         method = next(
-            ObjectConfigs.from_configs([ObjectConfig.from_obj(model)]).search(
+            Listeners.from_listeners([Listener.from_obj(model)]).search(
                 CallbackSpec("get_full_name", group=CallbackGroup.ON)
             )
         )
@@ -75,7 +75,7 @@ class TestEnsureCallable:
     async def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
         method = next(
-            ObjectConfigs.from_configs([ObjectConfig.from_obj(model)]).search(
+            Listeners.from_listeners([Listener.from_obj(model)]).search(
                 CallbackSpec("first_name", group=CallbackGroup.ON)
             )
         )
@@ -87,7 +87,7 @@ class TestEnsureCallable:
     ):
         model = Person("Frodo", "Bolseiro")
         method = next(
-            ObjectConfigs.from_configs([ObjectConfig.from_obj(model)]).search(
+            Listeners.from_listeners([Listener.from_obj(model)]).search(
                 CallbackSpec("first_name", group=CallbackGroup.ON)
             )
         )
@@ -128,7 +128,7 @@ class TestResolverFactory:
         person = Person("Frodo", "Bolseiro", "cpf")
         org = Organization("The Lord fo the Rings", "cnpj")
 
-        org_config = ObjectConfig.from_obj(org, {"get_full_name"})
+        org_config = Listener.from_obj(org, {"get_full_name"})
 
         resolver = resolver_factory_from_objects(org_config, person)
         resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
@@ -144,7 +144,7 @@ class TestSearchProperty:
 
         class StartMachine(StateMachine):
             created = State(initial=True)
-            started = State()
+            started = State(final=True)
 
             start = created.to(started, cond=StrangeObject.can_change_to_start)
 

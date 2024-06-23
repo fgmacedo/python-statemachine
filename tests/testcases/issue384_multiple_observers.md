@@ -39,13 +39,13 @@ Running:
 >>> car = Car()
 >>> obs = MyObs()
 >>> obs2 = MyObs2()
->>> car.add_observer(obs)
+>>> car.add_listener(obs)
 Car(model=Model(state=stopped), state_field='state', current_state='stopped')
 
->>> car.add_observer(obs2)
+>>> car.add_listener(obs2)
 Car(model=Model(state=stopped), state_field='state', current_state='stopped')
 
->>> car.add_observer(obs2)  # test to not register duplicated observer callbacks
+>>> car.add_listener(obs2)  # test to not register duplicated observer callbacks
 Car(model=Model(state=stopped), state_field='state', current_state='stopped')
 
 >>> car.move_car()

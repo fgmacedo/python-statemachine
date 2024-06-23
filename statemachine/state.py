@@ -129,12 +129,6 @@ class State:
         self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
 
-    def _add_observer(self, register):
-        register(self._specs)
-
-    def _check_callbacks(self, check):
-        check(self._specs)
-
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "

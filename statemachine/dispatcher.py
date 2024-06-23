@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ObjectConfig:
-    """Configuration for objects passed to resolver_factory.
+class Listener:
+    """Object reference that provides attributes to be used as callbacks.
 
     Args:
         obj: Any object that will serve as lookup for attributes.
@@ -31,8 +31,8 @@ class ObjectConfig:
     resolver_id: str
 
     @classmethod
-    def from_obj(cls, obj, skip_attrs=None) -> "ObjectConfig":
-        if isinstance(obj, ObjectConfig):
+    def from_obj(cls, obj, skip_attrs=None) -> "Listener":
+        if isinstance(obj, Listener):
             return obj
         else:
             if skip_attrs is None:
@@ -42,17 +42,17 @@ class ObjectConfig:
 
 
 @dataclass
-class ObjectConfigs:
-    """Configuration for objects passed to resolver_factory."""
+class Listeners:
+    """Listeners that provides attributes to be used as callbacks."""
 
-    items: Tuple[ObjectConfig, ...]
+    items: Tuple[Listener, ...]
     all_attrs: Set[str]
 
     @classmethod
-    def from_configs(cls, configs: Iterable["ObjectConfig"]) -> "ObjectConfigs":
-        configs = tuple(configs)
-        all_attrs = set().union(*(config.all_attrs for config in configs))
-        return cls(configs, all_attrs)
+    def from_listeners(cls, listeners: Iterable["Listener"]) -> "Listeners":
+        listeners = tuple(listeners)
+        all_attrs = set().union(*(listener.all_attrs for listener in listeners))
+        return cls(listeners, all_attrs)
 
     def resolve(self, specs: "CallbackSpecList", registry):
         found_convention_specs = specs.conventional_specs & self.all_attrs
@@ -155,4 +155,4 @@ def event_method(attribute, func, resolver_id) -> Callable:
 
 
 def resolver_factory_from_objects(*objects: Tuple[Any, ...]):
-    return ObjectConfigs.from_configs(ObjectConfig.from_obj(o) for o in objects)
+    return Listeners.from_listeners(Listener.from_obj(o) for o in objects)

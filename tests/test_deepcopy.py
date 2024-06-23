@@ -57,15 +57,15 @@ def test_deepcopy():
         sm2.send("publish")
 
 
-def test_deepcopy_with_observers(caplog):
+def test_deepcopy_with_listeners(caplog):
     model1 = MyModel("main_model")
 
     sm1 = MySM(model1)
 
-    observer_1 = MyModel("observer_1")
-    observer_2 = MyModel("observer_2")
-    sm1.add_observer(observer_1)
-    sm1.add_observer(observer_2)
+    listener_1 = MyModel("observer_1")
+    listener_2 = MyModel("observer_2")
+    sm1.add_listener(listener_1)
+    sm1.add_listener(listener_2)
 
     sm2 = deepcopy(sm1)
 
@@ -75,22 +75,22 @@ def test_deepcopy_with_observers(caplog):
 
     def assertions(sm, _reference):
         caplog.clear()
-        if not sm._observers:
+        if not sm._listeners:
             pytest.fail("did not found any observer")
 
-        for observer in sm._observers:
-            observer.let_me_be_visible = False
+        for listener in sm._listeners:
+            listener.let_me_be_visible = False
 
         with pytest.raises(TransitionNotAllowed):
             sm.send("publish")
 
         sm.model.let_me_be_visible = True
 
-        for observer in sm._observers:
+        for listener in sm._listeners:
             with pytest.raises(TransitionNotAllowed):
                 sm.send("publish")
 
-            observer.let_me_be_visible = True
+            listener.let_me_be_visible = True
 
         sm.send("publish")
 
