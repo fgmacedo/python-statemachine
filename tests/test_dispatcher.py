@@ -144,7 +144,7 @@ class TestSearchProperty:
 
         class StartMachine(StateMachine):
             created = State(initial=True)
-            started = State()
+            started = State(final=True)
 
             start = created.to(started, cond=StrangeObject.can_change_to_start)
 

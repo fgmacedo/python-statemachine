@@ -15,7 +15,7 @@ def test_machine_should_allow_multi_thread_event_changes():
 
         draft = State(initial=True)
         producing = State()
-        closed = State()
+        closed = State(final=True)
         add_job = draft.to(producing) | producing.to(closed)
 
     machine = CampaignMachine()

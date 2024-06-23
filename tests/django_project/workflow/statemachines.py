@@ -4,7 +4,7 @@ from statemachine import StateMachine
 
 class WorfklowStateMachine(StateMachine):
     draft = State(initial=True)
-    published = State()
+    published = State(final=True)
 
     publish = draft.to(published, cond="is_active")
     notify_user = draft.to.itself(internal=True, cond="has_user")
