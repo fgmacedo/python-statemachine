@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 from .callbacks import BoolCallbackSpec
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
@@ -7,9 +5,6 @@ from .callbacks import CallbackSpecList
 from .event import same_event_cond_builder
 from .events import Events
 from .exceptions import InvalidDefinition
-
-if TYPE_CHECKING:
-    pass
 
 
 class Transition:
