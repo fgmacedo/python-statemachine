@@ -1,4 +1,3 @@
-from functools import partial
 from typing import TYPE_CHECKING
 
 from statemachine.utils import run_async_from_sync
@@ -23,16 +22,16 @@ class Event:
             args=args,
             kwargs=kwargs,
         )
-        trigger_wrapper = partial(machine._trigger, trigger_data=trigger_data)
 
-        return await machine._process(trigger_wrapper)
+        return await machine._process(trigger_data)
 
 
 def trigger_event_factory(event_instance: Event):
     """Build a method that sends specific `event` to the machine"""
 
     def trigger_event(self, *args, **kwargs):
-        return run_async_from_sync(event_instance.trigger(self, *args, **kwargs))
+        coro = event_instance.trigger(self, *args, **kwargs)
+        return run_async_from_sync(coro)
 
     trigger_event.name = event_instance.name  # type: ignore[attr-defined]
     trigger_event.identifier = event_instance.name  # type: ignore[attr-defined]

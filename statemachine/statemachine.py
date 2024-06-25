@@ -312,7 +312,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         return event_data.result if event_data else None
 
-    async def _process(self, trigger):
+    async def _process(self, trigger_data: TriggerData):
         """Process event triggers.
 
         The simplest implementation is the non-RTC (synchronous),
@@ -333,11 +333,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         if not self.__rtc:
             # The machine is in "synchronous" mode
-            return await trigger()
+            return await self._trigger(trigger_data)
 
         # The machine is in "queued" mode
         # Add the trigger to queue and start processing in a loop.
-        self._external_queue.append(trigger)
+        self._external_queue.append(trigger_data)
 
         # We make sure that only the first event enters the processing critical section,
         # next events will only be put on the queue and processed by the same loop.
@@ -357,9 +357,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
         first_result = sentinel
         try:
             while self._external_queue:
-                trigger = self._external_queue.popleft()
+                trigger_data = self._external_queue.popleft()
                 try:
-                    result = await trigger()
+                    result = await self._trigger(trigger_data)
                     if first_result is sentinel:
                         first_result = result
                 except Exception:
@@ -409,7 +409,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             See: :ref:`triggering events`.
 
         """
-        return run_async_from_sync(self.async_send(event, *args, **kwargs))
+        coro = self.async_send(event, *args, **kwargs)
+        return run_async_from_sync(coro)
 
     async def async_send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
