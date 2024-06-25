@@ -9,7 +9,7 @@ from .events import Events
 from .exceptions import InvalidDefinition
 
 if TYPE_CHECKING:
-    from .event_data import EventData
+    pass
 
 
 class Transition:
@@ -119,7 +119,7 @@ class Transition:
             is_convention=True,
         )
 
-    def match(self, event):
+    def match(self, event: str):
         return self._events.match(event)
 
     @property
@@ -132,14 +132,3 @@ class Transition:
 
     def add_event(self, value):
         self._events.add(value)
-
-    async def execute(self, event_data: "EventData"):
-        machine = event_data.machine
-        args, kwargs = event_data.args, event_data.extended_kwargs
-        await machine._get_callbacks(self.validators.key).call(*args, **kwargs)
-        if not await machine._get_callbacks(self.cond.key).all(*args, **kwargs):
-            return False
-
-        result = await machine._activate(event_data)
-        event_data.result = result
-        return True

@@ -53,10 +53,7 @@ class EventData:
         self.state = self.transition.source
         self.source = self.transition.source
         self.target = self.transition.target
-
-    @property
-    def machine(self):
-        return self.trigger_data.machine
+        self.machine = self.trigger_data.machine
 
     @property
     def event(self):
