@@ -1,11 +1,8 @@
-from functools import partial
 from typing import TYPE_CHECKING
 
 from statemachine.utils import run_async_from_sync
 
-from .event_data import EventData
 from .event_data import TriggerData
-from .exceptions import TransitionNotAllowed
 
 if TYPE_CHECKING:
     from .statemachine import StateMachine
@@ -25,35 +22,16 @@ class Event:
             args=args,
             kwargs=kwargs,
         )
-        trigger_wrapper = partial(self._trigger, trigger_data=trigger_data)
 
-        return await machine._process(trigger_wrapper)
-
-    async def _trigger(self, trigger_data: TriggerData):
-        event_data = None
-        await trigger_data.machine._ensure_is_initialized()
-
-        state = trigger_data.machine.current_state
-        for transition in state.transitions:
-            if not transition.match(trigger_data.event):
-                continue
-
-            event_data = EventData(trigger_data=trigger_data, transition=transition)
-            if await transition.execute(event_data):
-                event_data.executed = True
-                break
-        else:
-            if not trigger_data.machine.allow_event_without_transition:
-                raise TransitionNotAllowed(trigger_data.event, state)
-
-        return event_data.result if event_data else None
+        return await machine._process(trigger_data)
 
 
 def trigger_event_factory(event_instance: Event):
     """Build a method that sends specific `event` to the machine"""
 
     def trigger_event(self, *args, **kwargs):
-        return run_async_from_sync(event_instance.trigger(self, *args, **kwargs))
+        coro = event_instance.trigger(self, *args, **kwargs)
+        return run_async_from_sync(coro)
 
     trigger_event.name = event_instance.name  # type: ignore[attr-defined]
     trigger_event.identifier = event_instance.name  # type: ignore[attr-defined]
