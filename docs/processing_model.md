@@ -91,6 +91,10 @@ Note that the events `connect` and `connection_succeed` are executed sequentiall
 
 ## Non-RTC model
 
+```{deprecated} 2.3.2
+`StateMachine.rtc` option is deprecated. We'll keep only the **run-to-completion** (RTC) model.
+```
+
 In contrast, in a non-RTC (synchronous) processing model, the state machine starts executing nested events
 while processing a parent event. This means that when an event is triggered, the state machine
 chains the processing when another event was triggered as a result of the first event.

@@ -318,7 +318,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         return event_data.result if event_data else None
 
-    async def _process(self, trigger_data: TriggerData):
+    def _put_nonblocking(self, trigger_data: TriggerData):
+        """Put the trigger on the queue without blocking the caller."""
+        self._external_queue.append(trigger_data)
+
+    async def _processing_loop(self):
         """Process event triggers.
 
         The simplest implementation is the non-RTC (synchronous),
@@ -337,18 +341,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
             will be processed sequentially (and not nested).
 
         """
+
         if not self.__rtc:
             # The machine is in "synchronous" mode
+            trigger_data = self._external_queue.popleft()
             return await self._trigger(trigger_data)
 
-        # The machine is in "queued" mode
-        # Add the trigger to queue and start processing in a loop.
-        self._external_queue.append(trigger_data)
-
-        return await self._processing_loop()
-
-    async def _processing_loop(self):
-        """Execute the triggers in the queue in order until the queue is empty"""
         # We make sure that only the first event enters the processing critical section,
         # next events will only be put on the queue and processed by the same loop.
         if not self.__processing.acquire(blocking=False):
@@ -360,6 +358,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         sentinel = object()
         first_result = sentinel
         try:
+            # Execute the triggers in the queue in FIFO order until the queue is empty
             while self._external_queue:
                 trigger_data = self._external_queue.popleft()
                 try:
@@ -416,7 +415,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         coro = self.async_send(event, *args, **kwargs)
         return run_async_from_sync(coro)
 
-    async def async_send(self, event: str, *args, **kwargs):
+    def async_send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
 
         .. seealso::
@@ -425,7 +424,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         """
         event_instance: Event = Event(event)
-        return await event_instance.trigger(self, *args, **kwargs)
+        return event_instance.trigger(self, *args, **kwargs)
 
     def _get_callbacks(self, key) -> CallbacksExecutor:
         return self._callbacks_registry[key]
