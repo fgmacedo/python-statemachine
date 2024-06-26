@@ -7,6 +7,13 @@ from itertools import chain
 from types import MethodType
 from typing import Any
 
+try:
+    # Compatibility with Django ORM
+    # https://docs.djangoproject.com/en/5.1/topics/async/#async-safety
+    from asgiref.sync import sync_to_async
+except ImportError:  # pragma: no cover
+    sync_to_async = None  # type: ignore[assignment]
+
 
 def _make_key(method):
     method = method.func if isinstance(method, partial) else method
@@ -52,7 +59,12 @@ class SignatureAdapter(Signature):
 
         metadata_to_copy = method.func if isinstance(method, partial) else method
 
-        if iscoroutinefunction(method):
+        is_coroutine = iscoroutinefunction(method)
+        if not is_coroutine and sync_to_async is not None:
+            method = sync_to_async(method)
+            is_coroutine = True
+
+        if is_coroutine:
 
             async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
                 ba = sig_bind_expected(*args, **kwargs)
