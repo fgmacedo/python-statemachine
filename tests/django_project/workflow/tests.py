@@ -4,8 +4,13 @@ from statemachine.exceptions import TransitionNotAllowed
 from workflow.statemachines import WorfklowStateMachine
 
 pytestmark = [
-    pytest.mark.django_db,
+    pytest.mark.django_db(transaction=True),
 ]
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _mock_sync_to_async():
+    """Override the mock so the sync callbacks are decorated with sync_to_async"""
 
 
 @pytest.fixture()
@@ -39,7 +44,6 @@ class TestWorkflow:
         with pytest.raises(TransitionNotAllowed):
             wf.send("publish")
 
-    @pytest.mark.xfail(reason="This test is a regression on 2.3.0+ due to asyncio support.")
     def test_async_with_db_operation(self, one, User, Workflow):
         """Regression test for https://github.com/fgmacedo/python-statemachine/issues/446"""
 
@@ -52,5 +56,6 @@ class TestWorkflow:
 
         # And clear model cache, casing user to be loaded later on
         one = Workflow.objects.get(pk=one.pk)
+
         wf = WorfklowStateMachine(one)
         wf.send("notify_user")
