@@ -2,6 +2,7 @@ import warnings
 from collections import deque
 from copy import deepcopy
 from functools import partial
+from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -81,7 +82,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.allow_event_without_transition = allow_event_without_transition
         self.__initialized = False
         self.__rtc = rtc
-        self.__processing: bool = False
+        self.__processing = Lock()
         self._external_queue: deque = deque()
         self._callbacks_registry = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
@@ -117,12 +118,17 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def __deepcopy__(self, memo):
         deepcopy_method = self.__deepcopy__
-        self.__deepcopy__ = None
-        try:
-            cp = deepcopy(self, memo)
-        finally:
-            self.__deepcopy__ = deepcopy_method
-            cp.__deepcopy__ = deepcopy_method
+        lock = self.__processing
+        with lock:
+            self.__deepcopy__ = None
+            self.__processing = None
+            try:
+                cp = deepcopy(self, memo)
+                cp.__processing = Lock()
+            finally:
+                self.__deepcopy__ = deepcopy_method
+                cp.__deepcopy__ = deepcopy_method
+                self.__processing = lock
         cp._callbacks_registry.clear()
         cp._register_callbacks([])
         cp.add_listener(*cp._listeners.keys())
@@ -312,7 +318,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         return event_data.result if event_data else None
 
-    async def _process(self, trigger_data: TriggerData):
+    def _put_nonblocking(self, trigger_data: TriggerData):
+        """Put the trigger on the queue without blocking the caller."""
+        self._external_queue.append(trigger_data)
+
+    async def _processing_loop(self):
         """Process event triggers.
 
         The simplest implementation is the non-RTC (synchronous),
@@ -331,24 +341,16 @@ class StateMachine(metaclass=StateMachineMetaclass):
             will be processed sequentially (and not nested).
 
         """
+
         if not self.__rtc:
             # The machine is in "synchronous" mode
+            trigger_data = self._external_queue.popleft()
             return await self._trigger(trigger_data)
-
-        # The machine is in "queued" mode
-        # Add the trigger to queue and start processing in a loop.
-        self._external_queue.append(trigger_data)
 
         # We make sure that only the first event enters the processing critical section,
         # next events will only be put on the queue and processed by the same loop.
-        if self.__processing:
-            return
-
-        return await self._processing_loop()
-
-    async def _processing_loop(self):
-        """Execute the triggers in the queue in order until the queue is empty"""
-        self.__processing = True
+        if not self.__processing.acquire(blocking=False):
+            return None
 
         # We will collect the first result as the processing result to keep backwards compatibility
         # so we need to use a sentinel object instead of `None` because the first result may
@@ -356,6 +358,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         sentinel = object()
         first_result = sentinel
         try:
+            # Execute the triggers in the queue in FIFO order until the queue is empty
             while self._external_queue:
                 trigger_data = self._external_queue.popleft()
                 try:
@@ -368,7 +371,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                     self._external_queue.clear()
                     raise
         finally:
-            self.__processing = False
+            self.__processing.release()
         return first_result if first_result is not sentinel else None
 
     async def _activate(self, event_data: EventData):
@@ -412,7 +415,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         coro = self.async_send(event, *args, **kwargs)
         return run_async_from_sync(coro)
 
-    async def async_send(self, event: str, *args, **kwargs):
+    def async_send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
 
         .. seealso::
@@ -421,7 +424,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         """
         event_instance: Event = Event(event)
-        return await event_instance.trigger(self, *args, **kwargs)
+        return event_instance.trigger(self, *args, **kwargs)
 
     def _get_callbacks(self, key) -> CallbacksExecutor:
         return self._callbacks_registry[key]

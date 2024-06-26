@@ -47,6 +47,7 @@ class EventData:
     """The destination :ref:`State` of the :ref:`transition`."""
 
     result: "Any | None" = None
+
     executed: bool = False
 
     def __post_init__(self):

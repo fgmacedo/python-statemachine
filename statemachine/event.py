@@ -15,15 +15,15 @@ class Event:
     def __repr__(self):
         return f"{type(self).__name__}({self.name!r})"
 
-    async def trigger(self, machine: "StateMachine", *args, **kwargs):
+    def trigger(self, machine: "StateMachine", *args, **kwargs):
         trigger_data = TriggerData(
             machine=machine,
             event=self.name,
             args=args,
             kwargs=kwargs,
         )
-
-        return await machine._process(trigger_data)
+        machine._put_nonblocking(trigger_data)
+        return machine._processing_loop()
 
 
 def trigger_event_factory(event_instance: Event):
