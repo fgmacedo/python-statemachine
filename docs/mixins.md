@@ -44,6 +44,7 @@ class.
 ...     state_machine_name = '__main__.CampaignMachineWithKeys'
 ...     state_machine_attr = 'sm'
 ...     state_field_name = 'workflow_step'
+...     bind_events_as_methods = True
 ...
 ...     workflow_step = 1
 ...
@@ -65,7 +66,11 @@ True
 >>> model.sm.current_state == model.sm.draft
 True
 
->>> model.sm.cancel()
+>>> model.produce()  # `bind_events_as_methods = True` adds triggers to events in the mixin instance
+>>> model.workflow_step
+2
+
+>>> model.sm.cancel()  # You can still call the SM directly
 
 >>> model.workflow_step
 4

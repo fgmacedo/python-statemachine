@@ -54,6 +54,7 @@ class States:
         return list(self) == list(other)
 
     def __getattr__(self, name: str):
+        name = name.lower()
         if name in self._states:
             return self._states[name]
         raise AttributeError(f"{name} not found in {self.__class__.__name__}")
@@ -80,7 +81,7 @@ class States:
         return self._states.items()
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, initial: Enum, final=None):
+    def from_enum(cls, enum_type: EnumType, initial, final=None):
         """
         Creates a new instance of the ``States`` class from an enumeration.
 
@@ -124,7 +125,7 @@ class States:
         True
 
         >>> sm.current_state_value
-        2
+        <Status.completed: 2>
 
         Args:
             enum_type: An enumeration containing the states of the machine.
@@ -137,7 +138,7 @@ class States:
         final_set = set(ensure_iterable(final))
         return cls(
             {
-                e.name: State(value=e.value, initial=e is initial, final=e in final_set)
+                e.name.lower(): State(value=e, initial=e is initial, final=e in final_set)
                 for e in enum_type
             }
         )

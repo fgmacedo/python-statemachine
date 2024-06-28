@@ -1,6 +1,7 @@
 import pytest
 
 from statemachine.exceptions import TransitionNotAllowed
+from workflow.models import WorkflowSteps
 from workflow.statemachines import WorfklowStateMachine
 
 pytestmark = [
@@ -59,3 +60,12 @@ class TestWorkflow:
 
         wf = WorfklowStateMachine(one)
         wf.send("notify_user")
+
+    def test_should_publish(self, one):
+        one.is_active = True
+        one.publish()
+        one.save()
+
+        assert one.state == "published"
+        assert one.wf.current_state_value == "published"
+        assert one.wf.current_state_value == WorkflowSteps.PUBLISHED

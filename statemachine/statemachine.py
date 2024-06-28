@@ -141,6 +141,22 @@ class StateMachine(metaclass=StateMachineMetaclass):
         except KeyError as err:
             raise InvalidStateValue(current_state_value) from err
 
+    def bind_events_to(self, *targets):
+        """Bind the state machine events to the target objects."""
+
+        for event in self.events:
+            trigger = getattr(self, event.name)
+            for target in targets:
+                if hasattr(target, event.name):
+                    warnings.warn(
+                        f"Attribute {event.name!r} already exists on {target!r}. "
+                        f"Skipping binding.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    continue
+                setattr(target, event.name, trigger)
+
     async def activate_initial_state(self):
         """
         Activate the initial state.
@@ -172,9 +188,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 transition=initial_transition,
             )
             await self._activate(event_data)
-
-    async def _ensure_is_initialized(self):
-        await self.activate_initial_state()
 
     def _add_listener(self, listeners: "Listeners"):
         register = partial(listeners.resolve, registry=self._callbacks_registry)
@@ -295,7 +308,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     async def _trigger(self, trigger_data: TriggerData):
         event_data = None
-        await self._ensure_is_initialized()
+        await self.activate_initial_state()
 
         state = self.current_state
         for transition in state.transitions:

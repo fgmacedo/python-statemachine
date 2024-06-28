@@ -417,3 +417,29 @@ def test_should_not_override_states_properties(campaign_machine):
         machine.draft = "something else"
 
     assert "State overriding is not allowed. Trying to add 'something else' to draft" in str(e)
+
+
+def test_should_warn_if_model_already_has_attribute_and_binding_is_enabled(
+    campaign_machine_with_final_state, capsys
+):
+    class Model:
+        state = "draft"
+
+        def produce(self):
+            return f"producing from {self.__class__.__name__!r}"
+
+    model = Model()
+
+    sm = campaign_machine_with_final_state(model)
+    with pytest.warns(UserWarning, match="Attribute 'produce' already exists on <tests.test.*"):
+        sm.bind_events_to(model)
+
+    assert model.produce() == "producing from 'Model'"
+    assert sm.current_state_value == "draft"
+
+    assert sm.produce() is None
+    assert sm.current_state_value == "producing"
+
+    # event trigger bound to the model
+    model.deliver()
+    assert sm.current_state_value == "closed"
