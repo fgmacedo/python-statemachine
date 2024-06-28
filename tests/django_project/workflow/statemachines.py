@@ -1,13 +1,14 @@
-from statemachine import State
 from statemachine import StateMachine
+from statemachine.states import States
+
+from .models import WorkflowSteps
 
 
 class WorfklowStateMachine(StateMachine):
-    draft = State(initial=True)
-    published = State(final=True)
+    _ = States.from_enum(WorkflowSteps, initial=WorkflowSteps.DRAFT, final=WorkflowSteps.PUBLISHED)
 
-    publish = draft.to(published, cond="is_active")
-    notify_user = draft.to.itself(internal=True, cond="has_user")
+    publish = _.draft.to(_.published, cond="is_active")
+    notify_user = _.draft.to.itself(internal=True, cond="has_user")
 
     def has_user(self):
         return bool(self.model.user)
