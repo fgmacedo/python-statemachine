@@ -1,8 +1,10 @@
 from bisect import insort
+from collections import Counter
 from collections import defaultdict
 from collections import deque
 from enum import IntEnum
 from enum import auto
+from inspect import iscoroutinefunction
 from typing import Callable
 from typing import Dict
 from typing import Generator
@@ -42,7 +44,7 @@ class CallbackGroup(IntEnum):
         return f"{self.name}@{id(specs)}"
 
 
-async def allways_true(*args, **kwargs):
+def allways_true(*args, **kwargs):
     return True
 
 
@@ -99,9 +101,6 @@ class CallbackSpec:
         self.reference = SpecReference.CALLABLE
         self.attr_name = attr_name
 
-    def _wrap_callable(self, func, _expected_value):
-        return func
-
     def build(self, resolver) -> Generator["CallbackWrapper", None, None]:
         """
         Resolves the `func` into a usable callable.
@@ -117,7 +116,7 @@ class CallbackSpec:
                 else allways_true
             )
             yield CallbackWrapper(
-                callback=self._wrap_callable(callback, self.expected_value),
+                callback=callback,
                 condition=condition,
                 meta=self,
                 unique_key=callback.unique_key,
@@ -150,12 +149,6 @@ class BoolCallbackSpec(CallbackSpec):
     def __str__(self):
         name = super().__str__()
         return name if self.expected_value else f"!{name}"
-
-    def _wrap_callable(self, func, expected_value):
-        async def bool_wrapper(*args, **kwargs):
-            return bool(await func(*args, **kwargs)) == expected_value
-
-        return bool_wrapper
 
 
 class SpecListGrouper:
@@ -275,9 +268,23 @@ class CallbackWrapper:
         unique_key: str,
     ) -> None:
         self._callback = callback
+        self._iscoro = iscoroutinefunction(callback)
         self.condition = condition
+        self.acondition = self._async_condition(condition)
         self.meta = meta
         self.unique_key = unique_key
+        self.expected_value = self.meta.expected_value
+
+    def _async_condition(self, condition: Callable):
+        is_coro = iscoroutinefunction(condition)
+
+        async def async_condition(*args, **kwargs):
+            if is_coro:
+                return await condition(*args, **kwargs)
+            else:
+                return condition(*args, **kwargs)
+
+        return async_condition
 
     def __repr__(self):
         return f"{type(self).__name__}({self.unique_key})"
@@ -289,7 +296,18 @@ class CallbackWrapper:
         return self.meta.priority < other.meta.priority
 
     async def __call__(self, *args, **kwargs):
-        return await self._callback(*args, **kwargs)
+        if self._iscoro:
+            value = await self._callback(*args, **kwargs)
+        value = self._callback(*args, **kwargs)
+        if self.expected_value is not None:
+            return bool(value) == self.expected_value
+        return value
+
+    def call(self, *args, **kwargs):
+        value = self._callback(*args, **kwargs)
+        if self.expected_value is not None:
+            return bool(value) == self.expected_value
+        return value
 
 
 class CallbacksExecutor:
@@ -322,16 +340,29 @@ class CallbacksExecutor:
             self._add(item, resolver)
         return self
 
-    async def call(self, *args, **kwargs):
+    async def acall(self, *args, **kwargs):
         return [
             await callback(*args, **kwargs)
             for callback in self
-            if await callback.condition(*args, **kwargs)
+            if await callback.acondition(*args, **kwargs)
         ]
 
-    async def all(self, *args, **kwargs):
+    async def aall(self, *args, **kwargs):
         for condition in self:
             if not await condition(*args, **kwargs):
+                return False
+        return True
+
+    def call(self, *args, **kwargs):
+        return [
+            callback.call(*args, **kwargs)
+            for callback in self
+            if callback.condition(*args, **kwargs)
+        ]
+
+    def all(self, *args, **kwargs):
+        for condition in self:
+            if not condition.call(*args, **kwargs):
                 return False
         return True
 
@@ -339,6 +370,7 @@ class CallbacksExecutor:
 class CallbacksRegistry:
     def __init__(self) -> None:
         self._registry: Dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
+        self._method_types = Counter()
 
     def clear(self):
         self._registry.clear()
@@ -358,3 +390,10 @@ class CallbacksRegistry:
             raise AttrNotFound(
                 _("Did not found name '{}' from model or statemachine").format(meta.func)
             )
+
+    def async_or_sync(self):
+        for executor in self._registry.values():
+            for callback in executor:
+                self._method_types.update(
+                    [callback._iscoro, iscoroutinefunction(callback.condition)]
+                )

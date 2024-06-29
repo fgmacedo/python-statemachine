@@ -121,14 +121,7 @@ class Listeners:
 
 
 def callable_method(attribute, a_callable, resolver_id) -> Callable:
-    cache = None
-
-    def method(*args: Any, **kwds: Any) -> Any:
-        nonlocal cache
-        if cache is None:
-            cache = SignatureAdapter.wrap(a_callable)
-        return cache(*args, **kwds)
-
+    method = SignatureAdapter.wrap(a_callable)
     method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
     method.__name__ = a_callable.__name__
     method.__doc__ = a_callable.__doc__
@@ -138,7 +131,7 @@ def callable_method(attribute, a_callable, resolver_id) -> Callable:
 def attr_method(attribute, obj, resolver_id) -> Callable:
     getter = attrgetter(attribute)
 
-    async def method(*args, **kwargs):
+    def method(*args, **kwargs):
         return getter(obj)
 
     method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
@@ -146,9 +139,9 @@ def attr_method(attribute, obj, resolver_id) -> Callable:
 
 
 def event_method(attribute, func, resolver_id) -> Callable:
-    async def method(*args, **kwargs):
+    def method(*args, **kwargs):
         kwargs.pop("machine", None)
-        return await func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
     return method

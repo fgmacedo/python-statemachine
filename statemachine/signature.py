@@ -71,7 +71,7 @@ class SignatureAdapter(Signature):
                 return await method(*ba.args, **ba.kwargs)
         else:
 
-            async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+            def method_wrapper(*args: Any, **kwargs: Any) -> Any:
                 ba = sig_bind_expected(*args, **kwargs)
                 return method(*ba.args, **ba.kwargs)
 

@@ -75,7 +75,7 @@ may contain async callbacks that must be awaited.
 ```py
 >>> async def initialize_sm():
 ...     sm = AsyncStateMachine()
-...     await sm.activate_initial_state()
+...     # await sm.activate_initial_state()
 ...     return sm
 
 >>> sm = asyncio.run(initialize_sm())

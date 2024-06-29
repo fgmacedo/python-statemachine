@@ -3,7 +3,7 @@ import pytest
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.exceptions import InvalidDefinition
-from statemachine.statemachine import Transition
+from statemachine.transition import Transition
 
 from .models import MyModel
 
