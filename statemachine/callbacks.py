@@ -90,7 +90,10 @@ class CallbackSpec:
         return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"
 
     def __str__(self):
-        return getattr(self.func, "__name__", self.func)
+        name = getattr(self.func, "__name__", self.func)
+        if self.expected_value is False:
+            name = f"!{name}"
+        return name
 
     def __eq__(self, other):
         return self.func == other.func and self.group == other.group
