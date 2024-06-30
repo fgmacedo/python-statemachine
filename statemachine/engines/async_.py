@@ -1,5 +1,6 @@
 from threading import Lock
 from typing import TYPE_CHECKING
+from weakref import proxy
 
 from ..event_data import EventData
 from ..event_data import TriggerData
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 
 class AsyncEngine:
     def __init__(self, sm: "StateMachine", rtc: bool = True):
-        self.sm = sm
+        self.sm = proxy(sm)
         self._sentinel = object()
         self._rtc = rtc
         self._processing = Lock()
