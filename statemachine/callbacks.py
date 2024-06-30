@@ -121,34 +121,6 @@ class CallbackSpec:
             )
 
 
-class BoolCallbackSpec(CallbackSpec):
-    """A thin wrapper that register info about actions and guards.
-
-    At first, `func` can be a string or a callable, and even if it's already
-    a callable, his signature can mismatch.
-
-    After instantiation, `.setup(resolver)` must be called before any real
-    call is performed, to allow the proper callback resolution.
-    """
-
-    def __init__(
-        self,
-        func,
-        group: CallbackGroup,
-        is_convention=False,
-        cond=None,
-        priority: CallbackPriority = CallbackPriority.NAMING,
-        expected_value=True,
-    ):
-        super().__init__(
-            func, group, is_convention, cond, priority=priority, expected_value=expected_value
-        )
-
-    def __str__(self):
-        name = super().__str__()
-        return name if self.expected_value else f"!{name}"
-
-
 class SpecListGrouper:
     def __init__(
         self, list: "CallbackSpecList", group: CallbackGroup, factory=CallbackSpec

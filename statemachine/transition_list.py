@@ -134,7 +134,7 @@ class TransitionList:
         Returns:
             The `f` callable.
         """
-        return self._add_callback(f, "cond")
+        return self._add_callback(f, "cond", expected_value=True)
 
     def unless(self, f: Callable):
         """Adds a ``unless`` :ref:`guards` callback with expected value ``False`` to every
