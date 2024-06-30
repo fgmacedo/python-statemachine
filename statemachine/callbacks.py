@@ -1,9 +1,11 @@
+import asyncio
 from bisect import insort
 from collections import Counter
 from collections import defaultdict
 from collections import deque
 from enum import IntEnum
 from enum import auto
+from inspect import isawaitable
 from inspect import iscoroutinefunction
 from typing import Callable
 from typing import Dict
@@ -110,11 +112,7 @@ class CallbackSpec:
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
         for callback in resolver.search(self):
-            condition = (
-                next(resolver.search(CallbackSpec(self.cond, CallbackGroup.COND)))
-                if self.cond is not None
-                else allways_true
-            )
+            condition = self.cond if self.cond is not None else allways_true
             yield CallbackWrapper(
                 callback=callback,
                 condition=condition,
@@ -270,21 +268,9 @@ class CallbackWrapper:
         self._callback = callback
         self._iscoro = iscoroutinefunction(callback)
         self.condition = condition
-        self.acondition = self._async_condition(condition)
         self.meta = meta
         self.unique_key = unique_key
         self.expected_value = self.meta.expected_value
-
-    def _async_condition(self, condition: Callable):
-        is_coro = iscoroutinefunction(condition)
-
-        async def async_condition(*args, **kwargs):
-            if is_coro:
-                return await condition(*args, **kwargs)
-            else:
-                return condition(*args, **kwargs)
-
-        return async_condition
 
     def __repr__(self):
         return f"{type(self).__name__}({self.unique_key})"
@@ -296,9 +282,10 @@ class CallbackWrapper:
         return self.meta.priority < other.meta.priority
 
     async def __call__(self, *args, **kwargs):
-        if self._iscoro:
-            value = await self._callback(*args, **kwargs)
         value = self._callback(*args, **kwargs)
+        if isawaitable(value):
+            value = await value
+
         if self.expected_value is not None:
             return bool(value) == self.expected_value
         return value
@@ -340,16 +327,19 @@ class CallbacksExecutor:
             self._add(item, resolver)
         return self
 
-    async def acall(self, *args, **kwargs):
-        return [
-            await callback(*args, **kwargs)
-            for callback in self
-            if await callback.acondition(*args, **kwargs)
-        ]
+    async def async_call(self, *args, **kwargs):
+        return await asyncio.gather(
+            *(
+                callback(*args, **kwargs)
+                for callback in self
+                if callback.condition(*args, **kwargs)
+            )
+        )
 
-    async def aall(self, *args, **kwargs):
-        for condition in self:
-            if not await condition(*args, **kwargs):
+    async def async_all(self, *args, **kwargs):
+        coros = [condition(*args, **kwargs) for condition in self]
+        for coro in asyncio.as_completed(coros):
+            if not await coro:
                 return False
         return True
 
@@ -370,7 +360,7 @@ class CallbacksExecutor:
 class CallbacksRegistry:
     def __init__(self) -> None:
         self._registry: Dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
-        self._method_types = Counter()
+        self._method_types: Counter = Counter()
 
     def clear(self):
         self._registry.clear()
@@ -392,8 +382,6 @@ class CallbacksRegistry:
             )
 
     def async_or_sync(self):
-        for executor in self._registry.values():
-            for callback in executor:
-                self._method_types.update(
-                    [callback._iscoro, iscoroutinefunction(callback.condition)]
-                )
+        self._method_types.update(
+            callback._iscoro for executor in self._registry.values() for callback in executor
+        )

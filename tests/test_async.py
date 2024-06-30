@@ -71,6 +71,31 @@ async def test_async_order_control_machine(async_order_control_machine):
     assert sm.completed.is_active
 
 
+def test_async_state_from_sync_context(async_order_control_machine):
+    """Test that an async state machine can be used from a synchronous context"""
+
+    sm = async_order_control_machine()
+
+    assert sm.add_to_order(3) == 3
+    assert sm.add_to_order(7) == 10
+
+    assert sm.receive_payment(4) == [4]
+    assert sm.waiting_for_payment.is_active
+
+    with pytest.raises(sm.TransitionNotAllowed):
+        sm.process_order()
+
+    assert sm.waiting_for_payment.is_active
+
+    assert sm.send("receive_payment", 6) == [4, 6]  # test the sync version of the `.send()` method
+    sm.send("process_order")  # test the sync version of the `.send()` method
+
+    sm.ship_order()
+    assert sm.order_total == 10
+    assert sm.payments == [4, 6]
+    assert sm.completed.is_active
+
+
 async def test_async_state_should_be_initialized(async_order_control_machine):
     """Test that the state machine is initialized before any event is triggered
 

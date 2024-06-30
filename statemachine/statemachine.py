@@ -2,6 +2,7 @@ import warnings
 from collections import deque
 from copy import deepcopy
 from functools import partial
+from inspect import isawaitable
 from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any
@@ -15,6 +16,8 @@ from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
 from .dispatcher import Listener
 from .dispatcher import Listeners
+from .engines.async_ import AsyncEngine
+from .engines.sync import SyncEngine
 from .event import Event
 from .event_data import TriggerData
 from .exceptions import InvalidDefinition
@@ -100,17 +103,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
             )
             self._put_nonblocking(trigger_data)
 
-        self._engine = self._get_engine()
-        self.activate_initial_state()
+        self._engine = self._get_engine(rtc)
 
-    def _get_engine(self):
-        from .engine import AsyncEngine
-        from .engine import SyncEngine
-
+    def _get_engine(self, rtc: bool):
         if self._callbacks_registry._method_types[True] > 0:
-            return AsyncEngine(self)
+            return AsyncEngine(self, rtc=rtc)
         else:
-            return SyncEngine(self)
+            return SyncEngine(self, rtc=rtc)
 
     def activate_initial_state(self):
         return self._engine.activate_initial_state()
@@ -136,17 +135,17 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def __deepcopy__(self, memo):
         deepcopy_method = self.__deepcopy__
-        lock = self._engine.__processing
+        lock = self._engine._processing
         with lock:
             self.__deepcopy__ = None
-            self._engine.__processing = None
+            self._engine._processing = None
             try:
                 cp = deepcopy(self, memo)
-                cp._engine.__processing = Lock()
+                cp._engine._processing = Lock()
             finally:
                 self.__deepcopy__ = deepcopy_method
                 cp.__deepcopy__ = deepcopy_method
-                self._engine.__processing = lock
+                self._engine._processing = lock
         cp._callbacks_registry.clear()
         cp._register_callbacks([])
         cp.add_listener(*cp._listeners.keys())
@@ -309,8 +308,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
             See: :ref:`triggering events`.
 
         """
-        coro = self._async_send(event, *args, **kwargs)
-        return run_async_from_sync(coro)
+        result = self._async_send(event, *args, **kwargs)
+        if not isawaitable(result):
+            return result
+        return run_async_from_sync(result)
 
     def _async_send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.

@@ -1,7 +1,6 @@
 import sys
 from datetime import datetime
 from typing import List
-from unittest.mock import patch
 
 import pytest
 
@@ -198,9 +197,3 @@ def approval_machine(current_time):  # noqa: C901
             return self.model
 
     return ApprovalMachine
-
-
-@pytest.fixture(autouse=True, scope="module")
-def _mock_sync_to_async():
-    with patch("statemachine.signature.sync_to_async", None):
-        yield

@@ -1,5 +1,4 @@
-import logging
-from inspect import iscoroutinefunction
+from inspect import isawaitable
 from typing import TYPE_CHECKING
 
 from statemachine.utils import run_async_from_sync
@@ -8,8 +7,6 @@ from .event_data import TriggerData
 
 if TYPE_CHECKING:
     from .statemachine import StateMachine
-
-logger = logging.getLogger(__name__)
 
 
 class Event:
@@ -35,8 +32,7 @@ def trigger_event_factory(event_instance: Event):
 
     def trigger_event(self, *args, **kwargs):
         result = event_instance.trigger(self, *args, **kwargs)
-        logger.debug(f"Event {event_instance.name} triggered: {result}")
-        if not iscoroutinefunction(result):
+        if not isawaitable(result):
             return result
         return run_async_from_sync(result)
 
@@ -51,7 +47,7 @@ def same_event_cond_builder(expected_event: str):
     Builds a condition method that evaluates to ``True`` when the expected event is received.
     """
 
-    def cond(event: str) -> bool:
+    def cond(*args, event: "str | None" = None, **kwargs) -> bool:
         return event == expected_event
 
     return cond

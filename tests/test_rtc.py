@@ -1,9 +1,11 @@
+import inspect
 from unittest import mock
 
 import pytest
 
 from statemachine import State
 from statemachine import StateMachine
+from statemachine.exceptions import TransitionNotAllowed
 
 
 @pytest.fixture()
@@ -131,29 +133,43 @@ class TestChainedTransition:
 
         assert sm.spy.call_args_list == expected_calls
 
-    @pytest.mark.parametrize("rtc", [False, True])
-    async def test_should_preserve_event_order(self, chained_on_sm_class, rtc):
+    @pytest.mark.parametrize(
+        ("rtc", "expected"),
+        [
+            (
+                True,
+                [
+                    mock.call("on_enter_state", event="__initial__", state="s1", source=""),
+                    mock.call("on_exit_state", event="t1", state="s1", target="s2"),
+                    mock.call("on_transition", event="t1", source="s1", target="s2"),
+                    mock.call("on_enter_state", event="t1", state="s2", source="s1"),
+                    mock.call("after_transition", event="t1", source="s1", target="s2"),
+                    mock.call("on_exit_state", event="t2a", state="s2", target="s2"),
+                    mock.call("on_transition", event="t2a", source="s2", target="s2"),
+                    mock.call("on_enter_state", event="t2a", state="s2", source="s2"),
+                    mock.call("after_transition", event="t2a", source="s2", target="s2"),
+                    mock.call("on_exit_state", event="t2b", state="s2", target="s3"),
+                    mock.call("on_transition", event="t2b", source="s2", target="s3"),
+                    mock.call("on_enter_state", event="t2b", state="s3", source="s2"),
+                    mock.call("after_transition", event="t2b", source="s2", target="s3"),
+                    mock.call("on_exit_state", event="t3", state="s3", target="s4"),
+                    mock.call("on_transition", event="t3", source="s3", target="s4"),
+                    mock.call("on_enter_state", event="t3", state="s4", source="s3"),
+                    mock.call("after_transition", event="t3", source="s3", target="s4"),
+                ],
+            ),
+            (
+                False,
+                TransitionNotAllowed,
+            ),
+        ],
+    )
+    def test_should_preserve_event_order(self, chained_on_sm_class, rtc, expected):
         sm = chained_on_sm_class(rtc=rtc)
 
-        result = await sm.send("t1")
-
-        assert result == ["t1", [mock.ANY, mock.ANY, mock.ANY]]
-        assert sm.spy.call_args_list == [
-            mock.call("on_enter_state", event="__initial__", state="s1", source=""),
-            mock.call("on_exit_state", event="t1", state="s1", target="s2"),
-            mock.call("on_transition", event="t1", source="s1", target="s2"),
-            mock.call("on_enter_state", event="t1", state="s2", source="s1"),
-            mock.call("after_transition", event="t1", source="s1", target="s2"),
-            mock.call("on_exit_state", event="t2a", state="s2", target="s2"),
-            mock.call("on_transition", event="t2a", source="s2", target="s2"),
-            mock.call("on_enter_state", event="t2a", state="s2", source="s2"),
-            mock.call("after_transition", event="t2a", source="s2", target="s2"),
-            mock.call("on_exit_state", event="t2b", state="s2", target="s3"),
-            mock.call("on_transition", event="t2b", source="s2", target="s3"),
-            mock.call("on_enter_state", event="t2b", state="s3", source="s2"),
-            mock.call("after_transition", event="t2b", source="s2", target="s3"),
-            mock.call("on_exit_state", event="t3", state="s3", target="s4"),
-            mock.call("on_transition", event="t3", source="s3", target="s4"),
-            mock.call("on_enter_state", event="t3", state="s4", source="s3"),
-            mock.call("after_transition", event="t3", source="s3", target="s4"),
-        ]
+        if inspect.isclass(expected) and issubclass(expected, Exception):
+            with pytest.raises(expected):
+                sm.send("t1")
+        else:
+            assert sm.send("t1") == ["t1", [None, None, None]]
+            assert sm.spy.call_args_list == expected
