@@ -77,7 +77,7 @@ Define your state machine:
 ...         | red.to(green)
 ...     )
 ...
-...     async def before_cycle(self, event: str, source: State, target: State, message: str = ""):
+...     def before_cycle(self, event: str, source: State, target: State, message: str = ""):
 ...         message = ". " + message if message else ""
 ...         return f"Running {event} from {source.id} to {target.id}{message}"
 ...
@@ -119,26 +119,6 @@ Then start sending events to your new state machine:
 'Running cycle from green to yellow'
 
 ```
-
-You can use the exactly same state machine from an async codebase:
-
-
-```py
->>> async def run_sm():
-...    asm = TrafficLightMachine()
-...    results = []
-...    for _i in range(4):
-...        result = await asm.send("cycle")
-...        results.append(result)
-...    return results
-
->>> asyncio.run(run_sm())
-Don't move.
-Go ahead!
-['Running cycle from green to yellow', 'Running cycle from yellow to red', ...
-
-```
-
 
 **That's it.** This is all an external object needs to know about your state machine: How to send events.
 Ideally, all states, transitions, and actions should be kept internally and not checked externally to avoid unnecessary coupling.
@@ -227,7 +207,7 @@ callback method.
 Note how `before_cycle` was declared:
 
 ```py
-async def before_cycle(self, event: str, source: State, target: State, message: str = ""):
+def before_cycle(self, event: str, source: State, target: State, message: str = ""):
     message = ". " + message if message else ""
     return f"Running {event} from {source.id} to {target.id}{message}"
 ```

@@ -1,7 +1,6 @@
 import sys
 from datetime import datetime
 from typing import List
-from unittest.mock import patch
 
 import pytest
 
@@ -123,7 +122,7 @@ def AllActionsMachine():
 
 
 @pytest.fixture()
-def classic_traffic_light_machine():
+def classic_traffic_light_machine(engine):
     from statemachine import State
     from statemachine import StateMachine
 
@@ -135,6 +134,9 @@ def classic_traffic_light_machine():
         slowdown = green.to(yellow)
         stop = yellow.to(red)
         go = red.to(green)
+
+        def _get_engine(self, rtc: bool):
+            return engine(self, rtc)
 
     return TrafficLightMachine
 
@@ -200,7 +202,12 @@ def approval_machine(current_time):  # noqa: C901
     return ApprovalMachine
 
 
-@pytest.fixture(autouse=True, scope="module")
-def _mock_sync_to_async():
-    with patch("statemachine.signature.sync_to_async", None):
-        yield
+@pytest.fixture(params=["sync", "async"])
+def engine(request):
+    from statemachine.engines.async_ import AsyncEngine
+    from statemachine.engines.sync import SyncEngine
+
+    if request.param == "sync":
+        return SyncEngine
+    else:
+        return AsyncEngine

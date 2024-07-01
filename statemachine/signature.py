@@ -6,13 +6,7 @@ from inspect import iscoroutinefunction
 from itertools import chain
 from types import MethodType
 from typing import Any
-
-try:
-    # Compatibility with Django ORM
-    # https://docs.djangoproject.com/en/5.1/topics/async/#async-safety
-    from asgiref.sync import sync_to_async
-except ImportError:  # pragma: no cover
-    sync_to_async = None  # type: ignore[assignment]
+from typing import Callable
 
 
 def _make_key(method):
@@ -51,7 +45,7 @@ def signature_cache(user_function):
 
 class SignatureAdapter(Signature):
     @classmethod
-    def wrap(cls, method):
+    def wrap(cls, method) -> Callable:
         """Build a wrapper that adapts the received arguments to the inner ``method`` signature"""
 
         sig = cls.from_callable(method)
@@ -59,25 +53,20 @@ class SignatureAdapter(Signature):
 
         metadata_to_copy = method.func if isinstance(method, partial) else method
 
-        is_coroutine = iscoroutinefunction(method)
-        if not is_coroutine and sync_to_async is not None:
-            method = sync_to_async(method)
-            is_coroutine = True
+        if iscoroutinefunction(method):
 
-        if is_coroutine:
-
-            async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+            async def signature_adapter(*args: Any, **kwargs: Any) -> Any:
                 ba = sig_bind_expected(*args, **kwargs)
                 return await method(*ba.args, **ba.kwargs)
         else:
 
-            async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+            def signature_adapter(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
                 ba = sig_bind_expected(*args, **kwargs)
                 return method(*ba.args, **ba.kwargs)
 
-        method_wrapper.__name__ = metadata_to_copy.__name__
+        signature_adapter.__name__ = metadata_to_copy.__name__
 
-        return method_wrapper
+        return signature_adapter
 
     @classmethod
     @signature_cache

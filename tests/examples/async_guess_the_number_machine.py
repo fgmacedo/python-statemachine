@@ -150,8 +150,9 @@ async def main_async():
     writer.close()
 
 
-def main():
+def main_sync():
     sm = GuessTheNumberMachine(print, seed=random.randint(1, 1000))
+    sm.activate_initial_state()
     while not sm.current_state.final:
         res = sys.stdin.readline()
         if not res:
@@ -161,6 +162,6 @@ def main():
 
 if __name__ == "__main__" and "-i" in sys.argv:
     if "-s" in sys.argv:
-        main()
+        main_sync()
     else:
         asyncio.run(main_async())

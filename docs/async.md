@@ -4,21 +4,61 @@
 Support for async code was added!
 ```
 
-The {ref}`StateMachine` has full async suport. You can write async {ref}`actions`, {ref}`guards` and {ref}`event` triggers.
+The {ref}`StateMachine` fully supports asynchronous code. You can write async {ref}`actions`, {ref}`guards`, and {ref}`event` triggers, while maintaining the same external API for both synchronous and asynchronous codebases.
 
-Keeping the same external API do interact both on sync or async codebases.
+This is achieved through a new concept called "engine," an internal strategy pattern abstraction that manages transitions and callbacks.
+
+There are two engines:
+
+SyncEngine
+: Activated if there are no async callbacks. All code runs exactly as it did before version 2.3.0.
+
+AsyncEngine
+: Activated if there is at least one async callback. The code runs asynchronously and requires a running event loop, which it will create if none exists.
+
+These engines are internal and are activated automatically by inspecting the registered callbacks in the following scenarios:
+
+
+```{list-table} Sync vs async engines
+:widths: 15 10 25 10 10
+:header-rows: 1
+
+*   - Outer scope
+    - Async callbacks?
+    - Engine
+    - Creates internal loop
+    - Reuses external loop
+*   - Sync
+    - No
+    - Sync
+    - No
+    - No
+*   - Sync
+    - Yes
+    - Async
+    - Yes
+    - No
+*   - Async
+    - No
+    - Sync
+    - No
+    - No
+*   - Async
+    - Yes
+    - Async
+    - No
+    - Yes
+
+```
+
 
 ```{note}
-All the handlers will run on the same thread they're called. So it's not recommended to mix sync with async code unless
-you know what you're doing.
+All handlers will run on the same thread they are called. Therefore, mixing synchronous and asynchronous code is not recommended unless you are confident in your implementation.
 ```
 
 ## Asynchronous Support
 
-We support native coroutine using asyncio, enabling seamless integration with asynchronous code.
-There's no change on the public API of the library to work on async codebases.
-
-One requirement is that when running on an async code, you must manually await for the {ref}`initial state activation` to be able to check the current state.
+We support native coroutine callbacks using asyncio, enabling seamless integration with asynchronous code. There is no change in the public API of the library to work with asynchronous codebases.
 
 
 ```{seealso}
@@ -49,10 +89,10 @@ Final
 
 ```
 
-## Sync codebase with async handlers
+## Sync codebase with async callbacks
 
-The same state machine can be executed on a sync codebase, even if it contains async handlers. The handlers will be
-awaited on an `asyncio.get_event_loop()` if needed.
+The same state machine can be executed in a synchronous codebase, even if it contains async callbacks. The callbacks will be awaited using `asyncio.get_event_loop()` if needed.
+
 
 ```py
 >>> sm = AsyncStateMachine()
@@ -68,9 +108,12 @@ Final
 (initial state activation)=
 ## Initial State Activation for Async Code
 
-When working with asynchronous state machines from async code, users must manually [activate initial state](statemachine.StateMachine.activate_initial_state) to be able to check the current state. This change ensures proper state initialization and
-execution flow given that Python don't allow awaiting at class initalization time and the initial state activation
-may contain async callbacks that must be awaited.
+
+If you perform checks against the `current_state`, like a loop `while sm.current_state.is_final:`, then on async code you must manually
+await for the  [activate initial state](statemachine.StateMachine.activate_initial_state) to be able to check the current state.
+
+If you don't do any check for current state externally, just ignore this as the initial state is activated automatically before the first event trigger is handled.
+
 
 ```py
 >>> async def initialize_sm():
@@ -82,4 +125,8 @@ may contain async callbacks that must be awaited.
 >>> print(sm.current_state)
 Initial
 
+```
+
+```{hint}
+This manual initial state activation on async is because Python don't allow awaiting at class initalization time and the initial state activation may contain async callbacks that must be awaited.
 ```

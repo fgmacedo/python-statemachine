@@ -1,4 +1,3 @@
-from .callbacks import BoolCallbackSpec
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
@@ -65,8 +64,8 @@ class Transition:
             after, priority=CallbackPriority.INLINE
         )
         self.cond = (
-            self._specs.grouper(CallbackGroup.COND, factory=BoolCallbackSpec)
-            .add(cond, priority=CallbackPriority.INLINE)
+            self._specs.grouper(CallbackGroup.COND)
+            .add(cond, priority=CallbackPriority.INLINE, expected_value=True)
             .add(unless, priority=CallbackPriority.INLINE, expected_value=False)
         )
 

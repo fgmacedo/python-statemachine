@@ -5,13 +5,8 @@ from workflow.models import WorkflowSteps
 from workflow.statemachines import WorfklowStateMachine
 
 pytestmark = [
-    pytest.mark.django_db(transaction=True),
+    pytest.mark.django_db,
 ]
-
-
-@pytest.fixture(autouse=True, scope="module")
-def _mock_sync_to_async():
-    """Override the mock so the sync callbacks are decorated with sync_to_async"""
 
 
 @pytest.fixture()
