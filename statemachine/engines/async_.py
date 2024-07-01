@@ -4,7 +4,9 @@ from weakref import proxy
 
 from ..event_data import EventData
 from ..event_data import TriggerData
+from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
+from ..i18n import _
 from ..transition import Transition
 
 if TYPE_CHECKING:
@@ -15,7 +17,8 @@ class AsyncEngine:
     def __init__(self, sm: "StateMachine", rtc: bool = True):
         self.sm = proxy(sm)
         self._sentinel = object()
-        self._rtc = rtc
+        if not rtc:
+            raise InvalidDefinition(_("Only RTC is supported on async engine"))
         self._processing = Lock()
 
     async def activate_initial_state(self):
@@ -49,12 +52,6 @@ class AsyncEngine:
             will be processed sequentially (and not nested).
 
         """
-
-        if not self._rtc:
-            # The machine is in "synchronous" mode
-            trigger_data = self.sm._external_queue.popleft()
-            return await self._trigger(trigger_data)
-
         # We make sure that only the first event enters the processing critical section,
         # next events will only be put on the queue and processed by the same loop.
         if not self._processing.acquire(blocking=False):

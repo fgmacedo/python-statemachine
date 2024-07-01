@@ -197,3 +197,14 @@ def approval_machine(current_time):  # noqa: C901
             return self.model
 
     return ApprovalMachine
+
+
+@pytest.fixture(params=["sync", "async"])
+def engine(request):
+    from statemachine.engines.async_ import AsyncEngine
+    from statemachine.engines.sync import SyncEngine
+
+    if request.param == "sync":
+        return SyncEngine
+    else:
+        return AsyncEngine

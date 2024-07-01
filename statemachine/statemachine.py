@@ -112,7 +112,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
             return SyncEngine(self, rtc=rtc)
 
     def activate_initial_state(self):
-        return self._engine.activate_initial_state()
+        result = self._engine.activate_initial_state()
+        if not isawaitable(result):
+            return result
+        return run_async_from_sync(result)
 
     def _processing_loop(self):
         return self._engine._processing_loop()
