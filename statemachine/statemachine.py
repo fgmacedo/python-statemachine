@@ -53,7 +53,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             Default: ``False``.
 
         listeners: An optional list of objects that provies attributes to be used as callbacks.
-            See {ref}`listeners` for more details.
+            See :ref:`listeners` for more details.
 
     """
 

@@ -19,7 +19,7 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture()
 def example_file_wrapper(file_name):
     def execute_file_wrapper():
-        module = import_module_by_path(file_name)
+        module = import_module_by_path(file_name.with_suffix(""))
         main = getattr(module, "main", None)
         if main:
             main()
