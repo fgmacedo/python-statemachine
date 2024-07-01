@@ -1,25 +1,22 @@
-from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Iterable
 from typing import List
 
+from .transition import Transition
 from .utils import ensure_iterable
-
-if TYPE_CHECKING:
-    from .transition import Transition
 
 
 class TransitionList:
     """A list-like container of :ref:`transitions` with callback functions."""
 
-    def __init__(self, transitions: "Iterable | None" = None):
+    def __init__(self, transitions: "Iterable[Transition] | None" = None):
         """
         Args:
             transitions: An iterable of `Transition` objects.
                 Defaults to `None`.
 
         """
-        self.transitions = list(transitions) if transitions else []
+        self.transitions: List[Transition] = list(transitions) if transitions else []
 
     def __repr__(self):
         """Return a string representation of the :ref:`TransitionList`."""
@@ -53,11 +50,12 @@ class TransitionList:
         transitions = ensure_iterable(transition)
 
         for transition in transitions:
+            assert isinstance(transition, Transition)  # makes mypy happy
             self.transitions.append(transition)
 
         return self
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> "Transition":
         """Returns the :ref:`transition` at the specified ``index``.
 
         Args:
@@ -136,7 +134,7 @@ class TransitionList:
         Returns:
             The `f` callable.
         """
-        return self._add_callback(f, "cond")
+        return self._add_callback(f, "cond", expected_value=True)
 
     def unless(self, f: Callable):
         """Adds a ``unless`` :ref:`guards` callback with expected value ``False`` to every

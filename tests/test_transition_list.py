@@ -39,7 +39,7 @@ class TestDecorators:
             ("unless", "cond", False),
         ],
     )
-    async def test_should_assign_callback_to_transitions(
+    def test_should_assign_callback_to_transitions(
         self, callback_name, list_attr_name, expected_value
     ):
         registry = CallbacksRegistry()
@@ -56,8 +56,8 @@ class TestDecorators:
             return 42
 
         transition = s1.transitions[0]
-        callback_list = getattr(transition, list_attr_name)
+        specs_grouper = getattr(transition, list_attr_name)
 
-        registry.register(callback_list, resolver_factory_from_objects(object()))
+        resolver_factory_from_objects(object()).resolve(transition._specs, registry=registry)
 
-        assert await registry[callback_list].call() == [expected_value]
+        assert registry[specs_grouper.key].call() == [expected_value]

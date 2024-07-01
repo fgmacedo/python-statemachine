@@ -1,8 +1,13 @@
 import pytest
 
-from statemachine.dispatcher import ObjectConfig
+from statemachine.callbacks import CallbackGroup
+from statemachine.callbacks import CallbackSpec
+from statemachine.dispatcher import Listener
+from statemachine.dispatcher import Listeners
 from statemachine.dispatcher import resolver_factory_from_objects
-from statemachine.dispatcher import search_callable
+from statemachine.exceptions import InvalidDefinition
+from statemachine.state import State
+from statemachine.statemachine import StateMachine
 
 
 class Person:
@@ -46,34 +51,48 @@ class TestEnsureCallable:
     def test_return_same_object_if_already_a_callable(self):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        actual = next(search_callable(expected, [])).wrap()
+        actual = next(
+            resolver_factory_from_objects([]).search(
+                CallbackSpec(model.get_full_name, group=CallbackGroup.ON)
+            )
+        )
         assert actual.__name__ == expected.__name__
         assert actual.__doc__ == expected.__doc__
 
-    async def test_retrieve_a_method_from_its_name(self, args, kwargs):
+    def test_retrieve_a_method_from_its_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        method = next(search_callable("get_full_name", [ObjectConfig.from_obj(model)])).wrap()
+        method = next(
+            Listeners.from_listeners([Listener.from_obj(model)]).search(
+                CallbackSpec("get_full_name", group=CallbackGroup.ON)
+            )
+        )
 
         assert method.__name__ == expected.__name__
         assert method.__doc__ == expected.__doc__
-        assert await method(*args, **kwargs) == "Frodo Bolseiro"
+        assert method(*args, **kwargs) == "Frodo Bolseiro"
 
-    async def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
+    def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
-        method = next(search_callable("first_name", [ObjectConfig.from_obj(model)])).wrap()
+        method = next(
+            Listeners.from_listeners([Listener.from_obj(model)]).search(
+                CallbackSpec("first_name", group=CallbackGroup.ON)
+            )
+        )
 
-        assert await method(*args, **kwargs) == "Frodo"
+        assert method(*args, **kwargs) == "Frodo"
 
-    async def test_retrieve_callable_from_a_property_name_that_should_keep_reference(
-        self, args, kwargs
-    ):
+    def test_retrieve_callable_from_a_property_name_that_should_keep_reference(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
-        method = next(search_callable("first_name", [ObjectConfig.from_obj(model)])).wrap()
+        method = next(
+            Listeners.from_listeners([Listener.from_obj(model)]).search(
+                CallbackSpec("first_name", group=CallbackGroup.ON)
+            )
+        )
 
         model.first_name = "Bilbo"
 
-        assert await method(*args, **kwargs) == "Bilbo"
+        assert method(*args, **kwargs) == "Bilbo"
 
 
 class TestResolverFactory:
@@ -86,13 +105,13 @@ class TestResolverFactory:
             ("get_full_name", "The Lord fo the Rings"),
         ],
     )
-    async def test_should_chain_resolutions(self, attr, expected_value):
+    def test_should_chain_resolutions(self, attr, expected_value):
         person = Person("Frodo", "Bolseiro", "cpf")
         org = Organization("The Lord fo the Rings", "cnpj")
 
         resolver = resolver_factory_from_objects(org, person)
-        resolved_method = next(resolver(attr)).wrap()
-        assert await resolved_method() == expected_value
+        resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
+        assert resolved_method() == expected_value
 
     @pytest.mark.parametrize(
         ("attr", "expected_value"),
@@ -103,12 +122,32 @@ class TestResolverFactory:
             ("get_full_name", "Frodo Bolseiro"),
         ],
     )
-    async def test_should_ignore_list_of_attrs(self, attr, expected_value):
+    def test_should_ignore_list_of_attrs(self, attr, expected_value):
         person = Person("Frodo", "Bolseiro", "cpf")
         org = Organization("The Lord fo the Rings", "cnpj")
 
-        org_config = ObjectConfig.from_obj(org, {"get_full_name"})
+        org_config = Listener.from_obj(org, {"get_full_name"})
 
         resolver = resolver_factory_from_objects(org_config, person)
-        resolved_method = next(resolver(attr)).wrap()
-        assert await resolved_method() == expected_value
+        resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
+        assert resolved_method() == expected_value
+
+
+class TestSearchProperty:
+    def test_not_found_property_with_same_name(self):
+        class StrangeObject:
+            @property
+            def can_change_to_start(self):
+                return False
+
+        class StartMachine(StateMachine):
+            created = State(initial=True)
+            started = State(final=True)
+
+            start = created.to(started, cond=StrangeObject.can_change_to_start)
+
+            def can_change_to_start(self):
+                return True
+
+        with pytest.raises(InvalidDefinition, match="not found name"):
+            StartMachine()

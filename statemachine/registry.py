@@ -1,14 +1,14 @@
 import warnings
 
-try:
-    _has_django = True
-    from django.utils.module_loading import autodiscover_modules
-except ImportError:
-    # Not a django project
-    autodiscover_modules = None
-    _has_django = False
-
 from .utils import qualname
+
+try:
+    from django.utils.module_loading import autodiscover_modules
+except ImportError:  # pragma: no cover
+    # Not a django project
+    def autodiscover_modules(module_name: str):
+        pass
+
 
 _REGISTRY = {}
 _initialized = False
@@ -39,8 +39,5 @@ def init_registry():
 
 
 def load_modules(modules=None):
-    if not _has_django:
-        return
-
     for module in modules:
         autodiscover_modules(module)

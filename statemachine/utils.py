@@ -32,7 +32,7 @@ def run_async_from_sync(coroutine):
     global _cached_loop
     try:
         asyncio.get_running_loop()
-        return asyncio.ensure_future(coroutine)
+        return coroutine
     except RuntimeError:
         if not hasattr(_cached_loop, "loop"):
             _cached_loop.loop = asyncio.new_event_loop()

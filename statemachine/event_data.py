@@ -47,16 +47,14 @@ class EventData:
     """The destination :ref:`State` of the :ref:`transition`."""
 
     result: "Any | None" = None
+
     executed: bool = False
 
     def __post_init__(self):
         self.state = self.transition.source
         self.source = self.transition.source
         self.target = self.transition.target
-
-    @property
-    def machine(self):
-        return self.trigger_data.machine
+        self.machine = self.trigger_data.machine
 
     @property
     def event(self):

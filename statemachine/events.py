@@ -27,5 +27,5 @@ class Events:
 
         return self
 
-    def match(self, event):
-        return any(t == event for t in self)
+    def match(self, event: str):
+        return any(e == event for e in self)

@@ -3,7 +3,7 @@ import pytest
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.exceptions import InvalidDefinition
-from statemachine.statemachine import Transition
+from statemachine.transition import Transition
 
 from .models import MyModel
 
@@ -240,7 +240,7 @@ class TestInternalTransition:
         ],
     )
     def test_should_not_execute_state_actions_on_internal_transitions(
-        self, internal, expected_calls
+        self, internal, expected_calls, engine
     ):
         calls = []
 
@@ -249,6 +249,9 @@ class TestInternalTransition:
 
             loop = initial.to.itself(internal=internal)
 
+            def _get_engine(self, rtc: bool):
+                return engine(self, rtc)
+
             def on_exit_initial(self):
                 calls.append("on_exit_initial")
 
@@ -256,6 +259,8 @@ class TestInternalTransition:
                 calls.append("on_enter_initial")
 
         sm = TestStateMachine()
+        sm.activate_initial_state()
+
         calls.clear()
         sm.loop()
         assert calls == expected_calls
@@ -275,12 +280,16 @@ class TestInternalTransition:
 class TestAllowEventWithoutTransition:
     def test_send_unknown_event(self, classic_traffic_light_machine):
         sm = classic_traffic_light_machine(allow_event_without_transition=True)
+        sm.activate_initial_state()  # no-op on sync engine
+
         assert sm.green.is_active
         sm.send("unknow_event")
         assert sm.green.is_active
 
     def test_send_not_valid_for_the_current_state_event(self, classic_traffic_light_machine):
         sm = classic_traffic_light_machine(allow_event_without_transition=True)
+        sm.activate_initial_state()  # no-op on sync engine
+
         assert sm.green.is_active
         sm.stop()
         assert sm.green.is_active

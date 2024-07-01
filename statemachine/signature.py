@@ -6,6 +6,7 @@ from inspect import iscoroutinefunction
 from itertools import chain
 from types import MethodType
 from typing import Any
+from typing import Callable
 
 
 def _make_key(method):
@@ -44,7 +45,7 @@ def signature_cache(user_function):
 
 class SignatureAdapter(Signature):
     @classmethod
-    def wrap(cls, method):
+    def wrap(cls, method) -> Callable:
         """Build a wrapper that adapts the received arguments to the inner ``method`` signature"""
 
         sig = cls.from_callable(method)
@@ -54,18 +55,18 @@ class SignatureAdapter(Signature):
 
         if iscoroutinefunction(method):
 
-            async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+            async def signature_adapter(*args: Any, **kwargs: Any) -> Any:
                 ba = sig_bind_expected(*args, **kwargs)
                 return await method(*ba.args, **ba.kwargs)
         else:
 
-            async def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+            def signature_adapter(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
                 ba = sig_bind_expected(*args, **kwargs)
                 return method(*ba.args, **ba.kwargs)
 
-        method_wrapper.__name__ = metadata_to_copy.__name__
+        signature_adapter.__name__ = metadata_to_copy.__name__
 
-        return method_wrapper
+        return signature_adapter
 
     @classmethod
     @signature_cache

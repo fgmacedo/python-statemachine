@@ -1,14 +1,9 @@
-from typing import TYPE_CHECKING
-
-from .callbacks import BoolCallbackMeta
-from .callbacks import CallbackMetaList
+from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
+from .callbacks import CallbackSpecList
 from .event import same_event_cond_builder
 from .events import Events
 from .exceptions import InvalidDefinition
-
-if TYPE_CHECKING:
-    from .event_data import EventData
 
 
 class Transition:
@@ -57,13 +52,20 @@ class Transition:
             raise InvalidDefinition("Internal transitions should be self-transitions.")
 
         self._events = Events().add(event)
-        self.validators = CallbackMetaList().add(validators, priority=CallbackPriority.INLINE)
-        self.before = CallbackMetaList().add(before, priority=CallbackPriority.INLINE)
-        self.on = CallbackMetaList().add(on, priority=CallbackPriority.INLINE)
-        self.after = CallbackMetaList().add(after, priority=CallbackPriority.INLINE)
+        self._specs = CallbackSpecList()
+        self.validators = self._specs.grouper(CallbackGroup.VALIDATOR).add(
+            validators, priority=CallbackPriority.INLINE
+        )
+        self.before = self._specs.grouper(CallbackGroup.BEFORE).add(
+            before, priority=CallbackPriority.INLINE
+        )
+        self.on = self._specs.grouper(CallbackGroup.ON).add(on, priority=CallbackPriority.INLINE)
+        self.after = self._specs.grouper(CallbackGroup.AFTER).add(
+            after, priority=CallbackPriority.INLINE
+        )
         self.cond = (
-            CallbackMetaList(factory=BoolCallbackMeta)
-            .add(cond, priority=CallbackPriority.INLINE)
+            self._specs.grouper(CallbackGroup.COND)
+            .add(cond, priority=CallbackPriority.INLINE, expected_value=True)
             .add(unless, priority=CallbackPriority.INLINE, expected_value=False)
         )
 
@@ -81,51 +83,37 @@ class Transition:
         on = self.on.add
         after = self.after.add
 
-        before("before_transition", priority=CallbackPriority.GENERIC, suppress_errors=True)
-        on("on_transition", priority=CallbackPriority.GENERIC, suppress_errors=True)
+        before("before_transition", priority=CallbackPriority.GENERIC, is_convention=True)
+        on("on_transition", priority=CallbackPriority.GENERIC, is_convention=True)
 
         for event in self._events:
             same_event_cond = same_event_cond_builder(event)
             before(
                 f"before_{event}",
                 priority=CallbackPriority.NAMING,
-                suppress_errors=True,
+                is_convention=True,
                 cond=same_event_cond,
             )
             on(
                 f"on_{event}",
                 priority=CallbackPriority.NAMING,
-                suppress_errors=True,
+                is_convention=True,
                 cond=same_event_cond,
             )
             after(
                 f"after_{event}",
                 priority=CallbackPriority.NAMING,
-                suppress_errors=True,
+                is_convention=True,
                 cond=same_event_cond,
             )
 
         after(
             "after_transition",
             priority=CallbackPriority.AFTER,
-            suppress_errors=True,
+            is_convention=True,
         )
 
-    def _add_observer(self, register):
-        register(self.validators)
-        register(self.cond)
-        register(self.before)
-        register(self.on)
-        register(self.after)
-
-    def _check_callbacks(self, check):
-        check(self.validators)
-        check(self.cond)
-        check(self.before)
-        check(self.on)
-        check(self.after)
-
-    def match(self, event):
+    def match(self, event: str):
         return self._events.match(event)
 
     @property
@@ -138,14 +126,3 @@ class Transition:
 
     def add_event(self, value):
         self._events.add(value)
-
-    async def execute(self, event_data: "EventData"):
-        machine = event_data.machine
-        args, kwargs = event_data.args, event_data.extended_kwargs
-        await machine._callbacks_registry[self.validators].call(*args, **kwargs)
-        if not await machine._callbacks_registry[self.cond].all(*args, **kwargs):
-            return False
-
-        result = await machine._activate(event_data)
-        event_data.result = result
-        return True

@@ -185,7 +185,7 @@ class StateMachineMetaclass(type):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
                 cls.add_event(key, value)
-            elif getattr(value, "_callbacks_to_update", None):
+            elif getattr(value, "_specs_to_update", None):
                 cls._add_unbounded_callback(key, value)
 
     def _add_states_from_dict(cls, states):
@@ -193,16 +193,15 @@ class StateMachineMetaclass(type):
             cls.add_state(state_id, state)
 
     def _add_unbounded_callback(cls, attr_name, func):
-        if func._is_event:
-            # if func is an event, the `attr_name` will be replaced by an event trigger,
-            # so we'll also give the ``func`` a new unique name to be used by the callback
-            # machinery.
-            cls.add_event(attr_name, func._transitions)
-            attr_name = f"_{attr_name}_{uuid4().hex}"
-            setattr(cls, attr_name, func)
+        # if func is an event, the `attr_name` will be replaced by an event trigger,
+        # so we'll also give the ``func`` a new unique name to be used by the callback
+        # machinery.
+        cls.add_event(attr_name, func._transitions)
+        attr_name = f"_{attr_name}_{uuid4().hex}"
+        setattr(cls, attr_name, func)
 
-        for ref in func._callbacks_to_update:
-            ref(attr_name)
+        for ref in func._specs_to_update:
+            ref(getattr(cls, attr_name), attr_name)
 
     def add_state(cls, id, state: State):
         state._set_id(id)

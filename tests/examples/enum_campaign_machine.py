@@ -54,4 +54,4 @@ assert sm.draft.is_active is False
 assert sm.producing.is_active is True
 assert sm.closed.is_active is False
 assert sm.current_state == sm.producing
-assert sm.current_state_value == CampaignStatus.producing.value
+assert sm.current_state_value == CampaignStatus.producing

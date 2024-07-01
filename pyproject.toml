@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-statemachine"
-version = "2.3.1"
+version = "2.3.2"
 description = "Python Finite State Machines made easy."
 authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
 maintainers = [
@@ -39,18 +39,21 @@ diagrams = ["pydot"]
 python = ">=3.7"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "*"
-pytest-cov = "*"
-pytest-sugar = "^1.0.0"
 pydot = "^2.0.0"
 ruff = "^0.4.8"
 pre-commit = "*"
 mypy = "*"
+
+[tool.poetry.group.tests.dependencies]
+pytest = "*"
+pytest-cov = "*"
+pytest-sugar = "^1.0.0"
 pytest-mock = "^3.10.0"
 pytest-profiling = "^1.7.0"
 pytest-benchmark = "^4.0.0"
 pytest-asyncio = "*"
-sphinx-rtd-theme = "^2.0.0"
+django = { version = "^5.0.3", python = ">3.10" }
+pytest-django = { version = "^4.8.0", python = ">3.8" }
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "*"
@@ -65,18 +68,20 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure --benchmark-autosave"
+addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure --benchmark-autosave --benchmark-group-by=name"
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 asyncio_mode = "auto"
 markers = [
     """slow: marks tests as slow (deselect with '-m "not slow"')""",
 ]
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
 
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disable_error_code = "annotation-unchecked"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/tests/django_project"
 
 [[tool.mypy.overrides]]
 module = [

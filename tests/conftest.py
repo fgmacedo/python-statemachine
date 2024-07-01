@@ -1,11 +1,14 @@
 import sys
 from datetime import datetime
+from typing import List
 
 import pytest
 
+collect_ignore_glob: List[str] = []
+
 # We support Python 3.8+ positional only syntax
 if sys.version_info[:2] < (3, 8):  # noqa: UP036
-    collect_ignore_glob = ["*_positional_only.py"]
+    collect_ignore_glob.append("*_positional_only.py")
 
 
 @pytest.fixture()
@@ -119,7 +122,7 @@ def AllActionsMachine():
 
 
 @pytest.fixture()
-def classic_traffic_light_machine():
+def classic_traffic_light_machine(engine):
     from statemachine import State
     from statemachine import StateMachine
 
@@ -131,6 +134,9 @@ def classic_traffic_light_machine():
         slowdown = green.to(yellow)
         stop = yellow.to(red)
         go = red.to(green)
+
+        def _get_engine(self, rtc: bool):
+            return engine(self, rtc)
 
     return TrafficLightMachine
 
@@ -194,3 +200,14 @@ def approval_machine(current_time):  # noqa: C901
             return self.model
 
     return ApprovalMachine
+
+
+@pytest.fixture(params=["sync", "async"])
+def engine(request):
+    from statemachine.engines.async_ import AsyncEngine
+    from statemachine.engines.sync import SyncEngine
+
+    if request.param == "sync":
+        return SyncEngine
+    else:
+        return AsyncEngine
