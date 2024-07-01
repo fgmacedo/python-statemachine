@@ -3,16 +3,6 @@ import sys
 import pytest
 
 
-class Any:
-    def __eq__(self, other):
-        return True
-
-
-@pytest.fixture()
-def ANY():
-    return Any()
-
-
 @pytest.fixture(autouse=True, scope="session")
 def add_doctest_context(doctest_namespace):  # noqa: PT004
     from statemachine import State

@@ -51,22 +51,37 @@ def test_machine_should_only_allow_only_one_initial_state():
             deliver = producing.to(closed)
 
 
-def test_machine_should_activate_initial_state():
+def test_machine_should_activate_initial_state(mocker):
+    spy = mocker.Mock()
+
     class CampaignMachine(StateMachine):
         "A workflow machine"
 
+        draft = State(initial=True)
         producing = State()
         closed = State(final=True)
-        draft = State(initial=True)
 
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
         deliver = producing.to(closed)
 
+        def on_enter_draft(self):
+            spy("draft")
+            return "draft"
+
     sm = CampaignMachine()
 
+    spy.assert_called_once_with("draft")
     assert sm.current_state == sm.draft
-    assert sm.current_state.is_active
+    assert sm.draft.is_active
+
+    spy.reset_mock()
+    # trying to activate the initial state again should does nothing
+    assert sm.activate_initial_state() is None
+
+    spy.assert_not_called()
+    assert sm.current_state == sm.draft
+    assert sm.draft.is_active
 
 
 def test_machine_should_not_allow_transitions_from_final_state():

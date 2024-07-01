@@ -122,7 +122,7 @@ def AllActionsMachine():
 
 
 @pytest.fixture()
-def classic_traffic_light_machine():
+def classic_traffic_light_machine(engine):
     from statemachine import State
     from statemachine import StateMachine
 
@@ -134,6 +134,9 @@ def classic_traffic_light_machine():
         slowdown = green.to(yellow)
         stop = yellow.to(red)
         go = red.to(green)
+
+        def _get_engine(self, rtc: bool):
+            return engine(self, rtc)
 
     return TrafficLightMachine
 

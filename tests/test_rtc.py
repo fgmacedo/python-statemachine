@@ -219,7 +219,7 @@ class TestAsyncEngineRTC:
             ],
         ],
     )
-    def test_should_preserve_event_order(self, expected, ANY):  # noqa: C901
+    def test_should_preserve_event_order(self, expected):  # noqa: C901
         class ChainedSM(StateMachine):
             s1 = State(initial=True)
             s2 = State()
