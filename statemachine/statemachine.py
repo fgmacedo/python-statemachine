@@ -106,7 +106,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._engine = self._get_engine(rtc)
 
     def _get_engine(self, rtc: bool):
-        if self._callbacks_registry._method_types[True] > 0:
+        if self._callbacks_registry.has_async_callbacks:
             return AsyncEngine(self, rtc=rtc)
         else:
             return SyncEngine(self, rtc=rtc)
@@ -118,7 +118,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return run_async_from_sync(result)
 
     def _processing_loop(self):
-        return self._engine._processing_loop()
+        return self._engine.processing_loop()
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -302,9 +302,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
-
-        This is a thin wrapper around :meth:`async_send` to allow synchronous
-        code to send events.
 
         .. seealso::
 

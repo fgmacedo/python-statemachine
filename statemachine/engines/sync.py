@@ -29,9 +29,9 @@ class SyncEngine:
         Given how async works on python, there's no built-in way to activate the initial state that
         may depend on async code from the StateMachine.__init__ method.
         """
-        return self._processing_loop()
+        return self.processing_loop()
 
-    def _processing_loop(self):
+    def processing_loop(self):
         """Process event triggers.
 
         The simplest implementation is the non-RTC (synchronous),
