@@ -1,6 +1,5 @@
 import asyncio
 from bisect import insort
-from collections import Counter
 from collections import defaultdict
 from collections import deque
 from enum import IntEnum
@@ -335,7 +334,7 @@ class CallbacksExecutor:
 class CallbacksRegistry:
     def __init__(self) -> None:
         self._registry: Dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
-        self._method_types: Counter = Counter()
+        self.has_async_callbacks: bool = False
 
     def clear(self):
         self._registry.clear()
@@ -357,6 +356,6 @@ class CallbacksRegistry:
             )
 
     def async_or_sync(self):
-        self._method_types.update(
+        self.has_async_callbacks = any(
             callback._iscoro for executor in self._registry.values() for callback in executor
         )
