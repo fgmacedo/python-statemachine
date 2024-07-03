@@ -54,7 +54,6 @@ class States:
         return list(self) == list(other)
 
     def __getattr__(self, name: str):
-        name = name.lower()
         if name in self._states:
             return self._states[name]
         raise AttributeError(f"{name} not found in {self.__class__.__name__}")
@@ -81,7 +80,7 @@ class States:
         return self._states.items()
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, initial, final=None):
+    def from_enum(cls, enum_type: EnumType, initial, final=None, use_enum_instance: bool = False):
         """
         Creates a new instance of the ``States`` class from an enumeration.
 
@@ -125,12 +124,25 @@ class States:
         True
 
         >>> sm.current_state_value
+        2
+
+        If you need to use the enum instance as the state value, you can set the
+        ``use_enum_instance=True``:
+
+        >>> states = States.from_enum(Status, initial=Status.pending, use_enum_instance=True)
+        >>> states.completed.value
         <Status.completed: 2>
+
+        .. deprecated:: 2.3.3
+
+            On the next major release, the ``use_enum_instance=True`` will be the default.
 
         Args:
             enum_type: An enumeration containing the states of the machine.
             initial: The initial state of the machine.
             final: A set of final states of the machine.
+            use_enum_instance: If ``True``, the value of the state will be the enum item instance,
+                otherwise the enum item value.
 
         Returns:
             A new instance of the :ref:`States (class)`.
@@ -138,7 +150,11 @@ class States:
         final_set = set(ensure_iterable(final))
         return cls(
             {
-                e.name.lower(): State(value=e, initial=e is initial, final=e in final_set)
+                e.name: State(
+                    value=(e if use_enum_instance else e.value),
+                    initial=e is initial,
+                    final=e in final_set,
+                )
                 for e in enum_type
             }
         )
