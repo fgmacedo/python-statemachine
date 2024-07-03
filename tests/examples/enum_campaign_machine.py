@@ -14,34 +14,34 @@ from statemachine.states import States
 
 
 class CampaignStatus(Enum):
-    draft = 1
-    producing = 2
-    closed = 3
+    DRAFT = 1
+    PRODUCING = 2
+    CLOSED = 3
 
 
 class CampaignMachine(StateMachine):
     "A workflow machine"
 
     states = States.from_enum(
-        CampaignStatus, initial=CampaignStatus.draft, final=CampaignStatus.closed
+        CampaignStatus, initial=CampaignStatus.DRAFT, final=CampaignStatus.CLOSED
     )
 
-    add_job = states.draft.to(states.draft) | states.producing.to(states.producing)
-    produce = states.draft.to(states.producing)
-    deliver = states.producing.to(states.closed)
+    add_job = states.DRAFT.to(states.DRAFT) | states.PRODUCING.to(states.PRODUCING)
+    produce = states.DRAFT.to(states.PRODUCING)
+    deliver = states.PRODUCING.to(states.CLOSED)
 
 
 # %%
 # Asserting campaign machine declaration
 
-assert CampaignMachine.draft.initial
-assert not CampaignMachine.draft.final
+assert CampaignMachine.DRAFT.initial
+assert not CampaignMachine.DRAFT.final
 
-assert not CampaignMachine.producing.initial
-assert not CampaignMachine.producing.final
+assert not CampaignMachine.PRODUCING.initial
+assert not CampaignMachine.PRODUCING.final
 
-assert not CampaignMachine.closed.initial
-assert CampaignMachine.closed.final
+assert not CampaignMachine.CLOSED.initial
+assert CampaignMachine.CLOSED.final
 
 
 # %%
@@ -50,8 +50,8 @@ assert CampaignMachine.closed.final
 sm = CampaignMachine()
 res = sm.send("produce")
 
-assert sm.draft.is_active is False
-assert sm.producing.is_active is True
-assert sm.closed.is_active is False
-assert sm.current_state == sm.producing
-assert sm.current_state_value == CampaignStatus.producing
+assert sm.DRAFT.is_active is False
+assert sm.PRODUCING.is_active is True
+assert sm.CLOSED.is_active is False
+assert sm.current_state == sm.PRODUCING
+assert sm.current_state_value == CampaignStatus.PRODUCING
