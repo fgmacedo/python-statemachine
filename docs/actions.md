@@ -304,33 +304,54 @@ See {ref}`conditions` and {ref}`validators`.
 
 ## Ordering
 
-Actions and Guards will be executed in the following order:
+There are major groups of callbacks, these groups run sequentially.
 
-- `validators()`  (attached to the transition)
+```{warning}
+Actions registered on the same group don't have order guaranties and are executed in parallel when using the {ref}`AsyncEngine`, and may be executed in parallel in future versions of {ref}`SyncEngine`.
+```
 
-- `conditions()`  (attached to the transition)
 
-- `unless()`  (attached to the transition)
+```{list-table}
+:header-rows: 1
 
-- `before_transition()`
+*   - Group
+    - Action
+    - Current state
+    - Description
+*   - Validators
+    - `validators()`
+    - `source`
+    - Validators raise exceptions.
+*   - Conditions
+    - `cond()`, `unless()`
+    - `source`
+    - Conditions are predicates that prevent transitions to occur.
+*   - Before
+    - `before_transition()`, `before_<event>()`
+    - `source`
+    - Callbacks declared in the transition or event.
+*   - Exit
+    - `on_exit_state()`, `on_exit_<state.id>()`
+    - `source`
+    - Callbacks declared in the source state.
+*   - On
+    - `on_transition()`, `on_<event>()`
+    - `source`
+    - Callbacks declared in the transition or event.
+*   - **State updated**
+    -
+    -
+    - Current state is updated.
+*   - Enter
+    - `on_enter_state()`, `on_enter_<state.id>()`
+    - `destination`
+    - Callbacks declared in the destination state.
+*   - After
+    - `after_<event>()`, `after_transition()`
+    - `destination`
+    - Callbacks declared in the transition or event.
 
-- `before_<event>()`
-
-- `on_exit_state()`
-
-- `on_exit_<state.id>()`
-
-- `on_transition()`
-
-- `on_<event>()`
-
-- `on_enter_state()`
-
-- `on_enter_<state.id>()`
-
-- `after_<event>()`
-
-- `after_transition()`
+```
 
 
 ## Return values

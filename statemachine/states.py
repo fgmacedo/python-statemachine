@@ -102,12 +102,13 @@ class States:
         ...     def on_enter_completed(self):
         ...         print("Completed!")
 
-        .. note::
-            Given that you assign the response of ``States.from_enum`` to a class level
-            variable on your :ref:`StateMachine` you're good to go, you can use any name to assign
-            this response, on this example we used ``_`` to indicate that the name does not matter.
-            The variable of type :ref:`States (class)` will be inspected by the metaclass and the
-            inner :ref:`State` instances assigned to the state machine.
+        .. tip::
+            When you assign the result of ``States.from_enum`` to a class-level variable in your
+            :ref:`StateMachine`, you're all set. You can use any name for this variable. In this
+            example, we used ``_`` to show that the name doesn't matter. The metaclass will inspect
+            the variable of type :ref:`States (class)` and automatically assign the inner
+            :ref:`State` instances to the state machine.
+
 
         Everything else is similar, the ``Enum`` is only used to declare the :ref:`State`
         instances.

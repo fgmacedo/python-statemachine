@@ -210,7 +210,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
     def add_observer(self, *observers):
         """Add a listener."""
         warnings.warn(
-            """The `add_observer` was rebranded to `add_listener`.""",
+            """Method `add_observer` has been renamed to `add_listener`.""",
             DeprecationWarning,
             stacklevel=2,
         )
