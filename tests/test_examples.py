@@ -1,3 +1,4 @@
+from inspect import iscoroutinefunction
 from pathlib import Path
 
 import pytest
@@ -20,13 +21,18 @@ def pytest_generate_tests(metafunc):
 def example_file_wrapper(file_name):
     def execute_file_wrapper():
         module = import_module_by_path(file_name.with_suffix(""))
-        main = getattr(module, "main", None)
-        if main:
-            main()
+        return getattr(module, "main", None)
 
     return execute_file_wrapper
 
 
-def test_example(example_file_wrapper):
+async def test_example(example_file_wrapper):
     """Import the example file so the module is executed"""
-    example_file_wrapper()
+    main = example_file_wrapper()
+    if main is None:
+        return
+
+    if iscoroutinefunction(main):
+        await main()
+    else:
+        main()

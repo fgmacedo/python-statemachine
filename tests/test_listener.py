@@ -1,3 +1,5 @@
+import pytest
+
 EXPECTED_LOG_ADD = """Frodo on: draft--(add_job)-->draft
 Frodo enter: draft from add_job
 Frodo on: draft--(produce)-->producing
@@ -66,7 +68,10 @@ class TestObserver:
 
         sm = campaign_machine()
 
-        sm.add_observer(LogObserver("Frodo"))
+        with pytest.warns(
+            DeprecationWarning, match="Method `add_observer` has been renamed to `add_listener`."
+        ):
+            sm.add_observer(LogObserver("Frodo"))
 
         sm.add_job()
         sm.produce()

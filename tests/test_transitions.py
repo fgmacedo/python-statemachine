@@ -36,12 +36,15 @@ def test_transition_should_accept_decorator_syntax(traffic_light_machine):
 
 
 def test_transition_as_decorator_should_call_method_before_activating_state(
-    traffic_light_machine,
+    traffic_light_machine, capsys
 ):
     machine = traffic_light_machine()
     assert machine.current_state == machine.green
-    assert machine.cycle(1, 2, number=3, text="x") == "Running cycle from green to yellow"
+    machine.cycle(1, 2, number=3, text="x")
     assert machine.current_state == machine.yellow
+
+    captured = capsys.readouterr()
+    assert captured.out == "Running cycle from green to yellow\n"
 
 
 @pytest.mark.parametrize(

@@ -29,9 +29,9 @@ Giving the {ref}`sphx_glr_auto_examples_traffic_light_machine.py` as example:
 Paulista Avenue enter: green from __initial__
 
 >>> sm.cycle()
+Running cycle from green to yellow
 Paulista Avenue enter: yellow from cycle
 Paulista Avenue after: green--(cycle)-->yellow
-'Running cycle from green to yellow'
 
 ```
 
@@ -71,20 +71,18 @@ Now each "LED panel" reacts to changes in state from the state machine:
 
 ```py
 >>> sm.cycle()
+Running cycle from yellow to red
 yellow turning off
 Paulista Avenue enter: red from cycle
 red turning on
-Don't move.
 Paulista Avenue after: yellow--(cycle)-->red
-'Running cycle from yellow to red'
 
 >>> sm.cycle()
+Running cycle from red to green
 red turning off
-Go ahead!
 Paulista Avenue enter: green from cycle
 green turning on
 Paulista Avenue after: red--(cycle)-->green
-'Running cycle from red to green'
 
 ```
 

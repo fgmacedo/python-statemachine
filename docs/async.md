@@ -8,15 +8,19 @@ The {ref}`StateMachine` fully supports asynchronous code. You can write async {r
 
 This is achieved through a new concept called "engine," an internal strategy pattern abstraction that manages transitions and callbacks.
 
-There are two engines:
+There are two engines, `SyncEngine` and `AsyncEngine`.
 
-SyncEngine
-: Activated if there are no async callbacks. All code runs exactly as it did before version 2.3.0.
+## SyncEngine
+Activated if there are no async callbacks. All code runs exactly as it did before version 2.3.0.
+There's no event loop.
 
-AsyncEngine
-: Activated if there is at least one async callback. The code runs asynchronously and requires a running event loop, which it will create if none exists.
+## AsyncEngine
+Activated if there is at least one async callback. The code runs asynchronously and requires a running event loop, which it will create if none exists.
 
-These engines are internal and are activated automatically by inspecting the registered callbacks in the following scenarios:
+
+## Sync vs async engines
+
+These engines are internal and are activated automatically by inspecting the registered callbacks in the following scenarios.
 
 
 ```{list-table} Sync vs async engines
