@@ -111,8 +111,8 @@ class GuessTheNumberMachine(StateMachine):
 
 
 # %%
-# Async sdtin/stdout
-# ---------
+# Async stdin/stdout
+# ------------------
 
 # This function will be used to connect the stdin and stdout to the asyncio event loop.
 
