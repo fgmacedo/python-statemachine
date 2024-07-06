@@ -168,7 +168,7 @@ html_show_sourcelink = False
 
 html_theme_options = {
     "navigation_with_keys": True,
-    "top_of_page_button": ["view", "edit"],
+    "top_of_page_buttons": ["view", "edit"],
     "source_repository": "https://github.com/fgmacedo/python-statemachine/",
     # "source_branch": "develop",
     "source_directory": "docs/",
