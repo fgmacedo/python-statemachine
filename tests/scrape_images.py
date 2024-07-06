@@ -1,7 +1,5 @@
 import re
 
-from sphinx_gallery.scrapers import figure_rst
-
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.factory import StateMachineMetaclass
 
@@ -37,7 +35,9 @@ class MachineScraper:
         return image_path
 
     def __call__(self, block, block_vars, gallery_conf):
-        # Find all PNG files in the directory of this example.
+        "Find all PNG files in the directory of this example."
+        from sphinx_gallery.scrapers import figure_rst
+
         module = self._get_module(block_vars["src_file"])
         if module is None:
             return ""
