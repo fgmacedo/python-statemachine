@@ -110,6 +110,13 @@ class GuessTheNumberMachine(StateMachine):
         self.writer(f"Oh, no! You've spent all your {self.guesses} attempts!")
 
 
+# %%
+# Async sdtin/stdout
+# ---------
+
+# This function will be used to connect the stdin and stdout to the asyncio event loop.
+
+
 async def connect_stdin_stdout():
     loop = asyncio.get_event_loop()
     reader = asyncio.StreamReader()
@@ -126,8 +133,7 @@ async def connect_stdin_stdout():
 # Executing
 # ---------
 #
-# This script only run by passing the `-i` flag, is is to avoid blocking while running automated
-# tests.
+# This script only run by passing the `-i` flag, avoiding blocking while running automated tests.
 #
 # To play the game, run this script and type a number between 1 and 5.
 #

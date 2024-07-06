@@ -57,11 +57,12 @@ pytest-django = { version = "^4.8.0", python = ">3.8" }
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "*"
-sphinx-rtd-theme = "2.0.0"
 myst-parser = "*"
 sphinx-gallery = "*"
 pillow = "*"
 sphinx-autobuild = "*"
+furo = { version = "^2024.5.6", python = ">3.8" }
+sphinx-copybutton = { version = "^0.5.2", python = ">3.8" }
 
 [build-system]
 requires = ["poetry-core"]

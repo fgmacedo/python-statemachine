@@ -14,7 +14,6 @@
 import os
 import sys
 
-import sphinx_rtd_theme
 from sphinx_gallery import gen_gallery
 
 # If extensions (or modules to document with autodoc) are in another
@@ -51,6 +50,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
     "sphinx_gallery.gen_gallery",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -108,7 +108,6 @@ exclude_patterns = ["_build", "examples/.ipynb_checkpoints", "*.ipynb"]
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -122,15 +121,13 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
+# https://pradyunsg.me/furo/
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
 # documentation.
 # html_theme_options = {}
-
-# Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -162,6 +159,23 @@ html_css_files = [
 html_js_files = [
     "https://buttons.github.io/buttons.js",
 ]
+
+html_title = f"python-statemachine {release}"
+html_logo = "images/python-statemachine.png"
+
+html_copy_source = False
+html_show_sourcelink = False
+
+html_theme_options = {
+    "navigation_with_keys": True,
+    "top_of_page_button": ["view", "edit"],
+    "source_repository": "https://github.com/fgmacedo/python-statemachine/",
+    # "source_branch": "develop",
+    "source_directory": "docs/",
+}
+
+pygments_style = "monokai"
+pygments_dark_style = "monokai"
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
@@ -272,6 +286,9 @@ sphinx_gallery_conf = {
     "image_scrapers": (MachineScraper(project_root),),
     "reset_modules": [],
 }
+
+
+copybutton_exclude = ".linenos, .gp, .go"
 
 
 def dummy_write_computation_times(gallery_conf, target_dir, costs):
