@@ -59,7 +59,7 @@ pytest-django = { version = "^4.8.0", python = ">3.8" }
 Sphinx = { version = "*", python = ">3.8" }
 myst-parser = { version = "*", python = ">3.8" }
 sphinx-gallery = { version = "*", python = ">3.8" }
-pillow = "*"
+pillow = { version ="*", python = ">3.8" }
 sphinx-autobuild = { version = "*", python = ">3.8" }
 furo = { version = "^2024.5.6", python = ">3.8" }
 sphinx-copybutton = { version = "^0.5.2", python = ">3.8" }
