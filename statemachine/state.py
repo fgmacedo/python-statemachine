@@ -22,15 +22,15 @@ class NestedStateFactory(type):
         if not bases:
             return super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
 
-        substates = []
+        states = []
         for key, value in attrs.items():
             if isinstance(value, State):
                 value._set_id(key)
-                substates.append(value)
+                states.append(value)
             if isinstance(value, TransitionList):
                 value.add_event(key)
 
-        return State(name=name, substates=substates, **kwargs)
+        return State(name=name, states=states, **kwargs)
 
 
 class State:
@@ -141,14 +141,15 @@ class State:
         initial: bool = False,
         final: bool = False,
         parallel: bool = False,
-        substates: Any = None,
+        states: Any = None,
         enter: Any = None,
         exit: Any = None,
     ):
         self.name = name
         self.value = value
         self.parallel = parallel
-        self.substates = substates or []
+        self.states = states or []
+        self.is_atomic = bool(not self.states)
         self._initial = initial
         self._final = final
         self._id: str = ""
@@ -161,12 +162,12 @@ class State:
         self.exit = self._specs.grouper(CallbackGroup.EXIT).add(
             exit, priority=CallbackPriority.INLINE
         )
-        self._init_substates()
+        self._init_states()
 
-    def _init_substates(self):
-        for substate in self.substates:
-            substate.parent = self
-            setattr(self, substate.id, substate)
+    def _init_states(self):
+        for state in self.states:
+            state.parent = self
+            setattr(self, state.id, state)
 
     def __eq__(self, other):
         return isinstance(other, State) and self.name == other.name and self.id == other.id
@@ -268,6 +269,7 @@ class InstanceState(State):
     ):
         self._state = ref(state)
         self._machine = ref(machine)
+        self._init_states()
 
     @property
     def name(self):
@@ -313,3 +315,15 @@ class InstanceState(State):
     @property
     def is_active(self):
         return self._machine().current_state == self
+
+    @property
+    def is_atomic(self):
+        return self._state().is_atomic
+
+    @property
+    def parent(self):
+        return self._state().parent
+
+    @property
+    def states(self):
+        return self._state().states

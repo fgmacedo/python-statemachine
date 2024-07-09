@@ -32,21 +32,34 @@ class DotGraphMachine:
     def __init__(self, machine):
         self.machine = machine
 
-    def _get_graph(self):
-        machine = self.machine
+    def _get_graph(self, machine):
         return pydot.Dot(
-            "list",
+            machine.name,
             graph_type="digraph",
             label=machine.name,
             fontname=self.font_name,
             fontsize=self.state_font_size,
             rankdir=self.graph_rankdir,
+            compound="true",
         )
 
-    def _initial_node(self):
+    def _get_subgraph(self, state):
+        style = ", solid"
+        if state.parent and state.parent.parallel:
+            style = ", dashed"
+        subgraph = pydot.Subgraph(
+            label=f"{state.name}",
+            graph_name=f"cluster_{state.id}",
+            style=f"rounded{style}",
+            cluster="true",
+        )
+        return subgraph
+
+    def _initial_node(self, state):
         node = pydot.Node(
-            "i",
-            shape="circle",
+            self._state_id(state),
+            label="",
+            shape="point",
             style="filled",
             fontsize="1pt",
             fixedsize="true",
@@ -56,14 +69,18 @@ class DotGraphMachine:
         node.set_fillcolor("black")
         return node
 
-    def _initial_edge(self):
+    def _initial_edge(self, initial_node, state):
+        extra_params = {}
+        if state.states:
+            extra_params["lhead"] = f"cluster_{state.id}"
         return pydot.Edge(
-            "i",
-            self.machine.initial_state.id,
+            initial_node.get_name(),
+            self._state_id(state),
             label="",
             color="blue",
             fontname=self.font_name,
             fontsize=self.transition_font_size,
+            **extra_params,
         )
 
     def _actions_getter(self):
@@ -104,11 +121,18 @@ class DotGraphMachine:
 
         return actions
 
+    @staticmethod
+    def _state_id(state):
+        if state.states:
+            return f"{state.id}_anchor"
+        else:
+            return state.id
+
     def _state_as_node(self, state):
         actions = self._state_actions(state)
 
         node = pydot.Node(
-            state.id,
+            self._state_id(state),
             label=f"{state.name}{actions}",
             shape="rectangle",
             style="rounded, filled",
@@ -127,28 +151,63 @@ class DotGraphMachine:
         cond = ", ".join([str(cond) for cond in transition.cond])
         if cond:
             cond = f"\n[{cond}]"
+
+        extra_params = {}
+        has_substates = transition.source.states or transition.target.states
+        if transition.source.states:
+            extra_params["ltail"] = f"cluster_{transition.source.id}"
+        if transition.target.states:
+            extra_params["lhead"] = f"cluster_{transition.target.id}"
+
         return pydot.Edge(
-            transition.source.id,
-            transition.target.id,
+            self._state_id(transition.source),
+            self._state_id(transition.target),
             label=f"{transition.event}{cond}",
             color="blue",
             fontname=self.font_name,
             fontsize=self.transition_font_size,
+            minlen=2 if has_substates else 1,
+            **extra_params,
         )
 
     def get_graph(self):
-        graph = self._get_graph()
-        graph.add_node(self._initial_node())
-        graph.add_edge(self._initial_edge())
+        graph = self._get_graph(self.machine)
+        self._graph_states(self.machine, graph)
+        return graph
 
-        for state in self.machine.states:
-            graph.add_node(self._state_as_node(state))
-            for transition in state.transitions:
+    def _graph_states(self, state, graph):
+        initial_node = self._initial_node(state)
+        initial_subgraph = pydot.Subgraph(
+            graph_name=f"{initial_node.get_name()}_initial",
+            label="",
+            peripheries=0,
+            margin=0,
+        )
+        atomic_states_subgraph = pydot.Subgraph(
+            graph_name=f"cluster_{initial_node.get_name()}_atomic",
+            label="",
+            peripheries=0,
+            cluster="true",
+        )
+        initial_subgraph.add_node(initial_node)
+        graph.add_subgraph(initial_subgraph)
+        graph.add_subgraph(atomic_states_subgraph)
+
+        initial = next(s for s in state.states if s.initial)
+        graph.add_edge(self._initial_edge(initial_node, initial))
+
+        for substate in state.states:
+            if substate.states:
+                subgraph = self._get_subgraph(substate)
+                self._graph_states(substate, subgraph)
+                graph.add_subgraph(subgraph)
+            else:
+                atomic_states_subgraph.add_node(self._state_as_node(substate))
+
+            for transition in substate.transitions:
                 if transition.internal:
                     continue
                 graph.add_edge(self._transition_as_edge(transition))
-
-        return graph
 
     def __call__(self):
         return self.get_graph()
@@ -165,7 +224,8 @@ def quickchart_write_svg(sm: StateMachine, path: str):
     >>> from tests.examples.order_control_machine import OrderControl
     >>> sm = OrderControl()
     >>> print(sm._graph().to_string())
-    digraph list {
+    digraph OrderControl {
+    compound=true;
     fontname=Arial;
     fontsize="10pt";
     label=OrderControl;

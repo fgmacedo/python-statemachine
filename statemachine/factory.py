@@ -32,6 +32,7 @@ class StateMachineMetaclass(type):
         super().__init__(name, bases, attrs)
         registry.register(cls)
         cls.name = cls.__name__
+        cls.id = cls.name.lower()
         cls.states: States = States()
         cls.states_map: Dict[Any, State] = {}
         """Map of ``state.value`` to the corresponding :ref:`state`."""
@@ -46,6 +47,9 @@ class StateMachineMetaclass(type):
 
         if not cls.states:
             return
+
+        cls._initials_by_document_order(cls.states)
+
         initials = [s for s in cls.states if s.initial]
         parallels = [s.id for s in cls.states if s.parallel]
         root_only_has_parallels = len(cls.states) == len(parallels)
@@ -59,11 +63,7 @@ class StateMachineMetaclass(type):
             )
 
         try:
-            if root_only_has_parallels:
-                # TODO: Temp, whe should fix initial, and current state design
-                cls.initial_state: State = next(s for s in cls.states if s.initial)
-            else:
-                cls.initial_state: State = next(s for s in initials if s.initial)
+            cls.initial_state: State = next(s for s in initials if s.initial)
         except StopIteration:
             cls.initial_state = None  # Abstract SM still don't have states
 
@@ -76,6 +76,16 @@ class StateMachineMetaclass(type):
         """Makes mypy happy with dynamic created attributes"""
 
         def __getattr__(self, attribute: str) -> Any: ...
+
+    def _initials_by_document_order(cls, states):
+        has_initial = False
+        for s in states:
+            cls._initials_by_document_order(s.states)
+            if s.initial:
+                has_initial = True
+                break
+        if not has_initial and states:
+            states[0]._initial = True
 
     def _check(cls):
         has_states = bool(cls.states)
@@ -233,7 +243,7 @@ class StateMachineMetaclass(type):
         for event in state.transitions.unique_events:
             cls.add_event(event)
 
-        for substate in state.substates:
+        for substate in state.states:
             cls.add_state(substate.id, substate)
 
     def add_event(cls, event, transitions=None):
