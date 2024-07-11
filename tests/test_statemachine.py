@@ -434,27 +434,57 @@ def test_should_not_override_states_properties(campaign_machine):
     assert "State overriding is not allowed. Trying to add 'something else' to draft" in str(e)
 
 
-def test_should_warn_if_model_already_has_attribute_and_binding_is_enabled(
-    campaign_machine_with_final_state, capsys
-):
-    class Model:
-        state = "draft"
+class TestWarnings:
+    def test_should_warn_if_model_already_has_attribute_and_binding_is_enabled(
+        self, campaign_machine_with_final_state, capsys
+    ):
+        class Model:
+            state = "draft"
 
-        def produce(self):
-            return f"producing from {self.__class__.__name__!r}"
+            def produce(self):
+                return f"producing from {self.__class__.__name__!r}"
 
-    model = Model()
+        model = Model()
 
-    sm = campaign_machine_with_final_state(model)
-    with pytest.warns(UserWarning, match="Attribute 'produce' already exists on <tests.test.*"):
-        sm.bind_events_to(model)
+        sm = campaign_machine_with_final_state(model)
+        with pytest.warns(
+            UserWarning, match="Attribute 'produce' already exists on <tests.test.*"
+        ):
+            sm.bind_events_to(model)
 
-    assert model.produce() == "producing from 'Model'"
-    assert sm.current_state_value == "draft"
+        assert model.produce() == "producing from 'Model'"
+        assert sm.current_state_value == "draft"
 
-    assert sm.produce() is None
-    assert sm.current_state_value == "producing"
+        assert sm.produce() is None
+        assert sm.current_state_value == "producing"
 
-    # event trigger bound to the model
-    model.deliver()
-    assert sm.current_state_value == "closed"
+        # event trigger bound to the model
+        model.deliver()
+        assert sm.current_state_value == "closed"
+
+    def test_should_warn_if_thereis_a_trap_state(self, capsys):
+        with pytest.warns(
+            UserWarning,
+            match=r"have no outgoing transition: \['state_without_outgoing_transition'\]",
+        ):
+
+            class TrapStateMachine(StateMachine):
+                initial = State(initial=True)
+                state_without_outgoing_transition = State()
+
+                t = initial.to(state_without_outgoing_transition)
+
+    def test_should_warn_if_no_path_to_a_final_state(self, capsys):
+        with pytest.warns(
+            UserWarning,
+            match=r"have no path to a final state: \['producing'\]",
+        ):
+
+            class TrapStateMachine(StateMachine):
+                started = State(initial=True)
+                closed = State(final=True)
+                producing = State()
+
+                start = started.to(producing)
+                close = started.to(closed)
+                add_job = producing.to.itself(internal=True)

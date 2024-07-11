@@ -1,3 +1,8 @@
+import pytest
+
+from statemachine.state import State
+from statemachine.statemachine import StateMachine
+
 EXPECTED_LOG_ADD = """Frodo on: draft--(add_job)-->draft
 Frodo enter: draft from add_job
 Frodo on: draft--(produce)-->producing
@@ -66,10 +71,37 @@ class TestObserver:
 
         sm = campaign_machine()
 
-        sm.add_observer(LogObserver("Frodo"))
+        with pytest.warns(
+            DeprecationWarning, match="Method `add_observer` has been renamed to `add_listener`."
+        ):
+            sm.add_observer(LogObserver("Frodo"))
 
         sm.add_job()
         sm.produce()
 
         captured = capsys.readouterr()
         assert captured.out == EXPECTED_LOG_ADD
+
+
+def test_regression_456():
+    class TestListener:
+        def __init__(self):
+            pass
+
+    class MyMachine(StateMachine):
+        first = State("FIRST", initial=True)
+
+        second = State("SECOND")
+
+        first_selected = second.to(first)
+
+        second_selected = first.to(second)
+
+        @first.exit
+        def exit_first(self) -> None:
+            print("exit SLEEPING")
+
+    m = MyMachine()
+    m.add_listener(TestListener())
+
+    m.send("second_selected")

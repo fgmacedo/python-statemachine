@@ -32,10 +32,12 @@ This state machine could be expressed in `python-statemachine` as:
 ```{literalinclude} ../tests/examples/traffic_light_machine.py
 :language: python
 :linenos:
-:emphasize-lines: 18
+:emphasize-lines: 12
+:start-at: from statemachine
+:end-before: "# %%"
 ```
 
-In line 18, you can say that this code defines three transitions:
+In line 12, you can say that this code defines three transitions:
 
 * `green.to(yellow)`
 * `yellow.to(red)`
@@ -43,21 +45,26 @@ In line 18, you can say that this code defines three transitions:
 
 And these transitions are assigned to the {ref}`event` `cycle` defined at the class level.
 
+```{note}
+
+In fact, before the full class body is evaluated, the assigments of transitions are instances of [](statemachine.transition_list.TransitionList). When the state machine is evaluated by our custom [metaclass](https://docs.python.org/3/reference/datamodel.html#metaclasses), these names will be transformed into a method that triggers an {ref}`Event`.
+
+```
+
 ## Transitions
 
 In an executing state machine, a {ref}`transition` is a transfer from one state to another. In a {ref}`statemachine`, a {ref}`transition` tells us what happens when an {ref}`event` occurs.
 
 
-```{tip}
 A transition can define {ref}`actions` that will be executed whenever that transition
 is executed.
 
-Transitions can be filtered with {ref}`guards` allowing you to add conditions when a
+Transitions can have {ref}`conditions` allowing you to specify when a
 transition may be executed.
 
 An action associated with an event (before, on, after), will be assigned to all transitions
 bounded that uses the event as trigger.
-```
+
 
 ```{hint}
 Usually you don't need to import and use a {ref}`transition` class directly in your code,
@@ -188,7 +195,7 @@ You can invoke the event in an imperative syntax:
 >>> machine = TrafficLightMachine()
 
 >>> machine.cycle()
-'Running cycle from green to yellow'
+Running cycle from green to yellow
 
 >>> machine.current_state.id
 'yellow'
@@ -199,8 +206,7 @@ Or in an event-oriented style, events are `send`:
 
 ```py
 >>> machine.send("cycle")
-Don't move.
-'Running cycle from yellow to red'
+Running cycle from yellow to red
 
 >>> machine.current_state.id
 'red'
@@ -227,8 +233,7 @@ You can raise an exception at this point to stop a transition from completing.
 'red'
 
 >>> machine.cycle()
-Go ahead!
-'Running cycle from red to green'
+Running cycle from red to green
 
 >>> machine.current_state.id
 'green'

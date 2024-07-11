@@ -31,7 +31,7 @@ class AsyncStateMachine(StateMachine):
 # ---------
 
 
-def main():
+def sync_main():
     sm = AsyncStateMachine()
     result = sm.start()
     print(f"Start result is {result}")
@@ -42,4 +42,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sync_main()
