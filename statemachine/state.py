@@ -23,14 +23,17 @@ class NestedStateFactory(type):
             return super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
 
         states = []
+        callbacks = {}
         for key, value in attrs.items():
             if isinstance(value, State):
                 value._set_id(key)
                 states.append(value)
-            if isinstance(value, TransitionList):
+            elif isinstance(value, TransitionList):
                 value.add_event(key)
+            elif callable(value):
+                callbacks[key] = value
 
-        return State(name=name, states=states, **kwargs)
+        return State(name=name, states=states, _callbacks=callbacks, **kwargs)
 
 
 class State:
@@ -51,6 +54,7 @@ class State:
             value.
         initial: Set ``True`` if the ``State`` is the initial one. There must be one and only
             one initial state in a statemachine. Defaults to ``False``.
+            If not specified, the default initial state is the first child state in document order.
         final: Set ``True`` if represents a final state. A machine can have
             optionally many final states. Final states have no :ref:`transition` starting from It.
             Defaults to ``False``.
@@ -144,6 +148,7 @@ class State:
         states: Any = None,
         enter: Any = None,
         exit: Any = None,
+        _callbacks: Any = None,
     ):
         self.name = name
         self.value = value
@@ -153,6 +158,7 @@ class State:
         self._initial = initial
         self._final = final
         self._id: str = ""
+        self._callbacks = _callbacks
         self.parent: "State" = None
         self.transitions = TransitionList()
         self._specs = CallbackSpecList()

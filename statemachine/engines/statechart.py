@@ -5,7 +5,7 @@ from ..transition import Transition
 from .base import BaseEngine
 
 
-class SyncEngine(BaseEngine):
+class StateChartEngine(BaseEngine):
     def __init__(self, sm, rtc: bool = True):
         super().__init__(sm, rtc)
         self.activate_initial_state()

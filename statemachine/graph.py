@@ -18,3 +18,12 @@ def iterate_states_and_transitions(states):
     for state in states:
         yield state
         yield from state.transitions
+        if state.states:
+            yield from iterate_states_and_transitions(state.states)
+
+
+def iterate_states(states):
+    for state in states:
+        yield state
+        if state.states:
+            yield from iterate_states(state.states)

@@ -10,6 +10,7 @@ from . import registry
 from .event import Event
 from .event import trigger_event_factory
 from .exceptions import InvalidDefinition
+from .graph import iterate_states
 from .graph import iterate_states_and_transitions
 from .graph import visit_connected_states
 from .i18n import _
@@ -44,6 +45,7 @@ class StateMachineMetaclass(type):
 
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
+        cls._unpack_builders_callbacks()
 
         if not cls.states:
             return
@@ -195,6 +197,15 @@ class StateMachineMetaclass(type):
             "states_map",
             "send",
         } | {s.id for s in cls.states}
+
+    def _unpack_builders_callbacks(cls):
+        callbacks = {}
+        for state in iterate_states(cls.states):
+            if state._callbacks:
+                callbacks.update(state._callbacks)
+                del state._callbacks
+        for key, value in callbacks.items():
+            setattr(cls, key, value)
 
     def add_inherited(cls, bases):
         for base in bases:
