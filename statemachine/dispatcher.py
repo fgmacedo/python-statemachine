@@ -8,8 +8,8 @@ from typing import Iterable
 from typing import Set
 from typing import Tuple
 
-from statemachine.callbacks import SpecReference
-
+from .callbacks import SPECS_ALL
+from .callbacks import SpecReference
 from .signature import SignatureAdapter
 
 if TYPE_CHECKING:
@@ -54,10 +54,18 @@ class Listeners:
         all_attrs = set().union(*(listener.all_attrs for listener in listeners))
         return cls(listeners, all_attrs)
 
-    def resolve(self, specs: "CallbackSpecList", registry):
+    def resolve(
+        self,
+        specs: "CallbackSpecList",
+        registry,
+        allowed_references: SpecReference = SPECS_ALL,
+    ):
         found_convention_specs = specs.conventional_specs & self.all_attrs
         filtered_specs = [
-            spec for spec in specs if not spec.is_convention or spec.func in found_convention_specs
+            spec
+            for spec in specs
+            if spec.reference in allowed_references
+            and (not spec.is_convention or spec.func in found_convention_specs)
         ]
         if not filtered_specs:
             return
@@ -101,7 +109,7 @@ class Listeners:
                 if func is not None and func.__func__ is spec.func:
                     return callable_method(spec.attr_name, func, config.resolver_id)
 
-        return callable_method(spec.func, spec.func, None)
+        return callable_method(spec.attr_name, spec.func, None)
 
     def _search_name(self, name) -> Generator["Callable", None, None]:
         for config in self.items:
