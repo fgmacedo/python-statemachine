@@ -3,6 +3,7 @@ from bisect import insort
 from collections import defaultdict
 from collections import deque
 from enum import IntEnum
+from enum import IntFlag
 from enum import auto
 from inspect import isawaitable
 from inspect import iscoroutinefunction
@@ -26,10 +27,14 @@ class CallbackPriority(IntEnum):
     AFTER = 40
 
 
-class SpecReference(IntEnum):
-    NAME = 1
-    CALLABLE = 2
-    PROPERTY = 3
+class SpecReference(IntFlag):
+    NAME = auto()
+    CALLABLE = auto()
+    PROPERTY = auto()
+
+
+SPECS_ALL = SpecReference.NAME | SpecReference.CALLABLE | SpecReference.PROPERTY
+SPECS_SAFE = SpecReference.NAME
 
 
 class CallbackGroup(IntEnum):

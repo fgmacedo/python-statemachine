@@ -9,11 +9,11 @@ from typing import Any
 from typing import Dict
 from typing import List
 
-from statemachine.graph import iterate_states_and_transitions
-from statemachine.utils import run_async_from_sync
-
+from .callbacks import SPECS_ALL
+from .callbacks import SPECS_SAFE
 from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
+from .callbacks import SpecReference
 from .dispatcher import Listener
 from .dispatcher import Listeners
 from .engines.async_ import AsyncEngine
@@ -24,8 +24,10 @@ from .exceptions import InvalidDefinition
 from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
+from .graph import iterate_states_and_transitions
 from .i18n import _
 from .model import Model
+from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
     from .state import State
@@ -177,8 +179,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
                     continue
                 setattr(target, event.name, trigger)
 
-    def _add_listener(self, listeners: "Listeners"):
-        register = partial(listeners.resolve, registry=self._callbacks_registry)
+    def _add_listener(self, listeners: "Listeners", allowed_references: SpecReference = SPECS_ALL):
+        register = partial(
+            listeners.resolve,
+            registry=self._callbacks_registry,
+            allowed_references=allowed_references,
+        )
         for visited in iterate_states_and_transitions(self.states):
             register(visited._specs)
 
@@ -228,7 +234,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """
         self._listeners.update({o: None for o in listeners})
         return self._add_listener(
-            Listeners.from_listeners(Listener.from_obj(o) for o in listeners)
+            Listeners.from_listeners(Listener.from_obj(o) for o in listeners),
+            allowed_references=SPECS_SAFE,
         )
 
     def _repr_html_(self):
