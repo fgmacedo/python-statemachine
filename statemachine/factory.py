@@ -10,6 +10,7 @@ from . import registry
 from .event import Event
 from .event import trigger_event_factory
 from .exceptions import InvalidDefinition
+from .graph import iterate_states
 from .graph import iterate_states_and_transitions
 from .graph import visit_connected_states
 from .i18n import _
@@ -32,6 +33,7 @@ class StateMachineMetaclass(type):
         super().__init__(name, bases, attrs)
         registry.register(cls)
         cls.name = cls.__name__
+        cls.id = cls.name.lower()
         cls.states: States = States()
         cls.states_map: Dict[Any, State] = {}
         """Map of ``state.value`` to the corresponding :ref:`state`."""
@@ -43,9 +45,27 @@ class StateMachineMetaclass(type):
 
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
+        cls._unpack_builders_callbacks()
+
+        if not cls.states:
+            return
+
+        cls._initials_by_document_order(cls.states)
+
+        initials = [s for s in cls.states if s.initial]
+        parallels = [s.id for s in cls.states if s.parallel]
+        root_only_has_parallels = len(cls.states) == len(parallels)
+
+        if len(initials) != 1 and not root_only_has_parallels:
+            raise InvalidDefinition(
+                _(
+                    "There should be one and only one initial state. "
+                    "Your currently have these: {0}"
+                ).format(", ".join(s.id for s in initials))
+            )
 
         try:
-            cls.initial_state: State = next(s for s in cls.states if s.initial)
+            cls.initial_state: State = next(s for s in initials if s.initial)
         except StopIteration:
             cls.initial_state = None  # Abstract SM still don't have states
 
@@ -58,6 +78,16 @@ class StateMachineMetaclass(type):
         """Makes mypy happy with dynamic created attributes"""
 
         def __getattr__(self, attribute: str) -> Any: ...
+
+    def _initials_by_document_order(cls, states):
+        has_initial = False
+        for s in states:
+            cls._initials_by_document_order(s.states)
+            if s.initial:
+                has_initial = True
+                break
+        if not has_initial and states:
+            states[0]._initial = True
 
     def _check(cls):
         has_states = bool(cls.states)
@@ -168,6 +198,15 @@ class StateMachineMetaclass(type):
             "send",
         } | {s.id for s in cls.states}
 
+    def _unpack_builders_callbacks(cls):
+        callbacks = {}
+        for state in iterate_states(cls.states):
+            if state._callbacks:
+                callbacks.update(state._callbacks)
+                del state._callbacks
+        for key, value in callbacks.items():
+            setattr(cls, key, value)
+
     def add_inherited(cls, bases):
         for base in bases:
             for state in getattr(base, "states", []):
@@ -205,14 +244,18 @@ class StateMachineMetaclass(type):
 
     def add_state(cls, id, state: State):
         state._set_id(id)
-        cls.states.append(state)
-        cls.states_map[state.value] = state
-        if not hasattr(cls, id):
-            setattr(cls, id, state)
+        if not state.parent:
+            cls.states.append(state)
+            cls.states_map[state.value] = state
+            if not hasattr(cls, id):
+                setattr(cls, id, state)
 
         # also register all events associated directly with transitions
         for event in state.transitions.unique_events:
             cls.add_event(event)
+
+        for substate in state.states:
+            cls.add_state(substate.id, substate)
 
     def add_event(cls, event, transitions=None):
         if transitions is not None:

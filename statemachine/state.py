@@ -15,6 +15,27 @@ if TYPE_CHECKING:
     from .statemachine import StateMachine
 
 
+class NestedStateFactory(type):
+    def __new__(  # type: ignore [misc]
+        cls, classname, bases, attrs, name=None, **kwargs
+    ) -> "State":
+        if not bases:
+            return super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
+
+        states = []
+        callbacks = {}
+        for key, value in attrs.items():
+            if isinstance(value, State):
+                value._set_id(key)
+                states.append(value)
+            elif isinstance(value, TransitionList):
+                value.add_event(key)
+            elif callable(value):
+                callbacks[key] = value
+
+        return State(name=name, states=states, _callbacks=callbacks, **kwargs)
+
+
 class State:
     """
     A State in a :ref:`StateMachine` describes a particular behavior of the machine.
@@ -33,6 +54,7 @@ class State:
             value.
         initial: Set ``True`` if the ``State`` is the initial one. There must be one and only
             one initial state in a statemachine. Defaults to ``False``.
+            If not specified, the default initial state is the first child state in document order.
         final: Set ``True`` if represents a final state. A machine can have
             optionally many final states. Final states have no :ref:`transition` starting from It.
             Defaults to ``False``.
@@ -94,20 +116,50 @@ class State:
 
     """
 
+    class Builder(metaclass=NestedStateFactory):
+        # Mimic the :ref:`State` public API to help linters discover the result of the Builder
+        # class.
+
+        @classmethod
+        def to(cls, *args: "State", **kwargs) -> "TransitionList":  # pragma: no cover
+            """Create transitions to the given target states.
+
+            .. note: This method is only a type hint for mypy.
+                The actual implementation belongs to the :ref:`State` class.
+            """
+            return TransitionList()
+
+        @classmethod
+        def from_(cls, *args: "State", **kwargs) -> "TransitionList":  # pragma: no cover
+            """Create transitions from the given target states (reversed).
+
+            .. note: This method is only a type hint for mypy.
+                The actual implementation belongs to the :ref:`State` class.
+            """
+            return TransitionList()
+
     def __init__(
         self,
         name: str = "",
         value: Any = None,
         initial: bool = False,
         final: bool = False,
+        parallel: bool = False,
+        states: Any = None,
         enter: Any = None,
         exit: Any = None,
+        _callbacks: Any = None,
     ):
         self.name = name
         self.value = value
+        self.parallel = parallel
+        self.states = states or []
+        self.is_atomic = bool(not self.states)
         self._initial = initial
         self._final = final
         self._id: str = ""
+        self._callbacks = _callbacks
+        self.parent: "State" = None
         self.transitions = TransitionList()
         self._specs = CallbackSpecList()
         self.enter = self._specs.grouper(CallbackGroup.ENTER).add(
@@ -116,6 +168,12 @@ class State:
         self.exit = self._specs.grouper(CallbackGroup.EXIT).add(
             exit, priority=CallbackPriority.INLINE
         )
+        self._init_states()
+
+    def _init_states(self):
+        for state in self.states:
+            state.parent = self
+            setattr(self, state.id, state)
 
     def __eq__(self, other):
         return isinstance(other, State) and self.name == other.name and self.id == other.id
@@ -217,6 +275,7 @@ class InstanceState(State):
     ):
         self._state = ref(state)
         self._machine = ref(machine)
+        self._init_states()
 
     @property
     def name(self):
@@ -262,3 +321,15 @@ class InstanceState(State):
     @property
     def is_active(self):
         return self._machine().current_state == self
+
+    @property
+    def is_atomic(self):
+        return self._state().is_atomic
+
+    @property
+    def parent(self):
+        return self._state().parent
+
+    @property
+    def states(self):
+        return self._state().states

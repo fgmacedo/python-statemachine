@@ -1,25 +1,17 @@
-from threading import Lock
-from typing import TYPE_CHECKING
-from weakref import proxy
-
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
 from ..i18n import _
 from ..transition import Transition
-
-if TYPE_CHECKING:
-    from ..statemachine import StateMachine
+from .base import BaseEngine
 
 
-class AsyncEngine:
-    def __init__(self, sm: "StateMachine", rtc: bool = True):
-        self.sm = proxy(sm)
-        self._sentinel = object()
+class AsyncEngine(BaseEngine):
+    def __init__(self, sm, rtc: bool = True):
         if not rtc:
             raise InvalidDefinition(_("Only RTC is supported on async engine"))
-        self._processing = Lock()
+        super().__init__(sm, rtc)
 
     async def activate_initial_state(self):
         """
@@ -63,8 +55,8 @@ class AsyncEngine:
         first_result = self._sentinel
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self.sm._external_queue:
-                trigger_data = self.sm._external_queue.popleft()
+            while self._external_queue:
+                trigger_data = self._external_queue.popleft()
                 try:
                     result = await self._trigger(trigger_data)
                     if first_result is self._sentinel:
@@ -72,7 +64,7 @@ class AsyncEngine:
                 except Exception:
                     # Whe clear the queue as we don't have an expected behavior
                     # and cannot keep processing
-                    self.sm._external_queue.clear()
+                    self._external_queue.clear()
                     raise
         finally:
             self._processing.release()
