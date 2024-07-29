@@ -18,16 +18,16 @@ class DotGraphMachine:
     font_name = "Arial"
     """Graph font face name"""
 
-    state_font_size = "10pt"
-    """State font size"""
+    state_font_size = "10"
+    """State font size in points"""
 
     state_active_penwidth = 2
     """Active state external line width"""
 
     state_active_fillcolor = "turquoise"
 
-    transition_font_size = "9pt"
-    """Transition font size"""
+    transition_font_size = "9"
+    """Transition font size in points"""
 
     def __init__(self, machine):
         self.machine = machine
@@ -48,7 +48,7 @@ class DotGraphMachine:
             "i",
             shape="circle",
             style="filled",
-            fontsize="1pt",
+            fontsize="1",
             fixedsize="true",
             width=0.2,
             height=0.2,
@@ -167,7 +167,7 @@ def quickchart_write_svg(sm: StateMachine, path: str):
     >>> print(sm._graph().to_string())
     digraph list {
     fontname=Arial;
-    fontsize="10pt";
+    fontsize=10;
     label=OrderControl;
     rankdir=LR;
     ...
