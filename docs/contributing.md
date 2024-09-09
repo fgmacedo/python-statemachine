@@ -98,7 +98,7 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
 
 1. Run `poetry install` once to install all the dependencies and create a virtual environment::
 
-        poetry install
+        poetry install --all-extras
 
 1. Run `poetry shell` to enter the provided virtual
 
