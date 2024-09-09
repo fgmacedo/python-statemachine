@@ -61,6 +61,9 @@ class States:
     def __len__(self):
         return len(self._states)
 
+    def __getitem__(self, index):
+        return list(self)[index]
+
     def __iter__(self):
         return iter(self._states.values())
 

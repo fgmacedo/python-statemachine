@@ -47,7 +47,7 @@ def test_machine_dot(OrderControl):
     dot = graph()
 
     dot_str = dot.to_string()  # or dot.to_string()
-    assert dot_str.startswith("digraph list {")
+    assert dot_str.startswith("digraph OrderControl {")
 
 
 class TestDiagramCmdLine:

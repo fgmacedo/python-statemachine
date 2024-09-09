@@ -1,5 +1,4 @@
 import warnings
-from collections import deque
 from copy import deepcopy
 from functools import partial
 from inspect import isawaitable
@@ -17,6 +16,7 @@ from .callbacks import SpecReference
 from .dispatcher import Listener
 from .dispatcher import Listeners
 from .engines.async_ import AsyncEngine
+from .engines.statechart import StateChartEngine
 from .engines.sync import SyncEngine
 from .event import Event
 from .event_data import TriggerData
@@ -83,7 +83,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
-        self._external_queue: deque = deque()
         self._callbacks_registry = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
 
@@ -94,22 +93,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
             raise InvalidDefinition(_("There are no states or transitions."))
 
         self._register_callbacks(listeners or [])
-
-        # Activate the initial state, this only works if the outer scope is sync code.
-        # for async code, the user should manually call `await sm.activate_initial_state()`
-        # after state machine creation.
-        if self.current_state_value is None:
-            trigger_data = TriggerData(
-                machine=self,
-                event="__initial__",
-            )
-            self._put_nonblocking(trigger_data)
-
         self._engine = self._get_engine(rtc)
 
     def _get_engine(self, rtc: bool):
         if self._callbacks_registry.has_async_callbacks:
             return AsyncEngine(self, rtc=rtc)
+        elif any(bool(s.states) for s in self.states):
+            return StateChartEngine(self, rtc=rtc)
         else:
             return SyncEngine(self, rtc=rtc)
 
@@ -305,7 +295,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _put_nonblocking(self, trigger_data: TriggerData):
         """Put the trigger on the queue without blocking the caller."""
-        self._external_queue.append(trigger_data)
+        self._engine._put_nonblocking(trigger_data)
 
     def send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.

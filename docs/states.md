@@ -17,6 +17,7 @@ How to define and attach [](actions.md) to {ref}`States`.
 
 A {ref}`StateMachine` should have one and only one `initial` {ref}`state`.
 
+If not specified, the default initial state is the first child state in document order.
 
 The initial {ref}`state` is entered when the machine starts and the corresponding entering
 state {ref}`actions` are called if defined.
