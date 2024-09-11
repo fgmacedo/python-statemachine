@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class AsyncEngine:
     def __init__(self, sm: "StateMachine", rtc: bool = True):
+        sm._engine = self
         self.sm = proxy(sm)
         self._sentinel = object()
         if not rtc:
