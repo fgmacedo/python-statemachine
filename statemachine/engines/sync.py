@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 class SyncEngine:
     def __init__(self, sm: "StateMachine", rtc: bool = True):
+        sm._engine = self
         self.sm = proxy(sm)
         self._sentinel = object()
         self._rtc = rtc

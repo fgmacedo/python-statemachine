@@ -105,13 +105,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
             )
             self._put_nonblocking(trigger_data)
 
-        self._engine = self._get_engine(rtc)
+        self._engine: AsyncEngine | SyncEngine | None = None
+        self._select_engine(rtc)
 
-    def _get_engine(self, rtc: bool):
+    def _select_engine(self, rtc: bool):
         if self._callbacks_registry.has_async_callbacks:
-            return AsyncEngine(self, rtc=rtc)
+            AsyncEngine(self, rtc=rtc)
         else:
-            return SyncEngine(self, rtc=rtc)
+            SyncEngine(self, rtc=rtc)
 
     def activate_initial_state(self):
         result = self._engine.activate_initial_state()
