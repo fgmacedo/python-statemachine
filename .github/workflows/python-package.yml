@@ -42,6 +42,11 @@ jobs:
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: poetry install --no-interaction --no-root --all-extras
+    - name: Install old pydot for 3.7 only
+      if: matrix.python-version == 3.7
+      run: |
+        source .venv/bin/activate
+        pip install pydot==2.0.0
       #----------------------------------------------
       #              run ruff
       #----------------------------------------------
