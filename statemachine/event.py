@@ -8,6 +8,17 @@ from .event_data import TriggerData
 if TYPE_CHECKING:
     from .statemachine import StateMachine
 
+_event_data_kwargs = {
+    "event_data",
+    "machine",
+    "event",
+    "model",
+    "transition",
+    "state",
+    "source",
+    "target",
+}
+
 
 class Event:
     def __init__(self, name: str):
@@ -17,6 +28,7 @@ class Event:
         return f"{type(self).__name__}({self.name!r})"
 
     def trigger(self, machine: "StateMachine", *args, **kwargs):
+        kwargs = {k: v for k, v in kwargs.items() if k not in _event_data_kwargs}
         trigger_data = TriggerData(
             machine=machine,
             event=self.name,
