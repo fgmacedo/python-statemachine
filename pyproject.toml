@@ -3,19 +3,17 @@ name = "python-statemachine"
 version = "2.3.6"
 description = "Python Finite State Machines made easy."
 authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
-maintainers = [
-    "Fernando Macedo <fgmacedo@gmail.com>",
-]
+maintainers = ["Fernando Macedo <fgmacedo@gmail.com>"]
 license = "MIT license"
 readme = "README.md"
 homepage = "https://github.com/fgmacedo/python-statemachine"
-packages = [
-    {include = "statemachine"},
-    {include = "statemachine/**/*.py" },
-]
+packages = [{ include = "statemachine" }, { include = "statemachine/**/*.py" }]
 include = [
     { path = "statemachine/locale/**/*.po", format = "sdist" },
-    { path = "statemachine/locale/**/*.mo", format = ["sdist", "wheel"] }
+    { path = "statemachine/locale/**/*.mo", format = [
+        "sdist",
+        "wheel",
+    ] },
 ]
 classifiers = [
     "Intended Audience :: Developers",
@@ -35,7 +33,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.7"
-pydot = { version = ">=2.0.0", optional = true }
+pydot = { version = ">=2.0.0", optional = true, python = ">3.8" }
 
 [tool.poetry.extras]
 diagrams = ["pydot"]
@@ -59,7 +57,7 @@ pytest-django = { version = "^4.8.0", python = ">3.8" }
 Sphinx = { version = "*", python = ">3.8" }
 myst-parser = { version = "*", python = ">3.8" }
 sphinx-gallery = { version = "*", python = ">3.8" }
-pillow = { version ="*", python = ">3.8" }
+pillow = { version = "*", python = ">3.8" }
 sphinx-autobuild = { version = "*", python = ">3.8" }
 furo = { version = "^2024.5.6", python = ">3.8" }
 sphinx-copybutton = { version = "^0.5.2", python = ">3.8" }
@@ -72,9 +70,7 @@ build-backend = "poetry.core.masonry.api"
 addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure --benchmark-autosave --benchmark-group-by=name"
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 asyncio_mode = "auto"
-markers = [
-    """slow: marks tests as slow (deselect with '-m "not slow"')""",
-]
+markers = ["""slow: marks tests as slow (deselect with '-m "not slow"')"""]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 
 [tool.mypy]
@@ -85,19 +81,11 @@ disable_error_code = "annotation-unchecked"
 mypy_path = "$MYPY_CONFIG_FILE_DIR/tests/django_project"
 
 [[tool.mypy.overrides]]
-module = [
-    'django.*',
-    'pytest.*',
-    'pydot.*',
-    'sphinx_gallery.*',
-]
+module = ['django.*', 'pytest.*', 'pydot.*', 'sphinx_gallery.*']
 ignore_missing_imports = true
 
 [tool.flake8]
-ignore = [
-    "E231",
-    "W503",
-]
+ignore = ["E231", "W503"]
 max-line-length = 99
 
 [tool.ruff]
@@ -131,10 +119,10 @@ exclude = [
 
 # Enable Pyflakes and pycodestyle rules.
 select = [
-    "E", # pycodestyle errors
-    "W", # pycodestyle warnings
-    "F", # pyflakes
-    "I", # isort
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
     "UP", # pyupgrade
     "C",  # flake8-comprehensions
     "B",  # flake8-bugbear
@@ -169,14 +157,8 @@ convention = "google"
 branch = true
 relative_files = true
 data_file = ".coverage"
-source = [
-    "statemachine",
-]
-omit = [
-    "*test*.py",
-    "tmp/*",
-    "pytest_cov",
-]
+source = ["statemachine"]
+omit = ["*test*.py", "tmp/*", "pytest_cov"]
 [tool.coverage.report]
 show_missing = true
 exclude_lines = [
@@ -190,7 +172,7 @@ exclude_lines = [
     # Don't complain if tests don't hit defensive assertion code:
     "raise AssertionError",
     "raise NotImplementedError",
-   "if TYPE_CHECKING",
+    "if TYPE_CHECKING",
 ]
 
 [tool.coverage.html]
