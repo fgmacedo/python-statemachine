@@ -135,8 +135,6 @@ Use the `enter` or `exit` params available on the `State` constructor.
 
 ```{hint}
 It's also possible to use an event name as action.
-
-**Be careful to not introduce recursion errors** that will raise `RecursionError` exception.
 ```
 
 ### Bind state actions using decorator syntax
@@ -221,8 +219,6 @@ using the patterns:
 
 ```{hint}
 It's also possible to use an event name as action to chain transitions.
-
-**Be careful to not introduce recursion errors**, like `loop = initial.to.itself(after="loop")`, that will raise `RecursionError` exception.
 ```
 
 ### Bind transition actions using decorator syntax
