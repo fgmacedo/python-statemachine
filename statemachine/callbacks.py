@@ -5,14 +5,17 @@ from collections import deque
 from enum import IntEnum
 from enum import IntFlag
 from enum import auto
+from functools import partial
 from functools import reduce
 from inspect import isawaitable
 from inspect import iscoroutinefunction
+from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
 from typing import Generator
 from typing import Iterable
 from typing import List
+from typing import Set
 from typing import Type
 
 from .exceptions import AttrNotFound
@@ -22,6 +25,9 @@ from .spec_parser import custom_and
 from .spec_parser import operator_mapping
 from .spec_parser import parse_boolean_expr
 from .utils import ensure_iterable
+
+if TYPE_CHECKING:
+    from statemachine.dispatcher import Listeners
 
 
 class CallbackPriority(IntEnum):
@@ -57,6 +63,17 @@ class CallbackGroup(IntEnum):
 
 def allways_true(*args, **kwargs):
     return True
+
+
+def take_callback(name: str, resolver: "Listeners", not_found_handler: Callable) -> Callable:
+    callbacks = list(resolver.search_name(name))
+    if len(callbacks) == 0:
+        not_found_handler(name)
+        return allways_true
+    elif len(callbacks) == 1:
+        return callbacks[0]
+    else:
+        return reduce(custom_and, callbacks)
 
 
 class CallbackSpec:
@@ -124,7 +141,7 @@ class CallbackSpec:
             unique_key=callback.unique_key,
         )
 
-    def build(self, resolver) -> Generator["CallbackWrapper", None, None]:  # noqa: C901
+    def build(self, resolver: "Listeners") -> Generator["CallbackWrapper", None, None]:
         """
         Resolves the `func` into a usable callable.
 
@@ -137,20 +154,12 @@ class CallbackSpec:
             and self.group == CallbackGroup.COND
             and self.reference == SpecReference.NAME
         ):
-            names_not_found = set()
-
-            def take_callback(name: str):
-                callbacks = list(resolver.search_name(name))
-                if len(callbacks) == 0:
-                    names_not_found.add(name)
-                    return lambda *args, **kwargs: False
-                elif len(callbacks) == 1:
-                    return callbacks[0]
-                else:
-                    return reduce(custom_and, callbacks)
-
+            names_not_found: Set[str] = set()
+            take_callback_partial = partial(
+                take_callback, resolver=resolver, not_found_handler=names_not_found.add
+            )
             try:
-                expression = parse_boolean_expr(self.func, take_callback, operator_mapping)
+                expression = parse_boolean_expr(self.func, take_callback_partial, operator_mapping)
             except SyntaxError as err:
                 raise InvalidDefinition(
                     _("Failed to parse boolean expression '{}'").format(self.func)
@@ -329,7 +338,7 @@ class CallbacksExecutor:
     def __str__(self):
         return ", ".join(str(c) for c in self)
 
-    def _add(self, spec: CallbackSpec, resolver: Callable):
+    def _add(self, spec: CallbackSpec, resolver: "Listeners"):
         for callback in spec.build(resolver):
             if callback.unique_key in self.items_already_seen:
                 continue
@@ -337,7 +346,7 @@ class CallbacksExecutor:
             self.items_already_seen.add(callback.unique_key)
             insort(self.items, callback)
 
-    def add(self, items: Iterable[CallbackSpec], resolver: Callable):
+    def add(self, items: Iterable[CallbackSpec], resolver: "Listeners"):
         """Validate configurations"""
         for item in items:
             self._add(item, resolver)
