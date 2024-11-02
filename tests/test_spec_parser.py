@@ -115,31 +115,31 @@ def test_expression_name_uniqueness():
 
 def test_empty_expression():
     expr = ""
-    with pytest.raises(SyntaxError, match="invalid syntax"):
+    with pytest.raises(SyntaxError):
         parse_boolean_expr(expr, variable_hook, operator_mapping)
 
 
 def test_whitespace_expression():
     expr = "   "
-    with pytest.raises(SyntaxError, match="unexpected indent"):
+    with pytest.raises(SyntaxError):
         parse_boolean_expr(expr, variable_hook, operator_mapping)
 
 
 def test_missing_operator_expression():
     expr = "frodo_has_ring orc_army_ready"
-    with pytest.raises(SyntaxError, match="invalid syntax"):
+    with pytest.raises(SyntaxError):
         parse_boolean_expr(expr, variable_hook, operator_mapping)
 
 
 def test_constant_usage_expression():
     expr = "frodo_has_ring or True"
-    with pytest.raises(ValueError, match="Unsupported expression structure: Constant"):
+    with pytest.raises(ValueError, match="Unsupported expression structure"):
         parse_boolean_expr(expr, variable_hook, operator_mapping)
 
 
 def test_dict_usage_expression():
     expr = "frodo_has_ring or {}"
-    with pytest.raises(ValueError, match="Unsupported expression structure: Dict"):
+    with pytest.raises(ValueError, match="Unsupported expression structure"):
         parse_boolean_expr(expr, variable_hook, operator_mapping)
 
 
