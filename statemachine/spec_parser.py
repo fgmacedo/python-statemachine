@@ -1,5 +1,21 @@
 import ast
+import re
 from typing import Callable
+
+replacements = {"!": "not ", "^": " and ", "v": " or "}
+
+pattern = re.compile(r"\!|\^|\bv\b")
+
+
+def replace_operators(expr: str) -> str:
+    # preprocess the expression adding support for classical logical operators
+    def match_func(match):
+        group = match.group(0)
+        if group == "":
+            return ""
+        return replacements[group]
+
+    return pattern.sub(match_func, expr)
 
 
 def custom_not(predicate: Callable) -> Callable:
@@ -58,6 +74,7 @@ def build_expression(node, variable_hook, operator_mapping):
 
 def parse_boolean_expr(expr, variable_hook, operator_mapping):
     """Parses the expression into an AST and build a custom expression tree"""
+    expr = replace_operators(expr)
     tree = ast.parse(expr, mode="eval")
     return build_expression(tree.body, variable_hook, operator_mapping)
 
