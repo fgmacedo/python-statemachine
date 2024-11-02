@@ -42,9 +42,29 @@ unless
 * Single condition: `unless="condition"`
 * Multiple conditions: `unless=["condition1", "condition2"]`
 
+Conditions also support [Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra) expressions, allowing you to use compound logic within transition guards. You can use both standard Python logical operators (`not`, `and`, `or`) as well as classic Boolean algebra symbols:
+
+- `!` for `not`
+- `^` for `and`
+- `v` for `or`
+
+For example:
+
+```python
+start.to(end, cond="frodo_has_ring and gandalf_present or !sauron_alive")
+```
+
+Both formats can be used interchangeably, so `!sauron_alive` and `not sauron_alive` are equivalent.
+
+
 ```{seealso}
 See {ref}`sphx_glr_auto_examples_air_conditioner_machine.py` for an example of
 combining multiple transitions to the same event.
+```
+
+```{seealso}
+See {ref}`sphx_glr_auto_examples_lor_machine.py` for an example of
+using boolean algebra in conditions.
 ```
 
 ```{hint}
