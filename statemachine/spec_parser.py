@@ -10,10 +10,7 @@ pattern = re.compile(r"\!|\^|\bv\b")
 def replace_operators(expr: str) -> str:
     # preprocess the expression adding support for classical logical operators
     def match_func(match):
-        group = match.group(0)
-        if group == "":
-            return ""
-        return replacements[group]
+        return replacements[match.group(0)]
 
     return pattern.sub(match_func, expr)
 
