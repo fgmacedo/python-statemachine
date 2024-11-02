@@ -5,6 +5,7 @@ from collections import deque
 from enum import IntEnum
 from enum import IntFlag
 from enum import auto
+from functools import reduce
 from inspect import isawaitable
 from inspect import iscoroutinefunction
 from typing import Callable
@@ -17,6 +18,7 @@ from typing import Type
 from .exceptions import AttrNotFound
 from .exceptions import InvalidDefinition
 from .i18n import _
+from .spec_parser import custom_and
 from .spec_parser import operator_mapping
 from .spec_parser import parse_boolean_expr
 from .utils import ensure_iterable
@@ -137,15 +139,18 @@ class CallbackSpec:
         ):
             names_not_found = set()
 
-            def take_first(name: str):
-                callback = next(resolver.search_name(name), None)
-                if callback is None:
+            def take_callback(name: str):
+                callbacks = list(resolver.search_name(name))
+                if len(callbacks) == 0:
                     names_not_found.add(name)
                     return lambda *args, **kwargs: False
-                return callback
+                elif len(callbacks) == 1:
+                    return callbacks[0]
+                else:
+                    return reduce(custom_and, callbacks)
 
             try:
-                expression = parse_boolean_expr(self.func, take_first, operator_mapping)
+                expression = parse_boolean_expr(self.func, take_callback, operator_mapping)
             except SyntaxError as err:
                 raise InvalidDefinition(
                     _("Failed to parse boolean expression '{}'").format(self.func)

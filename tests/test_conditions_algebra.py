@@ -5,7 +5,6 @@ from statemachine import StateMachine
 
 
 class AnyConditionSM(StateMachine):
-    # write an example of StateMachine that transition if any of the two conditions is True
     start = State(initial=True)
     end = State(final=True)
 
