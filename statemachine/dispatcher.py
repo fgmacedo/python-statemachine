@@ -75,7 +75,7 @@ class Listeners:
 
     def search(self, spec: "CallbackSpec") -> Generator["Callable", None, None]:
         if spec.reference is SpecReference.NAME:
-            yield from self._search_name(spec.func)
+            yield from self.search_name(spec.func)
             return
         elif spec.reference is SpecReference.CALLABLE:
             yield self._search_callable(spec)
@@ -111,7 +111,7 @@ class Listeners:
 
         return callable_method(spec.attr_name, spec.func, None)
 
-    def _search_name(self, name) -> Generator["Callable", None, None]:
+    def search_name(self, name) -> Generator["Callable", None, None]:
         for config in self.items:
             if name not in config.all_attrs:
                 continue
@@ -143,6 +143,7 @@ def attr_method(attribute, obj, resolver_id) -> Callable:
         return getter(obj)
 
     method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
+    method.__name__ = attribute
     return method
 
 

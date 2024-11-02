@@ -15,7 +15,10 @@ from typing import List
 from typing import Type
 
 from .exceptions import AttrNotFound
+from .exceptions import InvalidDefinition
 from .i18n import _
+from .spec_parser import operator_mapping
+from .spec_parser import parse_boolean_expr
 from .utils import ensure_iterable
 
 
@@ -110,7 +113,16 @@ class CallbackSpec:
         self.reference = SpecReference.CALLABLE
         self.attr_name = attr_name
 
-    def build(self, resolver) -> Generator["CallbackWrapper", None, None]:
+    def _wrap(self, callback):
+        condition = self.cond if self.cond is not None else allways_true
+        return CallbackWrapper(
+            callback=callback,
+            condition=condition,
+            meta=self,
+            unique_key=callback.unique_key,
+        )
+
+    def build(self, resolver) -> Generator["CallbackWrapper", None, None]:  # noqa: C901
         """
         Resolves the `func` into a usable callable.
 
@@ -118,14 +130,34 @@ class CallbackSpec:
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
+        if (
+            not self.is_convention
+            and self.group == CallbackGroup.COND
+            and self.reference == SpecReference.NAME
+        ):
+            names_not_found = set()
+
+            def take_first(name: str):
+                callback = next(resolver.search_name(name), None)
+                if callback is None:
+                    names_not_found.add(name)
+                    return lambda *args, **kwargs: False
+                return callback
+
+            try:
+                expression = parse_boolean_expr(self.func, take_first, operator_mapping)
+            except SyntaxError as err:
+                raise InvalidDefinition(
+                    _("Failed to parse boolean expression '{}'").format(self.func)
+                ) from err
+            if not expression or names_not_found:
+                self.names_not_found = names_not_found
+                return
+            yield self._wrap(expression)
+            return
+
         for callback in resolver.search(self):
-            condition = self.cond if self.cond is not None else allways_true
-            yield CallbackWrapper(
-                callback=callback,
-                condition=condition,
-                meta=self,
-                unique_key=callback.unique_key,
-            )
+            yield self._wrap(callback)
 
 
 class SpecListGrouper:
@@ -356,6 +388,12 @@ class CallbacksRegistry:
                 callback for callback in self[meta.group.build_key(specs)] if callback.meta == meta
             ):
                 continue
+            if hasattr(meta, "names_not_found"):
+                raise AttrNotFound(
+                    _("Did not found name '{}' from model or statemachine").format(
+                        ", ".join(meta.names_not_found)
+                    ),
+                )
             raise AttrNotFound(
                 _("Did not found name '{}' from model or statemachine").format(meta.func)
             )
