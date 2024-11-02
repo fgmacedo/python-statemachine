@@ -7,8 +7,15 @@ def custom_not(predicate: Callable) -> Callable:
         return not predicate(*args, **kwargs)
 
     decorated.__name__ = f"not({predicate.__name__})"
-    decorated.unique_key = f"not({getattr(predicate, "unique_key", '')})"  # type: ignore[attr-defined]
+    unique_key = getattr(predicate, "unique_key", "")
+    decorated.unique_key = f"not({unique_key})"  # type: ignore[attr-defined]
     return decorated
+
+
+def _unique_key(left, right, operator) -> str:
+    left_key = getattr(left, "unique_key", "")
+    right_key = getattr(right, "unique_key", "")
+    return f"{left_key} {operator} {right_key}"
 
 
 def custom_and(left: Callable, right: Callable) -> Callable:
@@ -16,9 +23,7 @@ def custom_and(left: Callable, right: Callable) -> Callable:
         return left(*args, **kwargs) and right(*args, **kwargs)  # type: ignore[no-any-return]
 
     decorated.__name__ = f"({left.__name__} and {right.__name__})"
-    decorated.unique_key = (  # type: ignore[attr-defined]
-        f"{getattr(left, 'unique_key', '')} and {getattr(right, 'unique_key', '')}"
-    )
+    decorated.unique_key = _unique_key(left, right, "and")  # type: ignore[attr-defined]
     return decorated
 
 
@@ -27,9 +32,7 @@ def custom_or(left: Callable, right: Callable) -> Callable:
         return left(*args, **kwargs) or right(*args, **kwargs)  # type: ignore[no-any-return]
 
     decorated.__name__ = f"({left.__name__} or {right.__name__})"
-    decorated.unique_key = (  # type: ignore[attr-defined]
-        f"{getattr(left, 'unique_key', '')} or {getattr(right, 'unique_key', '')}"
-    )
+    decorated.unique_key = _unique_key(left, right, "or")  # type: ignore[attr-defined]
     return decorated
 
 
