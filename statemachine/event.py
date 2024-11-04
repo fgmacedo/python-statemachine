@@ -26,8 +26,14 @@ _event_data_kwargs = {
 
 class Event(str):
     id: str
+    """The event identifier."""
+
     name: str
+    """The event name."""
+
     _sm: "StateMachine | None" = None
+    """The state machine instance."""
+
     _transitions: "TransitionList | None" = None
     _has_real_id = False
 

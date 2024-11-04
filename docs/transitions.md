@@ -47,7 +47,7 @@ And these transitions are assigned to the {ref}`event` `cycle` defined at the cl
 
 ```{note}
 
-In fact, before the full class body is evaluated, the assigments of transitions are instances of [](statemachine.transition_list.TransitionList). When the state machine is evaluated by our custom [metaclass](https://docs.python.org/3/reference/datamodel.html#metaclasses), these names will be transformed into a an {ref}`Event` instance.
+In fact, before the full class body is evaluated, the assigments of transitions are instances of [](statemachine.transition_list.TransitionList). When the state machine is evaluated by our custom [metaclass](https://docs.python.org/3/reference/datamodel.html#metaclasses), these names will be transformed into {ref}`Event` instances.
 
 ```
 
@@ -175,15 +175,19 @@ In `python-statemachine`, an event is specified as an attribute of the state mac
 ### Declaring events
 
 The simplest way to declare an {ref}`event` is by assiging a transitions list to a name at the
-State machine class level:
+State machine class level. The name will be converted to an {ref}`Event (class)`:
 
 ```py
+>>> from statemachine import Event
+
 >>> class SimpleSM(StateMachine):
 ...     initial = State(initial=True)
 ...     final = State()
 ...
 ...     start = initial.to(final)  # start is a name that will be converted to an `Event`
 
+>>> isinstance(SimpleSM.start, Event)
+True
 >>> sm = SimpleSM()
 >>> sm.start()  # call `start` event
 
@@ -193,7 +197,7 @@ State machine class level:
 You can also explict declare an {ref}`Event` instance, this helps IDEs to know that the event is callable and also with transtation strings.
 ```
 
-To declare an explicit event you must also import the {ref}`Event` class:
+To declare an explicit event you must also import the {ref}`Event (class)`:
 
 ```py
 >>> from statemachine import Event
@@ -215,7 +219,7 @@ To declare an explicit event you must also import the {ref}`Event` class:
 
 ```
 
-An {ref}`Event` instance or an event id string can also be used as the `event` parameter of a {ref}`transition`. So you can mix these options as you need.
+An {ref}`Event (class)` instance or an event id string can also be used as the `event` parameter of a {ref}`transition`. So you can mix these options as you need.
 
 ```py
 >>> from statemachine import State, StateMachine, Event
@@ -236,10 +240,13 @@ An {ref}`Event` instance or an event id string can also be used as the `event` p
 ...         name="Loop",
 ...     )
 ...
-...     def on_transition(self, event_data, event: str):
+...     def on_transition(self, event_data, event: Event):
+...         # The `event` parameter can be declared as `str` or `Event`, since `Event` is a subclass of `str`
+...         # Note also that in this example, we're using `on_transition` instead of `on_cycle`, as this
+...         # binds the action to run for every transition instead of a specific event ID.
 ...         assert event_data.event == event
 ...         return (
-...             f"Running {event} from {event_data.transition.source.id} to "
+...             f"Running {event.name} from {event_data.transition.source.id} to "
 ...             f"{event_data.transition.target.id}"
 ...         )
 
@@ -266,28 +273,43 @@ An {ref}`Event` instance or an event id string can also be used as the `event` p
 >>> sm = TrafficLightMachine()
 
 >>> sm.cycle()  # Your IDE is happy because it now knows that `cycle` is callable!
-'Running cycle from green to yellow'
+'Running Loop from green to yellow'
 
 >>> sm.send("cycle")  # You can also use `send` in order to process dynamic event sources
-'Running cycle from yellow to red'
+'Running Loop from yellow to red'
 
 >>> sm.send("cycle")
-'Running cycle from red to green'
+'Running Loop from red to green'
 
 >>> sm.send("slowdown")
-'Running slowdown from green to yellow'
+'Running Slowing down from green to yellow'
 
 >>> sm.send("stop")
-'Running stop from yellow to red'
+'Running Please stop! from yellow to red'
 
 >>> sm.send("go")
 'Running go from red to green'
 
 ```
 
+```{tip}
+Avoid mixing these options within the same project; instead, choose the one that best serves your use case. Declaring events as strings has been the standard approach since the library’s inception and can be considered syntactic sugar, as the state machine metaclass will convert all events to {ref}`Event (class)` instances under the hood.
+
+```
+
+```{note}
+In order to allow the seamless upgrade from using strings to `Event` instances, the {ref}`Event (class)` inherits from `str`.
+
+Note that this is just an implementation detail and can change in the future.
+
+>>> isinstance(TrafficLightMachine.cycle, str)
+True
+
+```
+
 
 ```{warning}
-An {ref}`Event` declared as a string will have its `name` set equal to its `id`. This is for backward compatibility when migrating from previous versions.
+An {ref}`Event` declared as string will have its `name` set equal to its `id`. This is for backward compatibility when migrating from previous versions.
 
 In the next major release, `Event.name` will default to a capitalized version of `id` (i.e., `Event.id.replace("_", " ").capitalize()`).
 
@@ -319,7 +341,7 @@ You can invoke the event in an imperative syntax:
 >>> machine = TrafficLightMachine()
 
 >>> machine.cycle()
-'Running cycle from green to yellow'
+'Running Loop from green to yellow'
 
 >>> machine.current_state.id
 'yellow'
@@ -330,7 +352,7 @@ Or in an event-oriented style, events are `send`:
 
 ```py
 >>> machine.send("cycle")
-'Running cycle from yellow to red'
+'Running Loop from yellow to red'
 
 >>> machine.current_state.id
 'red'
@@ -345,7 +367,7 @@ You can raise an exception at this point to stop a transition from completing.
 'red'
 
 >>> machine.cycle()
-'Running cycle from red to green'
+'Running Loop from red to green'
 
 >>> machine.current_state.id
 'green'
