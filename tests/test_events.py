@@ -1,6 +1,9 @@
+import pytest
+
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.event import Event
+from statemachine.exceptions import InvalidDefinition
 
 
 def test_assign_events_on_transitions():
@@ -66,3 +69,120 @@ class TestExplicitEvent:
         assert [e.id for e in StartMachine.events] == ["launch_the_machine"]
         assert [e.name for e in StartMachine.events] == ["Launch the machine"]
         assert StartMachine.launch_the_machine.name == "Launch the machine"
+
+    def test_raise_invalid_definition_if_event_name_cannot_be_derived(self):
+        with pytest.raises(InvalidDefinition, match="has no id"):
+
+            class StartMachine(StateMachine):
+                created = State(initial=True)
+                started = State()
+
+                launch = Event(created.to(started))
+
+                started.to.itself(event=Event())  # event id not defined
+
+    def test_derive_from_id(self):
+        class StartMachine(StateMachine):
+            created = State(initial=True)
+            started = State()
+
+            created.to(started, event=Event("launch_rocket"))
+
+        assert StartMachine.launch_rocket.name == "Launch rocket"
+
+    def test_of_passing_event_as_parameters(self):
+        class TrafficLightMachine(StateMachine):
+            "A traffic light machine"
+
+            green = State(initial=True)
+            yellow = State()
+            red = State()
+
+            cycle = Event(name="Loop")
+            slowdown = Event(name="slow down")
+            stop = Event(name="Please stop")
+            go = Event(name="Go! Go! Go!")
+
+            green.to(yellow, event=[cycle, slowdown])
+            yellow.to(red, event=[cycle, stop])
+            red.to(green, event=[cycle, go])
+
+            def on_cycle(self, event_data, event: str):
+                assert event_data.event == event
+                return (
+                    f"Running {event} from {event_data.transition.source.id} to "
+                    f"{event_data.transition.target.id}"
+                )
+
+        sm = TrafficLightMachine()
+
+        assert sm.send("cycle") == "Running cycle from green to yellow"
+        assert sm.send("cycle") == "Running cycle from yellow to red"
+        assert sm.send("cycle") == "Running cycle from red to green"
+        assert sm.cycle.name == "Loop"
+        assert sm.slowdown.name == "slow down"
+        assert sm.stop.name == "Please stop"
+        assert sm.go.name == "Go! Go! Go!"
+
+    def test_mixing_event_and_parameters(self):
+        class TrafficLightMachine(StateMachine):
+            "A traffic light machine"
+
+            green = State(initial=True)
+            yellow = State()
+            red = State()
+
+            cycle = Event(
+                green.to(yellow, event=Event("slowdown", name="Slow down"))
+                | yellow.to(red, event=Event("stop", name="Please stop!"))
+                | red.to(green, event=Event("go", name="Go! Go! Go!")),
+                name="Loop",
+            )
+
+            def on_cycle(self, event_data, event: str):
+                assert event_data.event == event
+                return (
+                    f"Running {event} from {event_data.transition.source.id} to "
+                    f"{event_data.transition.target.id}"
+                )
+
+        sm = TrafficLightMachine()
+
+        assert sm.send("cycle") == "Running cycle from green to yellow"
+        assert sm.send("cycle") == "Running cycle from yellow to red"
+        assert sm.send("cycle") == "Running cycle from red to green"
+        assert sm.cycle.name == "Loop"
+        assert sm.slowdown.name == "Slow down"
+        assert sm.stop.name == "Please stop!"
+        assert sm.go.name == "Go! Go! Go!"
+
+    def test_name_derived_from_identifier(self):
+        class TrafficLightMachine(StateMachine):
+            "A traffic light machine"
+
+            green = State(initial=True)
+            yellow = State()
+            red = State()
+
+            cycle = Event(name="Loop")
+            slow_down = Event()
+            green.to(yellow, event=[cycle, slow_down])
+            yellow.to(red, event=[cycle, "stop"])
+            red.to(green, event=[cycle, "go"])
+
+            def on_cycle(self, event_data, event: str):
+                assert event_data.event == event
+                return (
+                    f"Running {event} from {event_data.transition.source.id} to "
+                    f"{event_data.transition.target.id}"
+                )
+
+        sm = TrafficLightMachine()
+
+        assert sm.send("cycle") == "Running cycle from green to yellow"
+        assert sm.send("cycle") == "Running cycle from yellow to red"
+        assert sm.send("cycle") == "Running cycle from red to green"
+        assert sm.cycle.name == "Loop"
+        assert sm.slow_down.name == "Slow down"
+        assert sm.stop.name == "stop"
+        assert sm.go.name == "go"

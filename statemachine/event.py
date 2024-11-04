@@ -1,5 +1,8 @@
 from inspect import isawaitable
 from typing import TYPE_CHECKING
+from typing import LiteralString
+from typing import SupportsIndex
+from uuid import uuid4
 
 from statemachine.utils import run_async_from_sync
 
@@ -27,27 +30,33 @@ class Event(str):
     name: str
     _sm: "StateMachine | None" = None
     _transitions: "TransitionList | None" = None
+    _has_real_id = False
 
     def __new__(
         cls,
-        positional_arg: "str | TransitionList | None" = None,
+        transitions: "str | TransitionList | None" = None,
         id: "str | None" = None,
         name: "str | None" = None,
         sm: "StateMachine | None" = None,
     ):
-        if isinstance(positional_arg, str):
-            id = positional_arg
+        if isinstance(transitions, str):
+            id = transitions
             transitions = None
-        else:
-            transitions = positional_arg
 
-        id = str(id) if id is not None else ""
+        _has_real_id = id is not None
+        id = str(id) if _has_real_id else f"__event__{uuid4().hex}"
 
         instance = super().__new__(cls, id)
         instance.id = id
-        instance.name = name if name is not None else str(id)
+        if name:
+            instance.name = name
+        elif _has_real_id:
+            instance.name = str(id).replace("_", " ").capitalize()
+        else:
+            instance.name = ""
         if transitions:
             instance._transitions = transitions
+        instance._has_real_id = _has_real_id
         instance._sm = sm
         return instance
 
@@ -89,6 +98,14 @@ class Event(str):
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
+
+    def split(  # type: ignore[override]
+        self, sep: LiteralString | None = None, maxsplit: SupportsIndex = -1
+    ) -> list["Event"]:
+        result = super().split(sep, maxsplit)
+        if len(result) == 1:
+            return [self]
+        return [Event(event) for event in result]
 
 
 class BoundEvent(Event):

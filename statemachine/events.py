@@ -7,7 +7,7 @@ class Events:
     """A collection of event names."""
 
     def __init__(self):
-        self._items = []
+        self._items: list[Event] = []
 
     def __repr__(self):
         sep = " " if len(self._items) > 1 else ""
@@ -25,9 +25,16 @@ class Events:
             for event in events.split(" "):
                 if event in self._items:
                     continue
-                self._items.append(Event(event))
+                if isinstance(event, Event):
+                    self._items.append(event)
+                else:
+                    self._items.append(Event(id=event, name=event))
 
         return self
 
     def match(self, event: str):
         return any(e == event for e in self)
+
+    def _replace(self, old, new):
+        self._items.remove(old)
+        self._items.append(new)
