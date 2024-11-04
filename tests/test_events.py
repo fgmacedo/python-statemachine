@@ -11,7 +11,7 @@ def test_assign_events_on_transitions():
         yellow = State()
         red = State()
 
-        green.to(yellow, event="cycle slowdown slowdown")
+        green.to(yellow, event="cycle slowdown")
         yellow.to(red, event="cycle stop")
         red.to(green, event="cycle go")
 

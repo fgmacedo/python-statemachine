@@ -54,7 +54,7 @@ class Event(str):
     def __repr__(self):
         return f"{type(self).__name__}({self.id!r})"
 
-    def is_same_event(self, *args, event: "str | None" = None, **kwargs) -> bool:
+    def is_same_event(self, *_args, event: "str | None" = None, **_kwargs) -> bool:
         return self == event
 
     def __get__(self, instance, owner):
@@ -69,9 +69,13 @@ class Event(str):
             return self
         return BoundEvent(id=self.id, name=self.name, sm=instance)
 
-
-class BoundEvent(Event):
     def __call__(self, *args, **kwargs):
+        """Send this event to the current state machine."""
+        # The `__call__` is declared here to help IDEs knowing that an `Event`
+        # can be called as a method. But it is not meant to be called without
+        # an SM instance. Such SM instance is provided by `__get__` method when
+        # used as a property descriptor.
+
         machine = self._sm
         kwargs = {k: v for k, v in kwargs.items() if k not in _event_data_kwargs}
         trigger_data = TriggerData(
@@ -85,3 +89,7 @@ class BoundEvent(Event):
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
+
+
+class BoundEvent(Event):
+    pass
