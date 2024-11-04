@@ -47,7 +47,7 @@ And these transitions are assigned to the {ref}`event` `cycle` defined at the cl
 
 ```{note}
 
-In fact, before the full class body is evaluated, the assigments of transitions are instances of [](statemachine.transition_list.TransitionList). When the state machine is evaluated by our custom [metaclass](https://docs.python.org/3/reference/datamodel.html#metaclasses), these names will be transformed into a method that triggers an {ref}`Event`.
+In fact, before the full class body is evaluated, the assigments of transitions are instances of [](statemachine.transition_list.TransitionList). When the state machine is evaluated by our custom [metaclass](https://docs.python.org/3/reference/datamodel.html#metaclasses), these names will be transformed into a an {ref}`Event` instance.
 
 ```
 
@@ -171,6 +171,131 @@ initiates a change in the state of the system.
 
 In `python-statemachine`, an event is specified as an attribute of the state machine class declaration or directly on the {ref}`event` parameter on a {ref}`transition`.
 
+
+### Declaring events
+
+The simplest way to declare an {ref}`event` is by assiging a transitions list to a name at the
+State machine class level:
+
+```py
+>>> class SimpleSM(StateMachine):
+...     initial = State(initial=True)
+...     final = State()
+...
+...     start = initial.to(final)  # start is a name that will be converted to an `Event`
+
+>>> sm = SimpleSM()
+>>> sm.start()  # call `start` event
+
+```
+
+```{versionadded} 2.6.7
+You can also explict declare an {ref}`Event` instance, this helps IDEs to know that the event is callable and also with transtation strings.
+```
+
+To declare an explicit event you must also import the {ref}`Event` class:
+
+```py
+>>> from statemachine import Event
+
+>>> class SimpleSM(StateMachine):
+...     initial = State(initial=True)
+...     final = State()
+...
+...     start = Event(
+...         initial.to(final),
+...         name="Start the state machine"  # optional name, if not provided it will be derived from id
+...     )
+
+>>> SimpleSM.start.name
+'Start the state machine'
+
+>>> sm = SimpleSM()
+>>> sm.start()  # call `start` event
+
+```
+
+An {ref}`Event` instance or an event id string can also be used as the `event` parameter of a {ref}`transition`. So you can mix these options as you need.
+
+```py
+>>> from statemachine import State, StateMachine, Event
+
+>>> class TrafficLightMachine(StateMachine):
+...     "A traffic light machine"
+...
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
+...
+...     slowdown = Event(name="Slowing down")
+...
+...     cycle = Event(
+...         green.to(yellow, event=slowdown)
+...         | yellow.to(red, event=Event("stop", name="Please stop!"))
+...         | red.to(green, event="go"),
+...         name="Loop",
+...     )
+...
+...     def on_transition(self, event_data, event: str):
+...         assert event_data.event == event
+...         return (
+...             f"Running {event} from {event_data.transition.source.id} to "
+...             f"{event_data.transition.target.id}"
+...         )
+
+>>> # Event IDs
+>>> TrafficLightMachine.cycle.id
+'cycle'
+>>> TrafficLightMachine.slowdown.id
+'slowdown'
+>>> TrafficLightMachine.stop.id
+'stop'
+>>> TrafficLightMachine.go.id
+'go'
+
+>>> # Event names
+>>> TrafficLightMachine.cycle.name
+'Loop'
+>>> TrafficLightMachine.slowdown.name
+'Slowing down'
+>>> TrafficLightMachine.stop.name
+'Please stop!'
+>>> TrafficLightMachine.go.name
+'go'
+
+>>> sm = TrafficLightMachine()
+
+>>> sm.cycle()  # Your IDE is happy because it now knows that `cycle` is callable!
+'Running cycle from green to yellow'
+
+>>> sm.send("cycle")  # You can also use `send` in order to process dynamic event sources
+'Running cycle from yellow to red'
+
+>>> sm.send("cycle")
+'Running cycle from red to green'
+
+>>> sm.send("slowdown")
+'Running slowdown from green to yellow'
+
+>>> sm.send("stop")
+'Running stop from yellow to red'
+
+>>> sm.send("go")
+'Running go from red to green'
+
+```
+
+
+```{warning}
+An {ref}`Event` declared as a string will have its `name` set equal to its `id`. This is for backward compatibility when migrating from previous versions.
+
+In the next major release, `Event.name` will default to a capitalized version of `id` (i.e., `Event.id.replace("_", " ").capitalize()`).
+
+Starting from version 2.3.7, use `Event.id` to check for event identifiers instead of `Event.name`.
+
+```
+
+
 ### Triggering events
 
 Triggering an event on a state machine means invoking or sending a signal, initiating the
@@ -188,14 +313,13 @@ associated with the transition
 See {ref}`actions` and {ref}`validators and guards`.
 ```
 
-
 You can invoke the event in an imperative syntax:
 
 ```py
 >>> machine = TrafficLightMachine()
 
 >>> machine.cycle()
-Running cycle from green to yellow
+'Running cycle from green to yellow'
 
 >>> machine.current_state.id
 'yellow'
@@ -206,24 +330,12 @@ Or in an event-oriented style, events are `send`:
 
 ```py
 >>> machine.send("cycle")
-Running cycle from yellow to red
+'Running cycle from yellow to red'
 
 >>> machine.current_state.id
 'red'
 
 ```
-
-You can also pass positional and keyword arguments, that will be propagated
-to the actions and guards. In this example, the :code:`TrafficLightMachine` implements
-an action that `echoes` back the parameters informed.
-
-```{literalinclude} ../tests/examples/traffic_light_machine.py
-    :language: python
-    :linenos:
-    :emphasize-lines: 10
-    :lines: 12-21
-```
-
 
 This action is executed before the transition associated with `cycle` event is activated.
 You can raise an exception at this point to stop a transition from completing.
@@ -233,7 +345,7 @@ You can raise an exception at this point to stop a transition from completing.
 'red'
 
 >>> machine.cycle()
-Running cycle from red to green
+'Running cycle from red to green'
 
 >>> machine.current_state.id
 'green'
