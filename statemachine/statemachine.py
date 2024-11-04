@@ -316,7 +316,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         """
         event_instance: BoundEvent = getattr(
-            self, event, BoundEvent(id=event, name=event, sm=self)
+            self, event, BoundEvent(id=event, name=event, _sm=self)
         )
         result = event_instance(*args, **kwargs)
         if not isawaitable(result):

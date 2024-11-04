@@ -36,7 +36,7 @@ class Event(str):
         transitions: "str | TransitionList | None" = None,
         id: "str | None" = None,
         name: "str | None" = None,
-        sm: "StateMachine | None" = None,
+        _sm: "StateMachine | None" = None,
     ):
         if isinstance(transitions, str):
             id = transitions
@@ -56,7 +56,7 @@ class Event(str):
         if transitions:
             instance._transitions = transitions
         instance._has_real_id = _has_real_id
-        instance._sm = sm
+        instance._sm = _sm
         return instance
 
     def __repr__(self):
@@ -75,7 +75,7 @@ class Event(str):
         """
         if instance is None:
             return self
-        return BoundEvent(id=self.id, name=self.name, sm=instance)
+        return BoundEvent(id=self.id, name=self.name, _sm=instance)
 
     def __call__(self, *args, **kwargs):
         """Send this event to the current state machine."""
