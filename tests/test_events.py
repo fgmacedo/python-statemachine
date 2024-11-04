@@ -186,3 +186,32 @@ class TestExplicitEvent:
         assert sm.slow_down.name == "Slow down"
         assert sm.stop.name == "stop"
         assert sm.go.name == "go"
+
+    def test_multiple_ids_from_the_same_event_will_be_converted_to_multiple_events(self):
+        class TrafficLightMachine(StateMachine):
+            "A traffic light machine"
+
+            green = State(initial=True)
+            yellow = State()
+            red = State()
+
+            green.to(yellow, event=Event("cycle slowdown", name="Will be ignored"))
+            yellow.to(red, event=Event("cycle stop", name="Will be ignored"))
+            red.to(green, event=Event("cycle go", name="Will be ignored"))
+
+            def on_cycle(self, event_data, event: str):
+                assert event_data.event == event
+                return (
+                    f"Running {event} from {event_data.transition.source.id} to "
+                    f"{event_data.transition.target.id}"
+                )
+
+        sm = TrafficLightMachine()
+
+        assert sm.slowdown.name == "Slowdown"
+        assert sm.stop.name == "Stop"
+        assert sm.go.name == "Go"
+
+        assert sm.send("cycle") == "Running cycle from green to yellow"
+        assert sm.send("cycle") == "Running cycle from yellow to red"
+        assert sm.send("cycle") == "Running cycle from red to green"

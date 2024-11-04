@@ -1,6 +1,5 @@
 from inspect import isawaitable
 from typing import TYPE_CHECKING
-from typing import SupportsIndex
 from uuid import uuid4
 
 from statemachine.utils import run_async_from_sync
@@ -99,7 +98,7 @@ class Event(str):
         return run_async_from_sync(result)
 
     def split(  # type: ignore[override]
-        self, sep: "str | None" = None, maxsplit: SupportsIndex = -1
+        self, sep: "str | None" = None, maxsplit: int = -1
     ) -> list["Event"]:
         result = super().split(sep, maxsplit)
         if len(result) == 1:
