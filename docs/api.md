@@ -66,6 +66,13 @@
     :members:
 ```
 
+## Event (class)
+
+```{eval-rst}
+.. autoclass:: statemachine.event.Event
+    :members:
+```
+
 ## EventData
 
 ```{eval-rst}
