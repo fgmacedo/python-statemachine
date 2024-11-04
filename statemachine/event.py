@@ -1,6 +1,5 @@
 from inspect import isawaitable
 from typing import TYPE_CHECKING
-from typing import LiteralString
 from typing import SupportsIndex
 from uuid import uuid4
 
@@ -69,7 +68,7 @@ class Event(str):
     def __get__(self, instance, owner):
         """By implementing this method `Event` can be used as a property descriptor
 
-        So when attached to a SM class, if the user tries to get the `Event` instance,
+        When attached to a SM class, if the user tries to get the `Event` instance,
         we intercept here and return a `BoundEvent` instance, so the user can call
         it as a method with the correct SM instance.
 
@@ -100,7 +99,7 @@ class Event(str):
         return run_async_from_sync(result)
 
     def split(  # type: ignore[override]
-        self, sep: LiteralString | None = None, maxsplit: SupportsIndex = -1
+        self, sep: "str | None" = None, maxsplit: SupportsIndex = -1
     ) -> list["Event"]:
         result = super().split(sep, maxsplit)
         if len(result) == 1:

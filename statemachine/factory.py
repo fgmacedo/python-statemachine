@@ -37,7 +37,7 @@ class StateMachineMetaclass(type):
 
         cls._abstract = True
         cls._strict_states = strict_states
-        cls._events: Dict[str, Event] = {}
+        cls._events: Dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
         cls._events_to_update: Dict[Event, Event | None] = {}
 
@@ -175,7 +175,7 @@ class StateMachineMetaclass(type):
                 cls.add_state(state.id, state)
 
             events = getattr(base, "_events", {})
-            for event in events.values():
+            for event in events:
                 cls.add_event(event=Event(id=event.id, name=event.name))
 
     def add_from_attributes(cls, attrs):  # noqa: C901
@@ -239,7 +239,7 @@ class StateMachineMetaclass(type):
             transitions.add_event(event)
 
         if event not in cls._events:
-            cls._events[event.id] = event
+            cls._events[event] = None
             setattr(cls, event.id, event)
 
         if old_event is not None:
@@ -258,6 +258,8 @@ class StateMachineMetaclass(type):
                             )
                         transition.events._replace(old_event, new_event)
 
+        cls._events_to_update = {}
+
     @property
     def events(self):
-        return list(self._events.values())
+        return list(self._events)
