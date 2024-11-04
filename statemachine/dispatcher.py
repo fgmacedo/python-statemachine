@@ -10,6 +10,7 @@ from typing import Tuple
 
 from .callbacks import SPECS_ALL
 from .callbacks import SpecReference
+from .event import Event
 from .signature import SignatureAdapter
 
 if TYPE_CHECKING:
@@ -121,7 +122,7 @@ class Listeners:
                 yield attr_method(name, config.obj, config.resolver_id)
                 continue
 
-            if getattr(func, "_is_sm_event", False):
+            if isinstance(func, Event):
                 yield event_method(name, func, config.resolver_id)
                 continue
 

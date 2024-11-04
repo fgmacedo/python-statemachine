@@ -7,6 +7,8 @@ from .event_data import TriggerData
 
 if TYPE_CHECKING:
     from .statemachine import StateMachine
+    from .transition_list import TransitionList
+
 
 _event_data_kwargs = {
     "event_data",
@@ -20,46 +22,66 @@ _event_data_kwargs = {
 }
 
 
-class Event:
-    def __init__(self, name: str):
-        self.name: str = name
+class Event(str):
+    id: str
+    name: str
+    _sm: "StateMachine | None" = None
+    _transitions: "TransitionList | None" = None
+
+    def __new__(
+        cls,
+        positional_arg: "str | TransitionList | None" = None,
+        id: "str | None" = None,
+        name: "str | None" = None,
+        sm: "StateMachine | None" = None,
+    ):
+        if isinstance(positional_arg, str):
+            id = positional_arg
+            transitions = None
+        else:
+            transitions = positional_arg
+
+        id = str(id) if id is not None else ""
+
+        instance = super().__new__(cls, id)
+        instance.id = id
+        instance.name = name if name is not None else str(id)
+        if transitions:
+            instance._transitions = transitions
+        instance._sm = sm
+        return instance
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.name!r})"
+        return f"{type(self).__name__}({self.id!r})"
 
-    def trigger(self, machine: "StateMachine", *args, **kwargs):
+    def is_same_event(self, *args, event: "str | None" = None, **kwargs) -> bool:
+        return self == event
+
+    def __get__(self, instance, owner):
+        """By implementing this method `Event` can be used as a property descriptor
+
+        So when attached to a SM class, if the user tries to get the `Event` instance,
+        we intercept here and return a `BoundEvent` instance, so the user can call
+        it as a method with the correct SM instance.
+
+        """
+        if instance is None:
+            return self
+        return BoundEvent(id=self.id, name=self.name, sm=instance)
+
+
+class BoundEvent(Event):
+    def __call__(self, *args, **kwargs):
+        machine = self._sm
         kwargs = {k: v for k, v in kwargs.items() if k not in _event_data_kwargs}
         trigger_data = TriggerData(
             machine=machine,
-            event=self.name,
+            event=self,
             args=args,
             kwargs=kwargs,
         )
         machine._put_nonblocking(trigger_data)
-        return machine._processing_loop()
-
-
-def trigger_event_factory(event_instance: Event):
-    """Build a method that sends specific `event` to the machine"""
-
-    def trigger_event(self, *args, **kwargs):
-        result = event_instance.trigger(self, *args, **kwargs)
+        result = machine._processing_loop()
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
-
-    trigger_event.name = event_instance.name  # type: ignore[attr-defined]
-    trigger_event.identifier = event_instance.name  # type: ignore[attr-defined]
-    trigger_event._is_sm_event = True  # type: ignore[attr-defined]
-    return trigger_event
-
-
-def same_event_cond_builder(expected_event: str):
-    """
-    Builds a condition method that evaluates to ``True`` when the expected event is received.
-    """
-
-    def cond(*args, event: "str | None" = None, **kwargs) -> bool:
-        return event == expected_event
-
-    return cond

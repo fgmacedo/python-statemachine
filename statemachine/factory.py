@@ -8,7 +8,6 @@ from uuid import uuid4
 
 from . import registry
 from .event import Event
-from .event import trigger_event_factory
 from .exceptions import InvalidDefinition
 from .graph import iterate_states_and_transitions
 from .graph import visit_connected_states
@@ -175,16 +174,18 @@ class StateMachineMetaclass(type):
 
             events = getattr(base, "_events", {})
             for event in events.values():
-                cls.add_event(event.name)
+                cls.add_event(event.id, event_name=event.name)
 
-    def add_from_attributes(cls, attrs):
+    def add_from_attributes(cls, attrs):  # noqa: C901
         for key, value in sorted(attrs.items(), key=lambda pair: pair[0]):
             if isinstance(value, States):
                 cls._add_states_from_dict(value)
             if isinstance(value, State):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
-                cls.add_event(key, value)
+                cls.add_event(key, transitions=value)
+            elif isinstance(value, (Event,)):
+                cls.add_event(key, event_instance=value)
             elif getattr(value, "_specs_to_update", None):
                 cls._add_unbounded_callback(key, value)
 
@@ -214,16 +215,31 @@ class StateMachineMetaclass(type):
         for event in state.transitions.unique_events:
             cls.add_event(event)
 
-    def add_event(cls, event, transitions=None):
+    def add_event(
+        cls,
+        event_id,
+        transitions=None,
+        event_instance: "Event | None" = None,
+        event_name: "str | None" = None,
+    ):
+        if event_instance is not None:
+            transitions = event_instance._transitions
+
+            name = (
+                event_instance.name or event_name or str(event_id).replace("_", " ").capitalize()
+            )
+            event_instance = Event(id=event_id, name=name)
+
         if transitions is not None:
-            transitions.add_event(event)
+            transitions.add_event(event_id)
 
-        if event not in cls._events:
-            event_instance = Event(event)
-            cls._events[event] = event_instance
-            setattr(cls, event, trigger_event_factory(event_instance))
+        if event_id not in cls._events:
+            if not event_instance:
+                event_instance = Event(id=event_id, name=event_name)
+            cls._events[event_id] = event_instance
+            setattr(cls, event_id, event_instance)
 
-        return cls._events[event]
+        return cls._events[event_id]
 
     @property
     def events(self):

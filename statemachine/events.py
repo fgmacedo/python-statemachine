@@ -1,3 +1,5 @@
+from statemachine.event import Event
+
 from .utils import ensure_iterable
 
 
@@ -5,14 +7,14 @@ class Events:
     """A collection of event names."""
 
     def __init__(self):
-        self.items = []
+        self._items = []
 
     def __repr__(self):
-        sep = " " if len(self.items) > 1 else ""
-        return sep.join(item for item in self.items)
+        sep = " " if len(self._items) > 1 else ""
+        return sep.join(item for item in self._items)
 
     def __iter__(self):
-        return iter(self.items)
+        return iter(self._items)
 
     def add(self, events):
         if events is None:
@@ -21,9 +23,9 @@ class Events:
         unprepared = ensure_iterable(events)
         for events in unprepared:
             for event in events.split(" "):
-                if event in self.items:
+                if event in self._items:
                     continue
-                self.items.append(event)
+                self._items.append(Event(event))
 
         return self
 
