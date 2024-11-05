@@ -104,13 +104,13 @@ Boolean Expression:
 ```
 
 ```{seealso}
-See {ref}`sphx_glr_auto_examples_air_conditioner_machine.py` for an example of
-combining multiple transitions to the same event.
+See {ref}`sphx_glr_auto_examples_lor_machine.py` for an example of
+using boolean algebra in conditions.
 ```
 
 ```{seealso}
-See {ref}`sphx_glr_auto_examples_lor_machine.py` for an example of
-using boolean algebra in conditions.
+See {ref}`sphx_glr_auto_examples_air_conditioner_machine.py` for an example of
+combining multiple transitions to the same event.
 ```
 
 ```{hint}

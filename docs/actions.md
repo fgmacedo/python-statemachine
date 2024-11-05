@@ -160,7 +160,7 @@ It's also possible to use an event name as action.
 
 ## Transition actions
 
-For each {ref}`event`, you can register `before`, `on`, and `after` callbacks.
+For each {ref}`events`, you can register `before`, `on`, and `after` callbacks.
 
 ### Declare transition actions by naming convention
 
