@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
+    from .event import Event
     from .state import State
     from .statemachine import StateMachine
     from .transition import Transition
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 class TriggerData:
     machine: "StateMachine"
 
-    event: str
+    event: "Event"
     """The Event that was triggered."""
 
     model: Any = field(init=False)

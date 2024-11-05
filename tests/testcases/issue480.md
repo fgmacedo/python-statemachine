@@ -12,7 +12,7 @@ Should be possible to trigger an event on the initial state activation handler.
 >>>
 >>> class MyStateMachine(StateMachine):
 ...     State_1 = State(initial=True)
-...     State_2 = State()
+...     State_2 = State(final=True)
 ...     Trans_1 = State_1.to(State_2)
 ...
 ...     def __init__(self):

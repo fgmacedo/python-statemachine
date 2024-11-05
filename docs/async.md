@@ -4,9 +4,9 @@
 Support for async code was added!
 ```
 
-The {ref}`StateMachine` fully supports asynchronous code. You can write async {ref}`actions`, {ref}`guards`, and {ref}`event` triggers, while maintaining the same external API for both synchronous and asynchronous codebases.
+The {ref}`StateMachine` fully supports asynchronous code. You can write async {ref}`actions`, {ref}`guards`, and {ref}`events` triggers, while maintaining the same external API for both synchronous and asynchronous codebases.
 
-This is achieved through a new concept called "engine," an internal strategy pattern abstraction that manages transitions and callbacks.
+This is achieved through a new concept called **engine**, an internal strategy pattern abstraction that manages transitions and callbacks.
 
 There are two engines, {ref}`SyncEngine` and {ref}`AsyncEngine`.
 

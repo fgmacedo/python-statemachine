@@ -18,7 +18,7 @@ from .dispatcher import Listener
 from .dispatcher import Listeners
 from .engines.async_ import AsyncEngine
 from .engines.sync import SyncEngine
-from .event import Event
+from .event import BoundEvent
 from .event_data import TriggerData
 from .exceptions import InvalidDefinition
 from .exceptions import InvalidStateValue
@@ -101,7 +101,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self.current_state_value is None:
             trigger_data = TriggerData(
                 machine=self,
-                event="__initial__",
+                event=BoundEvent("__initial__", _sm=self),
             )
             self._put_nonblocking(trigger_data)
 
@@ -168,17 +168,16 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """Bind the state machine events to the target objects."""
 
         for event in self.events:
-            trigger = getattr(self, event.name)
+            trigger = getattr(self, event)
             for target in targets:
-                if hasattr(target, event.name):
+                if hasattr(target, event):
                     warnings.warn(
-                        f"Attribute {event.name!r} already exists on {target!r}. "
-                        f"Skipping binding.",
+                        f"Attribute '{event}' already exists on {target!r}. Skipping binding.",
                         UserWarning,
                         stacklevel=2,
                     )
                     continue
-                setattr(target, event.name, trigger)
+                setattr(target, event, trigger)
 
     def _add_listener(self, listeners: "Listeners", allowed_references: SpecReference = SPECS_ALL):
         register = partial(
@@ -316,21 +315,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
             See: :ref:`triggering events`.
 
         """
-        result = self._async_send(event, *args, **kwargs)
+        event_instance: BoundEvent = getattr(
+            self, event, BoundEvent(id=event, name=event, _sm=self)
+        )
+        result = event_instance(*args, **kwargs)
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
-
-    def _async_send(self, event: str, *args, **kwargs):
-        """Send an :ref:`Event` to the state machine.
-
-        .. seealso::
-
-            See: :ref:`triggering events`.
-
-        """
-        event_instance: Event = Event(event)
-        return event_instance.trigger(self, *args, **kwargs)
 
     def _get_callbacks(self, key) -> CallbacksExecutor:
         return self._callbacks_registry[key]

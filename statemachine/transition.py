@@ -1,7 +1,6 @@
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
-from .event import same_event_cond_builder
 from .events import Events
 from .exceptions import InvalidDefinition
 
@@ -87,7 +86,7 @@ class Transition:
         on("on_transition", priority=CallbackPriority.GENERIC, is_convention=True)
 
         for event in self._events:
-            same_event_cond = same_event_cond_builder(event)
+            same_event_cond = event.is_same_event
             before(
                 f"before_{event}",
                 priority=CallbackPriority.NAMING,

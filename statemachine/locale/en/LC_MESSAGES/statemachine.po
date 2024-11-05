@@ -3,7 +3,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: 2.3.0\n"
+"Project-Id-Version: 2.4.0\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
 "POT-Creation-Date: 2023-03-04 16:10-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
@@ -13,68 +13,80 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.12.1\n"
 
-#: statemachine/callbacks.py:289
+#: statemachine/callbacks.py:165
+msgid "Failed to parse boolean expression '{}'"
+msgstr ""
+
+#: statemachine/callbacks.py:407 statemachine/callbacks.py:412
 msgid "Did not found name '{}' from model or statemachine"
 msgstr ""
 
-#: statemachine/exceptions.py:23
+#: statemachine/exceptions.py:24
 msgid "{!r} is not a valid state value."
 msgstr ""
 
-#: statemachine/exceptions.py:37
+#: statemachine/exceptions.py:38
 msgid "Can't {} when in {}."
 msgstr ""
 
-#: statemachine/factory.py:73
+#: statemachine/factory.py:74
 msgid "There are no states."
 msgstr ""
 
-#: statemachine/factory.py:76
+#: statemachine/factory.py:77
 msgid "There are no events."
 msgstr ""
 
-#: statemachine/factory.py:88
+#: statemachine/factory.py:89
 msgid ""
 "There should be one and only one initial state. You currently have these:"
 " {!r}"
 msgstr ""
 
-#: statemachine/factory.py:101
+#: statemachine/factory.py:102
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
 msgstr ""
 
-#: statemachine/factory.py:109
+#: statemachine/factory.py:110
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
 "states have no outgoing transition: {!r}"
 msgstr ""
 
-#: statemachine/factory.py:123
+#: statemachine/factory.py:124
 msgid ""
 "All non-final states should have at least one path to a final state. "
 "These states have no path to a final state: {!r}"
 msgstr ""
 
-#: statemachine/factory.py:147
+#: statemachine/factory.py:148
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
 msgstr ""
 
-#: statemachine/mixins.py:23
+#: statemachine/factory.py:257
+msgid "An event in the '{}' has no id."
+msgstr ""
+
+#: statemachine/mixins.py:26
 msgid "{!r} is not a valid state machine name."
 msgstr ""
 
-#: statemachine/state.py:152
+#: statemachine/state.py:155
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
 msgstr ""
 
-#: statemachine/statemachine.py:86
+#: statemachine/statemachine.py:94
 msgid "There are no states or transitions."
 msgstr ""
 
-#: statemachine/statemachine.py:249
+#: statemachine/statemachine.py:285
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
+msgstr ""
+
+#: statemachine/engines/async_.py:22
+msgid "Only RTC is supported on async engine"
 msgstr ""

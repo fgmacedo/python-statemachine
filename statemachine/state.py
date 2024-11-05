@@ -92,6 +92,13 @@ class State:
     >>> [(t.source.name, t.target.name) for t in transitions]
     [('Draft', 'Draft'), ('Draft', 'Producing'), ('Draft', 'Closed')]
 
+    Sometimes it's easier to use the :func:`State.from_` method:
+
+    >>> transitions = closed.from_(draft, producing, closed)
+
+    >>> [(t.source.name, t.target.name) for t in transitions]
+    [('Draft', 'Closed'), ('Producing', 'Closed'), ('Closed', 'Closed')]
+
     """
 
     def __init__(

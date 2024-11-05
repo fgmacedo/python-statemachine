@@ -16,78 +16,78 @@ msgstr ""
 
 #: statemachine/callbacks.py:165
 msgid "Failed to parse boolean expression '{}'"
-msgstr "Falha ao interpretar a expressão booleana '{}'"
+msgstr "无法解析布尔表达式 '{}'"
 
 #: statemachine/callbacks.py:407 statemachine/callbacks.py:412
 msgid "Did not found name '{}' from model or statemachine"
-msgstr "Nome '{}' não encontrado no modelo ou na máquina de estados"
+msgstr "在模型或状态机中未找到名称 '{}'"
 
 #: statemachine/exceptions.py:24
 msgid "{!r} is not a valid state value."
-msgstr "{!r} não é um valor de estado válido."
+msgstr "{!r} 不是有效的状态值。"
 
 #: statemachine/exceptions.py:38
 msgid "Can't {} when in {}."
-msgstr "Não é possível {} quando em {}."
+msgstr "在 {} 时无法 {}。"
 
 #: statemachine/factory.py:74
 msgid "There are no states."
-msgstr "Não há estados."
+msgstr "没有状态。"
 
 #: statemachine/factory.py:77
 msgid "There are no events."
-msgstr "Não há eventos."
+msgstr "没有事件。"
 
 #: statemachine/factory.py:89
 msgid ""
 "There should be one and only one initial state. You currently have these:"
 " {!r}"
-msgstr "Deve haver um e apenas um estado inicial. Atualmente, você possui estes: {!r}"
+msgstr "应有且仅有一个初始状态。当前您有这些：{!r}"
 
 #: statemachine/factory.py:102
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
-msgstr "Não é possível declarar transições a partir de um estado final. Estado(s) inválido(s): {}"
+msgstr "无法从终止状态声明转换。无效状态：{}"
 
 #: statemachine/factory.py:110
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
 "states have no outgoing transition: {!r}"
-msgstr "Todos os estados não finais devem ter pelo menos uma transição de saída. Estes estados não possuem transição de saída: {!r}"
+msgstr "所有非终止状态都应至少有一个外部转换。这些状态没有外部转换：{!r}"
 
 #: statemachine/factory.py:124
 msgid ""
 "All non-final states should have at least one path to a final state. "
 "These states have no path to a final state: {!r}"
-msgstr "Todos os estados não finais devem ter pelo menos um caminho para um estado final. Estes estados não possuem caminho para um estado final: {!r}"
+msgstr "所有非终止状态应至少有一个到终止状态的路径。这些状态没有到终止状态的路径：{!r}"
 
 #: statemachine/factory.py:148
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
-msgstr "Há estados inacessíveis. O grafo da máquina de estados deve ter um único componente. Estados desconectados: {}"
+msgstr "存在不可到达的状态。状态机图应具有单个组件。断开的状态：{}"
 
 #: statemachine/factory.py:257
 msgid "An event in the '{}' has no id."
-msgstr "Um evento em '{}' não possui id."
+msgstr "'{}' 中的事件没有 ID。"
 
 #: statemachine/mixins.py:26
 msgid "{!r} is not a valid state machine name."
-msgstr "{!r} não é um nome de máquina de estados válido."
+msgstr "{!r} 不是有效的状态机名称。"
 
 #: statemachine/state.py:155
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
-msgstr "Sobrescrever estados não é permitido. Tentando adicionar '{}' a {}"
+msgstr "不允许覆盖状态。尝试将 '{}' 添加到 {}"
 
 #: statemachine/statemachine.py:94
 msgid "There are no states or transitions."
-msgstr "Não há estados ou transições."
+msgstr "没有状态或转换。"
 
 #: statemachine/statemachine.py:285
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
-msgstr "Nenhum estado atual definido. Em código assíncrono, você ativou o estado inicial? (ex.: `await sm.activate_initial_state()`)"
+msgstr "没有设置当前状态。在异步代码中，您是否激活了初始状态？（例如，`await sm.activate_initial_state()`）"
 
 #: statemachine/engines/async_.py:22
 msgid "Only RTC is supported on async engine"
-msgstr "Apenas RTC é suportado no motor assíncrono"
+msgstr "异步引擎仅支持 RTC"

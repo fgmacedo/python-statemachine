@@ -5,18 +5,29 @@ from collections import deque
 from enum import IntEnum
 from enum import IntFlag
 from enum import auto
+from functools import partial
+from functools import reduce
 from inspect import isawaitable
 from inspect import iscoroutinefunction
+from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
 from typing import Generator
 from typing import Iterable
 from typing import List
+from typing import Set
 from typing import Type
 
 from .exceptions import AttrNotFound
+from .exceptions import InvalidDefinition
 from .i18n import _
+from .spec_parser import custom_and
+from .spec_parser import operator_mapping
+from .spec_parser import parse_boolean_expr
 from .utils import ensure_iterable
+
+if TYPE_CHECKING:
+    from statemachine.dispatcher import Listeners
 
 
 class CallbackPriority(IntEnum):
@@ -52,6 +63,17 @@ class CallbackGroup(IntEnum):
 
 def allways_true(*args, **kwargs):
     return True
+
+
+def take_callback(name: str, resolver: "Listeners", not_found_handler: Callable) -> Callable:
+    callbacks = list(resolver.search_name(name))
+    if len(callbacks) == 0:
+        not_found_handler(name)
+        return allways_true
+    elif len(callbacks) == 1:
+        return callbacks[0]
+    else:
+        return reduce(custom_and, callbacks)
 
 
 class CallbackSpec:
@@ -110,7 +132,16 @@ class CallbackSpec:
         self.reference = SpecReference.CALLABLE
         self.attr_name = attr_name
 
-    def build(self, resolver) -> Generator["CallbackWrapper", None, None]:
+    def _wrap(self, callback):
+        condition = self.cond if self.cond is not None else allways_true
+        return CallbackWrapper(
+            callback=callback,
+            condition=condition,
+            meta=self,
+            unique_key=callback.unique_key,
+        )
+
+    def build(self, resolver: "Listeners") -> Generator["CallbackWrapper", None, None]:
         """
         Resolves the `func` into a usable callable.
 
@@ -118,14 +149,29 @@ class CallbackSpec:
             resolver (callable): A method responsible to build and return a valid callable that
                 can receive arbitrary parameters like `*args, **kwargs`.
         """
-        for callback in resolver.search(self):
-            condition = self.cond if self.cond is not None else allways_true
-            yield CallbackWrapper(
-                callback=callback,
-                condition=condition,
-                meta=self,
-                unique_key=callback.unique_key,
+        if (
+            not self.is_convention
+            and self.group == CallbackGroup.COND
+            and self.reference == SpecReference.NAME
+        ):
+            names_not_found: Set[str] = set()
+            take_callback_partial = partial(
+                take_callback, resolver=resolver, not_found_handler=names_not_found.add
             )
+            try:
+                expression = parse_boolean_expr(self.func, take_callback_partial, operator_mapping)
+            except SyntaxError as err:
+                raise InvalidDefinition(
+                    _("Failed to parse boolean expression '{}'").format(self.func)
+                ) from err
+            if not expression or names_not_found:
+                self.names_not_found = names_not_found
+                return
+            yield self._wrap(expression)
+            return
+
+        for callback in resolver.search(self):
+            yield self._wrap(callback)
 
 
 class SpecListGrouper:
@@ -292,7 +338,7 @@ class CallbacksExecutor:
     def __str__(self):
         return ", ".join(str(c) for c in self)
 
-    def _add(self, spec: CallbackSpec, resolver: Callable):
+    def _add(self, spec: CallbackSpec, resolver: "Listeners"):
         for callback in spec.build(resolver):
             if callback.unique_key in self.items_already_seen:
                 continue
@@ -300,7 +346,7 @@ class CallbacksExecutor:
             self.items_already_seen.add(callback.unique_key)
             insort(self.items, callback)
 
-    def add(self, items: Iterable[CallbackSpec], resolver: Callable):
+    def add(self, items: Iterable[CallbackSpec], resolver: "Listeners"):
         """Validate configurations"""
         for item in items:
             self._add(item, resolver)
@@ -356,6 +402,12 @@ class CallbacksRegistry:
                 callback for callback in self[meta.group.build_key(specs)] if callback.meta == meta
             ):
                 continue
+            if hasattr(meta, "names_not_found"):
+                raise AttrNotFound(
+                    _("Did not found name '{}' from model or statemachine").format(
+                        ", ".join(meta.names_not_found)
+                    ),
+                )
             raise AttrNotFound(
                 _("Did not found name '{}' from model or statemachine").format(meta.func)
             )

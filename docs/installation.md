@@ -3,7 +3,13 @@
 
 ## Latest release
 
-To install Python State Machine using [poetry](https://python-poetry.org/):
+To install using [uv](https://docs.astral.sh/uv):
+
+```shell
+uv add python-statemachine
+```
+
+To install using [poetry](https://python-poetry.org/):
 
 ```shell
 poetry add python-statemachine

@@ -377,7 +377,7 @@ There's a lot more to cover, please take a look at our docs:
 https://python-statemachine.readthedocs.io.
 
 
-## Contributing to the project
+## Contributing
 
 * <a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
 * <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>
@@ -385,17 +385,17 @@ https://python-statemachine.readthedocs.io.
 
 - If you found this project helpful, please consider giving it a star on GitHub.
 
-- **Contribute code**: If you would like to contribute code to this project, please submit a pull
+- **Contribute code**: If you would like to contribute code, please submit a pull
 request. For more information on how to contribute, please see our [contributing.md](contributing.md) file.
 
-- **Report bugs**: If you find any bugs in this project, please report them by opening an issue
+- **Report bugs**: If you find any bugs, please report them by opening an issue
   on our GitHub issue tracker.
 
-- **Suggest features**: If you have a great idea for a new feature, please let us know by opening
-  an issue on our GitHub issue tracker.
+- **Suggest features**: If you have an idea for a new feature, of feels something being harder than it should be,
+  please let us know by opening an issue on our GitHub issue tracker.
 
-- **Documentation**: Help improve this project's documentation by submitting pull requests.
+- **Documentation**: Help improve documentation by submitting pull requests.
 
-- **Promote the project**: Help spread the word about this project by sharing it on social media,
+- **Promote the project**: Help spread the word by sharing on social media,
   writing a blog post, or giving a talk about it. Tag me on Twitter
   [@fgmacedo](https://twitter.com/fgmacedo) so I can share it too!

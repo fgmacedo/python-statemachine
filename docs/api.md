@@ -66,6 +66,13 @@
     :members:
 ```
 
+## Event
+
+```{eval-rst}
+.. autoclass:: statemachine.event.Event
+    :members: id, name, __call__
+```
+
 ## EventData
 
 ```{eval-rst}

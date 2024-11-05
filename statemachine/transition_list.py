@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Iterable
 from typing import List
 
 from .transition import Transition
 from .utils import ensure_iterable
+
+if TYPE_CHECKING:
+    from .events import Event
 
 
 class TransitionList:
@@ -170,7 +174,7 @@ class TransitionList:
             transition.add_event(event)
 
     @property
-    def unique_events(self) -> List[str]:
+    def unique_events(self) -> List["Event"]:
         """
         Returns a list of unique event names across all transitions in the :ref:`TransitionList`
         instance.

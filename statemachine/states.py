@@ -136,14 +136,14 @@ class States:
 
         .. deprecated:: 2.3.3
 
-            On the next major release, the ``use_enum_instance=True`` will be the default.
+            On the next major release, ``use_enum_instance=True`` will be the default.
 
         Args:
             enum_type: An enumeration containing the states of the machine.
             initial: The initial state of the machine.
             final: A set of final states of the machine.
             use_enum_instance: If ``True``, the value of the state will be the enum item instance,
-                otherwise the enum item value.
+                otherwise the enum item value. Defaults to ``False``.
 
         Returns:
             A new instance of the :ref:`States (class)`.

@@ -166,10 +166,6 @@ def quickchart_write_svg(sm: StateMachine, path: str):
     >>> sm = OrderControl()
     >>> print(sm._graph().to_string())
     digraph list {
-    fontname=Arial;
-    fontsize=10;
-    label=OrderControl;
-    rankdir=LR;
     ...
 
     To give you an example, we included this method that will serialize the dot, request the graph

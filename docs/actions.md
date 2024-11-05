@@ -135,8 +135,6 @@ Use the `enter` or `exit` params available on the `State` constructor.
 
 ```{hint}
 It's also possible to use an event name as action.
-
-**Be careful to not introduce recursion errors** that will raise `RecursionError` exception.
 ```
 
 ### Bind state actions using decorator syntax
@@ -162,7 +160,7 @@ It's also possible to use an event name as action.
 
 ## Transition actions
 
-For each {ref}`event`, you can register `before`, `on`, and `after` callbacks.
+For each {ref}`events`, you can register `before`, `on`, and `after` callbacks.
 
 ### Declare transition actions by naming convention
 
@@ -221,8 +219,6 @@ using the patterns:
 
 ```{hint}
 It's also possible to use an event name as action to chain transitions.
-
-**Be careful to not introduce recursion errors**, like `loop = initial.to.itself(after="loop")`, that will raise `RecursionError` exception.
 ```
 
 ### Bind transition actions using decorator syntax
