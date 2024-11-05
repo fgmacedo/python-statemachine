@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-statemachine"
-version = "2.3.6"
+version = "2.4.0"
 description = "Python Finite State Machines made easy."
 authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
 maintainers = ["Fernando Macedo <fgmacedo@gmail.com>"]

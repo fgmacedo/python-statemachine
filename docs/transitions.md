@@ -313,7 +313,7 @@ An {ref}`Event` declared as string will have its `name` set equal to its `id`. T
 
 In the next major release, `Event.name` will default to a capitalized version of `id` (i.e., `Event.id.replace("_", " ").capitalize()`).
 
-Starting from version 2.3.7, use `Event.id` to check for event identifiers instead of `Event.name`.
+Starting from version 2.4.0, use `Event.id` to check for event identifiers instead of `Event.name`.
 
 ```
 

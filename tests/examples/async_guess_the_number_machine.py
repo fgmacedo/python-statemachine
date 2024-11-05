@@ -130,8 +130,8 @@ async def connect_stdin_stdout():
 
 
 # %%
-# Executing
-# ---------
+# Executing the game
+# ------------------
 #
 # This script only run by passing the `-i` flag, avoiding blocking while running automated tests.
 #
