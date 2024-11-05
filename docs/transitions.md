@@ -160,8 +160,7 @@ the event name is used to describe the transition.
 
 ```
 
-
-## Event
+## Events
 
 An event is an external signal that something has happened.
 They are send to a state machine and allow the state machine to react.
@@ -175,7 +174,7 @@ In `python-statemachine`, an event is specified as an attribute of the state mac
 ### Declaring events
 
 The simplest way to declare an {ref}`event` is by assiging a transitions list to a name at the
-State machine class level. The name will be converted to an {ref}`Event (class)`:
+State machine class level. The name will be converted to an {ref}`Event`:
 
 ```py
 >>> from statemachine import Event
@@ -197,7 +196,7 @@ True
 You can also explict declare an {ref}`Event` instance, this helps IDEs to know that the event is callable and also with transtation strings.
 ```
 
-To declare an explicit event you must also import the {ref}`Event (class)`:
+To declare an explicit event you must also import the {ref}`Event`:
 
 ```py
 >>> from statemachine import Event
@@ -219,7 +218,7 @@ To declare an explicit event you must also import the {ref}`Event (class)`:
 
 ```
 
-An {ref}`Event (class)` instance or an event id string can also be used as the `event` parameter of a {ref}`transition`. So you can mix these options as you need.
+An {ref}`Event` instance or an event id string can also be used as the `event` parameter of a {ref}`transition`. So you can mix these options as you need.
 
 ```py
 >>> from statemachine import State, StateMachine, Event
@@ -293,22 +292,23 @@ An {ref}`Event (class)` instance or an event id string can also be used as the `
 ```
 
 ```{tip}
-Avoid mixing these options within the same project; instead, choose the one that best serves your use case. Declaring events as strings has been the standard approach since the library’s inception and can be considered syntactic sugar, as the state machine metaclass will convert all events to {ref}`Event (class)` instances under the hood.
+Avoid mixing these options within the same project; instead, choose the one that best serves your use case. Declaring events as strings has been the standard approach since the library’s inception and can be considered syntactic sugar, as the state machine metaclass will convert all events to {ref}`Event` instances under the hood.
 
 ```
 
 ```{note}
-In order to allow the seamless upgrade from using strings to `Event` instances, the {ref}`Event (class)` inherits from `str`.
+In order to allow the seamless upgrade from using strings to `Event` instances, the {ref}`Event` inherits from `str`.
 
 Note that this is just an implementation detail and can change in the future.
 
->>> isinstance(TrafficLightMachine.cycle, str)
-True
+    >>> isinstance(TrafficLightMachine.cycle, str)
+    True
 
 ```
 
 
 ```{warning}
+
 An {ref}`Event` declared as string will have its `name` set equal to its `id`. This is for backward compatibility when migrating from previous versions.
 
 In the next major release, `Event.name` will default to a capitalized version of `id` (i.e., `Event.id.replace("_", " ").capitalize()`).

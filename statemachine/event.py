@@ -25,6 +25,16 @@ _event_data_kwargs = {
 
 
 class Event(str):
+    """An event is triggers a signal that something has happened.
+
+    They are send to a state machine and allow the state machine to react.
+
+    An event starts a :ref:`Transition`, which can be thought of as a “cause” that initiates a
+    change in the state of the system.
+
+    See also :ref:`events`.
+    """
+
     id: str
     """The event identifier."""
 
@@ -84,7 +94,11 @@ class Event(str):
         return BoundEvent(id=self.id, name=self.name, _sm=instance)
 
     def __call__(self, *args, **kwargs):
-        """Send this event to the current state machine."""
+        """Send this event to the current state machine.
+
+        Triggering an event on a state machine means invoking or sending a signal, initiating the
+        process that may result in executing a transition.
+        """
         # The `__call__` is declared here to help IDEs knowing that an `Event`
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when

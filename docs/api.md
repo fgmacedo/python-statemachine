@@ -66,11 +66,11 @@
     :members:
 ```
 
-## Event (class)
+## Event
 
 ```{eval-rst}
 .. autoclass:: statemachine.event.Event
-    :members:
+    :members: id, name, __call__
 ```
 
 ## EventData

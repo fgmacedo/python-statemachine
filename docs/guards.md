@@ -30,32 +30,78 @@ A condition is generally a boolean function, property, or attribute, and must no
 
 There are two variations of Guard clauses available:
 
-
 cond
-: A list of conditions, acting like predicates. A transition is only allowed to occur if
+: A list of condition expressions, acting like predicates. A transition is only allowed to occur if
 all conditions evaluate to ``True``.
-* Single condition: `cond="condition"`
-* Multiple conditions: `cond=["condition1", "condition2"]`
+* Single condition expression: `cond="condition"` / `cond="<condition expression>"`
+* Multiple condition expressions: `cond=["condition1", "condition2"]`
 
 unless
 : Same as `cond`, but the transition is only allowed if all conditions evaluate to ``False``.
-* Single condition: `unless="condition"`
+* Single condition: `unless="condition"` / `unless="<condition expression>"`
 * Multiple conditions: `unless=["condition1", "condition2"]`
 
-Conditions also support [Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra) expressions, allowing you to use compound logic within transition guards. You can use both standard Python logical operators (`not`, `and`, `or`) as well as classic Boolean algebra symbols:
+### Condition expressions
 
-- `!` for `not`
-- `^` for `and`
-- `v` for `or`
+This library supports a mini-language for boolean expressions in conditions, allowing the definition of guards that control transitions based on specified criteria. It includes basic [boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra) operators, parentheses for controlling precedence, and **names** that refer to attributes on the state machine, its associated model, or registered {ref}`Listeners`.
 
-For example:
+```{tip}
+All condition expressions are evaluated when the State Machine is instantiated. This is by design to help you catch any invalid definitions early, rather than when your state machine is running.
+```
+
+The mini-language is based on Python's built-in language and the [`ast`](https://docs.python.org/3/library/ast.html) parser, so there are no surprises if you’re familiar with Python. Below is a formal specification to clarify the structure.
+
+#### Syntax elements
+
+1. **Names**:
+   - Names refer to attributes on the state machine instance, its model or listeners, used directly in expressions to evaluate conditions.
+   - Names must consist of alphanumeric characters and underscores (`_`) and cannot begin with a digit (e.g., `is_active`, `count`, `has_permission`).
+   - Any property name used in the expression must exist as an attribute on the state machine, model instance, or listeners, otherwise, an `InvalidDefinition` error is raised.
+   - Names can be pointed to `properties`, `attributes` or `methods`. If pointed to `attributes`, the library will create a
+     wrapper get method so each time the expression is evaluated the current value will be retrieved.
+
+2. **Boolean operators and precedence**:
+   - The following Boolean operators are supported, listed from highest to lowest precedence:
+     1. `not` / `!` — Logical negation
+     2. `and` / `^` — Logical conjunction
+     3. `or` / `v` — Logical disjunction
+   - These operators are case-sensitive (e.g., `NOT` and `Not` are not equivalent to `not` and will raise syntax errors).
+   - Both formats can be used interchangeably, so `!sauron_alive` and `not sauron_alive` are equivalent.
+
+3. **Parentheses for precedence**:
+   - When operators with the same precedence appear in the expression, evaluation proceeds from left to right, unless parentheses specify a different order.
+   - Parentheses `(` and `)` are supported to control the order of evaluation in expressions.
+   - Expressions within parentheses are evaluated first, allowing explicit precedence control (e.g., `(is_admin or is_moderator) and has_permission`).
+
+#### Expression Examples
+
+Examples of valid boolean expressions include:
+- `is_logged_in and has_permission`
+- `not is_active or is_admin`
+- `!(is_guest ^ has_access)`
+- `(is_admin or is_moderator) and !is_banned`
+- `has_account and (verified or trusted)`
+- `frodo_has_ring and gandalf_present or !sauron_alive`
+
+Being used on a transition definition:
 
 ```python
 start.to(end, cond="frodo_has_ring and gandalf_present or !sauron_alive")
 ```
 
-Both formats can be used interchangeably, so `!sauron_alive` and `not sauron_alive` are equivalent.
+#### Summary of grammar rules
 
+The mini-language is formally specified as follows:
+
+```
+Name: [A-Za-z_][A-Za-z0-9_]*
+Boolean Expression:
+
+<boolean_expr> ::= <term> | <boolean_expr> 'or' <term> | <boolean_expr> 'v' <term>
+<term> ::= <factor> | <term> 'and' <factor> | <term> '^' <factor>
+<factor> ::= 'not' <factor> | '!' <factor> | '(' <boolean_expr> ')' | <name>
+
+```
 
 ```{seealso}
 See {ref}`sphx_glr_auto_examples_air_conditioner_machine.py` for an example of

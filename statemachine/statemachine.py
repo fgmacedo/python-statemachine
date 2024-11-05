@@ -101,7 +101,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self.current_state_value is None:
             trigger_data = TriggerData(
                 machine=self,
-                event="__initial__",
+                event=BoundEvent("__initial__", _sm=self),
             )
             self._put_nonblocking(trigger_data)
 
