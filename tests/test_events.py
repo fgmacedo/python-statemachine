@@ -53,11 +53,11 @@ class TestExplicitEvent:
             created = State(initial=True)
             started = State(final=True)
 
-            start = Event(created.to(started), name="Launch the machine")
+            start = Event(created.to(started), name="Start the machine")
 
         assert [e.id for e in StartMachine.events] == ["start"]
-        assert [e.name for e in StartMachine.events] == ["Launch the machine"]
-        assert StartMachine.start.name == "Launch the machine"
+        assert [e.name for e in StartMachine.events] == ["Start the machine"]
+        assert StartMachine.start.name == "Start the machine"
 
     def test_derive_name_from_id(self):
         class StartMachine(StateMachine):
@@ -66,9 +66,26 @@ class TestExplicitEvent:
 
             launch_the_machine = Event(created.to(started))
 
+        assert list(StartMachine.events) == ["launch_the_machine"]
         assert [e.id for e in StartMachine.events] == ["launch_the_machine"]
         assert [e.name for e in StartMachine.events] == ["Launch the machine"]
         assert StartMachine.launch_the_machine.name == "Launch the machine"
+        assert str(StartMachine.launch_the_machine) == "launch_the_machine"
+        assert StartMachine.launch_the_machine == StartMachine.launch_the_machine.id
+
+    def test_not_derive_name_from_id_if_not_event_class(self):
+        class StartMachine(StateMachine):
+            created = State(initial=True)
+            started = State(final=True)
+
+            launch_the_machine = created.to(started)
+
+        assert list(StartMachine.events) == ["launch_the_machine"]
+        assert [e.id for e in StartMachine.events] == ["launch_the_machine"]
+        assert [e.name for e in StartMachine.events] == ["launch_the_machine"]
+        assert StartMachine.launch_the_machine.name == "launch_the_machine"
+        assert str(StartMachine.launch_the_machine) == "launch_the_machine"
+        assert StartMachine.launch_the_machine == StartMachine.launch_the_machine.id
 
     def test_raise_invalid_definition_if_event_name_cannot_be_derived(self):
         with pytest.raises(InvalidDefinition, match="has no id"):

@@ -175,12 +175,12 @@ Easily iterate over all states:
 Or over events:
 
 ```py
->>> [t.name for t in sm.events]
+>>> [t.id for t in sm.events]
 ['cycle']
 
 ```
 
-Call an event by its name:
+Call an event by its id:
 
 ```py
 >>> sm.cycle()
@@ -188,7 +188,7 @@ Don't move.
 'Running cycle from yellow to red'
 
 ```
-Or send an event with the event name:
+Or send an event with the event id:
 
 ```py
 >>> sm.send('cycle')
