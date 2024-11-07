@@ -232,3 +232,28 @@ class TestExplicitEvent:
         assert sm.send("cycle") == "Running cycle from green to yellow"
         assert sm.send("cycle") == "Running cycle from yellow to red"
         assert sm.send("cycle") == "Running cycle from red to green"
+
+    def test_allow_using_events_as_commands(self):
+        class StartMachine(StateMachine):
+            created = State(initial=True)
+            started = State()
+
+            created.to(started, event=Event("launch_rocket"))
+
+        sm = StartMachine()
+        event = next(iter(sm.events))
+
+        event()  # events on an instance machine are "bounded events"
+
+        assert sm.started.is_active
+
+    def test_event_commands_fail_when_unbound_to_instance(self):
+        class StartMachine(StateMachine):
+            created = State(initial=True)
+            started = State()
+
+            created.to(started, event=Event("launch_rocket"))
+
+        event = next(iter(StartMachine.events))
+        with pytest.raises(RuntimeError):
+            event()

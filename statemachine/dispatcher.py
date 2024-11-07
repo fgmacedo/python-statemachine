@@ -16,6 +16,7 @@ from .signature import SignatureAdapter
 if TYPE_CHECKING:
     from .callbacks import CallbackSpec
     from .callbacks import CallbackSpecList
+    from .callbacks import CallbacksRegistry
 
 
 @dataclass
@@ -58,7 +59,7 @@ class Listeners:
     def resolve(
         self,
         specs: "CallbackSpecList",
-        registry,
+        registry: "CallbacksRegistry",
         allowed_references: SpecReference = SPECS_ALL,
     ):
         found_convention_specs = specs.conventional_specs & self.all_attrs
