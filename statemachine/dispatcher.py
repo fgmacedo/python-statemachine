@@ -120,11 +120,11 @@ class Listeners:
 
     def build(self, spec: "CallbackSpec", registry: RegistryCallable):
         """
-        Resolves the `func` into a usable callable.
+        Resolves the `spec` into callables in the `registry`.
 
         Args:
-            resolver (callable): A method responsible to build and return a valid callable that
-                can receive arbitrary parameters like `*args, **kwargs`.
+            spec (CallbackSpec): A spec to be resolved.
+            registry (callable): A callable that will be used to store the resolved callables.
         """
         if not spec.may_contain_boolean_expression:
             self.search(spec, registry=registry)
