@@ -2,6 +2,7 @@ import pytest
 
 from statemachine.callbacks import CallbackGroup
 from statemachine.callbacks import CallbackSpec
+from statemachine.dispatcher import DictRegistry
 from statemachine.dispatcher import Listener
 from statemachine.dispatcher import Listeners
 from statemachine.dispatcher import resolver_factory_from_objects
@@ -51,22 +52,23 @@ class TestEnsureCallable:
     def test_return_same_object_if_already_a_callable(self):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        actual = next(
-            resolver_factory_from_objects([]).search(
-                CallbackSpec(model.get_full_name, group=CallbackGroup.ON)
-            )
+        registry = DictRegistry()
+        resolver_factory_from_objects([]).search(
+            CallbackSpec(model.get_full_name, group=CallbackGroup.ON), registry=registry
         )
+        actual = registry.callbacks[0]
         assert actual.__name__ == expected.__name__
         assert actual.__doc__ == expected.__doc__
 
     def test_retrieve_a_method_from_its_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
         expected = model.get_full_name
-        method = next(
-            Listeners.from_listeners([Listener.from_obj(model)]).search(
-                CallbackSpec("get_full_name", group=CallbackGroup.ON)
-            )
+        registry = DictRegistry()
+        Listeners.from_listeners([Listener.from_obj(model)]).search(
+            CallbackSpec("get_full_name", group=CallbackGroup.ON),
+            registry=registry,
         )
+        method = registry.callbacks[0]
 
         assert method.__name__ == expected.__name__
         assert method.__doc__ == expected.__doc__
@@ -74,21 +76,25 @@ class TestEnsureCallable:
 
     def test_retrieve_a_callable_from_a_property_name(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
-        method = next(
-            Listeners.from_listeners([Listener.from_obj(model)]).search(
-                CallbackSpec("first_name", group=CallbackGroup.ON)
-            )
+        registry = DictRegistry()
+
+        Listeners.from_listeners([Listener.from_obj(model)]).search(
+            CallbackSpec("first_name", group=CallbackGroup.ON),
+            registry=registry,
         )
+        method = registry.callbacks[0]
 
         assert method(*args, **kwargs) == "Frodo"
 
     def test_retrieve_callable_from_a_property_name_that_should_keep_reference(self, args, kwargs):
         model = Person("Frodo", "Bolseiro")
-        method = next(
-            Listeners.from_listeners([Listener.from_obj(model)]).search(
-                CallbackSpec("first_name", group=CallbackGroup.ON)
-            )
+        registry = DictRegistry()
+
+        Listeners.from_listeners([Listener.from_obj(model)]).search(
+            CallbackSpec("first_name", group=CallbackGroup.ON),
+            registry=registry,
         )
+        method = registry.callbacks[0]
 
         model.first_name = "Bilbo"
 
@@ -110,7 +116,9 @@ class TestResolverFactory:
         org = Organization("The Lord fo the Rings", "cnpj")
 
         resolver = resolver_factory_from_objects(org, person)
-        resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
+        registry = DictRegistry()
+        resolver.search(CallbackSpec(attr, group=CallbackGroup.ON), registry=registry)
+        resolved_method = registry.callbacks[0]
         assert resolved_method() == expected_value
 
     @pytest.mark.parametrize(
@@ -129,7 +137,9 @@ class TestResolverFactory:
         org_config = Listener.from_obj(org, {"get_full_name"})
 
         resolver = resolver_factory_from_objects(org_config, person)
-        resolved_method = next(resolver.search(CallbackSpec(attr, group=CallbackGroup.ON)))
+        registry = DictRegistry()
+        resolver.search(CallbackSpec(attr, group=CallbackGroup.ON), registry=registry)
+        resolved_method = registry.callbacks[0]
         assert resolved_method() == expected_value
 
 

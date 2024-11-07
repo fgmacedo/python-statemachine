@@ -1,22 +1,48 @@
 from dataclasses import dataclass
+from functools import partial
+from functools import reduce
 from operator import attrgetter
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-from typing import Generator
+from typing import Dict
 from typing import Iterable
+from typing import List
 from typing import Set
 from typing import Tuple
 
 from .callbacks import SPECS_ALL
 from .callbacks import SpecReference
+from .callbacks import allways_true
 from .event import Event
+from .exceptions import InvalidDefinition
+from .i18n import _
 from .signature import SignatureAdapter
+from .spec_parser import custom_and
+from .spec_parser import operator_mapping
+from .spec_parser import parse_boolean_expr
 
 if TYPE_CHECKING:
     from .callbacks import CallbackSpec
     from .callbacks import CallbackSpecList
     from .callbacks import CallbacksRegistry
+
+RegistryCallable = Callable[[str, "CallbackSpec", Callable[[], Callable]], None]
+
+
+class DictRegistry:
+    def __init__(self) -> None:
+        self._callbacks: Dict[str, Callable] = {}
+
+    def __call__(self, key: str, spec: "CallbackSpec", builder: Callable[[], Callable]) -> None:
+        if key not in self._callbacks:
+            callback = builder()
+            self._callbacks[key] = callback
+            callback.unique_key = key  # type: ignore[attr-defined]
+
+    @property
+    def callbacks(self) -> List[Callable]:
+        return list(self._callbacks.values())
 
 
 @dataclass
@@ -41,6 +67,9 @@ class Listener:
                 skip_attrs = set()
             all_attrs = set(dir(obj)) - skip_attrs
             return cls(obj, all_attrs, str(id(obj)))
+
+    def build_key(self, attr_name) -> str:
+        return f"{attr_name}@{self.resolver_id}"
 
 
 @dataclass
@@ -70,88 +99,136 @@ class Listeners:
             ):
                 continue
 
-            registry.add(specs.grouper(spec.group).key, callbacks=spec.build(self))
+            executor = registry[specs.grouper(spec.group).key]
+            self.build(spec, registry=executor.add)
 
-    def search(self, spec: "CallbackSpec") -> Generator["Callable", None, None]:
+    def _take_callback(
+        self, name: str, spec: "CallbackSpec", names_not_found_handler: Callable
+    ) -> Callable:
+        custom_registry = DictRegistry()
+
+        self.search_name(name, spec, custom_registry)
+        callbacks = custom_registry.callbacks
+
+        if len(callbacks) == 0:
+            names_not_found_handler(name)
+            return allways_true
+        elif len(callbacks) == 1:
+            return callbacks[0]
+        else:
+            return reduce(custom_and, callbacks)
+
+    def build(self, spec: "CallbackSpec", registry: RegistryCallable):
+        """
+        Resolves the `func` into a usable callable.
+
+        Args:
+            resolver (callable): A method responsible to build and return a valid callable that
+                can receive arbitrary parameters like `*args, **kwargs`.
+        """
+        if not spec.may_contain_boolean_expression:
+            self.search(spec, registry=registry)
+            return
+
+        # Resolves boolean expressions
+
+        names_not_found: Set[str] = set()
+        take_callback_partial = partial(
+            self._take_callback, spec=spec, names_not_found_handler=names_not_found.add
+        )
+
+        try:
+            expression = parse_boolean_expr(spec.func, take_callback_partial, operator_mapping)
+        except SyntaxError as err:
+            raise InvalidDefinition(
+                _("Failed to parse boolean expression '{}'").format(spec.func)
+            ) from err
+        if not expression or names_not_found:
+            spec.names_not_found = names_not_found
+            return
+
+        registry(expression.unique_key, spec, lambda: expression)
+
+    def search(self, spec: "CallbackSpec", registry: RegistryCallable):
         if spec.reference is SpecReference.NAME:
-            yield from self.search_name(spec.func)
-            return
+            self.search_name(spec.attr_name, spec, registry)
         elif spec.reference is SpecReference.CALLABLE:
-            yield self._search_callable(spec)
-            return
+            self._search_callable(spec, registry)
         elif spec.reference is SpecReference.PROPERTY:
-            result = self._search_property(spec)
-            if result is not None:
-                yield result
-            return
+            self._search_property(spec, registry)
         else:  # never reached here from tests but put an exception for safety. pragma: no cover
             raise ValueError(f"Invalid reference {spec.reference}")
 
-    def _search_property(self, spec) -> "Callable | None":
+    def _search_property(self, spec, registry: RegistryCallable):
         # if the attr is a property, we'll try to find the object that has the
         # property on the configs
         attr_name = spec.attr_name
         if attr_name not in self.all_attrs:
-            return None
-        for config in self.items:
-            func = getattr(type(config.obj), attr_name, None)
+            return
+        for listener in self.items:
+            func = getattr(type(listener.obj), attr_name, None)
             if func is not None and func is spec.func:
-                return attr_method(attr_name, config.obj, config.resolver_id)
-        return None
+                registry(
+                    listener.build_key(attr_name),
+                    spec,
+                    partial(attr_method, attr_name, listener.obj),
+                )
+                return
 
-    def _search_callable(self, spec) -> "Callable":
+    def _search_callable(self, spec, registry: RegistryCallable):
         # if the attr is an unbounded method, we'll try to find the bounded method
         # on the self
         if not spec.is_bounded:
-            for config in self.items:
-                func = getattr(config.obj, spec.attr_name, None)
+            for listener in self.items:
+                func = getattr(listener.obj, spec.attr_name, None)
                 if func is not None and func.__func__ is spec.func:
-                    return callable_method(spec.attr_name, func, config.resolver_id)
+                    registry(
+                        listener.build_key(spec.attr_name), spec, partial(callable_method, func)
+                    )
+                    return
 
-        return callable_method(spec.attr_name, spec.func, None)
+        registry(f"{spec.attr_name}@None", spec, partial(callable_method, spec.func))
 
-    def search_name(self, name) -> Generator["Callable", None, None]:
-        for config in self.items:
-            if name not in config.all_attrs:
+    def search_name(self, name, spec, registry: RegistryCallable):
+        for listener in self.items:
+            if name not in listener.all_attrs:
                 continue
 
-            func = getattr(config.obj, name)
+            key = listener.build_key(name)
+            func = getattr(listener.obj, name)
             if not callable(func):
-                yield attr_method(name, config.obj, config.resolver_id)
+                registry(key, spec, partial(attr_method, name, listener.obj))
                 continue
 
             if isinstance(func, Event):
-                yield event_method(name, func, config.resolver_id)
+                registry(key, spec, partial(event_method, func))
                 continue
 
-            yield callable_method(name, func, config.resolver_id)
+            registry(key, spec, partial(callable_method, func))
 
 
-def callable_method(attribute, a_callable, resolver_id) -> Callable:
+def callable_method(a_callable) -> Callable:
     method = SignatureAdapter.wrap(a_callable)
-    method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
     method.__name__ = a_callable.__name__
     method.__doc__ = a_callable.__doc__
     return method
 
 
-def attr_method(attribute, obj, resolver_id) -> Callable:
+def attr_method(attribute, obj) -> Callable:
     getter = attrgetter(attribute)
 
     def method(*args, **kwargs):
         return getter(obj)
 
-    method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
     method.__name__ = attribute
     return method
 
 
-def event_method(attribute, func, resolver_id) -> Callable:
+def event_method(func) -> Callable:
     def method(*args, **kwargs):
         kwargs.pop("machine", None)
         return func(*args, **kwargs)
 
-    method.unique_key = f"{attribute}@{resolver_id}"  # type: ignore[attr-defined]
     return method
 
 

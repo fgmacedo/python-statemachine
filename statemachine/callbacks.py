@@ -5,27 +5,23 @@ from collections import deque
 from enum import IntEnum
 from enum import IntFlag
 from enum import auto
-from functools import partial
-from functools import reduce
 from inspect import isawaitable
 from inspect import iscoroutinefunction
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
-from typing import Generator
 from typing import List
-from typing import Set
 
 from .exceptions import AttrNotFound
-from .exceptions import InvalidDefinition
 from .i18n import _
-from .spec_parser import custom_and
-from .spec_parser import operator_mapping
-from .spec_parser import parse_boolean_expr
 from .utils import ensure_iterable
 
 if TYPE_CHECKING:
-    from statemachine.dispatcher import Listeners
+    from typing import Set
+
+
+def allways_true(*args, **kwargs):
+    return True
 
 
 class CallbackPriority(IntEnum):
@@ -59,21 +55,6 @@ class CallbackGroup(IntEnum):
         return f"{self.name}@{id(specs)}"
 
 
-def allways_true(*args, **kwargs):
-    return True
-
-
-def take_callback(name: str, resolver: "Listeners", not_found_handler: Callable) -> Callable:
-    callbacks = list(resolver.search_name(name))
-    if len(callbacks) == 0:
-        not_found_handler(name)
-        return allways_true
-    elif len(callbacks) == 1:
-        return callbacks[0]
-    else:
-        return reduce(custom_and, callbacks)
-
-
 class CallbackSpec:
     """Specs about callbacks.
 
@@ -82,6 +63,9 @@ class CallbackSpec:
     Names, properties and unbounded callables should be resolved to a callable
     before any real call is performed.
     """
+
+    names_not_found: "Set[str] | None" = None
+    """List of names that were not found on the model or statemachine"""
 
     def __init__(
         self,
@@ -110,6 +94,12 @@ class CallbackSpec:
             self.reference = SpecReference.NAME
             self.attr_name = func
 
+        self.may_contain_boolean_expression = (
+            not self.is_convention
+            and self.group == CallbackGroup.COND
+            and self.reference == SpecReference.NAME
+        )
+
     def __repr__(self):
         return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"
 
@@ -129,47 +119,6 @@ class CallbackSpec:
         self.func = func
         self.reference = SpecReference.CALLABLE
         self.attr_name = attr_name
-
-    def _wrap(self, callback):
-        condition = self.cond if self.cond is not None else allways_true
-        return CallbackWrapper(
-            callback=callback,
-            condition=condition,
-            meta=self,
-            unique_key=callback.unique_key,
-        )
-
-    def build(self, resolver: "Listeners") -> Generator["CallbackWrapper", None, None]:
-        """
-        Resolves the `func` into a usable callable.
-
-        Args:
-            resolver (callable): A method responsible to build and return a valid callable that
-                can receive arbitrary parameters like `*args, **kwargs`.
-        """
-        if (
-            not self.is_convention
-            and self.group == CallbackGroup.COND
-            and self.reference == SpecReference.NAME
-        ):
-            names_not_found: Set[str] = set()
-            take_callback_partial = partial(
-                take_callback, resolver=resolver, not_found_handler=names_not_found.add
-            )
-            try:
-                expression = parse_boolean_expr(self.func, take_callback_partial, operator_mapping)
-            except SyntaxError as err:
-                raise InvalidDefinition(
-                    _("Failed to parse boolean expression '{}'").format(self.func)
-                ) from err
-            if not expression or names_not_found:
-                self.names_not_found = names_not_found
-                return
-            yield self._wrap(expression)
-            return
-
-        for callback in resolver.search(self):
-            yield self._wrap(callback)
 
 
 class SpecListGrouper:
@@ -331,12 +280,21 @@ class CallbacksExecutor:
     def __str__(self):
         return ", ".join(str(c) for c in self)
 
-    def add(self, callbacks: List[CallbackWrapper]):
-        for callback in callbacks:
-            already_seen = callback.unique_key in self.items_already_seen
-            if not already_seen:
-                self.items_already_seen.add(callback.unique_key)
-                insort(self.items, callback)
+    def add(self, key: str, spec: CallbackSpec, builder: Callable[[], Callable]):
+        if key in self.items_already_seen:
+            return
+
+        self.items_already_seen.add(key)
+
+        condition = spec.cond if spec.cond is not None else allways_true
+        wrapper = CallbackWrapper(
+            callback=builder(),
+            condition=condition,
+            meta=spec,
+            unique_key=key,
+        )
+
+        insort(self.items, wrapper)
 
     async def async_call(self, *args, **kwargs):
         return await asyncio.gather(
@@ -376,10 +334,6 @@ class CallbacksRegistry:
     def clear(self):
         self._registry.clear()
 
-    def add(self, key: str, callbacks: List[CallbackWrapper]):
-        executor = self._registry[key]
-        executor.add(callbacks)
-
     def __getitem__(self, key: str) -> CallbacksExecutor:
         return self._registry[key]
 
@@ -392,7 +346,8 @@ class CallbacksRegistry:
                 callback for callback in self[meta.group.build_key(specs)] if callback.meta == meta
             ):
                 continue
-            if hasattr(meta, "names_not_found"):
+
+            if meta.names_not_found:
                 raise AttrNotFound(
                     _("Did not found name '{}' from model or statemachine").format(
                         ", ".join(meta.names_not_found)
