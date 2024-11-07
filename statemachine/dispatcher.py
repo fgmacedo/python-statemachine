@@ -63,17 +63,14 @@ class Listeners:
         allowed_references: SpecReference = SPECS_ALL,
     ):
         found_convention_specs = specs.conventional_specs & self.all_attrs
-        filtered_specs = [
-            spec
-            for spec in specs
-            if spec.reference in allowed_references
-            and (not spec.is_convention or spec.func in found_convention_specs)
-        ]
-        if not filtered_specs:
-            return
 
-        for spec in filtered_specs:
-            registry[spec.group.build_key(specs)]._add(spec, self)
+        for spec in specs:
+            if (spec.reference not in allowed_references) or (
+                spec.is_convention and spec.func not in found_convention_specs
+            ):
+                continue
+
+            registry.add(specs.grouper(spec.group).key, callbacks=spec.build(self))
 
     def search(self, spec: "CallbackSpec") -> Generator["Callable", None, None]:
         if spec.reference is SpecReference.NAME:

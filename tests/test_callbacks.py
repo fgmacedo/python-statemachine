@@ -5,7 +5,6 @@ import pytest
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.callbacks import CallbackGroup
-from statemachine.callbacks import CallbacksExecutor
 from statemachine.callbacks import CallbackSpec
 from statemachine.callbacks import CallbackSpecList
 from statemachine.callbacks import CallbacksRegistry
@@ -38,25 +37,6 @@ def ObjectWithCallbacks():
 
 
 class TestCallbacksMachinery:
-    def test_can_add_callback(self):
-        meta_list = CallbackSpecList()
-        executor = CallbacksExecutor()
-
-        func = mock.Mock()
-
-        class MyObject:
-            def do_something(self, *args, **kwargs):
-                return func(*args, **kwargs)
-
-        obj = MyObject()
-
-        meta_list.add(obj.do_something, group=CallbackGroup.ON)
-        executor.add(meta_list, resolver_factory_from_objects(obj))
-
-        executor.call(1, 2, 3, a="x", b="y")
-
-        func.assert_called_once_with(1, 2, 3, a="x", b="y")
-
     def test_callback_meta_is_hashable(self):
         wrapper = CallbackSpec("something", group=CallbackGroup.ON)
         set().add(wrapper)

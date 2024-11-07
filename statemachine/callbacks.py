@@ -13,10 +13,8 @@ from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
 from typing import Generator
-from typing import Iterable
 from typing import List
 from typing import Set
-from typing import Type
 
 from .exceptions import AttrNotFound
 from .exceptions import InvalidDefinition
@@ -175,20 +173,17 @@ class CallbackSpec:
 
 
 class SpecListGrouper:
-    def __init__(
-        self, list: "CallbackSpecList", group: CallbackGroup, factory=CallbackSpec
-    ) -> None:
+    def __init__(self, list: "CallbackSpecList", group: CallbackGroup) -> None:
         self.list = list
         self.group = group
-        self.factory = factory
         self.key = group.build_key(list)
 
     def add(self, callbacks, **kwargs):
-        self.list.add(callbacks, group=self.group, factory=self.factory, **kwargs)
+        self.list.add(callbacks, group=self.group, **kwargs)
         return self
 
     def __call__(self, callback):
-        return self.list._add_unbounded_callback(callback, group=self.group, factory=self.factory)
+        return self.list._add_unbounded_callback(callback, group=self.group)
 
     def _add_unbounded_callback(self, func, is_event=False, transitions=None, **kwargs):
         self.list._add_unbounded_callback(
@@ -196,7 +191,6 @@ class SpecListGrouper:
             is_event=is_event,
             transitions=transitions,
             group=self.group,
-            factory=self.factory,
             **kwargs,
         )
 
@@ -210,6 +204,7 @@ class CallbackSpecList:
     def __init__(self, factory=CallbackSpec):
         self.items: List[CallbackSpec] = []
         self.conventional_specs = set()
+        self._groupers: Dict[CallbackGroup, SpecListGrouper] = {}
         self.factory = factory
 
     def __repr__(self):
@@ -253,15 +248,13 @@ class CallbackSpecList:
     def clear(self):
         self.items = []
 
-    def grouper(
-        self, group: CallbackGroup, factory: Type[CallbackSpec] = CallbackSpec
-    ) -> SpecListGrouper:
-        return SpecListGrouper(self, group, factory=factory)
+    def grouper(self, group: CallbackGroup) -> SpecListGrouper:
+        if group not in self._groupers:
+            self._groupers[group] = SpecListGrouper(self, group)
+        return self._groupers[group]
 
-    def _add(self, func, group: CallbackGroup, factory=None, **kwargs):
-        if factory is None:
-            factory = self.factory
-        spec = factory(func, group, **kwargs)
+    def _add(self, func, group: CallbackGroup, **kwargs):
+        spec = self.factory(func, group, **kwargs)
 
         if spec in self.items:
             return
@@ -338,19 +331,12 @@ class CallbacksExecutor:
     def __str__(self):
         return ", ".join(str(c) for c in self)
 
-    def _add(self, spec: CallbackSpec, resolver: "Listeners"):
-        for callback in spec.build(resolver):
-            if callback.unique_key in self.items_already_seen:
-                continue
-
-            self.items_already_seen.add(callback.unique_key)
-            insort(self.items, callback)
-
-    def add(self, items: Iterable[CallbackSpec], resolver: "Listeners"):
-        """Validate configurations"""
-        for item in items:
-            self._add(item, resolver)
-        return self
+    def add(self, callbacks: List[CallbackWrapper]):
+        for callback in callbacks:
+            already_seen = callback.unique_key in self.items_already_seen
+            if not already_seen:
+                self.items_already_seen.add(callback.unique_key)
+                insort(self.items, callback)
 
     async def async_call(self, *args, **kwargs):
         return await asyncio.gather(
@@ -389,6 +375,10 @@ class CallbacksRegistry:
 
     def clear(self):
         self._registry.clear()
+
+    def add(self, key: str, callbacks: List[CallbackWrapper]):
+        executor = self._registry[key]
+        executor.add(callbacks)
 
     def __getitem__(self, key: str) -> CallbacksExecutor:
         return self._registry[key]
