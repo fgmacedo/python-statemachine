@@ -6,6 +6,7 @@ from uuid import uuid4
 from statemachine.utils import run_async_from_sync
 
 from .event_data import TriggerData
+from .i18n import _
 
 if TYPE_CHECKING:
     from .statemachine import StateMachine
@@ -103,8 +104,10 @@ class Event(str):
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
-
         machine = self._sm
+        if machine is None:
+            raise RuntimeError(_("Event {} cannot be called without a SM instance").format(self))
+
         kwargs = {k: v for k, v in kwargs.items() if k not in _event_data_kwargs}
         trigger_data = TriggerData(
             machine=machine,

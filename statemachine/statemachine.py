@@ -30,6 +30,7 @@ from .model import Model
 from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
+    from .event import Event
     from .state import State
 
 
@@ -295,11 +296,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.current_state_value = value.value
 
     @property
-    def events(self):
-        return self.__class__.events
+    def events(self) -> "List[Event]":
+        return [getattr(self, event) for event in self.__class__._events]
 
     @property
-    def allowed_events(self):
+    def allowed_events(self) -> "List[Event]":
         """List of the current allowed events."""
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
