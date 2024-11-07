@@ -1,7 +1,6 @@
 import warnings
 from collections import deque
 from copy import deepcopy
-from functools import partial
 from inspect import isawaitable
 from threading import Lock
 from typing import TYPE_CHECKING
@@ -181,13 +180,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 setattr(target, event, trigger)
 
     def _add_listener(self, listeners: "Listeners", allowed_references: SpecReference = SPECS_ALL):
-        register = partial(
-            listeners.resolve,
-            registry=self._callbacks_registry,
-            allowed_references=allowed_references,
-        )
+        registry = self._callbacks_registry
         for visited in iterate_states_and_transitions(self.states):
-            register(visited._specs)
+            listeners.resolve(
+                visited._specs,
+                registry=registry,
+                allowed_references=allowed_references,
+            )
 
         return self
 
