@@ -155,6 +155,7 @@ convention = "google"
 
 [tool.coverage.run]
 branch = true
+dynamic_context = "test_function"
 relative_files = true
 data_file = ".coverage"
 source = ["statemachine"]
@@ -177,3 +178,4 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "tmp/htmlcov"
+show_contexts = true
