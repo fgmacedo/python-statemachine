@@ -43,6 +43,7 @@ dev = [
     "django >=5.0.8; python_version >='3.10'",
     "pytest-django >=4.8.0; python_version >'3.8'",
     "Sphinx; python_version >'3.8'",
+    "sphinx-gallery; python_version >'3.8'",
     "myst-parser; python_version >'3.8'",
     "sphinx-gallery; python_version >'3.8'",
     "pillow; python_version >'3.8'",
