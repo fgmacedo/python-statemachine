@@ -36,7 +36,7 @@ jobs:
     - name: Install old pydot for 3.7 only
       if: matrix.python-version == 3.7
       run: |
-        uv install pydot==2.0.0
+        uv pip install pydot==2.0.0
       #----------------------------------------------
       #              run ruff
       #----------------------------------------------

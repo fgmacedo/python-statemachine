@@ -40,7 +40,7 @@ dev = [
     "pytest-mock >=3.10.0",
     "pytest-benchmark >=4.0.0",
     "pytest-asyncio",
-    "django >=5.0.8; python_version >'3.10'",
+    "django >=5.0.8; python_version >='3.10'",
     "pytest-django >=4.8.0; python_version >'3.8'",
     "Sphinx; python_version >'3.8'",
     "myst-parser; python_version >'3.8'",
@@ -140,6 +140,10 @@ force-single-line = true
 [tool.ruff.lint.pydocstyle]
 # Use Google-style docstrings.
 convention = "google"
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = true
+mark-parentheses = true
 
 [tool.coverage.run]
 branch = true
