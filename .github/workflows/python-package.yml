@@ -30,6 +30,7 @@ jobs:
       uses: astral-sh/setup-uv@v3
       with:
         enable-cache: true
+        cache-suffix: "python${{ matrix.python-version }}"
     - name: Install the project
       run: uv sync --all-extras --dev
     - name: Install old pydot for 3.7 only
