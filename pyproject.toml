@@ -38,7 +38,7 @@ dev = [
     "pytest-cov",
     "pytest-sugar >=1.0.0",
     "pytest-mock >=3.10.0",
-    "pytest-benchmark >=5.1.0,<6; python_version >'3.9'",
+    "pytest-benchmark >=4.0.0",
     "pytest-asyncio",
     "django >=5.0.8; python_version >'3.10'",
     "pytest-django >=4.8.0; python_version >'3.8'",
