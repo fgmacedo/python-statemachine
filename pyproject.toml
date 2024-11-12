@@ -65,6 +65,34 @@ asyncio_mode = "auto"
 markers = ["""slow: marks tests as slow (deselect with '-m "not slow"')"""]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 
+[tool.coverage.run]
+branch = true
+# dynamic_context = "test_function"
+relative_files = true
+data_file = ".coverage"
+source = ["statemachine"]
+omit = ["*test*.py", "tmp/*", "pytest_cov"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self.debug",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING",
+]
+
+[tool.coverage.html]
+directory = "tmp/htmlcov"
+show_contexts = true
+
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
@@ -144,30 +172,3 @@ convention = "google"
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = true
 mark-parentheses = true
-
-[tool.coverage.run]
-branch = true
-dynamic_context = "test_function"
-relative_files = true
-data_file = ".coverage"
-source = ["statemachine"]
-omit = ["*test*.py", "tmp/*", "pytest_cov"]
-[tool.coverage.report]
-show_missing = true
-exclude_lines = [
-    # Have to re-enable the standard pragma
-    "pragma: no cover",
-
-    # Don't complain about missing debug-only code:
-    "def __repr__",
-    "if self.debug",
-
-    # Don't complain if tests don't hit defensive assertion code:
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if TYPE_CHECKING",
-]
-
-[tool.coverage.html]
-directory = "tmp/htmlcov"
-show_contexts = true
