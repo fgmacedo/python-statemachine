@@ -87,7 +87,7 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
 
 1. Install dependencies.
    1. [graphviz](https://graphviz.org/download/#linux)
-   1. [poetry](https://python-poetry.org/docs/#installation)
+   1. [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 1. Fork the `python-statemachine` repository on GitHub.
 
@@ -96,31 +96,29 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
         git clone https://github.com/YOUR-USERNAME/python-statemachine.git.
 
 
-1. Run `poetry install` once to install all the dependencies and create a virtual environment::
+1. Run `uv sync` once to install all the development dependencies and create a virtual environment::
 
-        poetry install --all-extras
+        uv sync --all-extras
 
-1. Run `poetry shell` to enter the provided virtual
-
-1. Install the pre-commit validations:
+2. Install the pre-commit validations:
 
         pre-commit install
 
-1. Create a branch for local development:
+3. Create a branch for local development:
 
         git checkout -b <name-of-your-bugfix-or-feature>
 
-1. Make changes to the code.
+4. Make changes to the code.
 
-1. Run tests to ensure they pass by running:
+5. Run tests to ensure they pass by running:
 
-        poetry run pytest
+        uv run pytest
 
-1. Update the documentation as needed.
+6. Update the documentation as needed.
 
     Build the documentation:
 
-        poetry run sphinx-build docs docs/_build/html
+        uv run sphinx-build docs docs/_build/html
 
 
     Now you can serve the local documentation using a webserver, like the built-in included
@@ -133,7 +131,7 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
     If you're specially writting documentation, I strongly recommend using `sphinx-autobuild`
     as it improves the workflow watching for file changes and with live reloading:
 
-        poetry run sphinx-autobuild docs docs/_build/html --re-ignore "auto_examples/.*"
+        uv run sphinx-autobuild docs docs/_build/html --re-ignore "auto_examples/.*"
 
     Sometimes you need a full fresh of the files being build for docs, you can safely remove
     all automatically generated files to get a clean state by running:

@@ -21,13 +21,13 @@ repos:
   hooks:
   - id: mypy
     name: Mypy
-    entry: poetry run mypy --namespace-packages --explicit-package-bases statemachine/ tests/
+    entry: uv run mypy --namespace-packages --explicit-package-bases statemachine/ tests/
     types: [python]
     language: system
     pass_filenames: false
   - id: pytest
     name: Pytest
-    entry: poetry run pytest
+    entry: uv run pytest
     types: [python]
     language: system
     pass_filenames: false
