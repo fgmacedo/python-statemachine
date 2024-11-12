@@ -6,7 +6,6 @@ from inspect import iscoroutinefunction
 from itertools import chain
 from types import MethodType
 from typing import Any
-from typing import Callable
 
 
 def _make_key(method):
@@ -44,40 +43,22 @@ def signature_cache(user_function):
 
 
 class SignatureAdapter(Signature):
-    @classmethod
-    def wrap(cls, method) -> Callable:
-        """Build a wrapper that adapts the received arguments to the inner ``method`` signature"""
-
-        sig = cls.from_callable(method)
-        sig_bind_expected = sig.bind_expected
-
-        metadata_to_copy = method.func if isinstance(method, partial) else method
-
-        if iscoroutinefunction(method):
-
-            async def signature_adapter(*args: Any, **kwargs: Any) -> Any:
-                ba = sig_bind_expected(*args, **kwargs)
-                return await method(*ba.args, **ba.kwargs)
-        else:
-
-            def signature_adapter(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
-                ba = sig_bind_expected(*args, **kwargs)
-                return method(*ba.args, **ba.kwargs)
-
-        signature_adapter.__name__ = metadata_to_copy.__name__
-
-        return signature_adapter
+    is_coroutine: bool = False
 
     @classmethod
     @signature_cache
     def from_callable(cls, method):
         if hasattr(method, "__signature__"):
             sig = method.__signature__
-            return SignatureAdapter(
+            adapter = SignatureAdapter(
                 sig.parameters.values(),
                 return_annotation=sig.return_annotation,
             )
-        return super().from_callable(method)
+        else:
+            adapter = super().from_callable(method)
+
+        adapter.is_coroutine = iscoroutinefunction(method)
+        return adapter
 
     def bind_expected(self, *args: Any, **kwargs: Any) -> BoundArguments:  # noqa: C901
         """Get a BoundArguments object, that maps the passed `args`

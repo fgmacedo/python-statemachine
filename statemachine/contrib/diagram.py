@@ -29,7 +29,7 @@ class DotGraphMachine:
     transition_font_size = "9"
     """Transition font size in points"""
 
-    def __init__(self, machine):
+    def __init__(self, machine: StateMachine):
         self.machine = machine
 
     def _get_graph(self):
@@ -69,11 +69,11 @@ class DotGraphMachine:
     def _actions_getter(self):
         if isinstance(self.machine, StateMachine):
 
-            def getter(grouper):
-                return self.machine._get_callbacks(grouper.key)
+            def getter(grouper) -> str:
+                return self.machine._callbacks_registry.str(grouper.key)
         else:
 
-            def getter(grouper):
+            def getter(grouper) -> str:
                 all_names = set(dir(self.machine))
                 return ", ".join(
                     str(c) for c in grouper if not c.is_convention or c.func in all_names

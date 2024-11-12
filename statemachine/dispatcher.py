@@ -187,10 +187,27 @@ class Listeners:
 
 
 def callable_method(a_callable) -> Callable:
-    method = SignatureAdapter.wrap(a_callable)
-    method.__name__ = a_callable.__name__
-    method.__doc__ = a_callable.__doc__
-    return method
+    sig = SignatureAdapter.from_callable(a_callable)
+    sig_bind_expected = sig.bind_expected
+
+    metadata_to_copy = a_callable.func if isinstance(a_callable, partial) else a_callable
+
+    if sig.is_coroutine:
+
+        async def signature_adapter(*args: Any, **kwargs: Any) -> Any:
+            ba = sig_bind_expected(*args, **kwargs)
+            return await a_callable(*ba.args, **ba.kwargs)
+    else:
+
+        def signature_adapter(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
+            ba = sig_bind_expected(*args, **kwargs)
+            return a_callable(*ba.args, **ba.kwargs)
+
+    signature_adapter.__name__ = metadata_to_copy.__name__
+    signature_adapter.__doc__ = metadata_to_copy.__doc__
+    signature_adapter.is_coroutine = sig.is_coroutine  # type: ignore[attr-defined]
+
+    return signature_adapter
 
 
 def attr_method(attribute, obj) -> Callable:
