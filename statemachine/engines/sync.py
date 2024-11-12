@@ -98,8 +98,8 @@ class SyncEngine:
 
             event_data = EventData(trigger_data=trigger_data, transition=transition)
             args, kwargs = event_data.args, event_data.extended_kwargs
-            self.sm._get_callbacks(transition.validators.key).call(*args, **kwargs)
-            if not self.sm._get_callbacks(transition.cond.key).all(*args, **kwargs):
+            self.sm._callbacks_registry.call(transition.validators.key, *args, **kwargs)
+            if not self.sm._callbacks_registry.all(transition.cond.key, *args, **kwargs):
                 continue
 
             result = self._activate(event_data)
@@ -118,19 +118,19 @@ class SyncEngine:
         source = event_data.state
         target = transition.target
 
-        result = self.sm._get_callbacks(transition.before.key).call(*args, **kwargs)
+        result = self.sm._callbacks_registry.call(transition.before.key, *args, **kwargs)
         if source is not None and not transition.internal:
-            self.sm._get_callbacks(source.exit.key).call(*args, **kwargs)
+            self.sm._callbacks_registry.call(source.exit.key, *args, **kwargs)
 
-        result += self.sm._get_callbacks(transition.on.key).call(*args, **kwargs)
+        result += self.sm._callbacks_registry.call(transition.on.key, *args, **kwargs)
 
         self.sm.current_state = target
         event_data.state = target
         kwargs["state"] = target
 
         if not transition.internal:
-            self.sm._get_callbacks(target.enter.key).call(*args, **kwargs)
-        self.sm._get_callbacks(transition.after.key).call(*args, **kwargs)
+            self.sm._callbacks_registry.call(target.enter.key, *args, **kwargs)
+        self.sm._callbacks_registry.call(transition.after.key, *args, **kwargs)
 
         if len(result) == 0:
             result = None

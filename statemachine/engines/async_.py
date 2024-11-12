@@ -95,8 +95,12 @@ class AsyncEngine:
 
             event_data = EventData(trigger_data=trigger_data, transition=transition)
             args, kwargs = event_data.args, event_data.extended_kwargs
-            await self.sm._get_callbacks(transition.validators.key).async_call(*args, **kwargs)
-            if not await self.sm._get_callbacks(transition.cond.key).async_all(*args, **kwargs):
+            await self.sm._callbacks_registry.async_call(
+                transition.validators.key, *args, **kwargs
+            )
+            if not await self.sm._callbacks_registry.async_all(
+                transition.cond.key, *args, **kwargs
+            ):
                 continue
 
             result = await self._activate(event_data)
@@ -115,19 +119,21 @@ class AsyncEngine:
         source = event_data.state
         target = transition.target
 
-        result = await self.sm._get_callbacks(transition.before.key).async_call(*args, **kwargs)
+        result = await self.sm._callbacks_registry.async_call(
+            transition.before.key, *args, **kwargs
+        )
         if source is not None and not transition.internal:
-            await self.sm._get_callbacks(source.exit.key).async_call(*args, **kwargs)
+            await self.sm._callbacks_registry.async_call(source.exit.key, *args, **kwargs)
 
-        result += await self.sm._get_callbacks(transition.on.key).async_call(*args, **kwargs)
+        result += await self.sm._callbacks_registry.async_call(transition.on.key, *args, **kwargs)
 
         self.sm.current_state = target
         event_data.state = target
         kwargs["state"] = target
 
         if not transition.internal:
-            await self.sm._get_callbacks(target.enter.key).async_call(*args, **kwargs)
-        await self.sm._get_callbacks(transition.after.key).async_call(*args, **kwargs)
+            await self.sm._callbacks_registry.async_call(target.enter.key, *args, **kwargs)
+        await self.sm._callbacks_registry.async_call(transition.after.key, *args, **kwargs)
 
         if len(result) == 0:
             result = None

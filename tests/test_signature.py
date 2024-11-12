@@ -3,7 +3,7 @@ from functools import partial
 
 import pytest
 
-from statemachine.signature import SignatureAdapter
+from statemachine.dispatcher import callable_method
 
 
 def single_positional_param(a):
@@ -147,7 +147,7 @@ class TestSignatureAdapter:
         ],
     )
     def test_wrap_fn_single_positional_parameter(self, func, args, kwargs, expected):
-        wrapped_func = SignatureAdapter.wrap(func)
+        wrapped_func = callable_method(func)
         assert wrapped_func.__name__ == func.__name__
 
         if inspect.isclass(expected) and issubclass(expected, Exception):
@@ -158,7 +158,7 @@ class TestSignatureAdapter:
 
     def test_support_for_partial(self):
         part = partial(positional_and_kw_arguments, event="activated")
-        wrapped_func = SignatureAdapter.wrap(part)
+        wrapped_func = callable_method(part)
 
         assert wrapped_func("A", "B") == ("A", "B", "activated")
         assert wrapped_func.__name__ == positional_and_kw_arguments.__name__

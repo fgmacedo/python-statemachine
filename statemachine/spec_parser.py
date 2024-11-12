@@ -71,6 +71,10 @@ def build_expression(node, variable_hook, operator_mapping):
 
 def parse_boolean_expr(expr, variable_hook, operator_mapping):
     """Parses the expression into an AST and build a custom expression tree"""
+    if expr.strip() == "":
+        raise SyntaxError("Empty expression")
+    if "!" not in expr and " " not in expr:
+        return variable_hook(expr)
     expr = replace_operators(expr)
     tree = ast.parse(expr, mode="eval")
     return build_expression(tree.body, variable_hook, operator_mapping)

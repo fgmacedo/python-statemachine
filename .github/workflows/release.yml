@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.13"]
 
         # Specifying a GitHub environment is optional, but strongly encouraged
     environment: release

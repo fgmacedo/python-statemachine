@@ -10,7 +10,6 @@ from typing import List
 
 from .callbacks import SPECS_ALL
 from .callbacks import SPECS_SAFE
-from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
 from .callbacks import SpecReference
 from .dispatcher import Listener
@@ -322,6 +321,3 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
-
-    def _get_callbacks(self, key) -> CallbacksExecutor:
-        return self._callbacks_registry[key]

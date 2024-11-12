@@ -6,7 +6,6 @@ from enum import IntEnum
 from enum import IntFlag
 from enum import auto
 from inspect import isawaitable
-from inspect import iscoroutinefunction
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
@@ -233,7 +232,7 @@ class CallbackWrapper:
         unique_key: str,
     ) -> None:
         self._callback = callback
-        self._iscoro = iscoroutinefunction(callback)
+        self._iscoro = getattr(callback, "is_coroutine", False)
         self.condition = condition
         self.meta = meta
         self.unique_key = unique_key
@@ -361,3 +360,24 @@ class CallbacksRegistry:
         self.has_async_callbacks = any(
             callback._iscoro for executor in self._registry.values() for callback in executor
         )
+
+    def call(self, key: str, *args, **kwargs):
+        if key not in self._registry:
+            return []
+        return self._registry[key].call(*args, **kwargs)
+
+    def async_call(self, key: str, *args, **kwargs):
+        return self._registry[key].async_call(*args, **kwargs)
+
+    def all(self, key: str, *args, **kwargs):
+        if key not in self._registry:
+            return True
+        return self._registry[key].all(*args, **kwargs)
+
+    def async_all(self, key: str, *args, **kwargs):
+        return self._registry[key].async_all(*args, **kwargs)
+
+    def str(self, key: str) -> str:
+        if key not in self._registry:
+            return ""
+        return str(self._registry[key])
