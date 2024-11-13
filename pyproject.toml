@@ -19,7 +19,6 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
     "Framework :: AsyncIO",
-    "Intended Audience :: Developers",
 ]
 requires-python = ">=3.7"
 
