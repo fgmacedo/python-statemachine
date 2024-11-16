@@ -296,3 +296,32 @@ class TestAllowEventWithoutTransition:
         assert sm.green.is_active
         sm.stop()
         assert sm.green.is_active
+
+
+class TestTransitionFromAny:
+    @pytest.fixture()
+    def account_sm(self):
+        class AccountStateMachine(StateMachine):
+            active = State("Active", initial=True)
+            suspended = State("Suspended")
+            overdrawn = State("Overdrawn")
+            closed = State("Closed")
+
+            # Define transitions between states
+            suspend = active.to(suspended)
+            activate = suspended.to(active)
+            overdraft = active.to(overdrawn)
+            resolve_overdraft = overdrawn.to(active)
+
+            close_account = closed.from_.any()
+
+            # Actions performed during transitions
+            def on_close_account(self):
+                print("Account has been closed.")
+
+        return AccountStateMachine
+
+    def test_transition_from_any(self, account_sm):
+        sm = account_sm()
+        sm.close_account()
+        assert sm.closed.is_active

@@ -15,6 +15,38 @@ if TYPE_CHECKING:
     from .statemachine import StateMachine
 
 
+class _ToState:
+    def __init__(self, state: "State"):
+        self._state = state
+
+    def itself(self, **kwargs):
+        return self.__call__(self._state, **kwargs)
+
+    def __call__(self, *states: "State", **kwargs):
+        transitions = TransitionList(Transition(self._state, state, **kwargs) for state in states)
+        self._state.transitions.add_transitions(transitions)
+        return transitions
+
+
+class _FromState:
+    def __init__(self, state: "State"):
+        self._state = state
+
+    def itself(self, **kwargs):
+        return self.__call__(self._state, **kwargs)
+
+    def any(self, **kwargs):
+        return self.__call__(AnyState(), **kwargs)
+
+    def __call__(self, *states: "State", **kwargs):
+        transitions = TransitionList()
+        for origin in states:
+            transition = Transition(origin, self._state, **kwargs)
+            origin.transitions.add_transitions(transition)
+            transitions.add_transitions(transition)
+        return transitions
+
+
 class State:
     """
     A State in a :ref:`StateMachine` describes a particular behavior of the machine.
@@ -172,38 +204,15 @@ class State:
         if not self.name:
             self.name = self._id.replace("_", " ").capitalize()
 
-    def _to_(self, *states: "State", **kwargs):
-        transitions = TransitionList(Transition(self, state, **kwargs) for state in states)
-        self.transitions.add_transitions(transitions)
-        return transitions
-
-    def _from_(self, *states: "State", **kwargs):
-        transitions = TransitionList()
-        for origin in states:
-            transition = Transition(origin, self, **kwargs)
-            origin.transitions.add_transitions(transition)
-            transitions.add_transitions(transition)
-        return transitions
-
-    def _get_proxy_method_to_itself(self, method):
-        def proxy(*states: "State", **kwargs):
-            return method(*states, **kwargs)
-
-        def proxy_to_itself(**kwargs):
-            return proxy(self, **kwargs)
-
-        proxy.itself = proxy_to_itself
-        return proxy
-
     @property
-    def to(self):
+    def to(self) -> _ToState:
         """Create transitions to the given target states."""
-        return self._get_proxy_method_to_itself(self._to_)
+        return _ToState(self)
 
     @property
-    def from_(self):
+    def from_(self) -> _FromState:
         """Create transitions from the given target states (reversed)."""
-        return self._get_proxy_method_to_itself(self._from_)
+        return _FromState(self)
 
     @property
     def initial(self):
@@ -269,3 +278,7 @@ class InstanceState(State):
     @property
     def is_active(self):
         return self._machine().current_state == self
+
+
+class AnyState(State):
+    pass
