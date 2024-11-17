@@ -3,6 +3,7 @@ from typing import Callable
 from typing import Iterable
 from typing import List
 
+from .callbacks import CallbackGroup
 from .transition import Transition
 from .utils import ensure_iterable
 
@@ -85,9 +86,9 @@ class TransitionList:
         """
         return len(self.transitions)
 
-    def _add_callback(self, callback, name, is_event=False, **kwargs):
+    def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
         for transition in self.transitions:
-            list_obj = getattr(transition, name)
+            list_obj = transition._specs.grouper(grouper)
             list_obj._add_unbounded_callback(
                 callback,
                 is_event=is_event,
@@ -97,7 +98,7 @@ class TransitionList:
         return callback
 
     def __call__(self, f):
-        return self._add_callback(f, "on", is_event=True)
+        return self._add_callback(f, CallbackGroup.ON, is_event=True)
 
     def before(self, f: Callable):
         """Adds a ``before`` :ref:`transition actions` callback to every :ref:`transition` in the
@@ -109,7 +110,7 @@ class TransitionList:
         Returns:
             The `f` callable.
         """
-        return self._add_callback(f, "before")
+        return self._add_callback(f, CallbackGroup.BEFORE)
 
     def after(self, f: Callable):
         """Adds a ``after`` :ref:`transition actions` callback to every :ref:`transition` in the
@@ -121,7 +122,7 @@ class TransitionList:
         Returns:
             The `f` callable.
         """
-        return self._add_callback(f, "after")
+        return self._add_callback(f, CallbackGroup.AFTER)
 
     def on(self, f: Callable):
         """Adds a ``on`` :ref:`transition actions` callback to every :ref:`transition` in the
@@ -133,7 +134,7 @@ class TransitionList:
         Returns:
             The `f` callable.
         """
-        return self._add_callback(f, "on")
+        return self._add_callback(f, CallbackGroup.ON)
 
     def cond(self, f: Callable):
         """Adds a ``cond`` :ref:`guards` callback to every :ref:`transition` in the
@@ -145,7 +146,7 @@ class TransitionList:
         Returns:
             The `f` callable.
         """
-        return self._add_callback(f, "cond", expected_value=True)
+        return self._add_callback(f, CallbackGroup.COND, expected_value=True)
 
     def unless(self, f: Callable):
         """Adds a ``unless`` :ref:`guards` callback with expected value ``False`` to every
@@ -157,7 +158,7 @@ class TransitionList:
         Returns:
             The `f` callable.
         """
-        return self._add_callback(f, "cond", expected_value=False)
+        return self._add_callback(f, CallbackGroup.COND, expected_value=False)
 
     def validators(self, f: Callable):
         """Adds a :ref:`validators` callback to the :ref:`TransitionList` instance.
@@ -168,7 +169,7 @@ class TransitionList:
             The callback function.
 
         """
-        return self._add_callback(f, "validators")
+        return self._add_callback(f, CallbackGroup.VALIDATOR)
 
     def add_event(self, event: str):
         """
