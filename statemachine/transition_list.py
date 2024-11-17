@@ -8,6 +8,7 @@ from .utils import ensure_iterable
 
 if TYPE_CHECKING:
     from .events import Event
+    from .state import State
 
 
 class TransitionList:
@@ -39,6 +40,12 @@ class TransitionList:
 
         """
         return TransitionList(self.transitions).add_transitions(other)
+
+    def _transition_defined_hook(self, event: str, states: List["State"]):
+        for transition in self.transitions:
+            transition.source._transition_defined_hook(
+                event=event, transition=transition, states=states
+            )
 
     def add_transitions(self, transition: "Transition | TransitionList | Iterable"):
         """Adds one or more transitions to the :ref:`TransitionList` instance.

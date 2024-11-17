@@ -12,7 +12,6 @@ from .exceptions import InvalidDefinition
 from .graph import iterate_states_and_transitions
 from .graph import visit_connected_states
 from .i18n import _
-from .state import AnyState
 from .state import State
 from .states import States
 from .transition import Transition
@@ -238,13 +237,7 @@ class StateMachineMetaclass(type):
         transitions = event._transitions
         if transitions is not None:
             transitions.add_event(event)
-            for transition in transitions:
-                if isinstance(transition.source, AnyState):
-                    for state in cls.states:
-                        state.to(
-                            transition.target,
-                            event=event,
-                        )
+            transitions._transition_defined_hook(event=event, states=list(cls.states))
 
         if event not in cls._events:
             cls._events[event] = None

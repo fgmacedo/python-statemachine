@@ -313,7 +313,9 @@ class TestTransitionFromAny:
             overdraft = active.to(overdrawn)
             resolve_overdraft = overdrawn.to(active)
 
-            close_account = closed.from_.any()
+            close_account = closed.from_.any(cond="can_close_account")
+
+            can_close_account: bool = True
 
             # Actions performed during transitions
             def on_close_account(self):
@@ -325,3 +327,10 @@ class TestTransitionFromAny:
         sm = account_sm()
         sm.close_account()
         assert sm.closed.is_active
+
+    def test_transition_from_any_with_cond(self, account_sm):
+        sm = account_sm()
+        sm.can_close_account = False
+        with pytest.raises(sm.TransitionNotAllowed):
+            sm.close_account()
+        assert sm.active.is_active

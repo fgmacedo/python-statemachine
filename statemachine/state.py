@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import List
 from weakref import ref
 
 from .callbacks import CallbackGroup
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from .statemachine import StateMachine
 
 
-class _ToState:
+class _TransitionBuilder:
     def __init__(self, state: "State"):
         self._state = state
 
@@ -23,20 +24,19 @@ class _ToState:
         return self.__call__(self._state, **kwargs)
 
     def __call__(self, *states: "State", **kwargs):
+        raise NotImplementedError
+
+
+class _ToState(_TransitionBuilder):
+    def __call__(self, *states: "State", **kwargs):
         transitions = TransitionList(Transition(self._state, state, **kwargs) for state in states)
         self._state.transitions.add_transitions(transitions)
         return transitions
 
 
-class _FromState:
-    def __init__(self, state: "State"):
-        self._state = state
-
-    def itself(self, **kwargs):
-        return self.__call__(self._state, **kwargs)
-
+class _FromState(_TransitionBuilder):
     def any(self, **kwargs):
-        return self.__call__(AnyState(), **kwargs)
+        return self.__call__(AnyState(kwargs), **kwargs)
 
     def __call__(self, *states: "State", **kwargs):
         transitions = TransitionList()
@@ -168,6 +168,9 @@ class State:
         self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
 
+    def _transition_defined_hook(self, event: str, transition: Transition, states: List["State"]):
+        pass
+
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
@@ -281,4 +284,11 @@ class InstanceState(State):
 
 
 class AnyState(State):
-    pass
+    def __init__(self, transition_kwargs):
+        self.transition_kwargs = transition_kwargs
+        super().__init__()
+
+    def _transition_defined_hook(self, event: str, transition: Transition, states: List[State]):
+        target = transition.target
+        for state in states:
+            state.to(target, event=event, **self.transition_kwargs)
