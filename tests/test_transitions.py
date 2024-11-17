@@ -21,7 +21,7 @@ def test_transition_representation(campaign_machine):
 def test_list_machine_events(classic_traffic_light_machine):
     machine = classic_traffic_light_machine()
     transitions = [t.name for t in machine.events]
-    assert transitions == ["go", "slowdown", "stop"]
+    assert transitions == ["slowdown", "stop", "go"]
 
 
 def test_list_state_transitions(classic_traffic_light_machine):
@@ -305,7 +305,7 @@ class TestTransitionFromAny:
             active = State("Active", initial=True)
             suspended = State("Suspended")
             overdrawn = State("Overdrawn")
-            closed = State("Closed")
+            closed = State("Closed", final=True)
 
             # Define transitions between states
             suspend = active.to(suspended)
@@ -328,9 +328,47 @@ class TestTransitionFromAny:
         sm.close_account()
         assert sm.closed.is_active
 
+    def test_can_close_from_every_state(self, account_sm):
+        sm = account_sm()
+        states_can_close = {}
+        for state in sm.states:
+            for transition in state.transitions:
+                print(f"{state.id} -({transition.event})-> {transition.target.id}")
+                if transition.target == sm.closed:
+                    states_can_close[state.id] = state
+
+        assert list(states_can_close) == ["active", "suspended", "overdrawn"]
+
     def test_transition_from_any_with_cond(self, account_sm):
         sm = account_sm()
         sm.can_close_account = False
         with pytest.raises(sm.TransitionNotAllowed):
             sm.close_account()
         assert sm.active.is_active
+
+    @pytest.mark.xfail(reason="We should copy all attributes from the original transition")
+    def test_any_can_be_used_as_decorator(self):
+        class AccountStateMachine(StateMachine):
+            active = State("Active", initial=True)
+            suspended = State("Suspended")
+            overdrawn = State("Overdrawn")
+            closed = State("Closed", final=True)
+
+            # Define transitions between states
+            suspend = active.to(suspended)
+            activate = suspended.to(active)
+            overdraft = active.to(overdrawn)
+            resolve_overdraft = overdrawn.to(active)
+
+            close_account = closed.from_.any()
+
+            flag_for_debug: bool = False
+
+            @close_account.on
+            def do_close_account(self):
+                self.flag_for_debug = True
+
+        sm = AccountStateMachine()
+        sm.close_account()
+        assert sm.closed.is_active
+        assert sm.flag_for_debug is True

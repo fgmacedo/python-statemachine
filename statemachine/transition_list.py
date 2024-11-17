@@ -41,11 +41,11 @@ class TransitionList:
         """
         return TransitionList(self.transitions).add_transitions(other)
 
-    def _transition_defined_hook(self, event: str, states: List["State"]):
+    def _on_event_defined(self, event: str, states: List["State"]):
+        self.add_event(event)
+
         for transition in self.transitions:
-            transition.source._transition_defined_hook(
-                event=event, transition=transition, states=states
-            )
+            transition.source._on_event_defined(event=event, transition=transition, states=states)
 
     def add_transitions(self, transition: "Transition | TransitionList | Iterable"):
         """Adds one or more transitions to the :ref:`TransitionList` instance.

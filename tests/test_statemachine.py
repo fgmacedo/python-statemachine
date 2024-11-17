@@ -20,14 +20,14 @@ def test_machine_should_be_at_start_state(campaign_machine):
     machine = campaign_machine(model)
 
     assert [s.value for s in campaign_machine.states] == [
-        "closed",
         "draft",
         "producing",
+        "closed",
     ]
     assert [t.name for t in campaign_machine.events] == [
         "add_job",
-        "deliver",
         "produce",
+        "deliver",
     ]
 
     assert model.state == "draft"

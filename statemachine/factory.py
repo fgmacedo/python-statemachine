@@ -179,7 +179,7 @@ class StateMachineMetaclass(type):
                 cls.add_event(event=Event(id=event.id, name=event.name))
 
     def add_from_attributes(cls, attrs):  # noqa: C901
-        for key, value in sorted(attrs.items(), key=lambda pair: pair[0]):
+        for key, value in attrs.items():
             if isinstance(value, States):
                 cls._add_states_from_dict(value)
             if isinstance(value, State):
@@ -236,8 +236,7 @@ class StateMachineMetaclass(type):
 
         transitions = event._transitions
         if transitions is not None:
-            transitions.add_event(event)
-            transitions._transition_defined_hook(event=event, states=list(cls.states))
+            transitions._on_event_defined(event=event, states=list(cls.states))
 
         if event not in cls._events:
             cls._events[event] = None

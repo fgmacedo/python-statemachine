@@ -7,6 +7,7 @@ from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
 from ..i18n import _
+from ..state import State
 from ..transition import Transition
 
 if TYPE_CHECKING:
@@ -82,7 +83,7 @@ class AsyncEngine:
     async def _trigger(self, trigger_data: TriggerData):
         event_data = None
         if trigger_data.event == "__initial__":
-            transition = Transition(None, self.sm._get_initial_state(), event="__initial__")
+            transition = Transition(State(), self.sm._get_initial_state(), event="__initial__")
             transition._specs.clear()
             event_data = EventData(trigger_data=trigger_data, transition=transition)
             await self._activate(event_data)

@@ -168,7 +168,10 @@ class State:
         self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
 
-    def _transition_defined_hook(self, event: str, transition: Transition, states: List["State"]):
+    def _on_event_defined(self, event: str, transition: Transition, states: List["State"]):
+        """Called by statemachine factory when an event is defined having a transition
+        starting from this state.
+        """
         pass
 
     def __repr__(self):
@@ -284,11 +287,19 @@ class InstanceState(State):
 
 
 class AnyState(State):
+    """A special state that works as a "ANY" placeholder.
+
+    It is used as the "From" state of a transtion,
+    until the state machine class is evaluated.
+    """
+
     def __init__(self, transition_kwargs):
         self.transition_kwargs = transition_kwargs
         super().__init__()
 
-    def _transition_defined_hook(self, event: str, transition: Transition, states: List[State]):
+    def _on_event_defined(self, event: str, transition: Transition, states: List[State]):
         target = transition.target
         for state in states:
+            if state.final:
+                continue
             state.to(target, event=event, **self.transition_kwargs)

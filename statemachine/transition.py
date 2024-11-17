@@ -1,8 +1,13 @@
+from typing import TYPE_CHECKING
+
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .events import Events
 from .exceptions import InvalidDefinition
+
+if TYPE_CHECKING:
+    from .statemachine import State
 
 
 class Transition:
@@ -32,8 +37,8 @@ class Transition:
 
     def __init__(
         self,
-        source,
-        target,
+        source: "State",
+        target: "State",
         event=None,
         internal=False,
         validators=None,
