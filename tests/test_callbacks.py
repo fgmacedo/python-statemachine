@@ -209,3 +209,140 @@ class TestCallbacksAsDecorator:
             mock.call("enter_ordinary_world"),
             mock.call("refuse_call", "Not prepared yet"),
         ]
+
+
+class TestIssue406:
+    """
+    A StateMachine that exercises the example given on issue
+    #[406](https://github.com/fgmacedo/python-statemachine/issues/406).
+
+    In this example, the event callback must be registered only once.
+    """
+
+    def test_issue_406(self, mocker):
+        mock = mocker.Mock()
+
+        class ExampleStateMachine(StateMachine, strict_states=False):
+            created = State(initial=True)
+            inited = State(final=True)
+
+            initialize = created.to(inited)
+
+            @initialize.before
+            def before_initialize(self):
+                mock("before init")
+
+            @initialize.on
+            def on_initialize(self):
+                mock("on init")
+
+        sm = ExampleStateMachine()
+        sm.initialize()
+
+        assert mock.call_args_list == [
+            mocker.call("before init"),
+            mocker.call("on init"),
+        ]
+
+
+class TestIssue417:
+    """
+    A StateMachine that exercises the example given on issue
+    #[417](https://github.com/fgmacedo/python-statemachine/issues/417).
+    """
+
+    @pytest.fixture()
+    def mock_calls(self, mocker):
+        return mocker.Mock()
+
+    @pytest.fixture()
+    def model_class(self):
+        class Model:
+            def __init__(self, counter: int = 0):
+                self.state = None
+                self.counter = counter
+
+            def can_be_started_on_model(self) -> bool:
+                return self.counter > 0
+
+            @property
+            def can_be_started_as_property_on_model(self) -> bool:
+                return self.counter > 1
+
+            @property
+            def can_be_started_as_property_str_on_model(self) -> bool:
+                return self.counter > 2
+
+        return Model
+
+    @pytest.fixture()
+    def sm_class(self, model_class, mock_calls):
+        class ExampleStateMachine(StateMachine):
+            created = State(initial=True)
+            started = State(final=True)
+
+            def can_be_started(self) -> bool:
+                return self.counter > 0
+
+            @property
+            def can_be_started_as_property(self) -> bool:
+                return self.counter > 1
+
+            @property
+            def can_be_started_as_property_str(self) -> bool:
+                return self.counter > 2
+
+            start = created.to(
+                started,
+                cond=[
+                    can_be_started,
+                    can_be_started_as_property,
+                    "can_be_started_as_property_str",
+                    model_class.can_be_started_on_model,
+                    model_class.can_be_started_as_property_on_model,
+                    "can_be_started_as_property_str_on_model",
+                ],
+            )
+
+            def __init__(self, model=None, counter: int = 0):
+                self.counter = counter
+                super().__init__(model=model)
+
+            def on_start(self):
+                mock_calls("started")
+
+        return ExampleStateMachine
+
+    def test_issue_417_cannot_start(self, model_class, sm_class, mock_calls):
+        model = model_class(0)
+        sm = sm_class(model, 0)
+        with pytest.raises(sm.TransitionNotAllowed, match="Can't start when in Created"):
+            sm.start()
+
+        mock_calls.assert_not_called()
+
+    def test_issue_417_can_start(self, model_class, sm_class, mock_calls, mocker):
+        model = model_class(3)
+        sm = sm_class(model, 3)
+        sm.start()
+
+        assert mock_calls.call_args_list == [
+            mocker.call("started"),
+        ]
+
+    def test_raise_exception_if_property_is_not_found(self):
+        class StrangeObject:
+            @property
+            def this_cannot_resolve(self) -> bool:
+                return True
+
+        class ExampleStateMachine(StateMachine):
+            created = State(initial=True)
+            started = State(final=True)
+            start = created.to(started, cond=[StrangeObject.this_cannot_resolve])
+
+        with pytest.raises(
+            InvalidDefinition,
+            match="Error on transition start from Created to Started when resolving callbacks",
+        ):
+            ExampleStateMachine()

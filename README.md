@@ -168,7 +168,7 @@ Easily iterate over all states:
 
 ```py
 >>> [s.id for s in sm.states]
-['green', 'red', 'yellow']
+['green', 'yellow', 'red']
 
 ```
 

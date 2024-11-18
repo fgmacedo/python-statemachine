@@ -1,8 +1,14 @@
+from copy import deepcopy
+from typing import TYPE_CHECKING
+
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .events import Events
 from .exceptions import InvalidDefinition
+
+if TYPE_CHECKING:
+    from .statemachine import State
 
 
 class Transition:
@@ -32,8 +38,8 @@ class Transition:
 
     def __init__(
         self,
-        source,
-        target,
+        source: "State",
+        target: "State",
         event=None,
         internal=False,
         validators=None,
@@ -125,3 +131,17 @@ class Transition:
 
     def add_event(self, value):
         self._events.add(value)
+
+    def _copy_with_args(self, **kwargs):
+        source = kwargs.pop("source", self.source)
+        target = kwargs.pop("target", self.target)
+        event = kwargs.pop("event", self.event)
+        internal = kwargs.pop("internal", self.internal)
+        new_transition = Transition(
+            source=source, target=target, event=event, internal=internal, **kwargs
+        )
+        for spec in self._specs:
+            new_spec = deepcopy(spec)
+            new_transition._specs.add(new_spec, new_spec.group)
+
+        return new_transition

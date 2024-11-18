@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import List
 from weakref import ref
 
 from .callbacks import CallbackGroup
@@ -13,6 +14,37 @@ from .transition_list import TransitionList
 
 if TYPE_CHECKING:
     from .statemachine import StateMachine
+
+
+class _TransitionBuilder:
+    def __init__(self, state: "State"):
+        self._state = state
+
+    def itself(self, **kwargs):
+        return self.__call__(self._state, **kwargs)
+
+    def __call__(self, *states: "State", **kwargs):
+        raise NotImplementedError
+
+
+class _ToState(_TransitionBuilder):
+    def __call__(self, *states: "State", **kwargs):
+        transitions = TransitionList(Transition(self._state, state, **kwargs) for state in states)
+        self._state.transitions.add_transitions(transitions)
+        return transitions
+
+
+class _FromState(_TransitionBuilder):
+    def any(self, **kwargs):
+        return self.__call__(AnyState(), **kwargs)
+
+    def __call__(self, *states: "State", **kwargs):
+        transitions = TransitionList()
+        for origin in states:
+            transition = Transition(origin, self._state, **kwargs)
+            origin.transitions.add_transitions(transition)
+            transitions.add_transitions(transition)
+        return transitions
 
 
 class State:
@@ -136,6 +168,12 @@ class State:
         self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
 
+    def _on_event_defined(self, event: str, transition: Transition, states: List["State"]):
+        """Called by statemachine factory when an event is defined having a transition
+        starting from this state.
+        """
+        pass
+
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
@@ -172,38 +210,15 @@ class State:
         if not self.name:
             self.name = self._id.replace("_", " ").capitalize()
 
-    def _to_(self, *states: "State", **kwargs):
-        transitions = TransitionList(Transition(self, state, **kwargs) for state in states)
-        self.transitions.add_transitions(transitions)
-        return transitions
-
-    def _from_(self, *states: "State", **kwargs):
-        transitions = TransitionList()
-        for origin in states:
-            transition = Transition(origin, self, **kwargs)
-            origin.transitions.add_transitions(transition)
-            transitions.add_transitions(transition)
-        return transitions
-
-    def _get_proxy_method_to_itself(self, method):
-        def proxy(*states: "State", **kwargs):
-            return method(*states, **kwargs)
-
-        def proxy_to_itself(**kwargs):
-            return proxy(self, **kwargs)
-
-        proxy.itself = proxy_to_itself
-        return proxy
-
     @property
-    def to(self):
+    def to(self) -> _ToState:
         """Create transitions to the given target states."""
-        return self._get_proxy_method_to_itself(self._to_)
+        return _ToState(self)
 
     @property
-    def from_(self):
+    def from_(self) -> _FromState:
         """Create transitions from the given target states (reversed)."""
-        return self._get_proxy_method_to_itself(self._from_)
+        return _FromState(self)
 
     @property
     def initial(self):
@@ -269,3 +284,19 @@ class InstanceState(State):
     @property
     def is_active(self):
         return self._machine().current_state == self
+
+
+class AnyState(State):
+    """A special state that works as a "ANY" placeholder.
+
+    It is used as the "From" state of a transtion,
+    until the state machine class is evaluated.
+    """
+
+    def _on_event_defined(self, event: str, transition: Transition, states: List[State]):
+        for state in states:
+            if state.final:
+                continue
+            new_transition = transition._copy_with_args(source=state, event=event)
+
+            state.transitions.add_transitions(new_transition)
