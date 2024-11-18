@@ -346,7 +346,6 @@ class TestTransitionFromAny:
             sm.close_account()
         assert sm.active.is_active
 
-    @pytest.mark.xfail(reason="We should copy all attributes from the original transition")
     def test_any_can_be_used_as_decorator(self):
         class AccountStateMachine(StateMachine):
             active = State("Active", initial=True)

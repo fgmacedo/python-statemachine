@@ -4,7 +4,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
-from uuid import uuid4
 
 from . import registry
 from .event import Event
@@ -195,7 +194,7 @@ class StateMachineMetaclass(type):
                     ),
                     old_event=value,
                 )
-            elif getattr(value, "_specs_to_update", None):
+            elif getattr(value, "attr_name", None):
                 cls._add_unbounded_callback(key, value)
 
     def _add_states_from_dict(cls, states):
@@ -205,13 +204,10 @@ class StateMachineMetaclass(type):
     def _add_unbounded_callback(cls, attr_name, func):
         # if func is an event, the `attr_name` will be replaced by an event trigger,
         # so we'll also give the ``func`` a new unique name to be used by the callback
-        # machinery.
-        cls.add_event(event=Event(func._transitions, id=attr_name, name=attr_name))
-        attr_name = f"_{attr_name}_{uuid4().hex}"
-        setattr(cls, attr_name, func)
-
-        for ref in func._specs_to_update:
-            ref(getattr(cls, attr_name), attr_name)
+        # machinery that is stored at ``func.attr_name``
+        setattr(cls, func.attr_name, func)
+        if func.is_event:
+            cls.add_event(event=Event(func._transitions, id=attr_name, name=attr_name))
 
     def add_state(cls, id, state: State):
         state._set_id(id)

@@ -71,6 +71,7 @@ class CallbackSpec:
         func,
         group: CallbackGroup,
         is_convention=False,
+        is_event: bool = False,
         cond=None,
         priority: CallbackPriority = CallbackPriority.NAMING,
         expected_value=None,
@@ -78,6 +79,7 @@ class CallbackSpec:
         self.func = func
         self.group = group
         self.is_convention = is_convention
+        self.is_event = is_event
         self.cond = cond
         self.expected_value = expected_value
         self.priority = priority
@@ -88,7 +90,12 @@ class CallbackSpec:
         elif callable(func):
             self.reference = SpecReference.CALLABLE
             self.is_bounded = hasattr(func, "__self__")
-            self.attr_name = func.__name__
+            self.attr_name = (
+                func.__name__ if not self.is_event or self.is_bounded else f"_{func.__name__}_"
+            )
+            if not self.is_bounded:
+                func.attr_name = self.attr_name
+                func.is_event = is_event
         else:
             self.reference = SpecReference.NAME
             self.attr_name = func
@@ -113,11 +120,6 @@ class CallbackSpec:
 
     def __hash__(self):
         return id(self)
-
-    def _update_func(self, func: Callable, attr_name: str):
-        self.func = func
-        self.reference = SpecReference.CALLABLE
-        self.attr_name = attr_name
 
 
 class SpecListGrouper:
@@ -158,7 +160,7 @@ class CallbackSpecList:
     def __repr__(self):
         return f"{type(self).__name__}({self.items!r}, factory={self.factory!r})"
 
-    def _add_unbounded_callback(self, func, is_event=False, transitions=None, **kwargs):
+    def _add_unbounded_callback(self, func, transitions=None, **kwargs):
         """This list was a target for adding a func using decorator
         `@<state|event>[.on|before|after|enter|exit]` syntax.
 
@@ -181,11 +183,7 @@ class CallbackSpecList:
                 event.
 
         """
-        spec = self._add(func, **kwargs)
-        if not getattr(func, "_specs_to_update", None):
-            func._specs_to_update = set()
-        if is_event:
-            func._specs_to_update.add(spec._update_func)
+        self._add(func, **kwargs)
         func._transitions = transitions
 
         return func
@@ -202,7 +200,10 @@ class CallbackSpecList:
         return self._groupers[group]
 
     def _add(self, func, group: CallbackGroup, **kwargs):
-        spec = self.factory(func, group, **kwargs)
+        if isinstance(func, CallbackSpec):
+            spec = func
+        else:
+            spec = self.factory(func, group, **kwargs)
 
         if spec in self.items:
             return

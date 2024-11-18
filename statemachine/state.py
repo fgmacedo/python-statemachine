@@ -36,7 +36,7 @@ class _ToState(_TransitionBuilder):
 
 class _FromState(_TransitionBuilder):
     def any(self, **kwargs):
-        return self.__call__(AnyState(kwargs), **kwargs)
+        return self.__call__(AnyState(), **kwargs)
 
     def __call__(self, *states: "State", **kwargs):
         transitions = TransitionList()
@@ -293,13 +293,10 @@ class AnyState(State):
     until the state machine class is evaluated.
     """
 
-    def __init__(self, transition_kwargs):
-        self.transition_kwargs = transition_kwargs
-        super().__init__()
-
     def _on_event_defined(self, event: str, transition: Transition, states: List[State]):
-        target = transition.target
         for state in states:
             if state.final:
                 continue
-            state.to(target, event=event, **self.transition_kwargs)
+            new_transition = transition._copy_with_args(source=state, event=event)
+
+            state.transitions.add_transitions(new_transition)
