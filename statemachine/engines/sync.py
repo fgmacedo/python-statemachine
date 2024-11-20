@@ -1,24 +1,17 @@
-from threading import Lock
 from typing import TYPE_CHECKING
-from weakref import proxy
 
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import TransitionNotAllowed
-from ..state import State
-from ..transition import Transition
+from .base import BaseEngine
 
 if TYPE_CHECKING:
-    from ..statemachine import StateMachine
+    from ..transition import Transition
 
 
-class SyncEngine:
-    def __init__(self, sm: "StateMachine", rtc: bool = True):
-        sm._engine = self
-        self.sm = proxy(sm)
-        self._sentinel = object()
-        self._rtc = rtc
-        self._processing = Lock()
+class SyncEngine(BaseEngine):
+    def start(self):
+        super().start()
         self.activate_initial_state()
 
     def activate_initial_state(self):
@@ -54,7 +47,7 @@ class SyncEngine:
         """
         if not self._rtc:
             # The machine is in "synchronous" mode
-            trigger_data = self.sm._external_queue.popleft()
+            trigger_data = self._external_queue.popleft()
             return self._trigger(trigger_data)
 
         # We make sure that only the first event enters the processing critical section,
@@ -68,8 +61,8 @@ class SyncEngine:
         first_result = self._sentinel
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self.sm._external_queue:
-                trigger_data = self.sm._external_queue.popleft()
+            while self._external_queue:
+                trigger_data = self._external_queue.popleft()
                 try:
                     result = self._trigger(trigger_data)
                     if first_result is self._sentinel:
@@ -77,19 +70,17 @@ class SyncEngine:
                 except Exception:
                     # Whe clear the queue as we don't have an expected behavior
                     # and cannot keep processing
-                    self.sm._external_queue.clear()
+                    self._external_queue.clear()
                     raise
         finally:
             self._processing.release()
         return first_result if first_result is not self._sentinel else None
 
     def _trigger(self, trigger_data: TriggerData):
-        event_data = None
+        executed = False
         if trigger_data.event == "__initial__":
-            transition = Transition(State(), self.sm._get_initial_state(), event="__initial__")
-            transition._specs.clear()
-            event_data = EventData(trigger_data=trigger_data, transition=transition)
-            self._activate(event_data)
+            transition = self._initial_transition(trigger_data)
+            self._activate(trigger_data, transition)
             return self._sentinel
 
         state = self.sm.current_state
@@ -97,45 +88,45 @@ class SyncEngine:
             if not transition.match(trigger_data.event):
                 continue
 
-            event_data = EventData(trigger_data=trigger_data, transition=transition)
-            args, kwargs = event_data.args, event_data.extended_kwargs
-            self.sm._callbacks_registry.call(transition.validators.key, *args, **kwargs)
-            if not self.sm._callbacks_registry.all(transition.cond.key, *args, **kwargs):
+            executed, result = self._activate(trigger_data, transition)
+            if not executed:
                 continue
 
-            result = self._activate(event_data)
-            event_data.result = result
-            event_data.executed = True
             break
         else:
             if not self.sm.allow_event_without_transition:
                 raise TransitionNotAllowed(trigger_data.event, state)
 
-        return event_data.result if event_data else None
+        return result if executed else None
 
-    def _activate(self, event_data: EventData):
+    def _activate(self, trigger_data: TriggerData, transition: "Transition"):
+        event_data = EventData(trigger_data=trigger_data, transition=transition)
         args, kwargs = event_data.args, event_data.extended_kwargs
-        transition = event_data.transition
-        source = event_data.state
+
+        self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
+        if not self.sm._callbacks.all(transition.cond.key, *args, **kwargs):
+            return False, None
+
+        source = transition.source
         target = transition.target
 
-        result = self.sm._callbacks_registry.call(transition.before.key, *args, **kwargs)
+        result = self.sm._callbacks.call(transition.before.key, *args, **kwargs)
         if source is not None and not transition.internal:
-            self.sm._callbacks_registry.call(source.exit.key, *args, **kwargs)
+            self.sm._callbacks.call(source.exit.key, *args, **kwargs)
 
-        result += self.sm._callbacks_registry.call(transition.on.key, *args, **kwargs)
+        result += self.sm._callbacks.call(transition.on.key, *args, **kwargs)
 
         self.sm.current_state = target
         event_data.state = target
         kwargs["state"] = target
 
         if not transition.internal:
-            self.sm._callbacks_registry.call(target.enter.key, *args, **kwargs)
-        self.sm._callbacks_registry.call(transition.after.key, *args, **kwargs)
+            self.sm._callbacks.call(target.enter.key, *args, **kwargs)
+        self.sm._callbacks.call(transition.after.key, *args, **kwargs)
 
         if len(result) == 0:
             result = None
         elif len(result) == 1:
             result = result[0]
 
-        return result
+        return True, result

@@ -70,7 +70,7 @@ class DotGraphMachine:
         if isinstance(self.machine, StateMachine):
 
             def getter(grouper) -> str:
-                return self.machine._callbacks_registry.str(grouper.key)
+                return self.machine._callbacks.str(grouper.key)
         else:
 
             def getter(grouper) -> str:
