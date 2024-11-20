@@ -1,27 +1,22 @@
-from threading import Lock
 from typing import TYPE_CHECKING
-from weakref import proxy
 
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
 from ..i18n import _
-from ..state import State
-from ..transition import Transition
+from .base import BaseEngine
 
 if TYPE_CHECKING:
     from ..statemachine import StateMachine
+    from ..transition import Transition
 
 
-class AsyncEngine:
+class AsyncEngine(BaseEngine):
     def __init__(self, sm: "StateMachine", rtc: bool = True):
-        sm._engine = self
-        self.sm = proxy(sm)
-        self._sentinel = object()
         if not rtc:
             raise InvalidDefinition(_("Only RTC is supported on async engine"))
-        self._processing = Lock()
+        super().__init__(sm=sm, rtc=rtc)
 
     async def activate_initial_state(self):
         """
@@ -65,8 +60,8 @@ class AsyncEngine:
         first_result = self._sentinel
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self.sm._external_queue:
-                trigger_data = self.sm._external_queue.popleft()
+            while self._external_queue:
+                trigger_data = self._external_queue.popleft()
                 try:
                     result = await self._trigger(trigger_data)
                     if first_result is self._sentinel:
@@ -74,19 +69,17 @@ class AsyncEngine:
                 except Exception:
                     # Whe clear the queue as we don't have an expected behavior
                     # and cannot keep processing
-                    self.sm._external_queue.clear()
+                    self._external_queue.clear()
                     raise
         finally:
             self._processing.release()
         return first_result if first_result is not self._sentinel else None
 
     async def _trigger(self, trigger_data: TriggerData):
-        event_data = None
+        executed = False
         if trigger_data.event == "__initial__":
-            transition = Transition(State(), self.sm._get_initial_state(), event="__initial__")
-            transition._specs.clear()
-            event_data = EventData(trigger_data=trigger_data, transition=transition)
-            await self._activate(event_data)
+            transition = self._initial_transition(trigger_data)
+            await self._activate(trigger_data, transition)
             return self._sentinel
 
         state = self.sm.current_state
@@ -94,51 +87,44 @@ class AsyncEngine:
             if not transition.match(trigger_data.event):
                 continue
 
-            event_data = EventData(trigger_data=trigger_data, transition=transition)
-            args, kwargs = event_data.args, event_data.extended_kwargs
-            await self.sm._callbacks_registry.async_call(
-                transition.validators.key, *args, **kwargs
-            )
-            if not await self.sm._callbacks_registry.async_all(
-                transition.cond.key, *args, **kwargs
-            ):
+            executed, result = await self._activate(trigger_data, transition)
+            if not executed:
                 continue
-
-            result = await self._activate(event_data)
-            event_data.result = result
-            event_data.executed = True
             break
         else:
             if not self.sm.allow_event_without_transition:
                 raise TransitionNotAllowed(trigger_data.event, state)
 
-        return event_data.result if event_data else None
+        return result if executed else None
 
-    async def _activate(self, event_data: EventData):
+    async def _activate(self, trigger_data: TriggerData, transition: "Transition"):
+        event_data = EventData(trigger_data=trigger_data, transition=transition)
         args, kwargs = event_data.args, event_data.extended_kwargs
-        transition = event_data.transition
-        source = event_data.state
+
+        await self.sm._callbacks.async_call(transition.validators.key, *args, **kwargs)
+        if not await self.sm._callbacks.async_all(transition.cond.key, *args, **kwargs):
+            return False, None
+
+        source = transition.source
         target = transition.target
 
-        result = await self.sm._callbacks_registry.async_call(
-            transition.before.key, *args, **kwargs
-        )
+        result = await self.sm._callbacks.async_call(transition.before.key, *args, **kwargs)
         if source is not None and not transition.internal:
-            await self.sm._callbacks_registry.async_call(source.exit.key, *args, **kwargs)
+            await self.sm._callbacks.async_call(source.exit.key, *args, **kwargs)
 
-        result += await self.sm._callbacks_registry.async_call(transition.on.key, *args, **kwargs)
+        result += await self.sm._callbacks.async_call(transition.on.key, *args, **kwargs)
 
         self.sm.current_state = target
         event_data.state = target
         kwargs["state"] = target
 
         if not transition.internal:
-            await self.sm._callbacks_registry.async_call(target.enter.key, *args, **kwargs)
-        await self.sm._callbacks_registry.async_call(transition.after.key, *args, **kwargs)
+            await self.sm._callbacks.async_call(target.enter.key, *args, **kwargs)
+        await self.sm._callbacks.async_call(transition.after.key, *args, **kwargs)
 
         if len(result) == 0:
             result = None
         elif len(result) == 1:
             result = result[0]
 
-        return result
+        return True, result

@@ -1,5 +1,4 @@
 import warnings
-from collections import deque
 from copy import deepcopy
 from inspect import isawaitable
 from threading import Lock
@@ -82,8 +81,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
-        self._external_queue: deque = deque()
-        self._callbacks_registry = CallbacksRegistry()
+        self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
 
         self._listeners: Dict[Any, Any] = {}
@@ -97,21 +95,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         # Activate the initial state, this only works if the outer scope is sync code.
         # for async code, the user should manually call `await sm.activate_initial_state()`
         # after state machine creation.
-        if self.current_state_value is None:
-            trigger_data = TriggerData(
-                machine=self,
-                event=BoundEvent("__initial__", _sm=self),
-            )
-            self._put_nonblocking(trigger_data)
+        self._engine = self._get_engine(rtc)
+        self._engine.start()
 
-        self._engine: AsyncEngine | SyncEngine | None = None
-        self._select_engine(rtc)
+    def _get_engine(self, rtc: bool):
+        if self._callbacks.has_async_callbacks:
+            return AsyncEngine(self, rtc=rtc)
 
-    def _select_engine(self, rtc: bool):
-        if self._callbacks_registry.has_async_callbacks:
-            AsyncEngine(self, rtc=rtc)
-        else:
-            SyncEngine(self, rtc=rtc)
+        return SyncEngine(self, rtc=rtc)
 
     def activate_initial_state(self):
         result = self._engine.activate_initial_state()
@@ -151,17 +142,17 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 self.__deepcopy__ = deepcopy_method
                 cp.__deepcopy__ = deepcopy_method
                 self._engine._processing = lock
-        cp._callbacks_registry.clear()
+        cp._callbacks.clear()
         cp._register_callbacks([])
         cp.add_listener(*cp._listeners.keys())
         return cp
 
     def _get_initial_state(self):
-        current_state_value = self.start_value if self.start_value else self.initial_state.value
+        initial_state_value = self.start_value if self.start_value else self.initial_state.value
         try:
-            return self.states_map[current_state_value]
+            return self.states_map[initial_state_value]
         except KeyError as err:
-            raise InvalidStateValue(current_state_value) from err
+            raise InvalidStateValue(initial_state_value) from err
 
     def bind_events_to(self, *targets):
         """Bind the state machine events to the target objects."""
@@ -179,7 +170,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 setattr(target, event, trigger)
 
     def _add_listener(self, listeners: "Listeners", allowed_references: SpecReference = SPECS_ALL):
-        registry = self._callbacks_registry
+        registry = self._callbacks
         for visited in iterate_states_and_transitions(self.states):
             listeners.resolve(
                 visited._specs,
@@ -201,7 +192,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             )
         )
 
-        check_callbacks = self._callbacks_registry.check
+        check_callbacks = self._callbacks.check
         for visited in iterate_states_and_transitions(self.states):
             try:
                 check_callbacks(visited._specs)
@@ -210,7 +201,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                     f"Error on {visited!s} when resolving callbacks: {err}"
                 ) from err
 
-        self._callbacks_registry.async_or_sync()
+        self._callbacks.async_or_sync()
 
     def add_observer(self, *observers):
         """Add a listener."""
@@ -304,7 +295,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _put_nonblocking(self, trigger_data: TriggerData):
         """Put the trigger on the queue without blocking the caller."""
-        self._external_queue.append(trigger_data)
+        self._engine.put(trigger_data)
 
     def send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
