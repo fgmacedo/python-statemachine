@@ -61,7 +61,7 @@ class SyncEngine(BaseEngine):
         first_result = self._sentinel
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self._external_queue:
+            while self._running and self._external_queue:
                 trigger_data = self._external_queue.popleft()
                 try:
                     result = self._trigger(trigger_data)
@@ -99,7 +99,7 @@ class SyncEngine(BaseEngine):
 
         return result if executed else None
 
-    def _activate(self, trigger_data: TriggerData, transition: "Transition"):
+    def _activate(self, trigger_data: TriggerData, transition: "Transition"):  # noqa: C901
         event_data = EventData(trigger_data=trigger_data, transition=transition)
         args, kwargs = event_data.args, event_data.extended_kwargs
 
@@ -123,6 +123,10 @@ class SyncEngine(BaseEngine):
         if not transition.internal:
             self.sm._callbacks.call(target.enter.key, *args, **kwargs)
         self.sm._callbacks.call(transition.after.key, *args, **kwargs)
+
+        if target.final:
+            self._external_queue.clear()
+            self._running = False
 
         if len(result) == 0:
             result = None

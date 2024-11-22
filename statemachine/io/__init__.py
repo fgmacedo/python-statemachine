@@ -6,9 +6,7 @@ from ..statemachine import StateMachine
 from ..transition_list import TransitionList
 
 
-def create_machine_class_from_definition(
-    name: str, definition: dict, **extra_kwargs
-) -> StateMachine:
+def create_machine_class_from_definition(name: str, definition: dict) -> StateMachine:
     """
     Creates a StateMachine class from a dictionary definition, using the StateMachineMetaclass.
 
@@ -35,11 +33,12 @@ def create_machine_class_from_definition(
     """
 
     states_instances = {
-        state_id: State(**state_kwargs) for state_id, state_kwargs in definition["states"].items()
+        state_id: State(**state_kwargs)
+        for state_id, state_kwargs in definition.pop("states").items()
     }
 
     events: Dict[str, TransitionList] = {}
-    for event_name, transitions in definition["events"].items():
+    for event_name, transitions in definition.pop("events").items():
         for transition_data in transitions:
             source = states_instances[transition_data["from"]]
             target = states_instances[transition_data["to"]]
@@ -59,6 +58,5 @@ def create_machine_class_from_definition(
             elif event_name is not None:
                 events[event_name] = transition
 
-    attrs_mapper = {**extra_kwargs, **states_instances, **events}
-
+    attrs_mapper = {**definition, **states_instances, **events}
     return StateMachineMetaclass(name, (StateMachine,), attrs_mapper)  # type: ignore[return-value]

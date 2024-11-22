@@ -2,12 +2,13 @@
 Simple SCXML parser that converts SCXML documents to state machine definitions.
 """
 
+import re
 import xml.etree.ElementTree as ET
-from functools import partial
 from typing import Any
 from typing import Dict
 from typing import List
 
+from statemachine.model import Model
 from statemachine.statemachine import StateMachine
 
 
@@ -15,8 +16,192 @@ def send_event(machine: StateMachine, event_to_send: str) -> None:
     machine.send(event_to_send)
 
 
-def assign(model, location, expr):
-    pass
+def parse_onentry(element):
+    """Parses the <onentry> XML into a callable."""
+    actions = [parse_element(child) for child in element]
+
+    def execute_block(*args, **kwargs):
+        for action in actions:
+            action(*args, **kwargs)
+
+    return execute_block
+
+
+def parse_element(element):
+    """Parses an individual XML element into a callable."""
+    tag = element.tag
+    if tag == "raise":
+        return parse_raise(element)
+    elif tag == "assign":
+        return parse_assign(element)
+    elif tag == "log":
+        return parse_log(element)
+    elif tag == "if":
+        return parse_if(element)
+    else:
+        raise ValueError(f"Unknown tag: {tag}")
+
+
+def parse_raise(element):
+    """Parses the <raise> element into a callable."""
+    event = element.attrib["event"]
+
+    def raise_action(*args, **kwargs):
+        machine = kwargs["machine"]
+        machine.send(event)
+
+    return raise_action
+
+
+def parse_log(element):
+    """Parses the <log> element into a callable."""
+    label = element.attrib["label"]
+    expr = element.attrib["expr"]
+
+    def raise_log(*args, **kwargs):
+        machine = kwargs["machine"]
+        kwargs.update(machine.model.__dict__)
+        value = eval(expr, {}, kwargs)
+        print(f"{label}: {value!r}")
+
+    return raise_log
+
+
+def parse_assign(element):
+    """Parses the <assign> element into a callable."""
+    location = element.attrib["location"]
+    expr = element.attrib["expr"]
+
+    def assign_action(*args, **kwargs):
+        machine = kwargs["machine"]
+        value = eval(expr, {}, {"machine": machine, **machine.model.__dict__})
+        setattr(machine.model, location, value)
+
+    return assign_action
+
+
+def _normalize_cond(cond: "str | None") -> "str | None":
+    """
+    Normalizes a JavaScript-like condition string to be compatible with Python's eval.
+
+    - Replaces `true` with `True`.
+    - Replaces `false` with `False`.
+    - Replaces `null` with `None`.
+    - Ensures equality operators `===` and `!==` are converted to Python's `==` and `!=`.
+    - Handles logical operators `&&` and `||` converting them to `and` and `or`.
+    """
+    if cond is None:
+        return None
+
+    replacements = {
+        "true": "True",
+        "false": "False",
+        "null": "None",
+        "===": "==",
+        "!==": "!=",
+        "&&": "and",
+        "||": "or",
+    }
+
+    # Use regex to replace each JavaScript-like token with its Python equivalent
+    pattern = re.compile(r"\b(?:true|false|null)\b|===|!==|&&|\|\|")
+    return pattern.sub(lambda match: replacements[match.group(0)], cond)
+
+
+def parse_if(element):  # noqa: C901
+    """Parses the <if> element into a callable."""
+    branches = []
+    else_branch = []
+
+    current_cond = _normalize_cond(element.attrib.get("cond"))
+    current_actions = []
+
+    for child in element:
+        tag = child.tag
+        if tag in ("elseif", "else"):
+            # Save the current branch before starting a new one
+            if current_cond is not None:
+                branches.append((current_cond, current_actions))
+            elif tag == "else":
+                else_branch = current_actions
+
+            # Update for the new branch
+            current_cond = _normalize_cond(child.attrib.get("cond"))
+            current_actions = []
+        else:
+            # Add the action to the current branch
+            current_actions.append(parse_element(child))
+
+    # Add the last branch if needed
+    if current_cond is not None:
+        branches.append((current_cond, current_actions))
+
+    def if_action(*args, **kwargs):
+        machine = kwargs["machine"]
+        # Evaluate each branch in order
+        for cond, actions in branches:
+            if eval(cond, {}, {"machine": machine, **machine.model.__dict__}):
+                for action in actions:
+                    action(*args, **kwargs)
+                return
+        # Execute the else branch if no condition matches
+        for action in else_branch:
+            action(*args, **kwargs)
+
+    return if_action
+
+
+def parse_datamodel(element):
+    """
+    Parses the <datamodel> element into a callable that initializes the state machine model.
+
+    Each <data> element defines a variable with an `id` and an optional `expr`.
+    """
+    data_elements = [parse_data(child) for child in element]
+
+    def __init__(
+        self,
+        model: Any = None,
+        state_field: str = "state",
+        start_value: Any = None,
+        rtc: bool = True,
+        allow_event_without_transition: bool = False,
+        listeners: "List[object] | None" = None,
+    ):
+        model = model if model else Model()
+        for data_action in data_elements:
+            data_action(model)
+
+        StateMachine.__init__(
+            self,
+            model,
+            state_field=state_field,
+            start_value=start_value,
+            rtc=rtc,
+            allow_event_without_transition=allow_event_without_transition,
+            listeners=listeners,
+        )
+
+    return __init__
+
+
+def parse_data(element):
+    """
+    Parses a single <data> element into a callable.
+
+    - `id` is the variable name.
+    - `expr` is the initial value expression (optional).
+    """
+    data_id = element.attrib["id"]
+    expr = element.attrib.get("expr")
+
+    def data_initializer(model):
+        # Evaluate the expression if provided, or set to None
+        context = model.__dict__
+        value = eval(expr, {}, context) if expr else None
+        setattr(model, data_id, value)
+
+    return data_initializer
 
 
 def strip_namespaces(tree):
@@ -99,13 +284,11 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
                 )
 
         for onentry_elem in state_elem.findall("onentry"):
-            for raise_elem in onentry_elem.findall("raise"):
-                event = raise_elem.get("event")
-                if event:
-                    state = states[state_id]
-                    if "enter" not in state:
-                        state["enter"] = []
-                    state["enter"].append(partial(send_event, event_to_send=event))
+            entry_action = parse_onentry(onentry_elem)
+            state = states[state_id]
+            if "enter" not in state:
+                state["enter"] = []
+            state["enter"].append(entry_action)
 
     # First pass: collect all states and mark initial
     for state_elem in scxml.findall(".//state"):
@@ -115,12 +298,18 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
     for state_elem in scxml.findall(".//final"):
         _parse_state(state_elem, final=True)
 
+    extra_data = {
+        "allow_event_without_transition": True,
+    }
+
+    # To initialize the data model, we override the SM __init__ method
+    datamodel = scxml.find("datamodel")
+    if datamodel is not None:
+        extra_data["__init__"] = parse_datamodel(datamodel)
+
     # If no initial state was specified, mark the first state as initial
     if not initial_state and states:
         first_state = next(iter(states))
         states[first_state]["initial"] = True
 
-    return {
-        "states": states,
-        "events": events,
-    }
+    return {"states": states, "events": events, **extra_data}
