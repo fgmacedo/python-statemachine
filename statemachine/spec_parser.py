@@ -51,6 +51,23 @@ def custom_and(left: Callable, right: Callable) -> Callable:
     return decorated
 
 
+def build_custom_operator(operator) -> Callable:
+    def custom_comparator(left: Callable, right: Callable) -> Callable:
+        def decorated(*args, **kwargs) -> bool:
+            return bool(operator(left(*args, **kwargs), right(*args, **kwargs)))
+
+        return decorated
+
+    return custom_comparator
+
+
+def build_constant(constant) -> Callable:
+    def decorated(*args, **kwargs):
+        return constant
+
+    return decorated
+
+
 def custom_or(left: Callable, right: Callable) -> Callable:
     def decorated(*args, **kwargs) -> bool:
         return left(*args, **kwargs) or right(*args, **kwargs)  # type: ignore[no-any-return]
@@ -118,9 +135,13 @@ def build_expression(node, variable_hook, operator_mapping):  # noqa: C901
         node, ast.NameConstant
     ):  # pragma: no cover  | python3.7
         return build_constant(node.value)
-    elif hasattr(ast, "Str") and isinstance(node, ast.Str):  # pragma: no cover  | python3.7
+    elif hasattr(ast, "Str") and isinstance(
+        node, ast.Str
+    ):  # pragma: no cover  | python3.7
         return build_constant(node.s)
-    elif hasattr(ast, "Num") and isinstance(node, ast.Num):  # pragma: no cover | python3.7
+    elif hasattr(ast, "Num") and isinstance(
+        node, ast.Num
+    ):  # pragma: no cover | python3.7
         return build_constant(node.n)
     else:
         raise ValueError(f"Unsupported expression structure: {node.__class__.__name__}")
