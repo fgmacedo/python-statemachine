@@ -1,7 +1,8 @@
 version = 1
 requires-python = ">=3.7"
 resolution-markers = [
-    "python_full_version < '3.9'",
+    "python_full_version < '3.8'",
+    "python_full_version == '3.8.*'",
     "python_full_version == '3.9.*'",
     "python_full_version == '3.10.*'",
     "python_full_version >= '3.11'",
@@ -216,6 +217,15 @@ wheels = [
 ]
 
 [[package]]
+name = "commonmark"
+version = "0.9.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/48/a60f593447e8f0894ebb7f6e6c1f25dafc5e89c5879fdc9360ae93ff83f0/commonmark-0.9.1.tar.gz", hash = "sha256:452f9dc859be7f06631ddcb328b6919c67984aca654e5fefb3914d54691aed60", size = 95764 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/92/dfd892312d822f36c55366118b95d914e5f16de11044a27cf10a7d71bbbf/commonmark-0.9.1-py2.py3-none-any.whl", hash = "sha256:da2f38c92590f83de410ba1a3cbceafbc74fee9def35f9251ba9a971d6d66fd9", size = 51068 },
+]
+
+[[package]]
 name = "coverage"
 version = "7.2.7"
 source = { registry = "https://pypi.org/simple" }
@@ -343,7 +353,7 @@ version = "2024.8.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4", marker = "python_full_version >= '3.9'" },
-    { name = "pygments", marker = "python_full_version >= '3.9'" },
+    { name = "pygments", version = "2.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "sphinx", marker = "python_full_version >= '3.9'" },
     { name = "sphinx-basic-ng", marker = "python_full_version >= '3.9'" },
 ]
@@ -394,7 +404,7 @@ version = "6.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.8'" },
-    { name = "zipp", marker = "python_full_version < '3.10'" },
+    { name = "zipp", marker = "python_full_version < '3.8' or python_full_version == '3.9.*'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a3/82/f6e29c8d5c098b6be61460371c2c5591f4a335923639edec43b3830650a4/importlib_metadata-6.7.0.tar.gz", hash = "sha256:1aaf550d4f73e5d6783e7acb77aec43d49da8017410afae93822cc9cca98c4d4", size = 53569 }
 wheels = [
@@ -611,8 +621,8 @@ name = "pdbr"
 version = "0.8.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyreadline3", marker = "python_full_version >= '3.9' and sys_platform == 'win32'" },
-    { name = "rich", marker = "python_full_version >= '3.9'" },
+    { name = "pyreadline3", marker = "python_full_version >= '3.8' and sys_platform == 'win32'" },
+    { name = "rich", marker = "python_full_version >= '3.8'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/29/1d/40420fda7c53fd071d8f62dcdb550c9f82fee54c2fda6842337890d87334/pdbr-0.8.9.tar.gz", hash = "sha256:3e0e1fb78761402bcfc0713a9c73acc2f639406b1b8da7233c442b965eee009d", size = 15942 }
 wheels = [
@@ -718,7 +728,8 @@ name = "pluggy"
 version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.9'",
+    "python_full_version < '3.8'",
+    "python_full_version == '3.8.*'",
     "python_full_version == '3.9.*'",
 ]
 dependencies = [
@@ -782,8 +793,25 @@ wheels = [
 
 [[package]]
 name = "pygments"
+version = "2.17.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.8.*'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/55/59/8bccf4157baf25e4aa5a0bb7fa3ba8600907de105ebc22b0c78cfbf6f565/pygments-2.17.2.tar.gz", hash = "sha256:da46cec9fd2de5be3a8a784f434e4c4ab670b4ff54d605c4c2717e9d49c4c367", size = 4827772 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/97/9c/372fef8377a6e340b1704768d20daaded98bf13282b5327beb2e2fe2c7ef/pygments-2.17.2-py3-none-any.whl", hash = "sha256:b27c2826c47d0f3219f29554824c30c5e8945175d888647acd804ddd04af846c", size = 1179756 },
+]
+
+[[package]]
+name = "pygments"
 version = "2.18.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.9.*'",
+    "python_full_version == '3.10.*'",
+    "python_full_version >= '3.11'",
+]
 sdist = { url = "https://files.pythonhosted.org/packages/8e/62/8336eff65bcbc8e4cb5d05b55faf041285951b6e80f33e2bff2024788f31/pygments-2.18.0.tar.gz", hash = "sha256:786ff802f32e91311bff3889f6e9a86e81505fe99f2735bb6d60ae0c5004f199", size = 4891905 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/3f/01c8b82017c199075f8f788d0d906b9ffbbc5a47dc9918a945e13d5a2bda/pygments-2.18.0-py3-none-any.whl", hash = "sha256:b8e6aca0523f3ab76fee51799c488e38782ac06eafcf95e7ba832985c8e7b13a", size = 1205513 },
@@ -808,11 +836,21 @@ wheels = [
 ]
 
 [[package]]
+name = "pyreadline3"
+version = "3.5.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/49/4cea918a08f02817aabae639e3d0ac046fef9f9180518a3ad394e22da148/pyreadline3-3.5.4.tar.gz", hash = "sha256:8d57d53039a1c75adba8e50dd3d992b28143480816187ea5efbd5c78e6c885b7", size = 99839 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/dc/491b7661614ab97483abf2056be1deee4dc2490ecbf7bff9ab5cdbac86e1/pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6", size = 83178 },
+]
+
+[[package]]
 name = "pytest"
 version = "7.4.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.9'",
+    "python_full_version < '3.8'",
+    "python_full_version == '3.8.*'",
     "python_full_version == '3.9.*'",
 ]
 dependencies = [
@@ -869,7 +907,8 @@ name = "pytest-benchmark"
 version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.9'",
+    "python_full_version < '3.8'",
+    "python_full_version == '3.8.*'",
     "python_full_version == '3.9.*'",
 ]
 dependencies = [
@@ -969,9 +1008,10 @@ dev = [
     { name = "furo", marker = "python_full_version >= '3.9'" },
     { name = "mypy" },
     { name = "myst-parser", marker = "python_full_version >= '3.9'" },
-    { name = "pdbr", marker = "python_full_version >= '3.9'" },
+    { name = "pdbr", marker = "python_full_version >= '3.8'" },
     { name = "pillow", marker = "python_full_version >= '3.9'" },
     { name = "pre-commit" },
+    { name = "pydot" },
     { name = "pydot" },
     { name = "pytest", version = "7.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "8.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -998,9 +1038,10 @@ dev = [
     { name = "furo", marker = "python_full_version >= '3.9'", specifier = ">=2024.5.6" },
     { name = "mypy" },
     { name = "myst-parser", marker = "python_full_version >= '3.9'" },
-    { name = "pdbr", marker = "python_full_version >= '3.9'", specifier = ">=0.8.9" },
+    { name = "pdbr", marker = "python_full_version >= '3.8'", specifier = ">=0.8.9" },
     { name = "pillow", marker = "python_full_version >= '3.9'" },
     { name = "pre-commit" },
+    { name = "pydot" },
     { name = "pydot" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1085,16 +1126,17 @@ wheels = [
 
 [[package]]
 name = "rich"
-version = "13.9.4"
+version = "10.16.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markdown-it-py", marker = "python_full_version >= '3.9'" },
-    { name = "pygments", marker = "python_full_version >= '3.9'" },
-    { name = "typing-extensions", marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
+    { name = "colorama", marker = "python_full_version >= '3.8'" },
+    { name = "commonmark", marker = "python_full_version >= '3.8'" },
+    { name = "pygments", version = "2.17.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.8.*'" },
+    { name = "pygments", version = "2.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ab/3a/0316b28d0761c6734d6bc14e770d85506c986c85ffb239e688eeaab2c2bc/rich-13.9.4.tar.gz", hash = "sha256:439594978a49a09530cff7ebc4b5c7103ef57baf48d5ea3184f21d9a2befa098", size = 223149 }
+sdist = { url = "https://files.pythonhosted.org/packages/74/c3/e55ebdd66540503cee29cd3bb18a90bcfd5587a0cf3680173c368be56093/rich-10.16.2.tar.gz", hash = "sha256:720974689960e06c2efdb54327f8bf0cdbdf4eae4ad73b6c94213cad405c371b", size = 197585 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/19/71/39c7c0d87f8d4e6c020a393182060eaefeeae6c01dab6a84ec346f2567df/rich-13.9.4-py3-none-any.whl", hash = "sha256:6049d5e6ec054bf2779ab3358186963bac2ea89175919d699e378b99738c2a90", size = 242424 },
+    { url = "https://files.pythonhosted.org/packages/0a/0d/58939059015dce00122b008c3edccbb68f0767126020c939116e6d764cd7/rich-10.16.2-py3-none-any.whl", hash = "sha256:c59d73bd804c90f747c8d7b1d023b88f2a9ac2454224a4aeaf959b21eeb42d03", size = 214400 },
 ]
 
 [[package]]
@@ -1162,7 +1204,7 @@ dependencies = [
     { name = "importlib-metadata", marker = "python_full_version == '3.9.*'" },
     { name = "jinja2", marker = "python_full_version >= '3.9'" },
     { name = "packaging", marker = "python_full_version >= '3.9'" },
-    { name = "pygments", marker = "python_full_version >= '3.9'" },
+    { name = "pygments", version = "2.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "requests", marker = "python_full_version >= '3.9'" },
     { name = "snowballstemmer", marker = "python_full_version >= '3.9'" },
     { name = "sphinxcontrib-applehelp", marker = "python_full_version >= '3.9'" },
@@ -1288,11 +1330,11 @@ wheels = [
 
 [[package]]
 name = "sqlparse"
-version = "0.5.1"
+version = "0.4.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/73/82/dfa23ec2cbed08a801deab02fe7c904bfb00765256b155941d789a338c68/sqlparse-0.5.1.tar.gz", hash = "sha256:bb6b4df465655ef332548e24f08e205afc81b9ab86cb1c45657a7ff173a3a00e", size = 84502 }
+sdist = { url = "https://files.pythonhosted.org/packages/65/16/10f170ec641ed852611b6c9441b23d10b5702ab5288371feab3d36de2574/sqlparse-0.4.4.tar.gz", hash = "sha256:d446183e84b8349fa3061f0fe7f06ca94ba65b426946ffebe6e3e8295332420c", size = 72383 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/a5/b2860373aa8de1e626b2bdfdd6df4355f0565b47e51f7d0c54fe70faf8fe/sqlparse-0.5.1-py3-none-any.whl", hash = "sha256:773dcbf9a5ab44a090f3441e2180efe2560220203dc2f8c0b0fa141e18b505e4", size = 44156 },
+    { url = "https://files.pythonhosted.org/packages/98/5a/66d7c9305baa9f11857f247d4ba761402cea75db6058ff850ed7128957b7/sqlparse-0.4.4-py3-none-any.whl", hash = "sha256:5430a4fe2ac7d0f93e66f1efc6e1338a41884b7ddf2a350cedd20ccc4d9d28f3", size = 41183 },
 ]
 
 [[package]]

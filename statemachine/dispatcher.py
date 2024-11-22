@@ -166,7 +166,7 @@ class Listeners:
                     yield listener.build_key(spec.attr_name), partial(callable_method, func)
                     return
 
-        yield f"{spec.attr_name}@None", partial(callable_method, spec.func)
+        yield f"{spec.attr_name}-{id(spec.func)}@None", partial(callable_method, spec.func)
 
     def search_name(self, name):
         for listener in self.items:

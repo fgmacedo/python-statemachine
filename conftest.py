@@ -6,8 +6,7 @@ import pytest
 
 @pytest.fixture(autouse=True, scope="session")
 def add_doctest_context(doctest_namespace):  # noqa: PT004
-    from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import State, StateMachine
     from statemachine.utils import run_async_from_sync
 
     class ContribAsyncio:
@@ -43,3 +42,31 @@ def has_dot_installed():
 def requires_dot_installed(request, has_dot_installed):
     if not has_dot_installed:
         pytest.skip(f"Test {request.node.nodeid} requires 'dot' that is not installed.")
+
+
+# @pytest.fixture(autouse=True, scope="module")
+# def mock_dot_write(request):
+#     """
+#     This fixture avoids updating files while executing tests
+#     """
+
+#     def open_effect(
+#         filename,
+#         mode="r",
+#         *args,
+#         **kwargs,
+#     ):
+#         if mode in ("r", "rt", "rb"):
+#             return open(filename, mode, *args, **kwargs)
+#         elif filename.startswith("/tmp/"):
+#             return open(filename, mode, *args, **kwargs)
+#         elif "b" in mode:
+#             return io.BytesIO()
+#         else:
+#             return io.StringIO()
+
+#     # using global mock instead of the fixture mocker due to the ScopeMismatch
+#     # this fixture is module scoped and mocker is function scoped
+#     with mock.patch("pydot.core.io.open", spec=True) as m:
+#         m.side_effect = open_effect
+#         yield m
