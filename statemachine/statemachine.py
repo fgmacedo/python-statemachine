@@ -149,19 +149,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def __reduce__(self):
         state = {
-            "model": self.model,
-            "state_field": self.state_field,
-            "start_value": self.start_value,
             "rtc": self._engine._rtc,
             "allow_event_without_transition": self.allow_event_without_transition,
             "listeners": self._listeners,
         }
-        return (self.__class__, (), state)
+        return (self.__class__, (self.model, self.state_field, self.start_value), state)
 
     def __setstate__(self, state):
-        self.model = state["model"]
-        self.state_field = state["state_field"]
-        self.start_value = state["start_value"]
         self.allow_event_without_transition = state["allow_event_without_transition"]
         self._listeners = state["listeners"]
         self._register_callbacks([])
