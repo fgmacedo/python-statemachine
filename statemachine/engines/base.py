@@ -5,6 +5,7 @@ from weakref import proxy
 
 from ..event import BoundEvent
 from ..event_data import TriggerData
+from ..exceptions import TransitionNotAllowed
 from ..state import State
 from ..transition import Transition
 
@@ -19,9 +20,12 @@ class BaseEngine:
         self._sentinel = object()
         self._rtc = rtc
         self._processing = Lock()
+        self._running = True
 
     def put(self, trigger_data: TriggerData):
         """Put the trigger on the queue without blocking the caller."""
+        if not self._running and not self.sm.allow_event_without_transition:
+            raise TransitionNotAllowed(trigger_data.event, self.sm.current_state)
         self._external_queue.append(trigger_data)
 
     def start(self):

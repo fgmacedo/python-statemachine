@@ -313,3 +313,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
+
+    @property
+    def is_terminated(self):
+        return self._engine.is_terminated
