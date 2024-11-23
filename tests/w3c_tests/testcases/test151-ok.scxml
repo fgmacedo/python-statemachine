@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest151" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+	that foreach causes a new variable to be declared if 'item' doesn't already exist.  Also
+test that it will use an existing var if it does exist.-->
+	<datamodel>
+		<data id="Var1" />
+		<data id="Var2" />
+		<data id="Var3">
+			[1,2,3]
+		</data>
+	</datamodel>
+	<state id="s0">
+		<onentry><!--first
+			use declared variables-->
+			<foreach array="Var3" index="Var2" item="Var1" />
+			<raise event="foo" />
+		</onentry>
+		<transition event="error" target="fail" />
+		<transition event="*" target="s1" />
+	</state>
+	<state id="s1">
+		<onentry><!--now
+			use undeclared variables-->
+			<foreach array="Var3" index="Var5" item="Var4" />
+			<raise event="bar" />
+		</onentry>
+		<transition event="error" target="fail" />
+		<transition event="*" target="s2" />
+	</state>
+	<state id="s2"><!--check
+		that var5 is bound-->
+		<transition cond="Var5" target="pass" />
+		<transition target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

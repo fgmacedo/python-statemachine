@@ -12,17 +12,17 @@ from statemachine.model import Model
 from statemachine.statemachine import StateMachine
 
 
-def send_event(machine: StateMachine, event_to_send: str) -> None:
-    machine.send(event_to_send)
-
-
 def parse_onentry(element):
     """Parses the <onentry> XML into a callable."""
     actions = [parse_element(child) for child in element]
 
     def execute_block(*args, **kwargs):
-        for action in actions:
-            action(*args, **kwargs)
+        machine = kwargs["machine"]
+        try:
+            for action in actions:
+                action(*args, **kwargs)
+        except Exception:
+            machine.send("error.execution")
 
     return execute_block
 
@@ -34,6 +34,8 @@ def parse_element(element):
         return parse_raise(element)
     elif tag == "assign":
         return parse_assign(element)
+    elif tag == "foreach":
+        return parse_foreach(element)
     elif tag == "log":
         return parse_log(element)
     elif tag == "if":
@@ -80,6 +82,58 @@ def parse_assign(element):
     return assign_action
 
 
+def parse_foreach(element):  # noqa: C901
+    """
+    Parses the <foreach> element into a callable.
+
+    - `array`: The iterable collection (required).
+    - `item`: The variable name for the current item (required).
+    - `index`: The variable name for the current index (optional).
+    - Child elements are executed for each iteration.
+    """
+    array_expr = element.attrib.get("array")
+    if not array_expr:
+        raise ValueError("<foreach> must have an 'array' attribute")
+
+    item_var = element.attrib.get("item")
+    if not item_var:
+        raise ValueError("<foreach> must have an 'item' attribute")
+
+    index_var = element.attrib.get("index")
+    child_actions = [parse_element(child) for child in element]
+
+    def foreach_action(*args, **kwargs):  # noqa: C901
+        machine = kwargs["machine"]
+        context = {**machine.model.__dict__}  # Shallow copy of the model's attributes
+
+        try:
+            # Evaluate the array expression to get the iterable
+            array = eval(array_expr, {}, context)
+            if not hasattr(array, "__iter__"):
+                raise ValueError(
+                    f"<foreach> 'array' must evaluate to an iterable, got: {type(array).__name__}"
+                )
+        except Exception as e:
+            raise ValueError(f"Error evaluating <foreach> 'array' expression: {e}") from e
+
+        if not item_var.isidentifier():
+            raise ValueError(
+                f"<foreach> 'item' must be a valid Python attribute name, got: {item_var}"
+            )
+        # Iterate over the array
+        for index, item in enumerate(array):
+            # Assign the item and optionally the index
+            setattr(machine.model, item_var, item)
+            if index_var:
+                setattr(machine.model, index_var, index)
+
+            # Execute child actions
+            for action in child_actions:
+                action(*args, **kwargs)
+
+    return foreach_action
+
+
 def _normalize_cond(cond: "str | None") -> "str | None":
     """
     Normalizes a JavaScript-like condition string to be compatible with Python's eval.
@@ -106,6 +160,19 @@ def _normalize_cond(cond: "str | None") -> "str | None":
     # Use regex to replace each JavaScript-like token with its Python equivalent
     pattern = re.compile(r"\b(?:true|false|null)\b|===|!==|&&|\|\|")
     return pattern.sub(lambda match: replacements[match.group(0)], cond)
+
+
+def parse_cond(cond):
+    """Parses the <cond> element into a callable."""
+    cond = _normalize_cond(cond)
+    if cond is None:
+        return None
+
+    def cond_action(*args, **kwargs):
+        machine = kwargs["machine"]
+        return eval(cond, {}, {"machine": machine, **machine.model.__dict__})
+
+    return cond_action
 
 
 def parse_if(element):  # noqa: C901
@@ -198,6 +265,8 @@ def parse_data(element):
     """
     data_id = element.attrib["id"]
     expr = element.attrib.get("expr")
+    if not expr:
+        expr = element.text and element.text.strip()
 
     def data_initializer(model):
         # Evaluate the expression if provided, or set to None
@@ -230,19 +299,8 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
     Parse SCXML content and return a dictionary definition compatible with
     create_machine_class_from_definition.
 
-    The returned dictionary has the format:
-    {
-        "states": {
-            "state_id": {"initial": True},
-            ...
-        },
-        "events": {
-            "event_name": [
-                {"from": "source_state", "to": "target_state"},
-                ...
-            ]
-        }
-    }
+    The returned dictionary has the format compatible with
+    :ref:`create_machine_class_from_definition`.
     """
     # Parse XML content
     root = ET.fromstring(scxml_content)
@@ -258,7 +316,6 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
 
     # Build states dictionary
     states = {}
-    events: Dict[str, List[Dict[str, str]]] = {}
 
     def _parse_state(state_elem, final=False):  # noqa: C901
         state_id = state_elem.get("id")
@@ -272,20 +329,20 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
         for trans_elem in state_elem.findall("transition"):
             event = trans_elem.get("event") or None
             target = trans_elem.get("target")
+            cond = parse_cond(trans_elem.get("cond"))
 
             if target:
-                if event not in events:
-                    events[event] = []
+                state = states[state_id]
+                if "on" not in state:
+                    state["on"] = {}
+
+                if event not in state["on"]:
+                    state["on"][event] = {"target": target}
+                    if cond:
+                        state["on"][event]["cond"] = cond
 
                 if target not in states:
                     states[target] = {}
-
-                events[event].append(
-                    {
-                        "from": state_id,
-                        "to": target,
-                    }
-                )
 
         for onentry_elem in state_elem.findall("onentry"):
             entry_action = parse_onentry(onentry_elem)
@@ -316,4 +373,4 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
         first_state = next(iter(states))
         states[first_state]["initial"] = True
 
-    return {"states": states, "events": events, **extra_data}
+    return {"states": states, **extra_data}

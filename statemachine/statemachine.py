@@ -82,7 +82,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
 
-        self._listeners: Dict[Any, Any] = {}
+        self._listeners: Dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
 
         if self._abstract:
@@ -182,7 +182,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return self
 
     def _register_callbacks(self, listeners: List[object]):
-        self._listeners.update({listener: None for listener in listeners})
+        self._listeners.update({id(listener): listener for listener in listeners})
         self._add_listener(
             Listeners.from_listeners(
                 (
@@ -223,9 +223,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
             :ref:`listeners`.
         """
-        self._listeners.update({o: None for o in listeners})
+        self._listeners.update({id(listener): listener for listener in listeners})
         return self._add_listener(
-            Listeners.from_listeners(Listener.from_obj(o) for o in listeners),
+            Listeners.from_listeners(Listener.from_obj(listener) for listener in listeners),
             allowed_references=SPECS_SAFE,
         )
 

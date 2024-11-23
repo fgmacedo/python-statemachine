@@ -32,8 +32,10 @@ class AttrNotFound(InvalidDefinition):
 class TransitionNotAllowed(StateMachineError):
     "Raised when there's no transition that can run from the current :ref:`state`."
 
-    def __init__(self, event: "Event", state: "State"):
+    def __init__(self, event: "Event | None", state: "State"):
         self.event = event
         self.state = state
-        msg = _("Can't {} when in {}.").format(self.event.name, self.state.name)
+        msg = _("Can't {} when in {}.").format(
+            self.event and self.event.name or "transition", self.state.name
+        )
         super().__init__(msg)

@@ -145,3 +145,7 @@ class Transition:
             new_transition._specs.add(new_spec, new_spec.group)
 
         return new_transition
+
+    @property
+    def is_eventless(self):
+        return self._events.is_empty

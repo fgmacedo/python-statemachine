@@ -76,7 +76,7 @@ class SyncEngine(BaseEngine):
             self._processing.release()
         return first_result if first_result is not self._sentinel else None
 
-    def _trigger(self, trigger_data: TriggerData):
+    def _trigger(self, trigger_data: TriggerData):  # noqa: C901
         executed = False
         if trigger_data.event == "__initial__":
             transition = self._initial_transition(trigger_data)
@@ -92,6 +92,8 @@ class SyncEngine(BaseEngine):
             if not executed:
                 continue
 
+            if self.sm.current_state.transitions.has_eventless_transition:
+                self.put(TriggerData(self.sm, event=None))
             break
         else:
             if not self.sm.allow_event_without_transition:

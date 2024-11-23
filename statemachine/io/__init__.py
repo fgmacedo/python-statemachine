@@ -6,7 +6,7 @@ from ..statemachine import StateMachine
 from ..transition_list import TransitionList
 
 
-def create_machine_class_from_definition(name: str, definition: dict) -> StateMachine:
+def create_machine_class_from_definition(name: str, definition: dict) -> StateMachine:  # noqa: C901
     """
     Creates a StateMachine class from a dictionary definition, using the StateMachineMetaclass.
 
@@ -16,32 +16,30 @@ def create_machine_class_from_definition(name: str, definition: dict) -> StateMa
     ...     "TrafficLightMachine",
     ...     {
     ...         "states": {
-    ...             "green": {"initial": True},
-    ...             "yellow": {},
-    ...             "red": {},
-    ...         },
-    ...         "events": {
-    ...             "change": [
-    ...                 {"from": "green", "to": "yellow"},
-    ...                 {"from": "yellow", "to": "red"},
-    ...                 {"from": "red", "to": "green"},
-    ...             ]
+    ...             "green": {"initial": True, "on": {"change": {"target": "yellow"}}},
+    ...             "yellow": {"on": {"change": {"target": "red"}}},
+    ...             "red": {"on": {"change": {"target": "green"}}},
     ...         },
     ...     }
     ... )
 
     """
+    states_instances: Dict[str, State] = {}
+    events_definitions: Dict[str, dict] = {}
 
-    states_instances = {
-        state_id: State(**state_kwargs)
-        for state_id, state_kwargs in definition.pop("states").items()
-    }
+    for state_id, state_kwargs in definition.pop("states").items():
+        on_events = state_kwargs.pop("on", {})
+        if on_events:
+            events_definitions[state_id] = on_events
+
+        states_instances[state_id] = State(**state_kwargs)
 
     events: Dict[str, TransitionList] = {}
-    for event_name, transitions in definition.pop("events").items():
-        for transition_data in transitions:
-            source = states_instances[transition_data["from"]]
-            target = states_instances[transition_data["to"]]
+    for state_id, state_events in events_definitions.items():
+        for event_name, transition_data in state_events.items():
+            source = states_instances[state_id]
+
+            target = states_instances[transition_data["target"]]
 
             transition = source.to(
                 target,
