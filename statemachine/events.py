@@ -32,8 +32,14 @@ class Events:
         return self
 
     def match(self, event: str):
-        return any(e == event for e in self)
+        if event is None and self.is_empty:
+            return True
+        return any(e == event or e == "*" for e in self)
 
     def _replace(self, old, new):
         self._items.remove(old)
         self._items.append(new)
+
+    @property
+    def is_empty(self):
+        return len(self._items) == 0

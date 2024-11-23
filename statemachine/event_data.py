@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class TriggerData:
     machine: "StateMachine"
 
-    event: "Event"
+    event: "Event | None"
     """The Event that was triggered."""
 
     model: Any = field(init=False)

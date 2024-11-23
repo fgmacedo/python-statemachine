@@ -122,3 +122,7 @@ class TransitionList(AddCallbacksMixin):
                 tmp_ordered_unique_events_as_keys_on_dict[event] = True
 
         return list(tmp_ordered_unique_events_as_keys_on_dict.keys())
+
+    @property
+    def has_eventless_transition(self):
+        return any(transition.is_eventless for transition in self.transitions)

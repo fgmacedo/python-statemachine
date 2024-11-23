@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?><!-- test that events are inserted into the queue in the order in
-which they are raised.  If
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that events are inserted into the queue in the order in which they are raised.  If
 foo occurs before bar, success, otherwise failure -->
 <scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
   initial="s0" version="1.0" datamodel="python">

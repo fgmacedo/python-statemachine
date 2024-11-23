@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that neither if clause executes, so that bat is the only event raised. -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="c89">
+  <datamodel>
+    <data id="Var1" expr="0" />
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <if cond="false">
+        <raise event="foo" />
+        <assign location="Var1" expr="Var1 + 1" />
+        <elseif cond="false" />
+        <raise event="bar" />
+        <assign location="Var1" expr="Var1 + 1" />
+      </if>
+      <raise event="bat" />
+    </onentry>
+    <transition event="bat" cond="Var1 == 0" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+</scxml>
