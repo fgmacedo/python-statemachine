@@ -316,4 +316,4 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @property
     def is_terminated(self):
-        return self._engine.is_terminated
+        return not self._engine._running

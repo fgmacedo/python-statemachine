@@ -122,12 +122,14 @@ def parse_if(element):  # noqa: C901
             # Save the current branch before starting a new one
             if current_cond is not None:
                 branches.append((current_cond, current_actions))
-            elif tag == "else":
-                else_branch = current_actions
 
             # Update for the new branch
-            current_cond = _normalize_cond(child.attrib.get("cond"))
-            current_actions = []
+            if tag == "elseif":
+                current_cond = _normalize_cond(child.attrib.get("cond"))
+                current_actions = []
+            elif tag == "else":
+                current_cond = None
+                current_actions = else_branch  # Start collecting actions for else
         else:
             # Add the action to the current branch
             current_actions.append(parse_element(child))
@@ -135,6 +137,8 @@ def parse_if(element):  # noqa: C901
     # Add the last branch if needed
     if current_cond is not None:
         branches.append((current_cond, current_actions))
+    else:
+        else_branch = current_actions
 
     def if_action(*args, **kwargs):
         machine = kwargs["machine"]
