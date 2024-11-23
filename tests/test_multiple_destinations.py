@@ -153,6 +153,8 @@ def test_should_change_to_returned_state_on_multiple_target_with_combined_transi
     # then
     assert machine.completed.is_active
 
+    assert machine.is_terminated
+
     with pytest.raises(exceptions.TransitionNotAllowed, match="Can't validate when in Completed."):
         assert machine.validate()
 
