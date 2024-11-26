@@ -23,7 +23,7 @@ def sm_class(testcase_path: Path):
 
     # Create state machine class
     try:
-        return create_machine_class_from_definition(testcase_path.stem, definition)
+        return create_machine_class_from_definition(testcase_path.stem, **definition)
     except Exception as e:
         raise Exception(
             f"Failed to create state machine class: {e} from definition: {definition}"

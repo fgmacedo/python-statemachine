@@ -81,6 +81,8 @@ class SyncEngine(BaseEngine):
         if trigger_data.event == "__initial__":
             transition = self._initial_transition(trigger_data)
             self._activate(trigger_data, transition)
+            if self.sm.current_state.transitions.has_eventless_transition:
+                self.put(TriggerData(self.sm, event=None))
             return self._sentinel
 
         state = self.sm.current_state

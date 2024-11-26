@@ -2,14 +2,15 @@
 Simple SCXML parser that converts SCXML documents to state machine definitions.
 """
 
+import html
 import re
 import xml.etree.ElementTree as ET
 from typing import Any
 from typing import Dict
 from typing import List
 
-from statemachine.model import Model
-from statemachine.statemachine import StateMachine
+from ..model import Model
+from ..statemachine import StateMachine
 
 
 def parse_onentry(element):
@@ -147,6 +148,9 @@ def _normalize_cond(cond: "str | None") -> "str | None":
     if cond is None:
         return None
 
+    # Decode HTML entities, to allow XML syntax like `Var1&lt;Var2`
+    cond = html.unescape(cond)
+
     replacements = {
         "true": "True",
         "false": "False",
@@ -172,6 +176,8 @@ def parse_cond(cond):
         machine = kwargs["machine"]
         return eval(cond, {}, {"machine": machine, **machine.model.__dict__})
 
+    cond_action.cond = cond
+
     return cond_action
 
 
@@ -180,7 +186,7 @@ def parse_if(element):  # noqa: C901
     branches = []
     else_branch = []
 
-    current_cond = _normalize_cond(element.attrib.get("cond"))
+    current_cond = parse_cond(element.attrib.get("cond"))
     current_actions = []
 
     for child in element:
@@ -192,7 +198,7 @@ def parse_if(element):  # noqa: C901
 
             # Update for the new branch
             if tag == "elseif":
-                current_cond = _normalize_cond(child.attrib.get("cond"))
+                current_cond = parse_cond(child.attrib.get("cond"))
                 current_actions = []
             elif tag == "else":
                 current_cond = None
@@ -208,10 +214,9 @@ def parse_if(element):  # noqa: C901
         else_branch = current_actions
 
     def if_action(*args, **kwargs):
-        machine = kwargs["machine"]
         # Evaluate each branch in order
         for cond, actions in branches:
-            if eval(cond, {}, {"machine": machine, **machine.model.__dict__}):
+            if cond(*args, **kwargs):
                 for action in actions:
                     action(*args, **kwargs)
                 return
@@ -337,9 +342,15 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
                     state["on"] = {}
 
                 if event not in state["on"]:
-                    state["on"][event] = {"target": target}
-                    if cond:
-                        state["on"][event]["cond"] = cond
+                    state["on"][event] = []
+
+                transitions = state["on"][event]
+
+                transition = {"target": target}
+                if cond:
+                    transition["cond"] = cond
+
+                transitions.append(transition)
 
                 if target not in states:
                     states[target] = {}
