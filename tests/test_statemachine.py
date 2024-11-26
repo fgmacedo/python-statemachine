@@ -349,10 +349,12 @@ def test_should_not_create_instance_of_abstract_machine():
 
 def test_should_not_create_instance_of_machine_without_states():
     s1 = State()
-    with pytest.raises(exceptions.InvalidDefinition):
 
-        class OnlyTransitionMachine(StateMachine):
-            t1 = s1.to.itself()
+    class OnlyTransitionMachine(StateMachine):
+        t1 = s1.to.itself()
+
+    with pytest.raises(exceptions.InvalidDefinition):
+        OnlyTransitionMachine()
 
 
 def test_should_not_create_instance_of_machine_without_transitions():

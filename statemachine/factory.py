@@ -61,19 +61,11 @@ class StateMachineMetaclass(type):
 
     def _check(cls):
         has_states = bool(cls.states)
-        has_events = bool(cls._events)
-
-        cls._abstract = not has_states and not has_events
+        cls._abstract = not has_states
 
         # do not validate the base abstract classes
         if cls._abstract:
             return
-
-        if not has_states:
-            raise InvalidDefinition(_("There are no states."))
-
-        if not has_events:
-            raise InvalidDefinition(_("There are no events."))
 
         cls._check_initial_state()
         cls._check_final_states()
@@ -90,6 +82,8 @@ class StateMachineMetaclass(type):
                     "You currently have these: {!r}"
                 ).format([s.id for s in initials])
             )
+        if not initials[0].transitions.transitions:
+            raise InvalidDefinition(_("There are no transitions."))
 
     def _check_final_states(cls):
         final_state_with_invalid_transitions = [
