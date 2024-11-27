@@ -1,4 +1,4 @@
-from collections import deque
+import heapq
 from threading import Lock
 from typing import TYPE_CHECKING
 from weakref import proxy
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class BaseEngine:
     def __init__(self, sm: "StateMachine", rtc: bool = True):
         self.sm: StateMachine = proxy(sm)
-        self._external_queue: deque = deque()
+        self._external_queue: list = []
         self._sentinel = object()
         self._rtc = rtc
         self._processing = Lock()
@@ -26,7 +26,8 @@ class BaseEngine:
         """Put the trigger on the queue without blocking the caller."""
         if not self._running and not self.sm.allow_event_without_transition:
             raise TransitionNotAllowed(trigger_data.event, self.sm.current_state)
-        self._external_queue.append(trigger_data)
+
+        heapq.heappush(self._external_queue, trigger_data)
 
     def start(self):
         if self.sm.current_state_value is not None:

@@ -109,7 +109,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return run_async_from_sync(result)
 
     def _processing_loop(self):
-        return self._engine.processing_loop()
+        result = self._engine.processing_loop()
+        if not isawaitable(result):
+            return result
+        return run_async_from_sync(result)
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -298,17 +301,24 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """Put the trigger on the queue without blocking the caller."""
         self._engine.put(trigger_data)
 
-    def send(self, event: str, *args, **kwargs):
+    def send(self, event: str, *args, delay: float = 0, **kwargs):
         """Send an :ref:`Event` to the state machine.
+
+        :param event: The trigger for the state machine, specified as an event id string.
+        :param args: Additional positional arguments to pass to the event.
+        :param delay: A time delay in milliseconds to process the event. Default is 0.
+        :param kwargs: Additional keyword arguments to pass to the event.
 
         .. seealso::
 
             See: :ref:`triggering events`.
-
         """
-        event_instance: BoundEvent = getattr(
-            self, event, BoundEvent(id=event, name=event, _sm=self)
-        )
+        know_event = getattr(self, event, None)
+        event_name = know_event.name if know_event else event
+        delay = (
+            delay if delay else know_event and know_event.delay or 0
+        )  # first the param, then the event, or 0
+        event_instance = BoundEvent(id=event, name=event_name, delay=delay, _sm=self)
         result = event_instance(*args, **kwargs)
         if not isawaitable(result):
             return result

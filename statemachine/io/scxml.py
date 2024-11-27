@@ -8,13 +8,25 @@ import xml.etree.ElementTree as ET
 from typing import Any
 from typing import Dict
 from typing import List
+from uuid import uuid4
+
+from statemachine.event import Event
 
 from ..model import Model
 from ..statemachine import StateMachine
 
 
-def parse_onentry(element):
-    """Parses the <onentry> XML into a callable."""
+def _eval(expr: str, **kwargs) -> Any:
+    if "machine" in kwargs:
+        kwargs.update(kwargs["machine"].model.__dict__)
+    if "event_data" in kwargs:
+        kwargs["_event"] = kwargs["event_data"]
+
+    return eval(expr, {}, kwargs)
+
+
+def parse_executable_content(element):
+    """Parses the children as <executable> content XML into a callable."""
     actions = [parse_element(child) for child in element]
 
     def execute_block(*args, **kwargs):
@@ -22,9 +34,13 @@ def parse_onentry(element):
         try:
             for action in actions:
                 action(*args, **kwargs)
-        except Exception:
-            machine.send("error.execution")
 
+            machine._processing_loop()
+        except Exception as e:
+            machine.send("error.execution", error=e)
+
+    if not actions:
+        return None
     return execute_block
 
 
@@ -41,6 +57,8 @@ def parse_element(element):
         return parse_log(element)
     elif tag == "if":
         return parse_if(element)
+    elif tag == "send":
+        return parse_send(element)
     else:
         raise ValueError(f"Unknown tag: {tag}")
 
@@ -64,7 +82,7 @@ def parse_log(element):
     def raise_log(*args, **kwargs):
         machine = kwargs["machine"]
         kwargs.update(machine.model.__dict__)
-        value = eval(expr, {}, kwargs)
+        value = _eval(expr, **kwargs)
         print(f"{label}: {value!r}")
 
     return raise_log
@@ -77,7 +95,7 @@ def parse_assign(element):
 
     def assign_action(*args, **kwargs):
         machine = kwargs["machine"]
-        value = eval(expr, {}, {"machine": machine, **machine.model.__dict__})
+        value = _eval(expr, **kwargs)
         setattr(machine.model, location, value)
 
     return assign_action
@@ -173,8 +191,7 @@ def parse_cond(cond):
         return None
 
     def cond_action(*args, **kwargs):
-        machine = kwargs["machine"]
-        return eval(cond, {}, {"machine": machine, **machine.model.__dict__})
+        return _eval(cond, **kwargs)
 
     cond_action.cond = cond
 
@@ -282,6 +299,124 @@ def parse_data(element):
     return data_initializer
 
 
+class ParseTime:
+    pattern = re.compile(r"(\d+)?(\.\d+)?(s|ms)")
+
+    @classmethod
+    def replace(cls, expr: str) -> str:
+        def rep(match):
+            return str(cls.time_in_ms(match.group(0)))
+
+        return cls.pattern.sub(rep, expr)
+
+    @classmethod
+    def time_in_ms(cls, expr: str) -> float:
+        """
+        Convert a CSS2 time expression to milliseconds.
+
+        Args:
+            time (str): A string representing the time, e.g., '1.5s' or '150ms'.
+
+        Returns:
+            float: The time in milliseconds.
+
+        Raises:
+            ValueError: If the input is not a valid CSS2 time expression.
+        """
+        if expr.endswith("ms"):
+            try:
+                return float(expr[:-2])
+            except ValueError as e:
+                raise ValueError(f"Invalid time value: {expr}") from e
+        elif expr.endswith("s"):
+            try:
+                return float(expr[:-1]) * 1000
+            except ValueError as e:
+                raise ValueError(f"Invalid time value: {expr}") from e
+        else:
+            try:
+                return float(expr)
+            except ValueError as e:
+                raise ValueError(f"Invalid time unit in: {expr}") from e
+
+
+def parse_send(element):  # noqa: C901
+    """
+    Parses the <send> element into a callable that dispatches events.
+
+    Attributes:
+    - `event`: The name of the event to send (required).
+    - `target`: The target to which the event is sent (optional).
+    - `type`: The type of the event (optional).
+    - `id`: A unique identifier for this send action (optional).
+    - `delay`: The delay before sending the event (optional).
+    - `namelist`: A space-separated list of data model variables to include in the event (optional)
+    - `params`: A dictionary of parameters to include in the event (optional).
+    - `content`: Content to include in the event (optional).
+    """
+    event_attr = element.attrib.get("event")
+    event_expr = element.attrib.get("eventexpr")
+    if not (event_attr or event_expr):
+        raise ValueError("<send> must have an 'event' or `eventexpr` attribute")
+
+    target_expr = element.attrib.get("target")
+    type_expr = element.attrib.get("type")
+    id_attr = element.attrib.get("id")
+    idlocation = element.attrib.get("idlocation")
+    delay_attr = element.attrib.get("delay")
+    delay_expr = element.attrib.get("delayexpr")
+    namelist_expr = element.attrib.get("namelist")
+
+    # Parse <param> and <content> child elements
+    params = {}
+    content = ()
+    for child in element:
+        if child.tag == "param":
+            name = child.attrib.get("name")
+            expr = child.attrib.get("expr")
+            if name and expr:
+                params[name] = expr
+        elif child.tag == "content":
+            content = (_eval(child.text),)
+
+    def send_action(*args, **kwargs):
+        machine = kwargs["machine"]
+        context = {**machine.model.__dict__}
+
+        # Evaluate expressions
+        event = event_attr or eval(event_expr, {}, context)
+        _target = eval(target_expr, {}, context) if target_expr else None
+        _event_type = eval(type_expr, {}, context) if type_expr else None
+
+        if id_attr:
+            send_id = id_attr
+        else:
+            send_id = uuid4().hex
+            if idlocation:
+                setattr(machine.model, idlocation, send_id)
+
+        if delay_attr:
+            delay = ParseTime.time_in_ms(delay_attr)
+        elif delay_expr:
+            delay_expr_expanded = ParseTime.replace(delay_expr)
+            delay = ParseTime.time_in_ms(eval(delay_expr_expanded, {}, context))
+        else:
+            delay = 0
+
+        params_values = {}
+        if namelist_expr:
+            for name in namelist_expr.split():
+                if name in context:
+                    params_values[name] = context[name]
+
+        for name, expr in params.items():
+            params_values[name] = eval(expr, {}, context)
+
+        Event(id=event, name=event, delay=delay).put(*content, machine=machine, **params_values)
+
+    return send_action
+
+
 def strip_namespaces(tree):
     """Remove all namespaces from tags and attributes in place.
 
@@ -335,9 +470,13 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
             event = trans_elem.get("event") or None
             target = trans_elem.get("target")
             cond = parse_cond(trans_elem.get("cond"))
+            content_action = parse_executable_content(trans_elem)
 
             if target:
                 state = states[state_id]
+
+                # This "on" represents the events handled by the state
+                # there's also a possibility of "on" as an action
                 if "on" not in state:
                     state["on"] = {}
 
@@ -350,13 +489,16 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
                 if cond:
                     transition["cond"] = cond
 
+                if content_action:
+                    transition["on"] = content_action
+
                 transitions.append(transition)
 
                 if target not in states:
                     states[target] = {}
 
         for onentry_elem in state_elem.findall("onentry"):
-            entry_action = parse_onentry(onentry_elem)
+            entry_action = parse_executable_content(onentry_elem)
             state = states[state_id]
             if "enter" not in state:
                 state["enter"] = []

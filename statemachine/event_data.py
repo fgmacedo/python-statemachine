@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from time import time
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -11,23 +12,36 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class TriggerData:
-    machine: "StateMachine"
+class _Data:
+    kwargs: dict
 
-    event: "Event | None"
+    def __getattr__(self, name):
+        return self.kwargs.get(name, None)
+
+
+@dataclass(order=True)
+class TriggerData:
+    machine: "StateMachine" = field(compare=False)
+
+    event: "Event | None" = field(compare=False)
     """The Event that was triggered."""
 
-    model: Any = field(init=False)
+    execution_time: float = field(default=0.0)
+    """The time at which the :ref:`Event` should run."""
+
+    model: Any = field(init=False, compare=False)
     """A reference to the underlying model that holds the current :ref:`State`."""
 
-    args: tuple = field(default_factory=tuple)
+    args: tuple = field(default_factory=tuple, compare=False)
     """All positional arguments provided on the :ref:`Event`."""
 
-    kwargs: dict = field(default_factory=dict)
+    kwargs: dict = field(default_factory=dict, compare=False)
     """All keyword arguments provided on the :ref:`Event`."""
 
     def __post_init__(self):
         self.model = self.machine.model
+        delay = self.event.delay if self.event and self.event.delay else 0
+        self.execution_time = time() + (delay / 1000)
 
 
 @dataclass
@@ -77,3 +91,13 @@ class EventData:
         kwargs["source"] = self.source
         kwargs["target"] = self.target
         return kwargs
+
+    @property
+    def data(self):
+        "Property used by the SCXML namespace"
+        if self.trigger_data.kwargs:
+            return _Data(self.trigger_data.kwargs)
+        elif self.trigger_data.args and len(self.trigger_data.args) == 1:
+            return self.trigger_data.args[0]
+        else:
+            return self.trigger_data.args
