@@ -1,3 +1,6 @@
+import asyncio
+import heapq
+from time import time
 from typing import TYPE_CHECKING
 
 from ..event_data import EventData
@@ -61,7 +64,12 @@ class AsyncEngine(BaseEngine):
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
             while self._external_queue:
-                trigger_data = self._external_queue.popleft()
+                trigger_data = heapq.heappop(self._external_queue)
+                current_time = time()
+                if trigger_data.execution_time > current_time:
+                    self.put(trigger_data)
+                    await asyncio.sleep(0.001)
+                    continue
                 try:
                     result = await self._trigger(trigger_data)
                     if first_result is self._sentinel:

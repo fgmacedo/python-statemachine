@@ -20,8 +20,12 @@ Test cases as defined by W3C SCXML Test Suite
 class DebugListener:
     events: list = field(default_factory=list)
 
-    def on_transition(self, event: Event, source: State, target: State):
-        self.events.append(f"{source and source.id} --({event and event.id})--> {target.id}")
+    def on_transition(self, event: Event, source: State, target: State, event_data):
+        self.events.append(
+            f"{source and source.id} -- "
+            f"{event and event.id}{event_data.trigger_data.kwargs} --> "
+            f"{target.id}"
+        )
 
 
 def test_usecase(testcase_path, sm_class):
