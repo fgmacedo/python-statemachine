@@ -241,7 +241,7 @@ def parse_datamodel(element):
         state_field: str = "state",
         start_value: Any = None,
         rtc: bool = True,
-        allow_event_without_transition: bool = False,
+        allow_event_without_transition: bool = True,
         listeners: "List[object] | None" = None,
     ):
         model = model if model else Model()
@@ -370,9 +370,7 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
     for state_elem in scxml.findall(".//final"):
         _parse_state(state_elem, final=True)
 
-    extra_data = {
-        "allow_event_without_transition": True,
-    }
+    extra_data = {}
 
     # To initialize the data model, we override the SM __init__ method
     datamodel = scxml.find("datamodel")
