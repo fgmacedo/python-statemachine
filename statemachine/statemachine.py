@@ -147,20 +147,26 @@ class StateMachine(metaclass=StateMachineMetaclass):
         cp.add_listener(*cp._listeners.keys())
         return cp
 
-    def __reduce__(self):
-        state = {
-            "rtc": self._engine._rtc,
-            "allow_event_without_transition": self.allow_event_without_transition,
-            "listeners": self._listeners,
-        }
-        return (self.__class__, (self.model, self.state_field, self.start_value), state)
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_rtc"] = self._engine._rtc
+        del state["_callbacks"]
+        del state["_states_for_instance"]
+        del state["_engine"]
+        return state
 
     def __setstate__(self, state):
-        self.allow_event_without_transition = state["allow_event_without_transition"]
-        self._listeners = state["listeners"]
+        listeners = state.pop("_listeners")
+        rtc = state.pop("_rtc")
+        self.__dict__.update(state)
+        self._callbacks = CallbacksRegistry()
+        self._states_for_instance: Dict[State, State] = {}
+
+        self._listeners: Dict[Any, Any] = {}
+
         self._register_callbacks([])
-        self.add_listener(*self._listeners.keys())
-        self._engine = self._get_engine(state["rtc"])
+        self.add_listener(*listeners.keys())
+        self._engine = self._get_engine(rtc)
 
     def _get_initial_state(self):
         initial_state_value = self.start_value if self.start_value else self.initial_state.value
