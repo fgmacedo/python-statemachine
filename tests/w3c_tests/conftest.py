@@ -42,7 +42,7 @@ def pytest_generate_tests(metafunc):
             pytest.param(
                 testcase_path,
                 id=str(testcase_path.name),
-                marks=fail_marks if "ok" not in testcase_path.name else [],
+                marks=fail_marks if "fail" in testcase_path.name else [],
             )
             for testcase_path in TESTCASES_DIR.glob("**/*.scxml")
         ],
