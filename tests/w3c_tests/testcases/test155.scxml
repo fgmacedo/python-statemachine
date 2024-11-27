@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that foreach executes the executable content once for each item in the list '(1,2,3)'. The executable
+content sums the items into var1 so it should be 6 at the end -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance" initial="s0" version="1.0" datamodel="ecmascript">
+  <datamodel>
+    <data id="Var1" expr="0"/>
+    <data id="Var2"/>
+    <data id="Var3">
+    [1,2,3]
+    </data>
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <foreach item="Var2" array="Var3">
+        <assign location="Var1" expr="Var1 + Var2"/>
+      </foreach>
+    </onentry>
+    <transition cond="Var1==6" target="pass"/>
+    <transition target="fail"/>
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'"/>
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'"/>
+    </onentry>
+  </final>
+</scxml>
