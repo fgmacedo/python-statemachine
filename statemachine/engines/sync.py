@@ -1,4 +1,3 @@
-import heapq
 from time import sleep
 from time import time
 from typing import TYPE_CHECKING
@@ -50,7 +49,7 @@ class SyncEngine(BaseEngine):
         """
         if not self._rtc:
             # The machine is in "synchronous" mode
-            trigger_data = heapq.heappop(self._external_queue)
+            trigger_data = self.pop()
             return self._trigger(trigger_data)
 
         # We make sure that only the first event enters the processing critical section,
@@ -64,8 +63,8 @@ class SyncEngine(BaseEngine):
         first_result = self._sentinel
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self._running and self._external_queue:
-                trigger_data = heapq.heappop(self._external_queue)
+            while self._running and not self.empty():
+                trigger_data = self.pop()
                 current_time = time()
                 if trigger_data.execution_time > current_time:
                     self.put(trigger_data)
@@ -78,7 +77,7 @@ class SyncEngine(BaseEngine):
                 except Exception:
                     # Whe clear the queue as we don't have an expected behavior
                     # and cannot keep processing
-                    self._external_queue.clear()
+                    self.clear()
                     raise
         finally:
             self._processing.release()
@@ -137,7 +136,7 @@ class SyncEngine(BaseEngine):
         self.sm._callbacks.call(transition.after.key, *args, **kwargs)
 
         if target.final:
-            self._external_queue.clear()
+            self.clear()
             self._running = False
 
         if len(result) == 0:

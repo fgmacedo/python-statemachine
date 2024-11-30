@@ -148,7 +148,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._listeners: Dict[Any, Any] = {}
 
         self._register_callbacks([])
-        self.add_listener(*listeners.keys())
+        self.add_listener(*listeners.values())
         self._engine = self._get_engine(rtc)
 
     def _get_initial_state(self):
