@@ -3,8 +3,7 @@ from threading import Lock
 from typing import TYPE_CHECKING
 from weakref import proxy
 
-from statemachine.event import BoundEvent
-
+from ..event import BoundEvent
 from ..event_data import TriggerData
 from ..state import State
 from ..transition import Transition
