@@ -331,9 +331,6 @@ class CallbacksRegistry:
         self._registry: Dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
         self.has_async_callbacks: bool = False
 
-    def clear(self):
-        self._registry.clear()
-
     def __getitem__(self, key: str) -> CallbacksExecutor:
         return self._registry[key]
 

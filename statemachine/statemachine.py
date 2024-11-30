@@ -1,7 +1,5 @@
 import warnings
-from copy import deepcopy
 from inspect import isawaitable
-from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -128,24 +126,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
             f"{type(self).__name__}(model={self.model!r}, state_field={self.state_field!r}, "
             f"current_state={current_state_id!r})"
         )
-
-    def __deepcopy__(self, memo):
-        deepcopy_method = self.__deepcopy__
-        lock = self._engine._processing
-        with lock:
-            self.__deepcopy__ = None
-            self._engine._processing = None
-            try:
-                cp = deepcopy(self, memo)
-                cp._engine._processing = Lock()
-            finally:
-                self.__deepcopy__ = deepcopy_method
-                cp.__deepcopy__ = deepcopy_method
-                self._engine._processing = lock
-        cp._callbacks.clear()
-        cp._register_callbacks([])
-        cp.add_listener(*cp._listeners.keys())
-        return cp
 
     def __getstate__(self):
         state = self.__dict__.copy()
