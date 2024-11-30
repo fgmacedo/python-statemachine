@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- we test that if type is not provided <send> uses the scxml event i/o processor.  The only way to
+tell
+what processor was used is to look at the origintype of the resulting event  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="ecmascript">
+  <state id="s0">
+    <onentry>
+      <send event="event1" />
+      <send event="timeout" />
+    </onentry>
+    <transition event="event1"
+      cond=" _event.origintype == 'http://www.w3.org/TR/scxml/#SCXMLEventProcessor'" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

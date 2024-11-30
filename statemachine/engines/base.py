@@ -43,15 +43,23 @@ class BaseEngine:
         with self._external_queue.mutex:
             self._external_queue.queue.clear()
 
+    def cancel_event(self, send_id: str):
+        """Cancel the event with the given send_id."""
+
+        # We use the internal `queue` to make thins faster as the mutex
+        # is protecting the block below
+        with self._external_queue.mutex:
+            self._external_queue.queue = [
+                trigger_data
+                for trigger_data in self._external_queue.queue
+                if trigger_data.send_id != send_id
+            ]
+
     def start(self):
         if self.sm.current_state_value is not None:
             return
 
-        trigger_data = TriggerData(
-            machine=self.sm,
-            event=BoundEvent("__initial__", _sm=self.sm),
-        )
-        self.put(trigger_data)
+        BoundEvent("__initial__", _sm=self.sm).put(machine=self.sm)
 
     def _initial_transition(self, trigger_data):
         transition = Transition(State(), self.sm._get_initial_state(), event="__initial__")

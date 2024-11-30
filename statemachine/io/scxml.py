@@ -59,6 +59,8 @@ def parse_element(element):
         return parse_if(element)
     elif tag == "send":
         return parse_send(element)
+    elif tag == "cancel":
+        return parse_cancel(element)
     else:
         raise ValueError(f"Unknown tag: {tag}")
 
@@ -72,6 +74,26 @@ def parse_raise(element):
         machine.send(event)
 
     return raise_action
+
+
+def parse_cancel(element):
+    """Parses the <cancel> element into a callable."""
+    sendid = element.attrib.get("sendid")
+    sendidexpr = element.attrib.get("sendidexpr")
+
+    def cancel(*args, **kwargs):
+        if sendid and sendidexpr:
+            raise ValueError("<cancel> cannot have both a 'sendid' and 'sendidexpr' attribute")
+        elif sendid:
+            send_id = sendid
+        elif sendidexpr:
+            send_id = _eval(sendidexpr, **kwargs)
+        else:
+            raise ValueError("<cancel> must have either a 'sendid' or 'sendidexpr' attribute")
+        machine = kwargs["machine"]
+        machine.cancel_event(send_id)
+
+    return cancel
 
 
 def parse_log(element):
@@ -360,7 +382,7 @@ def parse_send(element):  # noqa: C901
         raise ValueError("<send> must have an 'event' or `eventexpr` attribute")
 
     target_expr = element.attrib.get("target")
-    type_expr = element.attrib.get("type")
+    type_attr = element.attrib.get("type")
     id_attr = element.attrib.get("id")
     idlocation = element.attrib.get("idlocation")
     delay_attr = element.attrib.get("delay")
@@ -386,7 +408,10 @@ def parse_send(element):  # noqa: C901
         # Evaluate expressions
         event = event_attr or eval(event_expr, {}, context)
         _target = eval(target_expr, {}, context) if target_expr else None
-        _event_type = eval(type_expr, {}, context) if type_expr else None
+        if type_attr and type_attr != "http://www.w3.org/TR/scxml/#SCXMLEventProcessor":
+            raise ValueError(
+                "Only 'http://www.w3.org/TR/scxml/#SCXMLEventProcessor' event type is supported"
+            )
 
         if id_attr:
             send_id = id_attr
@@ -412,7 +437,12 @@ def parse_send(element):  # noqa: C901
         for name, expr in params.items():
             params_values[name] = eval(expr, {}, context)
 
-        Event(id=event, name=event, delay=delay).put(*content, machine=machine, **params_values)
+        Event(id=event, name=event, delay=delay).put(
+            *content,
+            machine=machine,
+            send_id=send_id,
+            **params_values,
+        )
 
     return send_action
 
