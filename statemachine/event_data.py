@@ -3,6 +3,7 @@ from dataclasses import field
 from time import time
 from typing import TYPE_CHECKING
 from typing import Any
+from uuid import uuid4
 
 if TYPE_CHECKING:
     from .event import Event
@@ -26,6 +27,12 @@ class TriggerData:
     event: "Event | None" = field(compare=False)
     """The Event that was triggered."""
 
+    send_id: "str | None" = field(compare=False, default=None)
+    """A string literal to be used as the id of this instance of :ref:`TriggerData`.
+
+    Allow revoking a delayed :ref:`TriggerData` instance.
+    """
+
     execution_time: float = field(default=0.0)
     """The time at which the :ref:`Event` should run."""
 
@@ -42,6 +49,8 @@ class TriggerData:
         self.model = self.machine.model
         delay = self.event.delay if self.event and self.event.delay else 0
         self.execution_time = time() + (delay / 1000)
+        if self.send_id is None:
+            self.send_id = uuid4().hex
 
 
 @dataclass
@@ -64,6 +73,9 @@ class EventData:
     result: "Any | None" = None
 
     executed: bool = False
+
+    origintype: str = "http://www.w3.org/TR/scxml/#SCXMLEventProcessor"
+    """The origintype of the :ref:`Event` as specified by the SCXML namespace."""
 
     def __post_init__(self):
         self.state = self.transition.source

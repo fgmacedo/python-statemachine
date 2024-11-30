@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- we test that the processor doesn't  change the message.  We can't test that it never does this,
+but
+at least we can check that the event name and included data are the same as we sent.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="ecmascript">
+  <datamodel>
+    <data id="Var1" />
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <send event="event1">
+        <param name="aParam" expr="1" />
+      </send>
+      <send event="timeout" />
+    </onentry>
+    <transition event="event1" target="s1">
+      <assign location="Var1" expr="_event.data.aParam" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+  <state id="s1">
+    <transition cond="Var1==1" target="pass" />
+    <transition target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

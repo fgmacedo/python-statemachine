@@ -301,7 +301,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """Put the trigger on the queue without blocking the caller."""
         self._engine.put(trigger_data)
 
-    def send(self, event: str, *args, delay: float = 0, **kwargs):
+    def send(self, event: str, *args, delay: float = 0, event_id: "str | None" = None, **kwargs):
         """Send an :ref:`Event` to the state machine.
 
         :param event: The trigger for the state machine, specified as an event id string.
@@ -319,10 +319,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
             delay if delay else know_event and know_event.delay or 0
         )  # first the param, then the event, or 0
         event_instance = BoundEvent(id=event, name=event_name, delay=delay, _sm=self)
-        result = event_instance(*args, **kwargs)
+        result = event_instance(*args, event_id=event_id, **kwargs)
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
+
+    def cancel_event(self, send_id: str):
+        """Cancel all the delayed events with the given ``send_id``."""
+        self._engine.cancel_event(send_id)
 
     @property
     def is_terminated(self):

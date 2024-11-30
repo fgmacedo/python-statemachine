@@ -111,7 +111,7 @@ class Event(AddCallbacksMixin, str):
             return self
         return BoundEvent(id=self.id, name=self.name, delay=self.delay, _sm=instance)
 
-    def put(self, *args, machine: "StateMachine", **kwargs):
+    def put(self, *args, machine: "StateMachine", send_id: "str | None" = None, **kwargs):
         # The `__call__` is declared here to help IDEs knowing that an `Event`
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
@@ -123,10 +123,12 @@ class Event(AddCallbacksMixin, str):
         trigger_data = TriggerData(
             machine=machine,
             event=self,
+            send_id=send_id,
             args=args,
             kwargs=kwargs,
         )
         machine._put_nonblocking(trigger_data)
+        return trigger_data
 
     def __call__(self, *args, **kwargs):
         """Send this event to the current state machine.
