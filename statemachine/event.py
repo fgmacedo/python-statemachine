@@ -3,10 +3,9 @@ from typing import TYPE_CHECKING
 from typing import List
 from uuid import uuid4
 
-from statemachine.exceptions import InvalidDefinition
-
 from .callbacks import CallbackGroup
 from .event_data import TriggerData
+from .exceptions import InvalidDefinition
 from .i18n import _
 from .transition_mixin import AddCallbacksMixin
 from .utils import run_async_from_sync
