@@ -16,26 +16,12 @@ if TYPE_CHECKING:
 
 class BaseEngine:
     def __init__(self, sm: "StateMachine", rtc: bool = True):
+        self.sm: StateMachine = proxy(sm)
+        self._external_queue: Queue = PriorityQueue()
         self._sentinel = object()
         self._rtc = rtc
         self._running = True
-        self._init(sm)
-
-    def _init(self, sm: "StateMachine"):
-        self.sm: StateMachine = proxy(sm)
-        self._external_queue: Queue = PriorityQueue()
         self._processing = Lock()
-
-    def __getstate__(self) -> dict:
-        state = self.__dict__.copy()
-        del state["_external_queue"]
-        del state["_processing"]
-        del state["sm"]
-        return state
-
-    def __setstate__(self, state: dict) -> None:
-        for attr, value in state.items():
-            setattr(self, attr, value)
 
     def empty(self):
         return self._external_queue.qsize() == 0

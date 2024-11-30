@@ -124,7 +124,7 @@ def test_copy_with_listeners(caplog, copy_method):
         if not sm._listeners:
             pytest.fail("did not found any observer")
 
-        for listener in sm._listeners:
+        for listener in sm._listeners.values():
             listener.let_me_be_visible = False
 
         with pytest.raises(TransitionNotAllowed):
@@ -132,7 +132,7 @@ def test_copy_with_listeners(caplog, copy_method):
 
         sm.model.let_me_be_visible = True
 
-        for listener in sm._listeners:
+        for listener in sm._listeners.values():
             with pytest.raises(TransitionNotAllowed):
                 sm.send("publish")
 
