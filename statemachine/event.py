@@ -3,10 +3,13 @@ from typing import TYPE_CHECKING
 from typing import List
 from uuid import uuid4
 
-from statemachine.utils import run_async_from_sync
+from statemachine.exceptions import InvalidDefinition
 
+from .callbacks import CallbackGroup
 from .event_data import TriggerData
 from .i18n import _
+from .transition_mixin import AddCallbacksMixin
+from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
     from .statemachine import StateMachine
@@ -25,7 +28,7 @@ _event_data_kwargs = {
 }
 
 
-class Event(str):
+class Event(AddCallbacksMixin, str):
     """An event is triggers a signal that something has happened.
 
     They are send to a state machine and allow the state machine to react.
@@ -81,6 +84,18 @@ class Event(str):
 
     def is_same_event(self, *_args, event: "str | None" = None, **_kwargs) -> bool:
         return self == event
+
+    def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
+        if self._transitions is None:
+            raise InvalidDefinition(
+                _("Cannot add callback '{}' to an event with no transitions.").format(callback)
+            )
+        return self._transitions._add_callback(
+            callback=callback,
+            grouper=grouper,
+            is_event=is_event,
+            **kwargs,
+        )
 
     def __get__(self, instance, owner):
         """By implementing this method `Event` can be used as a property descriptor

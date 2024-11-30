@@ -233,6 +233,57 @@ class TestExplicitEvent:
         assert sm.send("cycle") == "Running cycle from yellow to red"
         assert sm.send("cycle") == "Running cycle from red to green"
 
+    def test_allow_registering_callbacks_using_decorator(self):
+        class TrafficLightMachine(StateMachine):
+            "A traffic light machine"
+
+            green = State(initial=True)
+            yellow = State()
+            red = State()
+
+            cycle = Event(
+                green.to(yellow, event="slow_down")
+                | yellow.to(red, event=["stop"])
+                | red.to(green, event=["go"]),
+                name="Loop",
+            )
+
+            @cycle.on
+            def do_cycle(self, event_data, event: str):
+                assert event_data.event == event
+                return (
+                    f"Running {event} from {event_data.transition.source.id} to "
+                    f"{event_data.transition.target.id}"
+                )
+
+        sm = TrafficLightMachine()
+
+        assert sm.send("cycle") == "Running cycle from green to yellow"
+
+    def test_raise_registering_callbacks_using_decorator_if_no_transitions(self):
+        with pytest.raises(InvalidDefinition, match="event with no transitions"):
+
+            class TrafficLightMachine(StateMachine):
+                "A traffic light machine"
+
+                green = State(initial=True)
+                yellow = State()
+                red = State()
+
+                cycle = Event(name="Loop")
+                slow_down = Event()
+                green.to(yellow, event=[cycle, slow_down])
+                yellow.to(red, event=[cycle, "stop"])
+                red.to(green, event=[cycle, "go"])
+
+                @cycle.on
+                def do_cycle(self, event_data, event: str):
+                    assert event_data.event == event
+                    return (
+                        f"Running {event} from {event_data.transition.source.id} to "
+                        f"{event_data.transition.target.id}"
+                    )
+
     def test_allow_using_events_as_commands(self):
         class StartMachine(StateMachine):
             created = State(initial=True)
