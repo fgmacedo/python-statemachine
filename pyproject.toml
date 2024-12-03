@@ -2,8 +2,8 @@
 name = "python-statemachine"
 version = "2.5.0"
 description = "Python Finite State Machines made easy."
-authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail" }]
-maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail" }]
+authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
+maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
 license = { text = "MIT License" }
 readme = "README.md"
 classifiers = [
