@@ -42,6 +42,10 @@ class EventDataWrapper:
         return getattr(self.event_data, name)
 
     @property
+    def name(self):
+        return self.event_data.event
+
+    @property
     def data(self):
         "Property used by the SCXML namespace"
         if self.trigger_data.kwargs:
