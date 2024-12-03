@@ -5,22 +5,58 @@ Simple SCXML parser that converts SCXML documents to state machine definitions.
 import html
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
 from uuid import uuid4
 
 from statemachine.event import Event
+from statemachine.io import create_machine_class_from_definition
 
 from ..model import Model
 from ..statemachine import StateMachine
+
+
+@dataclass
+class _Data:
+    kwargs: dict
+
+    def __getattr__(self, name):
+        return self.kwargs.get(name, None)
+
+    def get(self, name, default=None):
+        return self.kwargs.get(name, default)
+
+
+class EventDataWrapper:
+    origin: str = ""
+    origintype: str = "http://www.w3.org/TR/scxml/#SCXMLEventProcessor"
+    """The origintype of the :ref:`Event` as specified by the SCXML namespace."""
+
+    def __init__(self, event_data):
+        self.event_data = event_data
+
+    def __getattr__(self, name):
+        return getattr(self.event_data, name)
+
+    @property
+    def data(self):
+        "Property used by the SCXML namespace"
+        if self.trigger_data.kwargs:
+            return _Data(self.trigger_data.kwargs)
+        elif self.trigger_data.args and len(self.trigger_data.args) == 1:
+            return self.trigger_data.args[0]
+        else:
+            return self.trigger_data.args
 
 
 def _eval(expr: str, **kwargs) -> Any:
     if "machine" in kwargs:
         kwargs.update(kwargs["machine"].model.__dict__)
     if "event_data" in kwargs:
-        kwargs["_event"] = kwargs["event_data"]
+        kwargs["_event"] = EventDataWrapper(kwargs["event_data"])
 
     return eval(expr, {}, kwargs)
 
@@ -61,6 +97,8 @@ def parse_element(element):
         return parse_send(element)
     elif tag == "cancel":
         return parse_cancel(element)
+    elif tag == "script":
+        return parse_script(element)
     else:
         raise ValueError(f"Unknown tag: {tag}")
 
@@ -98,29 +136,70 @@ def parse_cancel(element):
 
 def parse_log(element):
     """Parses the <log> element into a callable."""
-    label = element.attrib["label"]
+    label = element.attrib.get("label")
     expr = element.attrib["expr"]
 
     def raise_log(*args, **kwargs):
         machine = kwargs["machine"]
         kwargs.update(machine.model.__dict__)
         value = _eval(expr, **kwargs)
-        print(f"{label}: {value!r}")
+        if label:
+            print(f"{label}: {value!r}")
+        else:
+            print(f"{value!r}")
 
     return raise_log
 
 
 def parse_assign(element):
     """Parses the <assign> element into a callable."""
-    location = element.attrib["location"]
+    location = element.attrib.get("location")
     expr = element.attrib["expr"]
 
     def assign_action(*args, **kwargs):
         machine = kwargs["machine"]
         value = _eval(expr, **kwargs)
-        setattr(machine.model, location, value)
+
+        *path, attr = location.split(".")
+        obj = machine.model
+        for p in path:
+            obj = getattr(obj, p)
+
+        if not attr.isidentifier():
+            raise ValueError(
+                f"<assign> 'location' must be a valid Python attribute name, got: {location}"
+            )
+        setattr(obj, attr, value)
 
     return assign_action
+
+
+def parse_script(element):
+    """
+    Parses the <script> element, executes its content, and assigns
+    the resulting variables to the statemachine.model.
+
+    Args:
+        element: The XML <script> element containing the code to execute.
+
+    Returns:
+        A callable that executes the script within the state machine's context.
+    """
+    script_content = element.text.strip()
+
+    def script_action(*args, **kwargs):
+        machine = kwargs.get("machine")
+
+        local_vars = {
+            **machine.model.__dict__,
+        }
+        exec(script_content, {}, local_vars)
+
+        # Assign the resulting variables to the state machine's model
+        for var_name, value in local_vars.items():
+            setattr(machine.model, var_name, value)
+
+    return script_action
 
 
 def parse_foreach(element):  # noqa: C901
@@ -145,15 +224,10 @@ def parse_foreach(element):  # noqa: C901
 
     def foreach_action(*args, **kwargs):  # noqa: C901
         machine = kwargs["machine"]
-        context = {**machine.model.__dict__}  # Shallow copy of the model's attributes
 
         try:
             # Evaluate the array expression to get the iterable
-            array = eval(array_expr, {}, context)
-            if not hasattr(array, "__iter__"):
-                raise ValueError(
-                    f"<foreach> 'array' must evaluate to an iterable, got: {type(array).__name__}"
-                )
+            array = _eval(array_expr, **kwargs)
         except Exception as e:
             raise ValueError(f"Error evaluating <foreach> 'array' expression: {e}") from e
 
@@ -161,7 +235,6 @@ def parse_foreach(element):  # noqa: C901
             raise ValueError(
                 f"<foreach> 'item' must be a valid Python attribute name, got: {item_var}"
             )
-        # Iterate over the array
         for index, item in enumerate(array):
             # Assign the item and optionally the index
             setattr(machine.model, item_var, item)
@@ -206,13 +279,16 @@ def _normalize_cond(cond: "str | None") -> "str | None":
     return pattern.sub(lambda match: replacements[match.group(0)], cond)
 
 
-def parse_cond(cond):
+def parse_cond(cond, processor=None):
     """Parses the <cond> element into a callable."""
     cond = _normalize_cond(cond)
     if cond is None:
         return None
 
     def cond_action(*args, **kwargs):
+        if processor:
+            kwargs["_ioprocessors"] = processor.wrap(**kwargs)
+
         return _eval(cond, **kwargs)
 
     cond_action.cond = cond
@@ -266,13 +342,25 @@ def parse_if(element):  # noqa: C901
     return if_action
 
 
-def parse_datamodel(element):
+def parse_datamodel(root):
     """
     Parses the <datamodel> element into a callable that initializes the state machine model.
 
     Each <data> element defines a variable with an `id` and an optional `expr`.
     """
-    data_elements = [parse_data(child) for child in element]
+    data_elements = []
+    for element in root.iter():
+        if element.tag == "scxml":
+            continue
+        if element.tag == "datamodel":
+            data_elements.extend([parse_data(child) for child in element])
+
+    scripts = root.findall("./script")
+    if scripts:
+        data_elements.extend([parse_script(child) for child in scripts])
+
+    if not data_elements:
+        return None
 
     def __init__(
         self,
@@ -284,8 +372,9 @@ def parse_datamodel(element):
         listeners: "List[object] | None" = None,
     ):
         model = model if model else Model()
+        self.model = model
         for data_action in data_elements:
-            data_action(model)
+            data_action(machine=self)
 
         StateMachine.__init__(
             self,
@@ -309,14 +398,19 @@ def parse_data(element):
     """
     data_id = element.attrib["id"]
     expr = element.attrib.get("expr")
-    if not expr:
-        expr = element.text and element.text.strip()
+    content = element.text and re.sub(r"\s+", " ", element.text).strip() or None
 
-    def data_initializer(model):
+    def data_initializer(**kwargs):
         # Evaluate the expression if provided, or set to None
-        context = model.__dict__
-        value = eval(expr, {}, context) if expr else None
-        setattr(model, data_id, value)
+        machine = kwargs["machine"]
+        if expr:
+            value = _eval(expr, **kwargs)
+        else:
+            try:
+                value = _eval(content, **kwargs)
+            except Exception:
+                value = content
+        setattr(machine.model, data_id, value)
 
     return data_initializer
 
@@ -399,15 +493,18 @@ def parse_send(element):  # noqa: C901
             if name and expr:
                 params[name] = expr
         elif child.tag == "content":
-            content = (_eval(child.text),)
+            try:
+                content = (_eval(child.text),)
+            except (NameError, IndentationError, SyntaxError, TypeError):
+                content = (re.sub(r"\s+", " ", child.text).strip(),)
 
     def send_action(*args, **kwargs):
         machine = kwargs["machine"]
         context = {**machine.model.__dict__}
 
         # Evaluate expressions
-        event = event_attr or eval(event_expr, {}, context)
-        _target = eval(target_expr, {}, context) if target_expr else None
+        event = event_attr or _eval(event_expr, **kwargs)
+        _target = _eval(target_expr, **kwargs) if target_expr else None
         if type_attr and type_attr != "http://www.w3.org/TR/scxml/#SCXMLEventProcessor":
             raise ValueError(
                 "Only 'http://www.w3.org/TR/scxml/#SCXMLEventProcessor' event type is supported"
@@ -424,7 +521,7 @@ def parse_send(element):  # noqa: C901
             delay = ParseTime.time_in_ms(delay_attr)
         elif delay_expr:
             delay_expr_expanded = ParseTime.replace(delay_expr)
-            delay = ParseTime.time_in_ms(eval(delay_expr_expanded, {}, context))
+            delay = ParseTime.time_in_ms(_eval(delay_expr_expanded, **kwargs))
         else:
             delay = 0
 
@@ -432,10 +529,10 @@ def parse_send(element):  # noqa: C901
         if namelist_expr:
             for name in namelist_expr.split():
                 if name in context:
-                    params_values[name] = context[name]
+                    params_values[name] = _eval(name, **kwargs)
 
         for name, expr in params.items():
-            params_values[name] = eval(expr, {}, context)
+            params_values[name] = _eval(expr, **kwargs)
 
         Event(id=event, name=event, delay=delay).put(
             *content,
@@ -464,7 +561,9 @@ def strip_namespaces(tree):
                     attrib[name.partition("}")[2]] = value
 
 
-def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
+def parse_scxml(  # noqa: C901
+    scxml_content: str, processor: "SCXMLProcessor", location: str
+):
     """
     Parse SCXML content and return a dictionary definition compatible with
     create_machine_class_from_definition.
@@ -499,7 +598,7 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
         for trans_elem in state_elem.findall("transition"):
             event = trans_elem.get("event") or None
             target = trans_elem.get("target")
-            cond = parse_cond(trans_elem.get("cond"))
+            cond = parse_cond(trans_elem.get("cond"), processor=processor)
             content_action = parse_executable_content(trans_elem)
 
             if target:
@@ -545,13 +644,62 @@ def parse_scxml(scxml_content: str) -> Dict[str, Any]:  # noqa: C901
     extra_data = {}
 
     # To initialize the data model, we override the SM __init__ method
-    datamodel = scxml.find("datamodel")
+    datamodel = parse_datamodel(scxml)
     if datamodel is not None:
-        extra_data["__init__"] = parse_datamodel(datamodel)
+        extra_data["__init__"] = datamodel
 
     # If no initial state was specified, mark the first state as initial
     if not initial_state and states:
         first_state = next(iter(states))
         states[first_state]["initial"] = True
 
-    return {"states": states, **extra_data}
+    processor._add(location, {"states": states, **extra_data})
+
+
+class SCXMLProcessor:
+    def __init__(self):
+        self.scs = {}
+        self.sessions = {}
+        self._ioprocessors = {
+            "http://www.w3.org/TR/scxml/#SCXMLEventProcessor": self,
+            "scxml": self,
+        }
+
+    def parse_scxml_file(self, path: Path):
+        scxml_content = path.read_text()
+        return self.parse_scxml(path.stem, scxml_content)
+
+    def parse_scxml(self, sm_name: str, scxml_content: str):
+        parse_scxml(scxml_content, self, location=sm_name)
+
+    def _add(self, location: str, definition: Dict[str, Any]):
+        try:
+            sc_class = create_machine_class_from_definition(location, **definition)
+            self.scs[location] = sc_class
+            return sc_class
+        except Exception as e:
+            raise Exception(
+                f"Failed to create state machine class: {e} from definition: {definition}"
+            ) from e
+
+    def start(self, **kwargs):
+        self.root_cls = next(iter(self.scs.values()))
+        self.root = self.root_cls(**kwargs)
+        self.sessions[self.root.name] = self.root
+        return self.root
+
+    def wrap(self, **kwargs):
+        return IOProcessor(self, **kwargs)
+
+
+class IOProcessor:
+    def __init__(self, processor: "SCXMLProcessor", **kwargs):
+        self.scxml_processor = processor
+        self.machine = kwargs["machine"]
+
+    def __getitem__(self, name: str):
+        return self
+
+    @property
+    def location(self):
+        return self.machine.name

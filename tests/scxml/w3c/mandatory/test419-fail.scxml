@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that eventless transitions take precedence -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  version="1.0" initial="s1" datamodel="python">
+
+  <state id="s1">
+    <onentry>
+      <raise event="internalEvent" />
+      <send event="externalEvent" />
+    </onentry>
+
+    <transition event="*" target="fail" />
+    <transition target="pass" />
+
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

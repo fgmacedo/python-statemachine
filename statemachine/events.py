@@ -34,7 +34,7 @@ class Events:
     def match(self, event: str):
         if event is None and self.is_empty:
             return True
-        return any(e == event or e == "*" for e in self)
+        return any(e.match(event) for e in self)
 
     def _replace(self, old, new):
         self._items.remove(old)

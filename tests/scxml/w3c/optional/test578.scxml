@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest578" version="1.0"
+  xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--in
+  the ECMA data model, test that processor creates an ECMAScript object
+ _event.data when receiving JSON in an event-->
+  <state id="s0">
+    <onentry>
+      <send event="foo">
+        <content>{ &quot;productName&quot; : &quot;bar&quot;, &quot;size&quot; : 27 }</content>
+      </send>
+    </onentry>
+    <transition cond="_event.data[&quot;productName&quot;] == 'bar'" event="foo" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log expr="'pass'" label="Outcome" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log expr="'fail'" label="Outcome" />
+    </onentry>
+  </final>
+</scxml>

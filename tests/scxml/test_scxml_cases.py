@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from dataclasses import field
 
+import pytest
+
 from statemachine import State
 from statemachine import StateMachine
 from statemachine.event import Event
@@ -28,13 +30,14 @@ class DebugListener:
         )
 
 
-def test_usecase(testcase_path, sm_class):
+@pytest.mark.scxml()
+def test_scxml_usecase(testcase_path, processor):
     # from statemachine.contrib.diagram import DotGraphMachine
 
     # DotGraphMachine(sm_class).get_graph().write_png(
     #     testcase_path.parent / f"{testcase_path.stem}.png"
     # )
     debug = DebugListener()
-    sm = sm_class(listeners=[debug])
+    sm = processor.start(listeners=[debug])
     assert isinstance(sm, StateMachine)
     assert sm.current_state.id == "pass", debug

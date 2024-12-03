@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test the origintype is "scxml" -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var1" />
+  </datamodel>
+
+
+  <state id="s0">
+    <onentry>
+      <send delay="5s" event="timeout" />
+      <send type="http://www.w3.org/TR/scxml/#SCXMLEventProcessor" event="s0Event" />
+    </onentry>
+    <transition event="s0Event" target="s1">
+      <assign location="Var1" expr="_event.origintype" />
+    </transition>
+    <transition event="*" target="fail">
+    </transition>
+
+  </state>
+
+  <state id="s1">
+    <transition cond="Var1=='scxml'" target="pass" />
+    <transition target="fail" />
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>
