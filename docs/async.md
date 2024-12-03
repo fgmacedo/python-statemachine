@@ -47,6 +47,23 @@ Engines are internal and are activated automatically by inspecting the registere
 
 ```
 
+Outer scope
+: The context in which the state machine **instance** is created.
+
+Async callbacks?
+: Indicates whether the state machine has declared asynchronous callbacks or conditions.
+
+Engine
+: The engine that will be utilized.
+
+Creates internal loop
+: Specifies whether the state machine initiates a new event loop if no [asyncio loop is running](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.get_running_loop).
+
+Reuses external loop
+: Indicates whether the state machine reuses an existing [asyncio loop](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.get_running_loop) if one is already running.
+
+
+
 ```{note}
 All handlers will run on the same thread they are called. Therefore, mixing synchronous and asynchronous code is not recommended unless you are confident in your implementation.
 ```

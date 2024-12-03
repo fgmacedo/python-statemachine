@@ -1,80 +1,119 @@
-[tool.poetry]
+[project]
 name = "python-statemachine"
-version = "2.4.0"
+version = "2.5.0"
 description = "Python Finite State Machines made easy."
-authors = ["Fernando Macedo <fgmacedo@gmail.com>"]
-maintainers = ["Fernando Macedo <fgmacedo@gmail.com>"]
-license = "MIT license"
+authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail" }]
+maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail" }]
+license = { text = "MIT License" }
 readme = "README.md"
-homepage = "https://github.com/fgmacedo/python-statemachine"
-packages = [{ include = "statemachine" }, { include = "statemachine/**/*.py" }]
-include = [
-    { path = "statemachine/locale/**/*.po", format = "sdist" },
-    { path = "statemachine/locale/**/*.mo", format = [
-        "sdist",
-        "wheel",
-    ] },
-]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: AsyncIO",
+    "Framework :: Django",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Home Automation",
     "Topic :: Software Development :: Libraries",
-    "Framework :: AsyncIO",
-    "Intended Audience :: Developers",
+]
+requires-python = ">=3.7"
+
+[project.urls]
+homepage = "https://github.com/fgmacedo/python-statemachine"
+
+[project.optional-dependencies]
+diagrams = ["pydot >= 2.0.0"]
+
+[dependency-groups]
+dev = [
+    "ruff >=0.8.1",
+    "pre-commit",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "pytest-sugar >=1.0.0",
+    "pytest-mock >=3.10.0",
+    "pytest-benchmark >=4.0.0",
+    "pytest-asyncio",
+    "pydot",
+    "django >=5.0.8; python_version >='3.10'",
+    "pytest-django >=4.8.0; python_version >'3.8'",
+    "Sphinx; python_version >'3.8'",
+    "sphinx-gallery; python_version >'3.8'",
+    "myst-parser; python_version >'3.8'",
+    "pillow; python_version >'3.8'",
+    "sphinx-autobuild; python_version >'3.8'",
+    "furo >=2024.5.6; python_version >'3.8'",
+    "sphinx-copybutton >=0.5.2; python_version >'3.8'",
+    "pdbr>=0.8.9; python_version >'3.8'",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.7"
-pydot = { version = ">=2.0.0", optional = true, python = ">3.8" }
-
-[tool.poetry.extras]
-diagrams = ["pydot"]
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.4.8"
-pre-commit = "*"
-mypy = "*"
-
-[tool.poetry.group.tests.dependencies]
-pytest = "*"
-pytest-cov = "*"
-pytest-sugar = "^1.0.0"
-pytest-mock = "^3.10.0"
-pytest-benchmark = "^4.0.0"
-pytest-asyncio = "*"
-django = { version = "^5.0.8", python = ">3.10" }
-pytest-django = { version = "^4.8.0", python = ">3.8" }
-
-[tool.poetry.group.docs.dependencies]
-Sphinx = { version = "*", python = ">3.8" }
-myst-parser = { version = "*", python = ">3.8" }
-sphinx-gallery = { version = "*", python = ">3.8" }
-pillow = { version = "*", python = ">3.8" }
-sphinx-autobuild = { version = "*", python = ">3.8" }
-furo = { version = "^2024.5.6", python = ">3.8" }
-sphinx-copybutton = { version = "^0.5.2", python = ">3.8" }
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["statemachine/"]
 
 [tool.pytest.ini_options]
-addopts = "--ignore=docs/conf.py --ignore=docs/auto_examples/ --ignore=docs/_build/ --ignore=tests/examples/ --cov --cov-config .coveragerc --doctest-glob='*.md' --doctest-modules --doctest-continue-on-failure --benchmark-autosave --benchmark-group-by=name"
+addopts = [
+    "--ignore=docs/conf.py",
+    "--ignore=docs/auto_examples/",
+    "--ignore=docs/_build/",
+    "--ignore=tests/examples/",
+    "--cov",
+    "--cov-config",
+    ".coveragerc",
+    "--doctest-glob=*.md",
+    "--doctest-modules",
+    "--doctest-continue-on-failure",
+    "--benchmark-autosave",
+    "--benchmark-group-by=name",
+    "--pdbcls=pdbr:RichPdb",
+]
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 asyncio_mode = "auto"
 markers = ["""slow: marks tests as slow (deselect with '-m "not slow"')"""]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+# dynamic_context = "test_function"
+relative_files = true
+data_file = ".coverage"
+source = ["statemachine"]
+omit = ["*test*.py", "tmp/*", "pytest_cov"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self.debug",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING",
+]
+
+[tool.coverage.html]
+directory = "tmp/htmlcov"
+show_contexts = true
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disable_error_code = "annotation-unchecked"
@@ -84,15 +123,11 @@ mypy_path = "$MYPY_CONFIG_FILE_DIR/tests/django_project"
 module = ['django.*', 'pytest.*', 'pydot.*', 'sphinx_gallery.*']
 ignore_missing_imports = true
 
-[tool.flake8]
-ignore = ["E231", "W503"]
-max-line-length = 99
-
 [tool.ruff]
 src = ["statemachine"]
 
 line-length = 99
-target-version = "py312"
+target-version = "py313"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -144,7 +179,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "tests/examples/**.py" = ["B018"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 6
+max-complexity = 10
 
 [tool.ruff.lint.isort]
 force-single-line = true
@@ -153,27 +188,6 @@ force-single-line = true
 # Use Google-style docstrings.
 convention = "google"
 
-[tool.coverage.run]
-branch = true
-relative_files = true
-data_file = ".coverage"
-source = ["statemachine"]
-omit = ["*test*.py", "tmp/*", "pytest_cov"]
-[tool.coverage.report]
-show_missing = true
-exclude_lines = [
-    # Have to re-enable the standard pragma
-    "pragma: no cover",
-
-    # Don't complain about missing debug-only code:
-    "def __repr__",
-    "if self.debug",
-
-    # Don't complain if tests don't hit defensive assertion code:
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if TYPE_CHECKING",
-]
-
-[tool.coverage.html]
-directory = "tmp/htmlcov"
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = true
+mark-parentheses = true

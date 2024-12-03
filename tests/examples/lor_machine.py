@@ -22,7 +22,7 @@ class LordOfTheRingsQuestStateMachine(StateMachine):
     mount_doom = State("At Mount Doom", final=True)
 
     # Define transitions with Boolean conditions
-    start_journey = shire.to(bree, cond="frodo_has_ring and !sauron_alive")
+    start_journey = shire.to(bree, cond="frodo_has_ring and !sauron_alive and frodo_stamina > 90")
     meet_elves = bree.to(rivendell, cond="gandalf_present and frodo_has_ring")
     enter_moria = rivendell.to(moria, cond="orc_army_nearby or frodo_has_ring")
     reach_lothlorien = moria.to(lothlorien, cond="!orc_army_nearby")
@@ -30,6 +30,7 @@ class LordOfTheRingsQuestStateMachine(StateMachine):
     destroy_ring = mordor.to(mount_doom, cond="frodo_has_ring and frodo_resists_ring")
 
     # Conditions (attributes representing the state of conditions)
+    frodo_stamina: int = 100
     frodo_has_ring: bool = True
     sauron_alive: bool = True  # Initially, Sauron is alive
     gandalf_present: bool = False  # Gandalf is not present at the start

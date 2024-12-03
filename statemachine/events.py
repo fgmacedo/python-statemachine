@@ -1,5 +1,4 @@
-from statemachine.event import Event
-
+from .event import Event
 from .utils import ensure_iterable
 
 

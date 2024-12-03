@@ -3,9 +3,12 @@ from typing import TYPE_CHECKING
 from typing import List
 from uuid import uuid4
 
-from statemachine.utils import run_async_from_sync
-
+from .callbacks import CallbackGroup
 from .event_data import TriggerData
+from .exceptions import InvalidDefinition
+from .i18n import _
+from .transition_mixin import AddCallbacksMixin
+from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
     from .statemachine import StateMachine
@@ -24,7 +27,7 @@ _event_data_kwargs = {
 }
 
 
-class Event(str):
+class Event(AddCallbacksMixin, str):
     """An event is triggers a signal that something has happened.
 
     They are send to a state machine and allow the state machine to react.
@@ -81,6 +84,18 @@ class Event(str):
     def is_same_event(self, *_args, event: "str | None" = None, **_kwargs) -> bool:
         return self == event
 
+    def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
+        if self._transitions is None:
+            raise InvalidDefinition(
+                _("Cannot add callback '{}' to an event with no transitions.").format(callback)
+            )
+        return self._transitions._add_callback(
+            callback=callback,
+            grouper=grouper,
+            is_event=is_event,
+            **kwargs,
+        )
+
     def __get__(self, instance, owner):
         """By implementing this method `Event` can be used as a property descriptor
 
@@ -103,8 +118,10 @@ class Event(str):
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
-
         machine = self._sm
+        if machine is None:
+            raise RuntimeError(_("Event {} cannot be called without a SM instance").format(self))
+
         kwargs = {k: v for k, v in kwargs.items() if k not in _event_data_kwargs}
         trigger_data = TriggerData(
             machine=machine,

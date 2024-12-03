@@ -2,7 +2,7 @@ import inspect
 
 import pytest
 
-from statemachine.signature import SignatureAdapter
+from statemachine.dispatcher import callable_method
 
 
 class TestSignatureAdapter:
@@ -25,7 +25,7 @@ class TestSignatureAdapter:
             # https://peps.python.org/pep-0570/
             return pos_only, pos_or_kw_param, kw_only_param
 
-        wrapped_func = SignatureAdapter.wrap(func)
+        wrapped_func = callable_method(func)
 
         if inspect.isclass(expected) and issubclass(expected, Exception):
             with pytest.raises(expected):

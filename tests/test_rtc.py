@@ -93,7 +93,7 @@ class TestChainedTransition:
             (
                 False,
                 [
-                    mock.call("on_enter_state", state="a", source=None, value=0),
+                    mock.call("on_enter_state", state="a", source="", value=0),
                     mock.call("before_t1", source="a", value=42),
                     mock.call("on_exit_state", state="a", source="a", value=42),
                     mock.call("on_t1", source="a", value=42),
@@ -109,7 +109,7 @@ class TestChainedTransition:
             (
                 True,
                 [
-                    mock.call("on_enter_state", state="a", source=None, value=0),
+                    mock.call("on_enter_state", state="a", source="", value=0),
                     mock.call("before_t1", source="a", value=42),
                     mock.call("on_exit_state", state="a", source="a", value=42),
                     mock.call("on_t1", source="a", value=42),

@@ -63,8 +63,8 @@ except InvalidDefinition as e:
     assert (  # noqa: PT017
         str(e)
         == (
-            "Error on transition process_order from Processing to Shipping when resolving "
-            "callbacks: Did not found name 'payment_received' from model or statemachine"
+            "Error on Waiting for payment when resolving callbacks: "
+            "Did not found name 'wait_for_payment' from model or statemachine"
         )
     )
 

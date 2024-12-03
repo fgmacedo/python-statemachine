@@ -65,8 +65,19 @@ The mini-language is based on Python's built-in language and the [`ast`](https:/
      1. `not` / `!` — Logical negation
      2. `and` / `^` — Logical conjunction
      3. `or` / `v` — Logical disjunction
+     4. `or` / `v` — Logical disjunction
    - These operators are case-sensitive (e.g., `NOT` and `Not` are not equivalent to `not` and will raise syntax errors).
    - Both formats can be used interchangeably, so `!sauron_alive` and `not sauron_alive` are equivalent.
+
+2. **Comparisson operators**:
+   - The following comparison operators are supported:
+     1. `>` — Greather than.
+     2. `>=` — Greather than or equal.
+     3. `==` — Equal.
+     4. `!=` — Not equal.
+     5. `<` — Lower than.
+     6. `<=` — Lower than or equal.
+   - All comparison operations in Python have the same priority.
 
 3. **Parentheses for precedence**:
    - When operators with the same precedence appear in the expression, evaluation proceeds from left to right, unless parentheses specify a different order.
@@ -89,19 +100,6 @@ Being used on a transition definition:
 start.to(end, cond="frodo_has_ring and gandalf_present or !sauron_alive")
 ```
 
-#### Summary of grammar rules
-
-The mini-language is formally specified as follows:
-
-```
-Name: [A-Za-z_][A-Za-z0-9_]*
-Boolean Expression:
-
-<boolean_expr> ::= <term> | <boolean_expr> 'or' <term> | <boolean_expr> 'v' <term>
-<term> ::= <factor> | <term> 'and' <factor> | <term> '^' <factor>
-<factor> ::= 'not' <factor> | '!' <factor> | '(' <boolean_expr> ')' | <name>
-
-```
 
 ```{seealso}
 See {ref}`sphx_glr_auto_examples_lor_machine.py` for an example of

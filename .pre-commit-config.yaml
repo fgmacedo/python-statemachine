@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v4.6.0
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
@@ -9,7 +9,7 @@ repos:
         exclude: docs/auto_examples
 - repo: https://github.com/charliermarsh/ruff-pre-commit
   # Ruff version.
-  rev: v0.3.7
+  rev: v0.8.1
   hooks:
     # Run the linter.
     - id: ruff
@@ -21,13 +21,13 @@ repos:
   hooks:
   - id: mypy
     name: Mypy
-    entry: poetry run mypy --namespace-packages --explicit-package-bases statemachine/ tests/
+    entry: uv run mypy --namespace-packages --explicit-package-bases statemachine/ tests/
     types: [python]
     language: system
     pass_filenames: false
   - id: pytest
     name: Pytest
-    entry: poetry run pytest
+    entry: uv run pytest
     types: [python]
     language: system
     pass_filenames: false

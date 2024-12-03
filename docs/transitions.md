@@ -192,7 +192,7 @@ True
 
 ```
 
-```{versionadded} 2.6.7
+```{versionadded} 2.4.0
 You can also explict declare an {ref}`Event` instance, this helps IDEs to know that the event is callable and also with transtation strings.
 ```
 

@@ -1,9 +1,5 @@
 import warnings
-from collections import deque
-from copy import deepcopy
-from functools import partial
 from inspect import isawaitable
-from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -11,7 +7,6 @@ from typing import List
 
 from .callbacks import SPECS_ALL
 from .callbacks import SPECS_SAFE
-from .callbacks import CallbacksExecutor
 from .callbacks import CallbacksRegistry
 from .callbacks import SpecReference
 from .dispatcher import Listener
@@ -30,6 +25,7 @@ from .model import Model
 from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
+    from .event import Event
     from .state import State
 
 
@@ -83,8 +79,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
-        self._external_queue: deque = deque()
-        self._callbacks_registry = CallbacksRegistry()
+        self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
 
         self._listeners: Dict[Any, Any] = {}
@@ -98,21 +93,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         # Activate the initial state, this only works if the outer scope is sync code.
         # for async code, the user should manually call `await sm.activate_initial_state()`
         # after state machine creation.
-        if self.current_state_value is None:
-            trigger_data = TriggerData(
-                machine=self,
-                event=BoundEvent("__initial__", _sm=self),
-            )
-            self._put_nonblocking(trigger_data)
+        self._engine = self._get_engine(rtc)
+        self._engine.start()
 
-        self._engine: AsyncEngine | SyncEngine | None = None
-        self._select_engine(rtc)
+    def _get_engine(self, rtc: bool):
+        if self._callbacks.has_async_callbacks:
+            return AsyncEngine(self, rtc=rtc)
 
-    def _select_engine(self, rtc: bool):
-        if self._callbacks_registry.has_async_callbacks:
-            AsyncEngine(self, rtc=rtc)
-        else:
-            SyncEngine(self, rtc=rtc)
+        return SyncEngine(self, rtc=rtc)
 
     def activate_initial_state(self):
         result = self._engine.activate_initial_state()
@@ -139,30 +127,33 @@ class StateMachine(metaclass=StateMachineMetaclass):
             f"current_state={current_state_id!r})"
         )
 
-    def __deepcopy__(self, memo):
-        deepcopy_method = self.__deepcopy__
-        lock = self._engine._processing
-        with lock:
-            self.__deepcopy__ = None
-            self._engine._processing = None
-            try:
-                cp = deepcopy(self, memo)
-                cp._engine._processing = Lock()
-            finally:
-                self.__deepcopy__ = deepcopy_method
-                cp.__deepcopy__ = deepcopy_method
-                self._engine._processing = lock
-        cp._callbacks_registry.clear()
-        cp._register_callbacks([])
-        cp.add_listener(*cp._listeners.keys())
-        return cp
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_rtc"] = self._engine._rtc
+        del state["_callbacks"]
+        del state["_states_for_instance"]
+        del state["_engine"]
+        return state
+
+    def __setstate__(self, state):
+        listeners = state.pop("_listeners")
+        rtc = state.pop("_rtc")
+        self.__dict__.update(state)
+        self._callbacks = CallbacksRegistry()
+        self._states_for_instance: Dict[State, State] = {}
+
+        self._listeners: Dict[Any, Any] = {}
+
+        self._register_callbacks([])
+        self.add_listener(*listeners.keys())
+        self._engine = self._get_engine(rtc)
 
     def _get_initial_state(self):
-        current_state_value = self.start_value if self.start_value else self.initial_state.value
+        initial_state_value = self.start_value if self.start_value else self.initial_state.value
         try:
-            return self.states_map[current_state_value]
+            return self.states_map[initial_state_value]
         except KeyError as err:
-            raise InvalidStateValue(current_state_value) from err
+            raise InvalidStateValue(initial_state_value) from err
 
     def bind_events_to(self, *targets):
         """Bind the state machine events to the target objects."""
@@ -180,13 +171,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
                 setattr(target, event, trigger)
 
     def _add_listener(self, listeners: "Listeners", allowed_references: SpecReference = SPECS_ALL):
-        register = partial(
-            listeners.resolve,
-            registry=self._callbacks_registry,
-            allowed_references=allowed_references,
-        )
+        registry = self._callbacks
         for visited in iterate_states_and_transitions(self.states):
-            register(visited._specs)
+            listeners.resolve(
+                visited._specs,
+                registry=registry,
+                allowed_references=allowed_references,
+            )
 
         return self
 
@@ -202,7 +193,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             )
         )
 
-        check_callbacks = self._callbacks_registry.check
+        check_callbacks = self._callbacks.check
         for visited in iterate_states_and_transitions(self.states):
             try:
                 check_callbacks(visited._specs)
@@ -211,7 +202,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
                     f"Error on {visited!s} when resolving callbacks: {err}"
                 ) from err
 
-        self._callbacks_registry.async_or_sync()
+        self._callbacks.async_or_sync()
 
     def add_observer(self, *observers):
         """Add a listener."""
@@ -295,17 +286,17 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.current_state_value = value.value
 
     @property
-    def events(self):
-        return self.__class__.events
+    def events(self) -> "List[Event]":
+        return [getattr(self, event) for event in self.__class__._events]
 
     @property
-    def allowed_events(self):
+    def allowed_events(self) -> "List[Event]":
         """List of the current allowed events."""
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
     def _put_nonblocking(self, trigger_data: TriggerData):
         """Put the trigger on the queue without blocking the caller."""
-        self._external_queue.append(trigger_data)
+        self._engine.put(trigger_data)
 
     def send(self, event: str, *args, **kwargs):
         """Send an :ref:`Event` to the state machine.
@@ -322,6 +313,3 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
-
-    def _get_callbacks(self, key) -> CallbacksExecutor:
-        return self._callbacks_registry[key]
