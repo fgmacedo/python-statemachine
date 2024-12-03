@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- we test that typexpr is evaluated at runtime.  If the original value of var1 is used, the invocation
+will fail (test215sub1.scxml is not of type 'foo', even if the platform supports foo as a type).  If
+the runtime value is used, the invocation will succeed --><scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance" initial="s0" datamodel="python" version="1.0">
+
+<datamodel>
+  <data id="Var1" expr="'foo'"/>
+   </datamodel>
+
+<state id="s0">
+  <onentry>
+    <send event="timeout" delay="5s"/>
+    <assign location="Var1" expr="'http://www.w3.org/TR/scxml/'"/>
+    </onentry>
+  <invoke typeexpr="Var1">
+    <content>
+        <!-- when invoked, terminate returning done.invoke. This proves that the invocation succeeded.   -->
+        <scxml initial="subFinal" datamodel="python" version="1.0">
+      <final id="subFinal"/>
+        </scxml>
+    </content>
+    </invoke>
+  <transition event="done.invoke" target="pass"/>
+  <transition event="*" target="fail"/>
+</state>
+
+<final id="pass"><onentry><log label="Outcome" expr="'pass'"/></onentry></final>
+<final id="fail"><onentry><log label="Outcome" expr="'fail'"/></onentry></final>
+
+</scxml>

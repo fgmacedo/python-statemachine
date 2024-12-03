@@ -152,6 +152,9 @@ class Event(AddCallbacksMixin, str):
             return [self]
         return [Event(event) for event in result]
 
+    def match(self, event: str) -> bool:
+        return self == event or self == "*"
+
 
 class BoundEvent(Event):
     pass

@@ -96,7 +96,10 @@ addopts = [
 ]
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 asyncio_mode = "auto"
-markers = ["""slow: marks tests as slow (deselect with '-m "not slow"')"""]
+markers = [
+    """slow: marks tests as slow (deselect with '-m "not slow"')""",
+    """scxml: marks a tests as scxml (deselect with '-m "not scxml"')""",
+]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 xfail_strict = true
 

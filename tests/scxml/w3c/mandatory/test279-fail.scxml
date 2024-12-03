@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- identical to test278, but this time testing that in case of
+early binding variables are assigned values at init time -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+
+
+  <state id="s0">
+    <transition cond="Var1==1" target="pass" />
+
+    <transition target="fail" />
+
+  </state>
+
+  <state id="s1">
+    <datamodel>
+      <data id="Var1" expr="1" />
+    </datamodel>
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

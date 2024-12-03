@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+
+  <!-- test that a variable can be accessed from a state that is outside its lexical scope -->
+
+  <state id="s0">
+    <transition cond="Var1==1" target="pass" />
+
+    <transition target="fail" />
+    <transition target="s1" event="foo" /> <!-- included so the graph has a single component -->
+
+  </state>
+
+  <state id="s1">
+    <datamodel>
+      <data id="Var1" expr="1" />
+    </datamodel>
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

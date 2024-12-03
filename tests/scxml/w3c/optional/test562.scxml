@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest562" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--in
+	the Python data model, test that processor creates space normalized string in
+ _event.data when receiving anything other than KVPs or XML in an event-->
+	<state id="s0">
+		<onentry>
+			<send event="foo">
+				<content>
+					this is a
+					string
+				</content>
+			</send>
+		</onentry>
+		<transition cond="_event.data == 'this is a string'" event="foo" target="pass" />
+		<transition event="*" target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that an internal transition does not exit its source state -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s1" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var1" expr="0" />  <!-- how often we have exited s1 -->
+    <data id="Var2" expr="0" />  <!-- how often we have exited s11 -->
+    <data id="Var3" expr="0" />  <!-- how often the transition for foo has been taken -->
+  </datamodel>
+
+  <state id="s1">
+    <onentry>
+      <raise event="foo" />
+      <raise event="bar" />
+    </onentry>
+    <onexit>
+      <assign location="Var1" expr="Var1 + 1" />
+    </onexit>
+    <transition event="foo" type="internal" target="s11">
+      <assign location="Var3" expr="Var3 + 1" />
+    </transition>
+
+    <!-- make sure the transition on foo was actually taken -->
+    <transition event="bar" cond="Var3==1" target="s2" />
+    <transition event="bar" target="fail" />
+
+    <state id="s11">
+      <onexit>
+        <assign location="Var2" expr="Var2 + 1" />
+      </onexit>
+    </state>
+  </state>
+
+  <state id="s2">
+    <!-- make sure that s1 was exited once -->
+    <transition cond="Var1==1" target="s3" />
+    <transition target="fail" />
+  </state>
+
+
+  <state id="s3">
+    <!-- make sure that s11 was exited twice -->
+    <transition cond="Var2==2" target="pass" />
+    <transition target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

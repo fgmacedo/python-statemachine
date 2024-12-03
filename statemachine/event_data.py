@@ -12,14 +12,6 @@ if TYPE_CHECKING:
     from .transition import Transition
 
 
-@dataclass
-class _Data:
-    kwargs: dict
-
-    def __getattr__(self, name):
-        return self.kwargs.get(name, None)
-
-
 @dataclass(order=True)
 class TriggerData:
     machine: "StateMachine" = field(compare=False)
@@ -74,9 +66,6 @@ class EventData:
 
     executed: bool = False
 
-    origintype: str = "http://www.w3.org/TR/scxml/#SCXMLEventProcessor"
-    """The origintype of the :ref:`Event` as specified by the SCXML namespace."""
-
     def __post_init__(self):
         self.state = self.transition.source
         self.source = self.transition.source
@@ -103,13 +92,3 @@ class EventData:
         kwargs["source"] = self.source
         kwargs["target"] = self.target
         return kwargs
-
-    @property
-    def data(self):
-        "Property used by the SCXML namespace"
-        if self.trigger_data.kwargs:
-            return _Data(self.trigger_data.kwargs)
-        elif self.trigger_data.args and len(self.trigger_data.args) == 1:
-            return self.trigger_data.args[0]
-        else:
-            return self.trigger_data.args

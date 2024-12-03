@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that internal events take priority over external ones -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  version="1.0" initial="s1" datamodel="python">
+
+  <state id="s1" initial="s11">
+    <onentry>
+      <send event="externalEvent" />
+      <raise event="internalEvent1" />
+      <raise event="internalEvent2" />
+    </onentry>
+
+    <transition event="externalEvent" target="fail" />
+
+    <state id="s11">
+      <transition event="internalEvent1" target="s12" />
+    </state>
+
+    <state id="s12">
+      <transition event="internalEvent2" target="pass" />
+    </state>
+
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

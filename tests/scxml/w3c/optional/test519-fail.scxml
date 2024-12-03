@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that that <param> values get encoded as POST parameters.  . -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="ecmascript" version="1.0">
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="30s" />
+      <send event="test" targetexpr="_ioprocessors['basichttp']['location']"
+        type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor">
+        <param name="param1" expr="1" />
+      </send>
+    </onentry>
+    <!-- if other end sends us back this event, we succeed -->
+    <transition event="test" cond="_event.raw.search('param1=1') !== -1" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

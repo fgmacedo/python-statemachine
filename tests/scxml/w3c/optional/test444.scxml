@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" name="ScxmlTest444" version="1.0" xmlns="http://www.w3.org/2005/07/scxml"
+  xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+  that <data> creates a new python variable.-->
+  <datamodel>
+    <data expr="1" id="var1" />
+  </datamodel>
+  <state id="s0"><!--test
+    that var1 can be used as an python variable-->
+    <transition cond="var1 + 1 == 2" target="pass" />
+    <transition target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log expr="'pass'" label="Outcome" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log expr="'fail'" label="Outcome" />
+    </onentry>
+  </final>
+</scxml>

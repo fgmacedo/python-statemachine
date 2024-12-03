@@ -34,10 +34,7 @@ class BaseEngine:
         self._external_queue.put(trigger_data)
 
     def pop(self):
-        try:
-            return self._external_queue.get(block=False)
-        except Exception:
-            return None
+        return self._external_queue.get(block=False)
 
     def clear(self):
         with self._external_queue.mutex:
