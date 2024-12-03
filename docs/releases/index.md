@@ -15,6 +15,7 @@ Below are release notes through StateMachine and its patch releases.
 ```{toctree}
 :maxdepth: 2
 
+2.5.0
 2.4.0
 2.3.6
 2.3.5

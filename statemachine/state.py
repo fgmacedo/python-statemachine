@@ -36,6 +36,7 @@ class _ToState(_TransitionBuilder):
 
 class _FromState(_TransitionBuilder):
     def any(self, **kwargs):
+        """Create transitions from all non-finalstates (reversed)."""
         return self.__call__(AnyState(), **kwargs)
 
     def __call__(self, *states: "State", **kwargs):

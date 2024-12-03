@@ -65,8 +65,19 @@ The mini-language is based on Python's built-in language and the [`ast`](https:/
      1. `not` / `!` — Logical negation
      2. `and` / `^` — Logical conjunction
      3. `or` / `v` — Logical disjunction
+     4. `or` / `v` — Logical disjunction
    - These operators are case-sensitive (e.g., `NOT` and `Not` are not equivalent to `not` and will raise syntax errors).
    - Both formats can be used interchangeably, so `!sauron_alive` and `not sauron_alive` are equivalent.
+
+2. **Comparisson operators**:
+   - The following comparison operators are supported:
+     1. `>` — Greather than.
+     2. `>=` — Greather than or equal.
+     3. `==` — Equal.
+     4. `!=` — Not equal.
+     5. `<` — Lower than.
+     6. `<=` — Lower than or equal.
+  - See the [comparisons](https://docs.python.org/3/reference/expressions.html#comparisons) from Python's.
 
 3. **Parentheses for precedence**:
    - When operators with the same precedence appear in the expression, evaluation proceeds from left to right, unless parentheses specify a different order.
