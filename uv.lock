@@ -607,6 +607,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pdbr"
+version = "0.8.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyreadline3", marker = "python_full_version >= '3.9' and sys_platform == 'win32'" },
+    { name = "rich", marker = "python_full_version >= '3.9'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/29/1d/40420fda7c53fd071d8f62dcdb550c9f82fee54c2fda6842337890d87334/pdbr-0.8.9.tar.gz", hash = "sha256:3e0e1fb78761402bcfc0713a9c73acc2f639406b1b8da7233c442b965eee009d", size = 15942 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/66/250f546d090c94ad5291995b847f927afec9ca782c1944ac59ed20d34d12/pdbr-0.8.9-py3-none-any.whl", hash = "sha256:5d18e431cc69281626627199fd6a63dfeef26ccd7f4c11a8e7b53b288efd9a93", size = 16038 },
+]
+
+[[package]]
 name = "pillow"
 version = "11.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -786,6 +799,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyreadline3"
+version = "3.5.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/49/4cea918a08f02817aabae639e3d0ac046fef9f9180518a3ad394e22da148/pyreadline3-3.5.4.tar.gz", hash = "sha256:8d57d53039a1c75adba8e50dd3d992b28143480816187ea5efbd5c78e6c885b7", size = 99839 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/dc/491b7661614ab97483abf2056be1deee4dc2490ecbf7bff9ab5cdbac86e1/pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6", size = 83178 },
+]
+
+[[package]]
 name = "pytest"
 version = "7.4.4"
 source = { registry = "https://pypi.org/simple" }
@@ -947,8 +969,10 @@ dev = [
     { name = "furo", marker = "python_full_version >= '3.9'" },
     { name = "mypy" },
     { name = "myst-parser", marker = "python_full_version >= '3.9'" },
+    { name = "pdbr", marker = "python_full_version >= '3.9'" },
     { name = "pillow", marker = "python_full_version >= '3.9'" },
     { name = "pre-commit" },
+    { name = "pydot" },
     { name = "pytest", version = "7.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "8.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pytest-asyncio" },
@@ -974,8 +998,10 @@ dev = [
     { name = "furo", marker = "python_full_version >= '3.9'", specifier = ">=2024.5.6" },
     { name = "mypy" },
     { name = "myst-parser", marker = "python_full_version >= '3.9'" },
+    { name = "pdbr", marker = "python_full_version >= '3.9'", specifier = ">=0.8.9" },
     { name = "pillow", marker = "python_full_version >= '3.9'" },
     { name = "pre-commit" },
+    { name = "pydot" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
@@ -1055,6 +1081,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/63/70/2bf7780ad2d390a8d301ad0b550f1581eadbd9a20f896afe06353c2a2913/requests-2.32.3.tar.gz", hash = "sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760", size = 131218 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/9b/335f9764261e915ed497fcdeb11df5dfd6f7bf257d4a6a2a686d80da4d54/requests-2.32.3-py3-none-any.whl", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6", size = 64928 },
+]
+
+[[package]]
+name = "rich"
+version = "13.9.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markdown-it-py", marker = "python_full_version >= '3.9'" },
+    { name = "pygments", marker = "python_full_version >= '3.9'" },
+    { name = "typing-extensions", marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/3a/0316b28d0761c6734d6bc14e770d85506c986c85ffb239e688eeaab2c2bc/rich-13.9.4.tar.gz", hash = "sha256:439594978a49a09530cff7ebc4b5c7103ef57baf48d5ea3184f21d9a2befa098", size = 223149 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/19/71/39c7c0d87f8d4e6c020a393182060eaefeeae6c01dab6a84ec346f2567df/rich-13.9.4-py3-none-any.whl", hash = "sha256:6049d5e6ec054bf2779ab3358186963bac2ea89175919d699e378b99738c2a90", size = 242424 },
 ]
 
 [[package]]
