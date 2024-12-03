@@ -1,12 +1,50 @@
+from typing import Any
+from typing import Callable
 from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import TypedDict
+from typing import cast
 
 from ..factory import StateMachineMetaclass
 from ..state import State
 from ..statemachine import StateMachine
 from ..transition_list import TransitionList
 
+CallbacksType = str | Callable | List[str] | List[Callable]
 
-def create_machine_class_from_definition(name: str, **definition) -> StateMachine:  # noqa: C901
+
+class TransitionDict(TypedDict, total=False):
+    target: str
+    event: str
+    internal: bool
+    validators: bool
+    cond: CallbacksType
+    unless: CallbacksType
+    on: CallbacksType
+    before: CallbacksType
+    after: CallbacksType
+
+
+class StateDict(TypedDict, total=False):
+    name: str
+    value: Any
+    initial: bool
+    final: bool
+    enter: CallbacksType
+    exit: CallbacksType
+
+
+class StateWithTransitionsDict(StateDict, total=False):
+    on: Dict[str, List[TransitionDict]]
+
+
+StateOptions = StateDict | StateWithTransitionsDict
+
+
+def create_machine_class_from_definition(
+    name: str, states: Mapping[str, StateOptions], **definition
+) -> StateMachine:  # noqa: C901
     """
     Creates a StateMachine class from a dictionary definition, using the StateMachineMetaclass.
 
@@ -27,10 +65,10 @@ def create_machine_class_from_definition(name: str, **definition) -> StateMachin
     states_instances: Dict[str, State] = {}
     events_definitions: Dict[str, dict] = {}
 
-    for state_id, state_kwargs in definition.pop("states").items():
-        on_events = state_kwargs.pop("on", {})
-        if on_events:
-            events_definitions[state_id] = on_events
+    for state_id, state_kwargs in states.items():
+        transition_definitions = cast(StateWithTransitionsDict, state_kwargs).pop("on", {})
+        if transition_definitions:
+            events_definitions[state_id] = transition_definitions
 
         states_instances[state_id] = State(**state_kwargs)
 

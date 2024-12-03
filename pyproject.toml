@@ -17,13 +17,11 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Topic :: Home Automation",
     "Topic :: Software Development :: Libraries",
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 
 [project.urls]
 homepage = "https://github.com/fgmacedo/python-statemachine"
@@ -45,15 +43,15 @@ dev = [
     "pydot",
     "pydot",
     "django >=5.0.8; python_version >='3.10'",
-    "pytest-django >=4.8.0; python_version >'3.8'",
-    "Sphinx; python_version >'3.8'",
-    "sphinx-gallery; python_version >'3.8'",
-    "myst-parser; python_version >'3.8'",
-    "pillow; python_version >'3.8'",
-    "sphinx-autobuild; python_version >'3.8'",
-    "furo >=2024.5.6; python_version >'3.8'",
-    "sphinx-copybutton >=0.5.2; python_version >'3.8'",
-    "pdbr>=0.8.9; python_version >='3.8'",
+    "pytest-django >=4.8.0",
+    "Sphinx",
+    "sphinx-gallery",
+    "myst-parser",
+    "pillow",
+    "sphinx-autobuild",
+    "furo >=2024.5.6",
+    "sphinx-copybutton >=0.5.2",
+    "pdbr>=0.8.9",
 ]
 
 [build-system]
