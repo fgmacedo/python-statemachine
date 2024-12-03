@@ -1,6 +1,6 @@
 [project]
 name = "python-statemachine"
-version = "2.4.0"
+version = "2.5.0"
 description = "Python Finite State Machines made easy."
 authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail" }]
 maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail" }]
@@ -33,7 +33,7 @@ diagrams = ["pydot >= 2.0.0"]
 
 [dependency-groups]
 dev = [
-    "ruff >=0.4.8",
+    "ruff >=0.8.1",
     "pre-commit",
     "mypy",
     "pytest",
@@ -82,6 +82,7 @@ doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGN
 asyncio_mode = "auto"
 markers = ["""slow: marks tests as slow (deselect with '-m "not slow"')"""]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
+xfail_strict = true
 
 [tool.coverage.run]
 branch = true
@@ -112,7 +113,7 @@ directory = "tmp/htmlcov"
 show_contexts = true
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disable_error_code = "annotation-unchecked"
@@ -126,7 +127,7 @@ ignore_missing_imports = true
 src = ["statemachine"]
 
 line-length = 99
-target-version = "py312"
+target-version = "py313"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -178,7 +179,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "tests/examples/**.py" = ["B018"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 6
+max-complexity = 10
 
 [tool.ruff.lint.isort]
 force-single-line = true

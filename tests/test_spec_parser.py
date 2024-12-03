@@ -218,3 +218,44 @@ def test_simple_variable_returns_the_original_callback():
     parsed_expr = parse_boolean_expr(expr, variable_hook, operator_mapping)
 
     assert parsed_expr is original_callback
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected", "hooks_called"),
+    [
+        ("49 < frodo_age < 51", True, ["frodo_age"]),
+        ("49 < frodo_age > 50", False, ["frodo_age"]),
+        (
+            "aragorn_age < legolas_age < gimli_age",
+            False,
+            ["aragorn_age", "legolas_age", "gimli_age"],
+        ),  # 87 < 2931 and 2931 < 139
+        (
+            "gimli_age > aragorn_age < legolas_age",
+            True,
+            ["gimli_age", "aragorn_age", "legolas_age"],
+        ),  # 139 > 87 and 87 < 2931
+        (
+            "sword_power < ring_power > bow_power",
+            True,
+            ["sword_power", "ring_power", "bow_power"],
+        ),  # 80 < 100 and 100 > 75
+        (
+            "axe_power > sword_power == bow_power",
+            False,
+            ["axe_power", "sword_power", "bow_power"],
+        ),  # 85 > 80 and 80 == 75
+        ("height > 1 and height < 2", True, ["height"]),
+    ],
+)
+@pytest.mark.xfail(reason="TODO: Optimize so that expressios are evaluated only once")
+def test_should_evaluate_values_only_once(expression, expected, caplog, hooks_called):
+    caplog.set_level(logging.DEBUG, logger="tests")
+
+    parsed_expr = parse_boolean_expr(expression, variable_hook, operator_mapping)
+    assert parsed_expr() is expected, expression
+
+    if hooks_called:
+        assert caplog.record_tuples == [
+            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
+        ]
