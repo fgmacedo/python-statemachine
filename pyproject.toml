@@ -77,21 +77,6 @@ addopts = [
     "--benchmark-group-by=name",
     "--pdbcls=pdbr:RichPdb",
 ]
-addopts = [
-    "--ignore=docs/conf.py",
-    "--ignore=docs/auto_examples/",
-    "--ignore=docs/_build/",
-    "--ignore=tests/examples/",
-    "--cov",
-    "--cov-config",
-    ".coveragerc",
-    "--doctest-glob=*.md",
-    "--doctest-modules",
-    "--doctest-continue-on-failure",
-    "--benchmark-autosave",
-    "--benchmark-group-by=name",
-    "--pdbcls=pdbr:RichPdb",
-]
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 asyncio_mode = "auto"
 markers = [
