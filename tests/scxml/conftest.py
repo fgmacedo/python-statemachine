@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from statemachine.io.scxml import SCXMLProcessor
+from statemachine.io.scxml.processor import SCXMLProcessor
 
 CURRENT_DIR = Path(__file__).parent
 TESTCASES_DIR = CURRENT_DIR
