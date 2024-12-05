@@ -52,6 +52,7 @@ dev = [
     "furo >=2024.5.6",
     "sphinx-copybutton >=0.5.2",
     "pdbr>=0.8.9",
+    "pytest-xdist>=3.6.1",
 ]
 
 [build-system]
@@ -63,6 +64,7 @@ packages = ["statemachine/"]
 
 [tool.pytest.ini_options]
 addopts = [
+    "-s",
     "--ignore=docs/conf.py",
     "--ignore=docs/auto_examples/",
     "--ignore=docs/_build/",
@@ -85,6 +87,9 @@ markers = [
 ]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 xfail_strict = true
+log_cli = true
+log_cli_level = "DEBUG"
+asyncio_default_fixture_loop_scope = "module"
 
 [tool.coverage.run]
 branch = true

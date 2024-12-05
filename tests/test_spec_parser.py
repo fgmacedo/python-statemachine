@@ -2,7 +2,8 @@ import logging
 
 import pytest
 
-from statemachine.spec_parser import operator_mapping, parse_boolean_expr
+from statemachine.spec_parser import operator_mapping
+from statemachine.spec_parser import parse_boolean_expr
 
 logger = logging.getLogger(__name__)
 DEBUG = logging.DEBUG
@@ -177,8 +178,7 @@ def test_expressions(expression, expected, caplog, hooks_called):
 
     if hooks_called:
         assert caplog.record_tuples == [
-            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})")
-            for hook in hooks_called
+            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
         ]
 
 
@@ -289,6 +289,5 @@ def test_should_evaluate_values_only_once(expression, expected, caplog, hooks_ca
 
     if hooks_called:
         assert caplog.record_tuples == [
-            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})")
-            for hook in hooks_called
+            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
         ]

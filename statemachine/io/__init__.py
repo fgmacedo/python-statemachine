@@ -16,7 +16,7 @@ CallbacksType = str | Callable | List[str] | List[Callable]
 
 class TransitionDict(TypedDict, total=False):
     target: str
-    event: str
+    event: str | None
     internal: bool
     validators: bool
     cond: CallbacksType
@@ -24,6 +24,9 @@ class TransitionDict(TypedDict, total=False):
     on: CallbacksType
     before: CallbacksType
     after: CallbacksType
+
+
+TransitionsDict = Dict[str | None, List[TransitionDict]]
 
 
 class StateDict(TypedDict, total=False):
@@ -36,7 +39,7 @@ class StateDict(TypedDict, total=False):
 
 
 class StateWithTransitionsDict(StateDict, total=False):
-    on: Dict[str, List[TransitionDict]]
+    on: TransitionsDict
 
 
 StateOptions = StateDict | StateWithTransitionsDict
@@ -75,19 +78,20 @@ def create_machine_class_from_definition(
     events: Dict[str, TransitionList] = {}
     for state_id, state_events in events_definitions.items():
         for event_name, transitions_data in state_events.items():
-            for trantion_data in transitions_data:
+            for transition_data in transitions_data:
                 source = states_instances[state_id]
 
-                target = states_instances[trantion_data["target"]]
+                target = states_instances[transition_data["target"]]
 
+                # TODO: Join `trantion_data.event` with `event_name`
                 transition = source.to(
                     target,
                     event=event_name,
-                    cond=trantion_data.get("cond"),
-                    unless=trantion_data.get("unless"),
-                    on=trantion_data.get("on"),
-                    before=trantion_data.get("before"),
-                    after=trantion_data.get("after"),
+                    cond=transition_data.get("cond"),
+                    unless=transition_data.get("unless"),
+                    on=transition_data.get("on"),
+                    before=transition_data.get("before"),
+                    after=transition_data.get("after"),
                 )
 
                 if event_name in events:

@@ -46,7 +46,7 @@ jobs:
       #----------------------------------------------
     - name: Test with pytest
       run: |
-        uv run pytest --cov-report=xml:coverage.xml
+        uv run pytest -n auto --cov-report=xml:coverage.xml
         uv run coverage xml
       #----------------------------------------------
       #          upload coverage
