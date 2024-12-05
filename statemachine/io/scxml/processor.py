@@ -3,7 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 
-from .. import StateOptions
 from .. import StateWithTransitionsDict
 from .. import TransitionDict
 from .. import TransitionsDict
@@ -33,7 +32,7 @@ class SCXMLProcessor:
         self.process_definition(definition, location=sm_name)
 
     def process_definition(self, definition, location: str):
-        states_dict: Dict[str, StateOptions] = {}
+        states_dict: Dict[str, StateWithTransitionsDict] = {}
         for state_id, state in definition.states.items():
             state_dict = StateWithTransitionsDict()
             if state.initial:

@@ -34,7 +34,7 @@ class ParseTime:
     pattern = re.compile(r"(\d+)?(\.\d+)?(s|ms)")
 
     @classmethod
-    def parse_delay(cls, delay: str | None, delayexpr: str | None, **kwargs):
+    def parse_delay(cls, delay: "str | None", delayexpr: "str | None", **kwargs):
         if delay:
             return cls.time_in_ms(delay)
         elif delayexpr:
@@ -377,7 +377,7 @@ def _create_dataitem_callable(action: DataItem) -> Callable:
     return data_initializer
 
 
-def create_datamodel_action_callable(action: DataModel) -> Callable | None:
+def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
     data_elements = [_create_dataitem_callable(item) for item in action.data]
     data_elements.extend([create_script_action_callable(script) for script in action.scripts])
 
