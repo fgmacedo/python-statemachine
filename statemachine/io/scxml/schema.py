@@ -27,13 +27,13 @@ class AssignAction(Action):
 
 @dataclass
 class LogAction(Action):
-    label: str | None
+    label: "str | None"
     expr: str
 
 
 @dataclass
 class IfBranch(Action):
-    cond: str | None
+    cond: "str | None"
     actions: List[Action] = field(default_factory=list)
 
     def append(self, action: Action):
@@ -49,36 +49,36 @@ class IfAction(Action):
 class ForeachAction(Action):
     array: str
     item: str
-    index: str | None
+    index: "str | None"
     content: ExecutableContent
 
 
 @dataclass
 class Param:
     name: str
-    expr: str | None
-    location: str | None = None
+    expr: "str | None"
+    location: "str | None" = None
 
 
 @dataclass
 class SendAction(Action):
-    event: str | None = None
-    eventexpr: str | None = None
-    target: str | None = None
-    type: str | None = None
-    id: str | None = None
-    idlocation: str | None = None
-    delay: str | None = None
-    delayexpr: str | None = None
-    namelist: str | None = None
+    event: "str | None" = None
+    eventexpr: "str | None" = None
+    target: "str | None" = None
+    type: "str | None" = None
+    id: "str | None" = None
+    idlocation: "str | None" = None
+    delay: "str | None" = None
+    delayexpr: "str | None" = None
+    namelist: "str | None" = None
     params: List[Param] = field(default_factory=list)
-    content: str | None = None
+    content: "str | None" = None
 
 
 @dataclass
 class CancelAction(Action):
-    sendid: str | None = None
-    sendidexpr: str | None = None
+    sendid: "str | None" = None
+    sendidexpr: "str | None" = None
 
 
 @dataclass
@@ -89,9 +89,9 @@ class ScriptAction(Action):
 @dataclass
 class Transition:
     target: str
-    event: str | None = None
-    cond: str | None = None
-    on: ExecutableContent | None = None
+    event: "str | None" = None
+    cond: "str | None" = None
+    on: "ExecutableContent | None" = None
 
 
 @dataclass
@@ -109,9 +109,9 @@ class State:
 @dataclass
 class DataItem:
     id: str
-    src: str | None
-    expr: str | None
-    content: str | None
+    src: "str | None"
+    expr: "str | None"
+    content: "str | None"
 
 
 @dataclass
@@ -123,5 +123,5 @@ class DataModel:
 @dataclass
 class StateMachineDefinition:
     states: Dict[str, State] = field(default_factory=dict)
-    initial_state: str | None = None
-    datamodel: DataModel | None = None
+    initial_state: "str | None" = None
+    datamodel: "DataModel | None" = None

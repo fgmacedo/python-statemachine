@@ -11,22 +11,20 @@ from ..state import State
 from ..statemachine import StateMachine
 from ..transition_list import TransitionList
 
-CallbacksType = str | Callable | List[str] | List[Callable]
-
 
 class TransitionDict(TypedDict, total=False):
     target: str
-    event: str | None
+    event: "str | None"
     internal: bool
     validators: bool
-    cond: CallbacksType
-    unless: CallbacksType
-    on: CallbacksType
-    before: CallbacksType
-    after: CallbacksType
+    cond: "str | Callable | List[str] | List[Callable]"
+    unless: "str | Callable | List[str] | List[Callable]"
+    on: "str | Callable | List[str] | List[Callable]"
+    before: "str | Callable | List[str] | List[Callable]"
+    after: "str | Callable | List[str] | List[Callable]"
 
 
-TransitionsDict = Dict[str | None, List[TransitionDict]]
+TransitionsDict = Dict["str | None", List[TransitionDict]]
 
 
 class StateDict(TypedDict, total=False):
@@ -34,19 +32,16 @@ class StateDict(TypedDict, total=False):
     value: Any
     initial: bool
     final: bool
-    enter: CallbacksType
-    exit: CallbacksType
+    enter: "str | Callable | List[str] | List[Callable]"
+    exit: "str | Callable | List[str] | List[Callable]"
 
 
 class StateWithTransitionsDict(StateDict, total=False):
     on: TransitionsDict
 
 
-StateOptions = StateDict | StateWithTransitionsDict
-
-
 def create_machine_class_from_definition(
-    name: str, states: Mapping[str, StateOptions], **definition
+    name: str, states: Mapping[str, "StateDict | StateWithTransitionsDict"], **definition
 ) -> StateMachine:  # noqa: C901
     """
     Creates a StateMachine class from a dictionary definition, using the StateMachineMetaclass.

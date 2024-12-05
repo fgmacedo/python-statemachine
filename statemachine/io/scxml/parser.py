@@ -69,7 +69,7 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:
     return definition
 
 
-def parse_datamodel(root: ET.Element) -> DataModel | None:
+def parse_datamodel(root: ET.Element) -> "DataModel | None":
     data_model = DataModel()
 
     for datamodel_elem in root.findall(".//datamodel"):
@@ -95,7 +95,7 @@ def parse_datamodel(root: ET.Element) -> DataModel | None:
 
 def parse_state(
     state_elem: ET.Element,
-    initial_state: str | None,
+    initial_state: "str | None",
     is_final: bool = False,
     is_parallel: bool = False,
 ) -> State:
