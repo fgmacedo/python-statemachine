@@ -127,55 +127,80 @@ def _eval(expr: str, **kwargs) -> Any:
     return eval(expr, {}, kwargs)
 
 
-def _normalize_cond(cond: str) -> str:
-    """
-    Normalizes a JavaScript-like condition string to be compatible with Python's eval.
-    """
-    if cond is None:
-        return None
+class CallableAction:
+    def __init__(self):
+        self.__qualname__ = f"{self.__class__.__module__}.{self.__class__.__name__}"
 
-    # Decode HTML entities, to allow XML syntax like `Var1&lt;Var2`
-    cond = html.unescape(cond)
+    def __call__(self, *args, **kwargs):
+        raise NotImplementedError
 
-    replacements = {
-        "true": "True",
-        "false": "False",
-        "null": "None",
-        "===": "==",
-        "!==": "!=",
-        "&&": "and",
-        "||": "or",
-    }
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.action!r})"
 
-    # Use regex to replace each JavaScript-like token with its Python equivalent
-    pattern = re.compile(r"\b(?:true|false|null)\b|===|!==|&&|\|\|")
-    return pattern.sub(lambda match: replacements[match.group(0)], cond)
+    @property
+    def __name__(self):
+        return str(self)
+
+    @property
+    def __code__(self):
+        return self.__call__.__code__
 
 
-def create_cond(cond, processor=None):
-    """Parses the <cond> element into a callable."""
-    cond = _normalize_cond(cond)
-    if cond is None:
-        return None
+class Cond(CallableAction):
+    """Evaluates a condition like a predicate and returns True or False."""
 
-    def cond_action(*args, **kwargs):
-        if processor:
-            kwargs["_ioprocessors"] = processor.wrap(**kwargs)
+    @classmethod
+    def create(cls, cond: "str | None", processor=None):
+        cond = cls._normalize(cond)
+        if cond is None:
+            return None
 
-        return _eval(cond, **kwargs)
+        return cls(cond, processor)
 
-    cond_action.cond = cond
+    def __init__(self, cond: str, processor=None):
+        super().__init__()
+        self.action = cond
+        self.processor = processor
 
-    return cond_action
+    def __call__(self, *args, **kwargs):
+        if self.processor:
+            kwargs["_ioprocessors"] = self.processor.wrap(**kwargs)
+
+        return _eval(self.action, **kwargs)
+
+    @staticmethod
+    def _normalize(cond: "str | None") -> "str | None":
+        """
+        Normalizes a JavaScript-like condition string to be compatible with Python's eval.
+        """
+        if cond is None:
+            return None
+
+        # Decode HTML entities, to allow XML syntax like `Var1&lt;Var2`
+        cond = html.unescape(cond)
+
+        replacements = {
+            "true": "True",
+            "false": "False",
+            "null": "None",
+            "===": "==",
+            "!==": "!=",
+            "&&": "and",
+            "||": "or",
+        }
+
+        # Use regex to replace each JavaScript-like token with its Python equivalent
+        pattern = re.compile(r"\b(?:true|false|null)\b|===|!==|&&|\|\|")
+        return pattern.sub(lambda match: replacements[match.group(0)], cond)
 
 
 def create_action_callable(action: Action) -> Callable:
     if isinstance(action, RaiseAction):
         return create_raise_action_callable(action)
     elif isinstance(action, AssignAction):
-        return create_assign_action_callable(action)
+        return Assign(action)
     elif isinstance(action, LogAction):
-        return create_log_action_callable(action)
+        return Log(action)
     elif isinstance(action, IfAction):
         return create_if_action_callable(action)
     elif isinstance(action, ForeachAction):
@@ -199,43 +224,46 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
     return raise_action
 
 
-def create_assign_action_callable(action: AssignAction) -> Callable:
-    def assign_action(*args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
-        value = _eval(action.expr, **kwargs)
+class Assign(CallableAction):
+    def __init__(self, action: AssignAction):
+        super().__init__()
+        self.action = action
 
-        *path, attr = action.location.split(".")
+    def __call__(self, *args, **kwargs):
+        machine: StateMachine = kwargs["machine"]
+        value = _eval(self.action.expr, **kwargs)
+
+        *path, attr = self.action.location.split(".")
         obj = machine.model
         for p in path:
             obj = getattr(obj, p)
 
         if not attr.isidentifier():
             raise ValueError(
-                f"<assign> 'location' must be a valid Python attribute name, got: {action.location}"  # noqa: E501
+                f"<assign> 'location' must be a valid Python attribute name, "
+                f"got: {self.action.location}"
             )
         setattr(obj, attr, value)
 
-    assign_action.action = action  # type: ignore[attr-defined]
-    return assign_action
 
+class Log(CallableAction):
+    def __init__(self, action: LogAction):
+        super().__init__()
+        self.action = action
 
-def create_log_action_callable(action: LogAction) -> Callable:
-    def log_action(*args, **kwargs):
+    def __call__(self, *args, **kwargs):
         machine: StateMachine = kwargs["machine"]
         kwargs.update(machine.model.__dict__)
-        value = _eval(action.expr, **kwargs)
+        value = _eval(self.action.expr, **kwargs)
 
-        msg = f"{action.label}: {value!r}" if action.label else f"{value!r}"
+        msg = f"{self.action.label}: {value!r}" if self.action.label else f"{value!r}"
         print(msg)
-
-    log_action.action = action  # type: ignore[attr-defined]
-    return log_action
 
 
 def create_if_action_callable(action: IfAction) -> Callable:
     branches = [
         (
-            create_cond(branch.cond),
+            Cond.create(branch.cond),
             [create_action_callable(action) for action in branch.actions],
         )
         for branch in action.branches
@@ -411,14 +439,18 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
     return __init__
 
 
-def create_executable_content(content: ExecutableContent) -> Callable:
+class ExecuteBlock(CallableAction):
     """Parses the children as <executable> content XML into a callable."""
-    action_callables = [create_action_callable(action) for action in content.actions]
 
-    def execute_block(*args, **kwargs):
+    def __init__(self, content: ExecutableContent):
+        super().__init__()
+        self.action = content
+        self.action_callables = [create_action_callable(action) for action in content.actions]
+
+    def __call__(self, *args, **kwargs):
         machine: StateMachine = kwargs["machine"]
         try:
-            for action in action_callables:
+            for action in self.action_callables:
                 action(*args, **kwargs)
 
             machine._processing_loop()
@@ -427,6 +459,3 @@ def create_executable_content(content: ExecutableContent) -> Callable:
             if isinstance(e, InvalidDefinition):
                 raise
             machine.send("error.execution", error=e)
-
-    execute_block.content = content  # type: ignore[attr-defined]
-    return execute_block

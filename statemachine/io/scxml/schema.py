@@ -13,6 +13,10 @@ class Action:
 class ExecutableContent:
     actions: List[Action] = field(default_factory=list)
 
+    @property
+    def is_empty(self):
+        return not self.actions
+
 
 @dataclass
 class RaiseAction(Action):
