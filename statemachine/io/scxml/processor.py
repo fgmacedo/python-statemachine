@@ -3,14 +3,15 @@ from typing import Any
 from typing import Dict
 from typing import List
 
-from .. import StateWithTransitionsDict
+from .. import StateDefinition
 from .. import TransitionDict
 from .. import TransitionsDict
 from .. import create_machine_class_from_definition
-from .actions import create_cond
+from .actions import Cond
+from .actions import ExecuteBlock
 from .actions import create_datamodel_action_callable
-from .actions import create_executable_content
 from .parser import parse_scxml
+from .schema import State
 from .schema import Transition
 
 
@@ -32,29 +33,7 @@ class SCXMLProcessor:
         self.process_definition(definition, location=sm_name)
 
     def process_definition(self, definition, location: str):
-        states_dict: Dict[str, StateWithTransitionsDict] = {}
-        for state_id, state in definition.states.items():
-            state_dict = StateWithTransitionsDict()
-            if state.initial:
-                state_dict["initial"] = True
-            if state.final:
-                state_dict["final"] = True
-
-            # Process enter actions
-            if state.onentry:
-                callables = [create_executable_content(content) for content in state.onentry]
-                state_dict["enter"] = callables
-
-            # Process exit actions
-            if state.onexit:
-                callables = [create_executable_content(content) for content in state.onexit]
-                state_dict["exit"] = callables
-
-            # Process transitions
-            if state.transitions:
-                state_dict["on"] = self._process_transitions(state.transitions)
-
-            states_dict[state_id] = state_dict
+        states_dict = self._process_states(definition.states)
 
         extra_data = {}
 
@@ -64,8 +43,43 @@ class SCXMLProcessor:
             if __init__:
                 extra_data["__init__"] = __init__
 
-        # breakpoint()
         self._add(location, {"states": states_dict, **extra_data})
+
+    def _process_states(self, states: Dict[str, State]) -> Dict[str, StateDefinition]:
+        states_dict: Dict[str, StateDefinition] = {}
+        for state_id, state in states.items():
+            state_dict = StateDefinition()
+            if state.initial:
+                state_dict["initial"] = True
+            if state.final:
+                state_dict["final"] = True
+            if state.parallel:
+                state_dict["parallel"] = True
+
+            # Process enter actions
+            if state.onentry:
+                callables = [
+                    ExecuteBlock(content) for content in state.onentry if not content.is_empty
+                ]
+                state_dict["enter"] = callables
+
+            # Process exit actions
+            if state.onexit:
+                callables = [
+                    ExecuteBlock(content) for content in state.onexit if not content.is_empty
+                ]
+                state_dict["exit"] = callables
+
+            # Process transitions
+            if state.transitions:
+                state_dict["on"] = self._process_transitions(state.transitions)
+
+            states_dict[state_id] = state_dict
+
+            if state.states:
+                state_dict["states"] = self._process_states(state.states)
+
+        return states_dict
 
     def _process_transitions(self, transitions: List[Transition]):
         on_dict: TransitionsDict = {}
@@ -77,12 +91,12 @@ class SCXMLProcessor:
 
             # Process cond
             if transition.cond:
-                cond_callable = create_cond(transition.cond, processor=self)
+                cond_callable = Cond.create(transition.cond, processor=self)
                 transition_dict["cond"] = cond_callable
 
                 # Process actions
-            if transition.on:
-                callable = create_executable_content(transition.on)
+            if transition.on and not transition.on.is_empty:
+                callable = ExecuteBlock(transition.on)
                 transition_dict["on"] = callable
 
             on_dict[event].append(transition_dict)
