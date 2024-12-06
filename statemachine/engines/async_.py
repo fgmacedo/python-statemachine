@@ -4,22 +4,15 @@ from typing import TYPE_CHECKING
 
 from ..event_data import EventData
 from ..event_data import TriggerData
-from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
 from ..i18n import _
 from .base import BaseEngine
 
 if TYPE_CHECKING:
-    from ..statemachine import StateMachine
     from ..transition import Transition
 
 
 class AsyncEngine(BaseEngine):
-    def __init__(self, sm: "StateMachine", rtc: bool = True):
-        if not rtc:
-            raise InvalidDefinition(_("Only RTC is supported on async engine"))
-        super().__init__(sm=sm, rtc=rtc)
-
     async def activate_initial_state(self):
         """
         Activate the initial state.
@@ -35,16 +28,7 @@ class AsyncEngine(BaseEngine):
     async def processing_loop(self):
         """Process event triggers.
 
-        The simplest implementation is the non-RTC (synchronous),
-        where the trigger will be run immediately and the result collected as the return.
-
-        .. note::
-
-            While processing the trigger, if others events are generated, they
-            will also be processed immediately, so a "nested" behavior happens.
-
-        If the machine is on ``rtc`` model (queued), the event is put on a queue, and only the
-        first event will have the result collected.
+        The event is put on a queue, and only the first event will have the result collected.
 
         .. note::
             While processing the queue items, if others events are generated, they

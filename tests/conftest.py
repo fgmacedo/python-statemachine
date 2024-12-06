@@ -135,8 +135,8 @@ def classic_traffic_light_machine(engine):
         stop = yellow.to(red)
         go = red.to(green)
 
-        def _get_engine(self, rtc: bool):
-            return engine(self, rtc)
+        def _get_engine(self):
+            return engine(self)
 
     return TrafficLightMachine
 

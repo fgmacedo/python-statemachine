@@ -417,7 +417,6 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
         model: Any = None,
         state_field: str = "state",
         start_value: Any = None,
-        rtc: bool = True,
         allow_event_without_transition: bool = True,
         listeners: "List[object] | None" = None,
     ):
@@ -431,7 +430,6 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
             model,
             state_field=state_field,
             start_value=start_value,
-            rtc=rtc,
             allow_event_without_transition=allow_event_without_transition,
             listeners=listeners,
         )
