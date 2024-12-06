@@ -33,7 +33,7 @@ jobs:
 
       - name: Test
         run: |
-          uv run pytest -n auto
+          uv run pytest -n auto --cov
 
       - name: Build
         run: |
