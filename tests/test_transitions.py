@@ -252,8 +252,8 @@ class TestInternalTransition:
 
             loop = initial.to.itself(internal=internal)
 
-            def _get_engine(self, rtc: bool):
-                return engine(self, rtc)
+            def _get_engine(self):
+                return engine(self)
 
             def on_exit_initial(self):
                 calls.append("on_exit_initial")

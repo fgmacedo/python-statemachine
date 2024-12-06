@@ -4,6 +4,10 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import MutableSet
+from typing import Set
+
+from statemachine.orderedset import OrderedSet
 
 from .callbacks import SPECS_ALL
 from .callbacks import SPECS_SAFE
@@ -41,9 +45,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         start_value: An optional start state value if there's no current state assigned
             on the :ref:`domain models`. Default: ``None``.
 
-        rtc (bool): Controls the :ref:`processing model`. Defaults to ``True``
-            that corresponds to a **run-to-completion** (RTC) model.
-
         allow_event_without_transition: If ``False`` when an event does not result in a transition,
             an exception ``TransitionNotAllowed`` will be raised.
             If ``True`` the state machine allows triggering events that may not lead to a state
@@ -71,7 +72,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         model: Any = None,
         state_field: str = "state",
         start_value: Any = None,
-        rtc: bool = True,
         allow_event_without_transition: bool = False,
         listeners: "List[object] | None" = None,
     ):
@@ -81,7 +81,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.allow_event_without_transition = allow_event_without_transition
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
-
         self._listeners: Dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
 
@@ -93,14 +92,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         # Activate the initial state, this only works if the outer scope is sync code.
         # for async code, the user should manually call `await sm.activate_initial_state()`
         # after state machine creation.
-        self._engine = self._get_engine(rtc)
+        self._engine = self._get_engine()
         self._engine.start()
 
-    def _get_engine(self, rtc: bool):
+    def _get_engine(self):
         if self._callbacks.has_async_callbacks:
-            return AsyncEngine(self, rtc=rtc)
+            return AsyncEngine(self)
 
-        return SyncEngine(self, rtc=rtc)
+        return SyncEngine(self)
 
     def activate_initial_state(self):
         result = self._engine.activate_initial_state()
@@ -132,7 +131,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state["_rtc"] = self._engine._rtc
         del state["_callbacks"]
         del state["_states_for_instance"]
         del state["_engine"]
@@ -140,7 +138,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def __setstate__(self, state):
         listeners = state.pop("_listeners")
-        rtc = state.pop("_rtc")
         self.__dict__.update(state)
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
@@ -149,7 +146,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         self._register_callbacks([])
         self.add_listener(*listeners.values())
-        self._engine = self._get_engine(rtc)
+        self._engine = self._get_engine()
 
     def _get_initial_state(self):
         initial_state_value = self.start_value if self.start_value else self.initial_state.value
@@ -244,6 +241,25 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return DotGraphMachine(self).get_graph()
 
     @property
+    def configuration(self) -> OrderedSet["State"]:
+        if self.current_state_value is None:
+            return OrderedSet()
+
+        if not isinstance(self.current_state_value, MutableSet):
+            return OrderedSet([self.states_map[self.current_state_value]])
+
+        return self.current_state_value
+
+    @configuration.setter
+    def configuration(self, value: OrderedSet["State"]):
+        if len(value) == 0:
+            self.current_state_value = None
+        elif len(value) == 1:
+            self.current_state_value = value.pop().value
+        else:
+            self.current_state_value = value
+
+    @property
     def current_state_value(self):
         """Get/Set the current :ref:`state` value.
 
@@ -254,12 +270,12 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @current_state_value.setter
     def current_state_value(self, value):
-        if value not in self.states_map:
+        if not isinstance(value, MutableSet) and value not in self.states_map:
             raise InvalidStateValue(value)
         setattr(self.model, self.state_field, value)
 
     @property
-    def current_state(self) -> "State":
+    def current_state(self) -> "State | Set[State]":
         """Get/Set the current :ref:`state`.
 
         This is a low level API, that can be to assign any valid state

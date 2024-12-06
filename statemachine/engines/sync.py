@@ -2,6 +2,8 @@ from time import sleep
 from time import time
 from typing import TYPE_CHECKING
 
+from statemachine.orderedset import OrderedSet
+
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import TransitionNotAllowed
@@ -31,27 +33,13 @@ class SyncEngine(BaseEngine):
     def processing_loop(self):
         """Process event triggers.
 
-        The simplest implementation is the non-RTC (synchronous),
-        where the trigger will be run immediately and the result collected as the return.
-
-        .. note::
-
-            While processing the trigger, if others events are generated, they
-            will also be processed immediately, so a "nested" behavior happens.
-
-        If the machine is on ``rtc`` model (queued), the event is put on a queue, and only the
-        first event will have the result collected.
+        The event is put on a queue, and only the first event will have the result collected.
 
         .. note::
             While processing the queue items, if others events are generated, they
             will be processed sequentially (and not nested).
 
         """
-        if not self._rtc:
-            # The machine is in "synchronous" mode
-            trigger_data = self.pop()
-            return self._trigger(trigger_data)
-
         # We make sure that only the first event enters the processing critical section,
         # next events will only be put on the queue and processed by the same loop.
         if not self._processing.acquire(blocking=False):
@@ -127,7 +115,7 @@ class SyncEngine(BaseEngine):
 
         result += self.sm._callbacks.call(transition.on.key, *args, **kwargs)
 
-        self.sm.current_state = target
+        self.sm.configuration = OrderedSet([target])
         event_data.state = target
         kwargs["state"] = target
 
