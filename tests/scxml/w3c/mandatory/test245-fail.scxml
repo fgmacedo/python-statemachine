@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that non-existent datamodel values are not set.  Var2 is not
+defined in
+invoked child's datamodel.  It will will return success if its Var2 remains unbound, failure
+otherwise.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var2" expr="3" />
+  </datamodel>
+
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="2s" />
+    </onentry>
+
+    <invoke type="http://www.w3.org/TR/scxml/" namelist="Var2">
+      <content>
+        <scxml initial="sub0" version="1.0" datamodel="python">
+          <state id="sub0">
+            <transition cond="Var2" target="subFinal">
+              <send target="#_parent" event="failure" />
+            </transition>
+            <transition target="subFinal">
+              <send target="#_parent" event="success" />
+            </transition>
+          </state>
+          <final id="subFinal" />
+        </scxml>
+      </content>
+    </invoke>
+
+    <transition event="success" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest509" version="1.0"
+  xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+  that Basic HTTP Event I/O processor uses POST method and that it can receive messages
+at the accessURI-->
+  <state id="s0">
+    <onentry>
+      <send delay="2s" event="timeout" />
+      <send event="test" targetexpr="_ioprocessors['basichttp']['location']"
+        type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor" />
+    </onentry><!--if
+    the event was send by http and we get it, we succeed-->
+    <transition cond="_event.raw.search('POST') !== -1" event="test" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log expr="'pass'" label="Outcome" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log expr="'fail'" label="Outcome" />
+    </onentry>
+  </final>
+</scxml>

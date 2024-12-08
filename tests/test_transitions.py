@@ -10,12 +10,7 @@ from .models import MyModel
 
 def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.draft.transitions if t.event == "produce"][0])
-    assert s == (
-        "Transition("
-        "State('Draft', id='draft', value='draft', initial=True, final=False), "
-        "State('Being produced', id='producing', value='producing', "
-        "initial=False, final=False), event='produce', internal=False)"
-    )
+    assert s == ("Transition('Draft', 'Being produced', event='produce', internal=False)")
 
 
 def test_list_machine_events(classic_traffic_light_machine):
@@ -252,8 +247,8 @@ class TestInternalTransition:
 
             loop = initial.to.itself(internal=internal)
 
-            def _get_engine(self, rtc: bool):
-                return engine(self, rtc)
+            def _get_engine(self):
+                return engine(self)
 
             def on_exit_initial(self):
                 calls.append("on_exit_initial")

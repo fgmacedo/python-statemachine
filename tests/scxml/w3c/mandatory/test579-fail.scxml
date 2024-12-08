@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that default history content is executed correctly.   The Process MUST execute any
+executable content in the transition after the parent state's onentry handlers, and, in the case
+where the history pseudo-state is the target of an <initial> transition,
+the executable content inside the <initial> transition.  However the Processor MUST
+execute this content only if there is no stored history.  Once the history state's
+parent state has been visited and exited, the default history content must not be executed -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  version="1.0" initial="s0" datamodel="python">
+  <state id="s0">
+    <datamodel>
+      <data id="Var1" expr="0" />
+    </datamodel>
+    <initial>
+      <transition target="sh1">
+        <raise event="event2" />
+      </transition>
+    </initial>
+    <onentry>
+      <send delayexpr="'1s'" event="timeout" />
+      <raise event="event1" />
+    </onentry>
+    <onexit>
+      <assign location="Var1" expr="Var1 + 1" />
+    </onexit>
+    <history id="sh1">
+      <transition target="s01">
+        <raise event="event3" />
+      </transition>
+    </history>
+    <state id="s01">
+      <transition event="event1" target="s02" />
+      <transition event="*" target="fail" />
+    </state>
+    <state id="s02">
+      <transition event="event2" target="s03" />
+      <transition event="*" target="fail" />
+    </state>
+    <state id="s03">
+      <transition cond="Var1==0" event="event3" target="s0" />
+      <transition cond="Var1==1" event="event1" target="s2" />
+      <transition event="*" target="fail" />
+    </state>
+  </state>
+  <state id="s2">
+    <transition event="event2" target="s3" />
+    <transition event="*" target="fail" />
+  </state>
+  <state id="s3">
+    <transition event="event3" target="fail" />
+    <transition event="timeout" target="pass" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

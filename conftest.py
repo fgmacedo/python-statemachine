@@ -31,3 +31,31 @@ def pytest_ignore_collect(collection_path, path, config):
 
     if "django_project" in str(path):
         return True
+
+
+# @pytest.fixture(autouse=True, scope="module")
+# def mock_dot_write(request):
+#     """
+#     This fixture avoids updating files while executing tests
+#     """
+
+#     def open_effect(
+#         filename,
+#         mode="r",
+#         *args,
+#         **kwargs,
+#     ):
+#         if mode in ("r", "rt", "rb"):
+#             return open(filename, mode, *args, **kwargs)
+#         elif filename.startswith("/tmp/"):
+#             return open(filename, mode, *args, **kwargs)
+#         elif "b" in mode:
+#             return io.BytesIO()
+#         else:
+#             return io.StringIO()
+
+#     # using global mock instead of the fixture mocker due to the ScopeMismatch
+#     # this fixture is module scoped and mocker is function scoped
+#     with mock.patch("pydot.core.io.open", spec=True) as m:
+#         m.side_effect = open_effect
+#         yield m

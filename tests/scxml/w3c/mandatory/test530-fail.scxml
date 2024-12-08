@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that <content> child is evaluated when <invoke> is. Var1 is
+initialized
+with an integer value, then set to an scxml script in the onentry to s0.  If <content>
+is evaluated at the right time, we should get invoke.done, otherwise an error  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var1" expr="1" />
+  </datamodel>
+
+  <state id="s0">
+    <onentry>
+      <assign location="Var1">
+        <scxml version="1.0">
+          <final />
+        </scxml>
+      </assign>
+      <send event="timeout" delay="2s" />
+    </onentry>
+
+    <invoke type="http://www.w3.org/TR/scxml/">
+      <content expr="Var1" />
+    </invoke>
+
+    <transition event="done.invoke" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

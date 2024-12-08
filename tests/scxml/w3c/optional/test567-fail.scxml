@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that that any content in the message other than _scxmleventname is used to populate
+_event.data.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="ecmascript" version="1.0">
+  <datamodel>
+    <data id="Var1" expr="2" />
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="3s" />
+      <!-- in this case, 'test' will be placed in _scxmleventname.  The <param> should
+ be used to populate _event.data -->
+      <send event="test" targetexpr="_ioprocessors['basichttp']['location']"
+        type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor">
+        <param name="param1" expr="2" />
+      </send>
+    </onentry>
+    <!-- if we get this event, we succeed -->
+    <transition event="test" target="s1">
+      <assign location="Var1" expr="_event.data.param1" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+  <state id="s1">
+    <transition cond="Var1==2" target="pass" />
+    <transition target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that an internal transition whose targets are not proper
+descendants of its source state
+behaves like an external transition -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s1" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var1" expr="0" />  <!-- how often we have exited s2 -->
+    <data id="Var2" expr="0" />  <!-- how often we have exited s21 -->
+    <data id="Var3" expr="0" />  <!-- how often the transition for foo has been taken -->
+  </datamodel>
+
+  <state id="s1">
+    <onentry>
+      <raise event="foo" />
+      <raise event="bar" />
+    </onentry>
+    <transition target="s2" />
+  </state>
+
+  <state id="s2" initial="s21">
+    <onexit>
+      <assign location="Var1" expr="Var1 + 1" />
+    </onexit>
+    <transition event="foo" type="internal" target="s2">
+      <assign location="Var3" expr="Var3 + 1" />
+    </transition>
+
+    <!-- make sure the transition on foo was actually taken -->
+    <transition event="bar" cond="Var3==1" target="s3" />
+    <transition event="bar" target="fail" />
+
+    <state id="s21">
+      <onexit>
+        <assign location="Var2" expr="Var2 + 1" />
+      </onexit>
+    </state>
+
+  </state>
+
+  <state id="s3">
+    <!-- make sure that s2 was exited twice -->
+    <transition cond="Var1==2" target="s4" />
+    <transition target="fail" />
+  </state>
+
+  <state id="s4">
+    <!-- make sure that s21 was exited twice -->
+    <transition cond="Var2==2" target="pass" />
+    <transition target="fail" />
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

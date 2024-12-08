@@ -5,6 +5,7 @@ from collections import deque
 from enum import IntEnum
 from enum import IntFlag
 from enum import auto
+from functools import partial
 from inspect import isawaitable
 from typing import TYPE_CHECKING
 from typing import Callable
@@ -89,10 +90,10 @@ class CallbackSpec:
             self.attr_name: str = func and func.fget and func.fget.__name__ or ""
         elif callable(func):
             self.reference = SpecReference.CALLABLE
-            self.is_bounded = hasattr(func, "__self__")
-            self.attr_name = (
-                func.__name__ if not self.is_event or self.is_bounded else f"_{func.__name__}_"
-            )
+            is_partial = isinstance(func, partial)
+            self.is_bounded = is_partial or hasattr(func, "__self__")
+            name = func.func.__name__ if is_partial else func.__name__
+            self.attr_name = name if not self.is_event or self.is_bounded else f"_{name}_"
             if not self.is_bounded:
                 func.attr_name = self.attr_name
                 func.is_event = is_event
@@ -110,7 +111,7 @@ class CallbackSpec:
         return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"
 
     def __str__(self):
-        name = getattr(self.func, "__name__", self.func)
+        name = self.attr_name
         if self.expected_value is False:
             name = f"!{name}"
         return name

@@ -76,8 +76,8 @@ class Transition:
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}({self.source!r}, {self.target!r}, event={self.event!r}, "
-            f"internal={self.internal!r})"
+            f"{type(self).__name__}({self.source.name!r}, {self.target.name!r}, "
+            f"event={self.event!r}, internal={self.internal!r})"
         )
 
     def __str__(self):
@@ -145,3 +145,7 @@ class Transition:
             new_transition._specs.add(new_spec, new_spec.group)
 
         return new_transition
+
+    @property
+    def is_eventless(self):
+        return self._events.is_empty
