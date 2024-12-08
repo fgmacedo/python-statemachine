@@ -110,9 +110,8 @@ def test_copy_with_listeners(copy_method):
     assert len(sm1._listeners) == len(sm2._listeners)
     assert all(
         listener.name == copied_listener.name
-        for listener, copied_listener in zip(
-            sm1._listeners.values(), sm2._listeners.values(), strict=False
-        )
+        # zip(strict=True) requires python 3.10
+        for listener, copied_listener in zip(sm1._listeners.values(), sm2._listeners.values())  # noqa: B905
     )
 
     sm2.model.let_me_be_visible = True

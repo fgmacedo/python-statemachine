@@ -71,7 +71,7 @@ class OrderedSet(MutableSet[T]):
 
     __slots__ = ("_d",)
 
-    def __init__(self, iterable: Iterable[T] | None = None):
+    def __init__(self, iterable: "Iterable[T] | None" = None):
         self._d = dict.fromkeys(iterable) if iterable else {}
 
     def add(self, x: T) -> None:
