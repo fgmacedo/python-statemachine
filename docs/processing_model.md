@@ -77,4 +77,3 @@ after 'connection_succeed' from 'connecting' to 'connected'
 ```{note}
 Note that the events `connect` and `connection_succeed` are executed sequentially, and the `connect.after` runs on the expected order.
 ```
-

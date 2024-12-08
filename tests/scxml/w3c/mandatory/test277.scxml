@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?><!-- test that platform raises error.execution if we assign an
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that platform raises error.execution if we assign an
 illegal value to a var but that var is defined
 so that we can assign to it later in state s1. Timeout keeps test from hanging in s0 -->
 <scxml xmlns:conf="http://www.w3.org/2005/scxml-conformance" initial="s0" datamodel="python">

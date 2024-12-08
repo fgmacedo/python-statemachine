@@ -11,7 +11,7 @@ otherwise -->
   <state id="s0">
 
     <onentry>
-      <send delay="5s" event="timeout" />
+      <send delay="2s" event="timeout" />
       <send type="http://www.w3.org/TR/scxml/#SCXMLEventProcessor" id="send1" event="s0Event" />
     </onentry>
     <transition event="s0Event" target="s1">
@@ -30,7 +30,7 @@ otherwise -->
   <state id="s2">
 
     <onentry>
-      <send delay="5s" event="timeout" />
+      <send delay="2s" event="timeout" />
       <send event="s0Event2" />
     </onentry>
     <transition event="s0Event2" target="s3">

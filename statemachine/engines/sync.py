@@ -2,9 +2,9 @@ from time import sleep
 from time import time
 from typing import TYPE_CHECKING
 
+from statemachine.event import BoundEvent
 from statemachine.orderedset import OrderedSet
 
-from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import TransitionNotAllowed
 from .base import BaseEngine
@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 
 class SyncEngine(BaseEngine):
     def start(self):
-        super().start()
+        if self.sm.current_state_value is not None:
+            return
+
         self.activate_initial_state()
 
     def activate_initial_state(self):
@@ -28,9 +30,17 @@ class SyncEngine(BaseEngine):
         Given how async works on python, there's no built-in way to activate the initial state that
         may depend on async code from the StateMachine.__init__ method.
         """
+        if self.sm.current_state_value is None:
+            trigger_data = BoundEvent("__initial__", _sm=self.sm).build_trigger(machine=self.sm)
+            transition = self._initial_transition(trigger_data)
+            self._processing.acquire(blocking=False)
+            try:
+                self._enter_states([transition], trigger_data, {})
+            finally:
+                self._processing.release()
         return self.processing_loop()
 
-    def processing_loop(self):
+    def processing_loop(self):  # noqa: C901
         """Process event triggers.
 
         The event is put on a queue, and only the first event will have the result collected.
@@ -50,86 +60,84 @@ class SyncEngine(BaseEngine):
         # be also `None`, and on this case the `first_result` may be overridden by another result.
         first_result = self._sentinel
         try:
-            # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self._running and not self.empty():
-                trigger_data = self.pop()
-                current_time = time()
-                if trigger_data.execution_time > current_time:
-                    self.put(trigger_data)
-                    sleep(0.001)
-                    continue
-                try:
-                    result = self._trigger(trigger_data)
-                    if first_result is self._sentinel:
-                        first_result = result
-                except Exception:
-                    # Whe clear the queue as we don't have an expected behavior
-                    # and cannot keep processing
-                    self.clear()
-                    raise
+            took_events = True
+            while took_events:
+                took_events = False
+                # Execute the triggers in the queue in FIFO order until the queue is empty
+                # while self._running and not self.external_queue.is_empty():
+                macrostep_done = False
+                enabled_transitions: "OrderedSet[Transition] | None" = None
+
+                # handles eventless transitions and internal events
+                while not macrostep_done:
+                    internal_event = TriggerData(
+                        self.sm, event=None
+                    )  # this one is a "null object"
+                    enabled_transitions = self.select_eventless_transitions(internal_event)
+                    if not enabled_transitions:
+                        if self.internal_queue.is_empty():
+                            macrostep_done = True
+                        else:
+                            internal_event = self.internal_queue.pop()
+
+                            enabled_transitions = self.select_transitions(internal_event)
+                    if enabled_transitions:
+                        took_events = True
+                        self.microstep(list(enabled_transitions), internal_event)
+
+                # TODO: Invoke platform-specific logic
+                # for state in sorted(self.states_to_invoke, key=self.entry_order):
+                #     for inv in sorted(state.invoke, key=self.document_order):
+                #         self.invoke(inv)
+                # self.states_to_invoke.clear()
+
+                # Process remaining internal events before external events
+                while not self.internal_queue.is_empty():
+                    internal_event = self.internal_queue.pop()
+                    enabled_transitions = self.select_transitions(internal_event)
+                    if enabled_transitions:
+                        self.microstep(list(enabled_transitions))
+
+                # Process external events
+                while not self.external_queue.is_empty():
+                    took_events = True
+                    external_event = self.external_queue.pop()
+                    current_time = time()
+                    if external_event.execution_time > current_time:
+                        self.put(external_event)
+                        sleep(0.001)
+                        continue
+
+                    # # TODO: Handle cancel event
+                    # if self.is_cancel_event(external_event):
+                    #     self.running = False
+                    #     return
+
+                    # TODO: Invoke states
+                    # for state in self.configuration:
+                    #     for inv in state.invoke:
+                    #         if inv.invokeid == external_event.invokeid:
+                    #             self.apply_finalize(inv, external_event)
+                    #         if inv.autoforward:
+                    #             self.send(inv.id, external_event)
+
+                    enabled_transitions = self.select_transitions(external_event)
+                    if enabled_transitions:
+                        try:
+                            result = self.microstep(list(enabled_transitions), external_event)
+                            if first_result is self._sentinel:
+                                first_result = result
+
+                        except Exception:
+                            # Whe clear the queue as we don't have an expected behavior
+                            # and cannot keep processing
+                            self.clear()
+                            raise
+
+                    else:
+                        if not self.sm.allow_event_without_transition:
+                            raise TransitionNotAllowed(external_event.event, self.sm.current_state)
+
         finally:
             self._processing.release()
         return first_result if first_result is not self._sentinel else None
-
-    def _trigger(self, trigger_data: TriggerData):  # noqa: C901
-        executed = False
-        if trigger_data.event == "__initial__":
-            transition = self._initial_transition(trigger_data)
-            self._activate(trigger_data, transition)
-            if self.sm.current_state.transitions.has_eventless_transition:
-                self.put(TriggerData(self.sm, event=None))
-            return self._sentinel
-
-        state = self.sm.current_state
-        for transition in state.transitions:
-            if not transition.match(trigger_data.event):
-                continue
-
-            executed, result = self._activate(trigger_data, transition)
-            if not executed:
-                continue
-
-            if self.sm.current_state.transitions.has_eventless_transition:
-                self.put(TriggerData(self.sm, event=None))
-            break
-        else:
-            if not self.sm.allow_event_without_transition:
-                raise TransitionNotAllowed(trigger_data.event, state)
-
-        return result if executed else None
-
-    def _activate(self, trigger_data: TriggerData, transition: "Transition"):  # noqa: C901
-        event_data = EventData(trigger_data=trigger_data, transition=transition)
-        args, kwargs = event_data.args, event_data.extended_kwargs
-
-        self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
-        if not self.sm._callbacks.all(transition.cond.key, *args, **kwargs):
-            return False, None
-
-        source = transition.source
-        target = transition.target
-
-        result = self.sm._callbacks.call(transition.before.key, *args, **kwargs)
-        if source is not None and not transition.internal:
-            self.sm._callbacks.call(source.exit.key, *args, **kwargs)
-
-        result += self.sm._callbacks.call(transition.on.key, *args, **kwargs)
-
-        self.sm.configuration = OrderedSet([target])
-        event_data.state = target
-        kwargs["state"] = target
-
-        if not transition.internal:
-            self.sm._callbacks.call(target.enter.key, *args, **kwargs)
-        self.sm._callbacks.call(transition.after.key, *args, **kwargs)
-
-        if target.final:
-            self.clear()
-            self._running = False
-
-        if len(result) == 0:
-            result = None
-        elif len(result) == 1:
-            result = result[0]
-
-        return True, result

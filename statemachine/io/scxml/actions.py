@@ -5,11 +5,9 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import Any
 from typing import Callable
-from typing import List
 from uuid import uuid4
 
 from statemachine.exceptions import InvalidDefinition
-from statemachine.model import Model
 
 from ...event import Event
 from ...statemachine import StateMachine
@@ -163,10 +161,15 @@ class Cond(CallableAction):
         self.processor = processor
 
     def __call__(self, *args, **kwargs):
+        machine = kwargs["machine"]
         if self.processor:
             kwargs["_ioprocessors"] = self.processor.wrap(**kwargs)
 
-        return _eval(self.action, **kwargs)
+        try:
+            return _eval(self.action, **kwargs)
+        except Exception as e:
+            machine.send("error.execution", error=e, internal=True)
+            return False
 
     @staticmethod
     def _normalize(cond: "str | None") -> "str | None":
@@ -215,15 +218,6 @@ def create_action_callable(action: Action) -> Callable:
         raise ValueError(f"Unknown action type: {type(action)}")
 
 
-def create_raise_action_callable(action: RaiseAction) -> Callable:
-    def raise_action(*args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
-        machine.send(action.event)
-
-    raise_action.action = action  # type: ignore[attr-defined]
-    return raise_action
-
-
 class Assign(CallableAction):
     def __init__(self, action: AssignAction):
         super().__init__()
@@ -238,9 +232,9 @@ class Assign(CallableAction):
         for p in path:
             obj = getattr(obj, p)
 
-        if not attr.isidentifier():
+        if not attr.isidentifier() or not hasattr(obj, attr):
             raise ValueError(
-                f"<assign> 'location' must be a valid Python attribute name, "
+                f"<assign> 'location' must be a valid Python attribute name and must be declared, "
                 f"got: {self.action.location}"
             )
         setattr(obj, attr, value)
@@ -309,8 +303,21 @@ def create_foreach_action_callable(action: ForeachAction) -> Callable:
     return foreach_action
 
 
+def create_raise_action_callable(action: RaiseAction) -> Callable:
+    def raise_action(*args, **kwargs):
+        machine: StateMachine = kwargs["machine"]
+
+        Event(id=action.event, name=action.event, internal=True).put(
+            machine=machine,
+        )
+
+    raise_action.action = action  # type: ignore[attr-defined]
+    return raise_action
+
+
 def create_send_action_callable(action: SendAction) -> Callable:
     content: Any = ()
+    _valid_targets = (None, "#_internal", "internal", "#_parent", "parent")
     if action.content:
         try:
             content = (eval(action.content, {}, {}),)
@@ -320,11 +327,16 @@ def create_send_action_callable(action: SendAction) -> Callable:
     def send_action(*args, **kwargs):
         machine: StateMachine = kwargs["machine"]
         event = action.event or _eval(action.eventexpr, **kwargs)
-        _target = _eval(action.target, **kwargs) if action.target else None
+        target = action.target if action.target else None
+
         if action.type and action.type != "http://www.w3.org/TR/scxml/#SCXMLEventProcessor":
             raise ValueError(
                 "Only 'http://www.w3.org/TR/scxml/#SCXMLEventProcessor' event type is supported"
             )
+        if target not in _valid_targets:
+            raise ValueError(f"Invalid target: {target}. Must be one of {_valid_targets}")
+
+        internal = target in ("#_internal", "internal")
 
         if action.id:
             send_id = action.id
@@ -343,7 +355,7 @@ def create_send_action_callable(action: SendAction) -> Callable:
         for param in chain(names, action.params):
             params_values[param.name] = _eval(param.expr, **kwargs)
 
-        Event(id=event, name=event, delay=delay).put(
+        Event(id=event, name=event, delay=delay, internal=internal).put(
             *content,
             machine=machine,
             send_id=send_id,
@@ -388,10 +400,16 @@ def create_script_action_callable(action: ScriptAction) -> Callable:
 
 
 def _create_dataitem_callable(action: DataItem) -> Callable:
-    def data_initializer(machine: StateMachine, **kwargs):
-        # Evaluate the expression if provided, or set to None
+    def data_initializer(**kwargs):
+        machine: StateMachine = kwargs["machine"]
+
         if action.expr:
-            value = _eval(action.expr, **kwargs)
+            try:
+                value = _eval(action.expr, **kwargs)
+            except Exception:
+                setattr(machine.model, action.id, None)
+                raise
+
         elif action.content:
             try:
                 value = _eval(action.content, **kwargs)
@@ -412,29 +430,18 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
     if not data_elements:
         return None
 
-    def __init__(
-        self,
-        model: Any = None,
-        state_field: str = "state",
-        start_value: Any = None,
-        allow_event_without_transition: bool = True,
-        listeners: "List[object] | None" = None,
-    ):
-        model = model if model else Model()
-        self.model = model
+    def datamodel(*args, **kwargs):
+        machine: StateMachine = kwargs["machine"]
         for act in data_elements:
-            act(machine=self)
+            try:
+                act(machine=machine)
+            except Exception as e:
+                logger.debug("Error executing actions", exc_info=True)
+                if isinstance(e, InvalidDefinition):
+                    raise
+                machine.send("error.execution", error=e, internal=True)
 
-        StateMachine.__init__(
-            self,
-            model,
-            state_field=state_field,
-            start_value=start_value,
-            allow_event_without_transition=allow_event_without_transition,
-            listeners=listeners,
-        )
-
-    return __init__
+    return datamodel
 
 
 class ExecuteBlock(CallableAction):
@@ -456,4 +463,4 @@ class ExecuteBlock(CallableAction):
             logger.debug("Error executing actions", exc_info=True)
             if isinstance(e, InvalidDefinition):
                 raise
-            machine.send("error.execution", error=e)
+            machine.send("error.execution", error=e, internal=True)

@@ -35,15 +35,16 @@ class SCXMLProcessor:
     def process_definition(self, definition, location: str):
         states_dict = self._process_states(definition.states)
 
-        extra_data = {}
-
         # Process datamodel (initial variables)
         if definition.datamodel:
-            __init__ = create_datamodel_action_callable(definition.datamodel)
-            if __init__:
-                extra_data["__init__"] = __init__
+            datamodel = create_datamodel_action_callable(definition.datamodel)
+            if datamodel:
+                initial_state = next(s for s in iter(states_dict.values()) if s["initial"])
+                if "enter" not in initial_state:
+                    initial_state["enter"] = []
+                initial_state["enter"].insert(0, datamodel)
 
-        self._add(location, {"states": states_dict, **extra_data})
+        self._add(location, {"states": states_dict})
 
     def _process_states(self, states: Dict[str, State]) -> Dict[str, StateDefinition]:
         states_dict: Dict[str, StateDefinition] = {}
@@ -113,6 +114,7 @@ class SCXMLProcessor:
             ) from e
 
     def start(self, **kwargs):
+        kwargs["allow_event_without_transition"] = True
         self.root_cls = next(iter(self.scs.values()))
         self.root = self.root_cls(**kwargs)
         self.sessions[self.root.name] = self.root

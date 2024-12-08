@@ -8,7 +8,7 @@ hang. -->
   initial="s0" version="1.0" datamodel="ecmascript">
   <state id="s0">
     <onentry>
-      <send event="timeout" delay="5s" />
+      <send event="timeout" delay="2s" />
     </onentry>
     <invoke type="scxml">
       <content>

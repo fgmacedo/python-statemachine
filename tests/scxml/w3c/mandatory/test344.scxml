@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?><!-- test that a non-boolean cond expression evaluates to false and
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that a non-boolean cond expression evaluates to false and
 causes error.execution to be raised -->
 <scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
   version="1.0" initial="s0">

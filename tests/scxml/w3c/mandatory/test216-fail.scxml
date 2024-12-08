@@ -11,7 +11,7 @@ the runtime value is used, the invocation will succeed -->
 
   <state id="s0">
     <onentry>
-      <send event="timeout" delay="5s" />
+      <send event="timeout" delay="2s" />
       <assign location="Var1" expr="'file:test216sub1.scxml'" />
     </onentry>
     <invoke srcexpr="Var1" type="http://www.w3.org/TR/scxml" />

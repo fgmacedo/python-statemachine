@@ -45,6 +45,9 @@ class Event(AddCallbacksMixin, str):
     delay: float = 0
     """The delay in milliseconds before the event is triggered. Default is 0."""
 
+    internal: bool = False
+    """Indicates if the events should be placed on the internal event queue."""
+
     _sm: "StateMachine | None" = None
     """The state machine instance."""
 
@@ -57,6 +60,7 @@ class Event(AddCallbacksMixin, str):
         id: "str | None" = None,
         name: "str | None" = None,
         delay: float = 0,
+        internal: bool = False,
         _sm: "StateMachine | None" = None,
     ):
         if isinstance(transitions, str):
@@ -69,6 +73,7 @@ class Event(AddCallbacksMixin, str):
         instance = super().__new__(cls, id)
         instance.id = id
         instance.delay = delay
+        instance.internal = internal
         if name:
             instance.name = name
         elif _has_real_id:
@@ -82,7 +87,9 @@ class Event(AddCallbacksMixin, str):
         return instance
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.id!r})"
+        return (
+            f"{type(self).__name__}({self.id!r}, delay={self.delay!r}, internal={self.internal!r})"
+        )
 
     def is_same_event(self, *_args, event: "str | None" = None, **_kwargs) -> bool:
         return self == event
@@ -116,6 +123,13 @@ class Event(AddCallbacksMixin, str):
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
+        trigger_data = self.build_trigger(*args, machine=machine, send_id=send_id, **kwargs)
+        machine._put_nonblocking(trigger_data, internal=self.internal)
+        return trigger_data
+
+    def build_trigger(
+        self, *args, machine: "StateMachine", send_id: "str | None" = None, **kwargs
+    ):
         if machine is None:
             raise RuntimeError(_("Event {} cannot be called without a SM instance").format(self))
 
@@ -127,7 +141,7 @@ class Event(AddCallbacksMixin, str):
             args=args,
             kwargs=kwargs,
         )
-        machine._put_nonblocking(trigger_data)
+
         return trigger_data
 
     def __call__(self, *args, **kwargs):
