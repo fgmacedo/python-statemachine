@@ -8,6 +8,7 @@ early binding variables are assigned values at init time -->
     <transition cond="Var1==1" target="pass" />
 
     <transition target="fail" />
+    <transition target="s1" /><!-- only to have a single graph component -->
 
   </state>
 

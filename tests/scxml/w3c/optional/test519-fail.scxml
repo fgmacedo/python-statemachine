@@ -4,7 +4,7 @@
   initial="s0" datamodel="ecmascript" version="1.0">
   <state id="s0">
     <onentry>
-      <send event="timeout" delay="30s" />
+      <send event="timeout" delay="2s" />
       <send event="test" targetexpr="_ioprocessors['basichttp']['location']"
         type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor">
         <param name="param1" expr="1" />

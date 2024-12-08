@@ -84,7 +84,7 @@ Syntax:
 >>> draft = State("Draft")
 
 >>> draft.to.itself()
-TransitionList([Transition(State('Draft', ...
+TransitionList([Transition('Draft', 'Draft', event='', internal=False)])
 
 ```
 
@@ -101,7 +101,7 @@ Syntax:
 >>> draft = State("Draft")
 
 >>> draft.to.itself(internal=True)
-TransitionList([Transition(State('Draft', ...
+TransitionList([Transition('Draft', 'Draft', event='', internal=True)])
 
 ```
 

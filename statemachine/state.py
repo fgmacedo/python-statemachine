@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Generator
 from typing import List
 from weakref import ref
 
@@ -103,7 +104,7 @@ class State:
 
     Given a few states...
 
-    >>> draft = State("Draft", initial=True)
+    >>> draft = State(name="Draft", initial=True)
 
     >>> producing = State("Producing")
 
@@ -112,7 +113,7 @@ class State:
     Transitions are declared using the :func:`State.to` or :func:`State.from_` (reversed) methods.
 
     >>> draft.to(producing)
-    TransitionList([Transition(State('Draft', ...
+    TransitionList([Transition('Draft', 'Producing', event='', internal=False)])
 
     The result is a :ref:`TransitionList`.
     Don't worry about this internal class.
@@ -137,7 +138,7 @@ class State:
     expressed using an alternative syntax:
 
     >>> draft.to.itself()
-    TransitionList([Transition(State('Draft', ...
+    TransitionList([Transition('Draft', 'Draft', event='', internal=False)])
 
     You can even pass a list of target states to declare at once all transitions starting
     from the same state.
@@ -183,7 +184,7 @@ class State:
         initial: bool = False,
         final: bool = False,
         parallel: bool = False,
-        states: Any = None,
+        states: "List[State] | None" = None,
         enter: Any = None,
         exit: Any = None,
         _callbacks: Any = None,
@@ -290,6 +291,21 @@ class State:
     @property
     def parallel(self):
         return self._parallel
+
+    @property
+    def is_compound(self):
+        return bool(self.states)
+
+    def ancestors(self, parent: "State | None" = None) -> Generator:
+        selected = self
+        while selected:
+            if parent and selected == parent:
+                break
+            yield selected
+            selected = selected.parent
+
+    def is_descendant(self, state: "State | None") -> bool:
+        return state in self.ancestors()
 
 
 class InstanceState(State):

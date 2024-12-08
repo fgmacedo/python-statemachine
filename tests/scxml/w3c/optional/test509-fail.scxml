@@ -5,7 +5,7 @@
 at the accessURI-->
   <state id="s0">
     <onentry>
-      <send delay="30s" event="timeout" />
+      <send delay="2s" event="timeout" />
       <send event="test" targetexpr="_ioprocessors['basichttp']['location']"
         type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor" />
     </onentry><!--if

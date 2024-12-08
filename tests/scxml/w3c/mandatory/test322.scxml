@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?><!-- test that _sessionid remains bound to the same value throught
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that _sessionid remains bound to the same value throught
 the session.  this means that it can't
 be assigned to  -->
 <scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"

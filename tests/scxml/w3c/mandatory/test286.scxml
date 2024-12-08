@@ -1,14 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?><!-- test that assignment to a non-existent location yields an error -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that assigment to a non-declared var causes an error.  the
+transition on foo catches the case
+where no error is raised -->
 <scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
-  version="1.0" initial="s0">
+  version="1.0" datamodel="python" initial="s0">
 
 
   <state id="s0">
     <onentry>
       <assign location="Var1" expr="1" />
+      <raise event="foo" />
     </onentry>
+
     <transition event="error.execution" target="pass" />
-    <transition event=".*" target="fail" />
+    <transition event="*" target="fail" />
   </state>
 
   <final id="pass">
@@ -21,6 +26,5 @@
       <log label="Outcome" expr="'fail'" />
     </onentry>
   </final>
-
 
 </scxml>

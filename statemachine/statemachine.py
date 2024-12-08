@@ -270,7 +270,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @current_state_value.setter
     def current_state_value(self, value):
-        if not isinstance(value, MutableSet) and value not in self.states_map:
+        if (
+            value is not None
+            and not isinstance(value, MutableSet)
+            and value not in self.states_map
+        ):
             raise InvalidStateValue(value)
         setattr(self.model, self.state_field, value)
 
@@ -313,11 +317,19 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """List of the current allowed events."""
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
-    def _put_nonblocking(self, trigger_data: TriggerData):
+    def _put_nonblocking(self, trigger_data: TriggerData, internal: bool = False):
         """Put the trigger on the queue without blocking the caller."""
-        self._engine.put(trigger_data)
+        self._engine.put(trigger_data, internal=internal)
 
-    def send(self, event: str, *args, delay: float = 0, event_id: "str | None" = None, **kwargs):
+    def send(
+        self,
+        event: str,
+        *args,
+        delay: float = 0,
+        event_id: "str | None" = None,
+        internal: bool = False,
+        **kwargs,
+    ):
         """Send an :ref:`Event` to the state machine.
 
         :param event: The trigger for the state machine, specified as an event id string.
@@ -334,11 +346,25 @@ class StateMachine(metaclass=StateMachineMetaclass):
         delay = (
             delay if delay else know_event and know_event.delay or 0
         )  # first the param, then the event, or 0
-        event_instance = BoundEvent(id=event, name=event_name, delay=delay, _sm=self)
+        event_instance = BoundEvent(
+            id=event, name=event_name, delay=delay, internal=internal, _sm=self
+        )
         result = event_instance(*args, event_id=event_id, **kwargs)
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
+
+    def raise_(self, event: str, *args, delay: float = 0, event_id: "str | None" = None, **kwargs):
+        """Send an :ref:`Event` to the state machine in the internal event queue.
+
+        Events on the internal queue are processed immediately on the current step of the
+        interpreter.
+
+        .. seealso::
+
+            See: :ref:`triggering events`.
+        """
+        return self.send(event, *args, delay=delay, event_id=event_id, internal=True, **kwargs)
 
     def cancel_event(self, send_id: str):
         """Cancel all the delayed events with the given ``send_id``."""
@@ -346,4 +372,4 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @property
     def is_terminated(self):
-        return not self._engine._running
+        return not self._engine.running

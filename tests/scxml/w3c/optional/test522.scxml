@@ -5,7 +5,7 @@ to send a message to the processor -->
   initial="s0" datamodel="ecmascript" version="1.0">
   <state id="s0">
     <onentry>
-      <send event="timeout" delay="30s" />
+      <send event="timeout" delay="2s" />
       <send event="test" type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor"
         targetexpr="_ioprocessors['basichttp']['location']" />
     </onentry>

@@ -25,6 +25,8 @@ class TriggerData:
     Allow revoking a delayed :ref:`TriggerData` instance.
     """
 
+    _target: "str | None" = field(init=False, compare=False, default=None)
+
     execution_time: float = field(default=0.0)
     """The time at which the :ref:`Event` should run."""
 
@@ -61,10 +63,6 @@ class EventData:
 
     target: "State" = field(init=False)
     """The destination :ref:`State` of the :ref:`transition`."""
-
-    result: "Any | None" = None
-
-    executed: bool = False
 
     def __post_init__(self):
         self.state = self.transition.source

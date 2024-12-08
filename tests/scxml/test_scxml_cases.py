@@ -24,9 +24,12 @@ class DebugListener:
 
     def on_transition(self, event: Event, source: State, target: State, event_data):
         self.events.append(
-            f"{source and source.id} -- "
-            f"{event and event.id}{event_data.trigger_data.kwargs} --> "
-            f"{target.id}"
+            (
+                f"{source and source.id}",
+                f"{event and event.id}",
+                f"{event_data.trigger_data.kwargs}",
+                f"{target.id}",
+            )
         )
 
 

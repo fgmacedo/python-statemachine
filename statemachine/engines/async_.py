@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import TransitionNotAllowed
-from ..i18n import _
 from .base import BaseEngine
 
 if TYPE_CHECKING:
@@ -46,7 +45,7 @@ class AsyncEngine(BaseEngine):
         first_result = self._sentinel
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self._running and not self.empty():
+            while self.running and not self.empty():
                 trigger_data = self.pop()
                 current_time = time()
                 if trigger_data.execution_time > current_time:

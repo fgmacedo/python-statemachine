@@ -7,7 +7,7 @@
   </datamodel>
   <state id="s0">
     <onentry>
-      <send event="timeout" delay="30s" />
+      <send event="timeout" delay="2s" />
       <send event="test" targetexpr="_ioprocessors['basichttp']['location']" namelist="Var1"
         type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor" />
     </onentry>

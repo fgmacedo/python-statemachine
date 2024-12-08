@@ -246,9 +246,9 @@ class StateMachineMetaclass(type):
 
     def add_state(cls, id, state: State):
         state._set_id(id)
+        cls.states_map[state.value] = state
         if not state.parent:
             cls.states.append(state)
-            cls.states_map[state.value] = state
             if not hasattr(cls, id):
                 setattr(cls, id, state)
 
