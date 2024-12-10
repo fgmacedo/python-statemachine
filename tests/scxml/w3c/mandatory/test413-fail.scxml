@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that the state machine is put into the configuration
+specified by the initial element, without regard
+to any other defaults.  we should start off in s2p111 and s2p122.  the atomic
+states we should not enter all have immediate transitions to failure in them -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s2p112 s2p122" version="1.0" datamodel="python">
+
+  <state id="s1">
+    <transition target="fail" />
+  </state>
+
+  <state id="s2" initial="s2p1">
+
+    <parallel id="s2p1">
+      <!-- this transition will be triggered only if we end up in an illegal configuration where
+      we're in
+  either s2p112 or s2p122, but not both of them -->
+      <transition target="fail" />
+
+      <state id="s2p11" initial="s2p111">
+        <state id="s2p111">
+          <transition target="fail" />
+        </state>
+
+        <state id="s2p112">
+          <transition cond="In('s2p122')" target="pass" />
+        </state>
+
+      </state> <!-- end
+      s2p11 -->
+
+      <state id="s2p12" initial="s2p121">
+        <state id="s2p121">
+          <transition target="fail" />
+        </state>
+
+        <state id="s2p122">
+          <transition cond="In('s2p112')" target="pass" />
+        </state>
+      </state>
+
+    </parallel>
+
+  </state>  <!--
+  end s2 -->
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

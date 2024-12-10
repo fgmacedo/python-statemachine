@@ -8,6 +8,7 @@ from typing import Tuple
 from . import registry
 from .event import Event
 from .exceptions import InvalidDefinition
+from .graph import iterate_states
 from .graph import iterate_states_and_transitions
 from .graph import visit_connected_states
 from .i18n import _
@@ -30,6 +31,9 @@ class StateMachineMetaclass(type):
         super().__init__(name, bases, attrs)
         registry.register(cls)
         cls.name = cls.__name__
+        cls.id = cls.name.lower()
+        # TODO: Experiment with the IDEA of a root state
+        # cls.root = State(id=cls.id, name=cls.name)
         cls.states: States = States()
         cls.states_map: Dict[Any, State] = {}
         """Map of ``state.value`` to the corresponding :ref:`state`."""
@@ -42,12 +46,30 @@ class StateMachineMetaclass(type):
 
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
+        cls._unpack_builders_callbacks()
         cls._update_event_references()
 
-        try:
-            cls.initial_state: State = next(s for s in cls.states if s.initial)
-        except StopIteration:
-            cls.initial_state = None  # Abstract SM still don't have states
+        if not cls.states:
+            return
+
+        cls._initials_by_document_order(cls.states, parent=None)
+
+        initials = [s for s in cls.states if s.initial]
+        parallels = [s.id for s in cls.states if s.parallel]
+        root_only_has_parallels = len(cls.states) == len(parallels)
+
+        if len(initials) != 1 and not root_only_has_parallels:
+            raise InvalidDefinition(
+                _(
+                    "There should be one and only one initial state. "
+                    "Your currently have these: {0}"
+                ).format(", ".join(s.id for s in initials))
+            )
+
+        if initials:
+            cls.initial_state = initials[0]
+        else:
+            cls.initial_state = None  # TODO: Check if still enter here for abstract SM
 
         cls.final_states: List[State] = [state for state in cls.states if state.final]
 
@@ -59,21 +81,41 @@ class StateMachineMetaclass(type):
 
         def __getattr__(self, attribute: str) -> Any: ...
 
+    def _initials_by_document_order(cls, states, parent: "State | None" = None):
+        """Set initial state by document order if no explicit initial state is set"""
+        initial: "State | None" = None
+        for s in states:
+            cls._initials_by_document_order(s.states, s)
+            if s.initial:
+                initial = s
+                break
+        if not initial and states:
+            initial = states[0]
+            initial._initial = True
+
+        if (
+            parent
+            and initial
+            and not any(t for t in parent.transitions if t.initial and t.target == initial)
+        ):
+            parent.to(initial, initial=True)
+
+    def _unpack_builders_callbacks(cls):
+        callbacks = {}
+        for state in iterate_states(cls.states):
+            if state._callbacks:
+                callbacks.update(state._callbacks)
+                del state._callbacks
+        for key, value in callbacks.items():
+            setattr(cls, key, value)
+
     def _check(cls):
         has_states = bool(cls.states)
-        has_events = bool(cls._events)
-
-        cls._abstract = not has_states and not has_events
+        cls._abstract = not has_states
 
         # do not validate the base abstract classes
         if cls._abstract:
             return
-
-        if not has_states:
-            raise InvalidDefinition(_("There are no states."))
-
-        if not has_events:
-            raise InvalidDefinition(_("There are no events."))
 
         cls._check_initial_state()
         cls._check_final_states()
@@ -90,6 +132,9 @@ class StateMachineMetaclass(type):
                     "You currently have these: {!r}"
                 ).format([s.id for s in initials])
             )
+        # TODO: Check if this is still needed
+        # if not initials[0].transitions.transitions:
+        #     raise InvalidDefinition(_("There are no transitions."))
 
     def _check_final_states(cls):
         final_state_with_invalid_transitions = [
@@ -211,14 +256,18 @@ class StateMachineMetaclass(type):
 
     def add_state(cls, id, state: State):
         state._set_id(id)
-        cls.states.append(state)
         cls.states_map[state.value] = state
-        if not hasattr(cls, id):
-            setattr(cls, id, state)
+        if not state.parent:
+            cls.states.append(state)
+            if not hasattr(cls, id):
+                setattr(cls, id, state)
 
         # also register all events associated directly with transitions
         for event in state.transitions.unique_events:
             cls.add_event(event)
+
+        for substate in state.states:
+            cls.add_state(substate.id, substate)
 
     def add_event(
         cls,

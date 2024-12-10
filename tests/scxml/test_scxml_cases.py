@@ -1,0 +1,46 @@
+from dataclasses import dataclass
+from dataclasses import field
+
+import pytest
+
+from statemachine import State
+from statemachine import StateMachine
+from statemachine.event import Event
+
+"""
+Test cases as defined by W3C SCXML Test Suite
+
+- https://www.w3.org/Voice/2013/scxml-irp/
+- https://alexzhornyak.github.io/SCXML-tutorial/Tests/ecma/W3C/Mandatory/Auto/report__USCXML_2_0_0___msvc2015_32bit__Win7_1.html
+- https://github.com/alexzhornyak/PyBlendSCXML/tree/master/w3c_tests
+- https://github.com/jbeard4/SCION/wiki/Pseudocode-for-SCION-step-algorithm
+
+"""  # noqa: E501
+
+
+@dataclass(frozen=True, unsafe_hash=True)
+class DebugListener:
+    events: list = field(default_factory=list)
+
+    def on_transition(self, event: Event, source: State, target: State, event_data):
+        self.events.append(
+            (
+                f"{source and source.id}",
+                f"{event and event.id}",
+                f"{event_data.trigger_data.kwargs}",
+                f"{target.id}",
+            )
+        )
+
+
+@pytest.mark.scxml()
+def test_scxml_usecase(testcase_path, processor):
+    # from statemachine.contrib.diagram import DotGraphMachine
+
+    # DotGraphMachine(sm_class).get_graph().write_png(
+    #     testcase_path.parent / f"{testcase_path.stem}.png"
+    # )
+    debug = DebugListener()
+    sm = processor.start(listeners=[debug])
+    assert isinstance(sm, StateMachine)
+    assert sm.current_state.id == "pass", debug

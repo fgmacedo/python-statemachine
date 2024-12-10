@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" name="ScxmlTest452" version="1.0" xmlns="http://www.w3.org/2005/07/scxml"
+  xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+  that we can assign to any location in the datamodel.
+In this case, we just test that we can assign
+to a substructure (not the top level variable).
+This may not be the most idiomatic way to write the test-->
+  <datamodel>
+    <data expr="0" id="foo" />
+  </datamodel>
+  <script>def testobject():
+    class A:
+        bar = 0
+    return A()
+  </script>
+  <state id="s0">
+    <onentry>
+      <assign expr="testobject()" location="foo" /><!--try
+      to assign to foo's bar property-->
+      <assign expr="1" location="foo.bar" />
+      <raise event="event1" />
+    </onentry><!--test
+    that we have assigned to foo's bar property-->
+    <transition cond="foo.bar == 1" event="event1" target="pass" />
+    <transition event="*" target="fail">
+      <log expr="foo.bar" />
+    </transition>
+  </state>
+  <final id="pass">
+    <onentry>
+      <log expr="'pass'" label="Outcome" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log expr="'fail'" label="Outcome" />
+    </onentry>
+  </final>
+</scxml>

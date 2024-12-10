@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that cancelling works. invoked child sleeps for two
+seconds, then terminates.  We
+sleep for 1 sec in s0, then move to s1.  This should cause the invocation to get cancelled.
+If we receive done.invoke, the invocation wasn't cancelled, and we fail. If we receive no events by
+the time timeout2 fires, success   -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+
+
+  <state id="s0">
+    <onentry>
+      <send event="timeout1" delay="1s" />
+    </onentry>
+    <invoke type="http://www.w3.org/TR/scxml/">
+      <content>
+        <!-- when invoked, sleep for 2 secs then terminate.  Parent will try to cancel this session -->
+        <scxml initial="sub0" version="1.0" datamodel="python">
+          <state id="sub0">
+            <onentry>
+              <send event="timeout" delay="2s" />
+            </onentry>
+            <transition event="timeout" target="subFinal" />
+          </state>
+          <final id="subFinal" />
+        </scxml>
+      </content>
+    </invoke>
+
+    <transition event="timeout1" target="s1" />
+
+  </state>
+
+  <state id="s1">
+    <onentry>
+      <send event="timeout2" delay="2s" />
+    </onentry>
+    <!-- here we should NOT get done.invoke -->
+    <transition event="done.invoke" target="fail" />
+    <transition event="*" target="pass" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

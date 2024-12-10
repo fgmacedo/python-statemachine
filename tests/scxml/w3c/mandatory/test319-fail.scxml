@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that _event is not bound before any event has been raised -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="python" version="1.0" name="machineName">
+
+  <state id="s0">
+    <onentry>
+      <if cond="_event">
+        <raise event="bound" />
+        <else />
+        <raise event="unbound" />
+      </if>
+    </onentry>
+    <transition event="unbound" target="pass" />
+    <transition event="bound" target="fail" />
+
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

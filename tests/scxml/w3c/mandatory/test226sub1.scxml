@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- when invoked, if var1 has a value notify parent. Then terminate.   -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="python">
+
+  <datamodel>
+    <data id="Var1" />
+  </datamodel>
+
+  <state id="s0">
+    <transition cond="Var1" target="final">
+      <send target="#_parent" event="varBound" />
+    </transition>
+    <transition target="final" />
+  </state>
+
+  <final id="final" />
+
+</scxml>

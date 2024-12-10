@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that a targetless transition does not exit and reenter its
+source state -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s1" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var1" expr="0" />  <!-- how often we have exited s2 -->
+    <data id="Var2" expr="0" />  <!-- how often the targetless transition in s2 has been executed -->
+  </datamodel>
+
+  <state id="s1">
+    <onentry>
+      <raise event="foo" />
+      <raise event="bar" />
+    </onentry>
+    <transition target="s2" />
+  </state>
+
+  <state id="s2">
+    <onexit>
+      <assign location="Var1" expr="Var1 + 1" />
+    </onexit>
+    <transition event="foo">
+      <assign location="Var2" expr="Var2 + 1" />
+    </transition>
+    <!-- make sure the transition on foo was actually taken -->
+    <transition event="bar" cond="Var2==1" target="s3" />
+    <transition event="bar" target="fail" />
+  </state>
+
+  <state id="s3">
+    <!-- make sure that s2 was exited only once -->
+    <transition cond="Var1==1" target="pass" />
+    <transition target="fail" />
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

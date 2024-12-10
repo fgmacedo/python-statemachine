@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that that <content> gets sent as the body of the message.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="ecmascript" version="1.0">
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="2s" />
+      <send targetexpr="_ioprocessors['basichttp']['location']"
+        type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor">
+        <content>this is some content</content>
+      </send>
+    </onentry>
+    <!-- if other end sends us back this event, we succeed.  Test for two common
+     ways of encoding -->
+    <transition event="HTTP.POST" cond="_event.raw.search(/this+is+some+content/) !== -1"
+      target="pass" />
+    <transition event="HTTP.POST" cond="_event.raw.search(/this%20is%20some%20content/) !== -1"
+      target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

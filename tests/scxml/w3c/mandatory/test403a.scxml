@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest403a" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--we
+	test one part of 'optimal enablement' meaning that of all transitions that are enabled, we chose
+	the ones
+in child states over parent states, and use document order to break ties. We have
+a parent state s0 with two children, s01 and s02. In s01, we test that a) if
+a transition in the child matches, we don't consider matches in the parent and b)
+that if two transitions match in any state, we take the first in document order.
+In s02 we test that we take a transition in the parent if there is no
+matching transition in the child.-->
+	<state id="s0" initial="s01">
+		<onentry><!--catch
+			the failure case-->
+			<send delay="1s" event="timeout" />
+		</onentry>
+		<transition event="timeout" target="fail" />
+		<transition event="event1" target="fail" />
+		<transition event="event2" target="pass" />
+		<state id="s01">
+			<onentry><!--this
+				should be caught by the first transition in this state, taking us to S02-->
+				<raise event="event1" />
+			</onentry>
+			<transition event="event1" target="s02" />
+			<transition event="*" target="fail" />
+		</state>
+		<state id="s02">
+			<onentry><!--since
+				the local transition has a cond that evaluates to false this should be caught by a
+    transition in the parent state, taking us to pass-->
+				<raise event="event2" />
+			</onentry>
+			<transition event="event1" target="fail" />
+			<transition cond="false" event="event2" target="fail" />
+		</state>
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that an error causes the foreach to stop execution.  The second piece of executable content
+should cause an error, so var1 should be incremented only once -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="ecmascript">
+  <datamodel>
+    <data id="Var1" expr="0" />
+    <data id="Var2" />
+    <data id="Var3">
+      [1,2,3]
+    </data>
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <foreach item="Var2" array="Var3">
+        <assign location="Var1" expr="Var1 + 1" />
+        <!-- assign an illegal value to a non-existent var -->
+        <assign location="Var5" expr="return" />
+      </foreach>
+    </onentry>
+    <transition cond="Var1==1" target="pass" />
+    <transition target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>
