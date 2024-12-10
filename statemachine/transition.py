@@ -6,6 +6,7 @@ from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .events import Events
 from .exceptions import InvalidDefinition
+from .i18n import _
 
 if TYPE_CHECKING:
     from .statemachine import State
@@ -54,9 +55,16 @@ class Transition:
         self.target = target
         self.internal = internal
         self.initial = initial
+        self.is_self = target is source
+        """Is the target state the same as the source state?"""
 
-        if internal and source is not target:
-            raise InvalidDefinition("Internal transitions should be self-transitions.")
+        if internal and not (self.is_self or target.is_descendant(source)):
+            raise InvalidDefinition(
+                _(
+                    "Not a valid internal transition from source {source!r}, "
+                    "target {target!r} should be self or a descendant."
+                ).format(source=source, target=target)
+            )
 
         if initial and any([cond, unless, event]):
             raise InvalidDefinition("Initial transitions should not have conditions or events.")

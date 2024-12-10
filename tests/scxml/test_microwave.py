@@ -51,7 +51,7 @@ def test_microwave():
 
     assert "cooking" in sm.current_state_value
     assert "idle" not in sm.current_state_value
-    # assert "plugged-in" in sm.current_state_value
+    assert "plugged-in" in sm.current_state_value
 
     sm.send("unplug")
 

@@ -94,6 +94,7 @@ class ScriptAction(Action):
 @dataclass
 class Transition:
     target: str
+    internal: bool = False
     initial: bool = False
     event: "str | None" = None
     cond: "str | None" = None

@@ -268,7 +268,7 @@ class TestInternalTransition:
 
     def test_should_not_allow_internal_transitions_from_distinct_states(self):
         with pytest.raises(
-            InvalidDefinition, match="Internal transitions should be self-transitions."
+            InvalidDefinition, match="Not a valid internal transition from source."
         ):
 
             class TestStateMachine(StateMachine):

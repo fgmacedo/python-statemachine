@@ -70,8 +70,9 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:
 
     # If no initial state was specified, pick the first state
     if not definition.initial_states and definition.states:
-        definition.initial_states = next(iter(definition.states.keys()))
-        definition.states[definition.initial_states].initial = True
+        definition.initial_states = {next(key for key in definition.states.keys())}
+        for s in definition.initial_states:
+            definition.states[s].initial = True
 
     return definition
 
@@ -154,11 +155,17 @@ def parse_transition(trans_elem: ET.Element, initial: bool = False) -> Transitio
 
     event = trans_elem.get("event")
     cond = trans_elem.get("cond")
+    internal = trans_elem.get("type") == "internal"
 
     executable_content = parse_executable_content(trans_elem)
 
     return Transition(
-        target=target, initial=initial, event=event, cond=cond, on=executable_content
+        target=target,
+        internal=internal,
+        initial=initial,
+        event=event,
+        cond=cond,
+        on=executable_content,
     )
 
 

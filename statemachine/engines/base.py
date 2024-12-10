@@ -1,11 +1,15 @@
+import logging
 from dataclasses import dataclass
 from itertools import chain
 from queue import PriorityQueue
 from queue import Queue
 from threading import Lock
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import List
+from typing import cast
 from weakref import proxy
 
 from ..event import BoundEvent
@@ -19,6 +23,8 @@ from ..transition import Transition
 
 if TYPE_CHECKING:
     from ..statemachine import StateMachine
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, unsafe_hash=True)
@@ -76,7 +82,7 @@ class BaseEngine:
     def put(self, trigger_data: TriggerData, internal: bool = False):
         """Put the trigger on the queue without blocking the caller."""
         if not self.running and not self.sm.allow_event_without_transition:
-            raise TransitionNotAllowed(trigger_data.event, self.sm.current_state)
+            raise TransitionNotAllowed(trigger_data.event, self.sm.configuration)
 
         if internal:
             self.internal_queue.put(trigger_data)
@@ -117,7 +123,9 @@ class BaseEngine:
         self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
         return self.sm._callbacks.all(transition.cond.key, *args, **kwargs)
 
-    def _filter_conflicting_transitions(self, transitions: OrderedSet[Transition]):
+    def _filter_conflicting_transitions(
+        self, transitions: OrderedSet[Transition]
+    ) -> OrderedSet[Transition]:
         """
         Remove transições conflitantes, priorizando aquelas com estados de origem descendentes
         ou que aparecem antes na ordem do documento.
@@ -128,18 +136,18 @@ class BaseEngine:
         Returns:
             OrderedSet[Transition]: Conjunto de transições sem conflitos.
         """
-        filtered_transitions = OrderedSet()
+        filtered_transitions = OrderedSet[Transition]()
 
         # Ordena as transições na ordem dos estados que as selecionaram
         for t1 in transitions:
             t1_preempted = False
-            transitions_to_remove = OrderedSet()
+            transitions_to_remove = OrderedSet[Transition]()
 
             # Verifica conflitos com as transições já filtradas
             for t2 in filtered_transitions:
                 # Calcula os conjuntos de saída (exit sets)
-                t1_exit_set = self._compute_exit_set(t1)
-                t2_exit_set = self._compute_exit_set(t2)
+                t1_exit_set = self._compute_exit_set([t1])
+                t2_exit_set = self._compute_exit_set([t2])
 
                 # Verifica interseção dos conjuntos de saída
                 if t1_exit_set & t2_exit_set:  # Há interseção
@@ -162,7 +170,7 @@ class BaseEngine:
     def _compute_exit_set(self, transitions: List[Transition]) -> OrderedSet[StateTransition]:
         """Compute the exit set for a transition."""
 
-        states_to_exit = OrderedSet()
+        states_to_exit = OrderedSet[StateTransition]()
 
         for transition in transitions:
             if transition.target is None:
@@ -193,6 +201,8 @@ class BaseEngine:
             and all(state.is_descendant(transition.source) for state in states)
         ):
             return transition.source
+        elif transition.internal and transition.is_self and transition.target.is_atomic:
+            return transition.source
         else:
             return self.find_lcca([transition.source] + list(states))
 
@@ -213,6 +223,7 @@ class BaseEngine:
         ancestors = [anc for anc in head.ancestors() if anc.is_compound]
 
         # Find the first ancestor that is also an ancestor of all other states in the list
+        ancestor: State
         for ancestor in ancestors:
             if all(state.is_descendant(ancestor) for state in tail):
                 return ancestor
@@ -233,13 +244,16 @@ class BaseEngine:
         self, trigger_data: TriggerData, predicate: Callable
     ) -> OrderedSet[Transition]:
         """Select the transitions that match the trigger data."""
-        enabled_transitions = OrderedSet()
+        enabled_transitions = OrderedSet[Transition]()
 
         # Get atomic states, TODO: sorted by document order
         atomic_states = (state for state in self.sm.configuration if state.is_atomic)
 
-        def first_transition_that_matches(state: State, event: Event) -> "Transition | None":
+        def first_transition_that_matches(
+            state: State, event: "Event | None"
+        ) -> "Transition | None":
             for s in chain([state], state.ancestors()):
+                transition: Transition
                 for transition in s.transitions:
                     if (
                         not transition.initial
@@ -247,6 +261,8 @@ class BaseEngine:
                         and self._conditions_match(transition, trigger_data)
                     ):
                         return transition
+
+            return None
 
         for state in atomic_states:
             transition = first_transition_that_matches(state, trigger_data.event)
@@ -264,6 +280,7 @@ class BaseEngine:
         )
 
         states_to_exit = self._exit_states(transitions, trigger_data)
+        logger.debug("States to exit: %s", states_to_exit)
         result += self._execute_transition_content(transitions, trigger_data, lambda t: t.on.key)
         self._enter_states(transitions, trigger_data, states_to_exit)
         self._execute_transition_content(
@@ -304,7 +321,7 @@ class BaseEngine:
             #     self.history_values[history.id] = history_value
 
             # Execute `onexit` handlers
-            if info.source is not None and not info.transition.internal:
+            if info.source is not None:  # TODO: and not info.transition.internal:
                 self.sm._callbacks.call(info.source.exit.key, *args, **kwargs)
 
             # TODO: Cancel invocations
@@ -343,7 +360,7 @@ class BaseEngine:
         """Enter the states as determined by the given transitions."""
         states_to_enter = OrderedSet[StateTransition]()
         states_for_default_entry = OrderedSet[StateTransition]()
-        default_history_content = {}
+        default_history_content: Dict[str, Any] = {}
 
         # Compute the set of states to enter
         self.compute_entry_set(
@@ -351,14 +368,21 @@ class BaseEngine:
         )
 
         # We update the configuration atomically
-        states_targets_to_enter = OrderedSet(info.target for info in states_to_enter)
+        states_targets_to_enter = OrderedSet(
+            info.target for info in states_to_enter if info.target
+        )
+        logger.debug("States to enter: %s", states_targets_to_enter)
+
         configuration = self.sm.configuration
-        self.sm.configuration = (configuration - states_to_exit) | states_targets_to_enter
+        self.sm.configuration = cast(
+            OrderedSet[State], (configuration - states_to_exit) | states_targets_to_enter
+        )
 
         # Sort states to enter in entry order
         # for state in sorted(states_to_enter, key=self.entry_order):   # TODO: ordegin of states_to_enter # noqa: E501
         for info in states_to_enter:
             target = info.target
+            assert target
             transition = info.transition
             event_data = EventData(trigger_data=trigger_data, transition=transition)
             event_data.state = target
@@ -376,8 +400,8 @@ class BaseEngine:
             #     state.is_first_entry = False
 
             # Execute `onentry` handlers
-            if not transition.internal:
-                self.sm._callbacks.call(target.enter.key, *args, **kwargs)
+            # TODO: if not transition.internal:
+            self.sm._callbacks.call(target.enter.key, *args, **kwargs)
 
             # Handle default initial states
             # TODO: Handle default initial states
@@ -396,11 +420,17 @@ class BaseEngine:
                     parent = target.parent
                     grandparent = parent.parent
 
-                    self.internal_queue.put(BoundEvent(f"done.state.{parent.id}", _sm=self.sm))
+                    self.internal_queue.put(
+                        BoundEvent(f"done.state.{parent.id}", _sm=self.sm).build_trigger(
+                            machine=self.sm
+                        )
+                    )
                     if grandparent.parallel:
                         if all(child.final for child in grandparent.states):
                             self.internal_queue.put(
-                                BoundEvent(f"done.state.{parent.id}", _sm=self.sm)
+                                BoundEvent(f"done.state.{parent.id}", _sm=self.sm).build_trigger(
+                                    machine=self.sm
+                                )
                             )
 
     def compute_entry_set(
@@ -476,8 +506,19 @@ class BaseEngine:
         #     return
 
         # Add the state to the entry set
-        states_to_enter.add(info)
+        if (
+            not self.sm.enable_self_transition_entries
+            and info.transition.internal
+            and (
+                info.transition.is_self
+                or info.transition.target.is_descendant(info.transition.source)
+            )
+        ):
+            pass
+        else:
+            states_to_enter.add(info)
         state = info.target
+        assert state
 
         if state.is_compound:
             # Handle compound states
@@ -541,6 +582,7 @@ class BaseEngine:
             default_history_content: A dictionary to hold temporary content for history states.
         """
         state = info.target
+        assert state
         for anc in state.ancestors(parent=ancestor):
             # Add the ancestor to the entry set
             info_to_add = StateTransition(

@@ -52,7 +52,7 @@ class StateMachineMetaclass(type):
         if not cls.states:
             return
 
-        cls._initials_by_document_order(cls.states, parent=None)
+        cls._initials_by_document_order(list(cls.states), parent=None)
 
         initials = [s for s in cls.states if s.initial]
         parallels = [s.id for s in cls.states if s.parallel]
@@ -81,7 +81,7 @@ class StateMachineMetaclass(type):
 
         def __getattr__(self, attribute: str) -> Any: ...
 
-    def _initials_by_document_order(cls, states, parent: "State | None" = None):
+    def _initials_by_document_order(cls, states: List[State], parent: "State | None" = None):
         """Set initial state by document order if no explicit initial state is set"""
         initial: "State | None" = None
         for s in states:

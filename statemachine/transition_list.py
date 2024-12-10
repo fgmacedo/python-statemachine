@@ -86,6 +86,9 @@ class TransitionList(AddCallbacksMixin):
         """
         return len(self.transitions)
 
+    def __iter__(self):
+        return iter(self.transitions)
+
     def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
         for transition in self.transitions:
             list_obj = transition._specs.grouper(grouper)

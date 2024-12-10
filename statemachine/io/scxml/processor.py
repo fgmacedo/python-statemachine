@@ -42,7 +42,8 @@ class SCXMLProcessor:
                 initial_state = next(s for s in iter(states_dict.values()) if s["initial"])
                 if "enter" not in initial_state:
                     initial_state["enter"] = []
-                initial_state["enter"].insert(0, datamodel)
+                if isinstance(initial_state["enter"], list):
+                    initial_state["enter"].insert(0, datamodel)
 
         self._add(location, {"states": states_dict})
 
@@ -90,6 +91,7 @@ class SCXMLProcessor:
                 on_dict[event] = []
             transition_dict: TransitionDict = {
                 "target": transition.target,
+                "internal": transition.internal,
                 "initial": transition.initial,
             }
 
@@ -118,6 +120,7 @@ class SCXMLProcessor:
 
     def start(self, **kwargs):
         kwargs["allow_event_without_transition"] = True
+        kwargs["enable_self_transition_entries"] = True
         self.root_cls = next(iter(self.scs.values()))
         self.root = self.root_cls(**kwargs)
         self.sessions[self.root.name] = self.root

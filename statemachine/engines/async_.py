@@ -72,7 +72,9 @@ class AsyncEngine(BaseEngine):
             await self._activate(trigger_data, transition)
             return self._sentinel
 
-        state = self.sm.current_state
+        # TODO: Fix async engine
+        state = next(iter(self.sm.configuration))
+
         for transition in state.transitions:
             if not transition.match(trigger_data.event):
                 continue
@@ -83,7 +85,7 @@ class AsyncEngine(BaseEngine):
             break
         else:
             if not self.sm.allow_event_without_transition:
-                raise TransitionNotAllowed(trigger_data.event, state)
+                raise TransitionNotAllowed(trigger_data.event, self.sm.configuration)
 
         return result if executed else None
 
