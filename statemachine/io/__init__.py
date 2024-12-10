@@ -118,6 +118,7 @@ def create_machine_class_from_definition(
                 transition = source.to(
                     target,
                     event=event_name,
+                    internal=transition_data.get("internal"),
                     initial=transition_data.get("initial"),
                     cond=transition_data.get("cond"),
                     unless=transition_data.get("unless"),

@@ -1,3 +1,4 @@
+import logging
 from time import sleep
 from time import time
 from typing import TYPE_CHECKING
@@ -11,6 +12,8 @@ from .base import BaseEngine
 
 if TYPE_CHECKING:
     from ..transition import Transition
+
+logger = logging.getLogger(__name__)
 
 
 class SyncEngine(BaseEngine):
@@ -58,6 +61,7 @@ class SyncEngine(BaseEngine):
         # We will collect the first result as the processing result to keep backwards compatibility
         # so we need to use a sentinel object instead of `None` because the first result may
         # be also `None`, and on this case the `first_result` may be overridden by another result.
+        logger.debug("Processing loop started: %s", self.sm.current_state_value)
         first_result = self._sentinel
         try:
             took_events = True
@@ -82,6 +86,7 @@ class SyncEngine(BaseEngine):
 
                             enabled_transitions = self.select_transitions(internal_event)
                     if enabled_transitions:
+                        logger.debug("Eventless/internal queue: %s", enabled_transitions)
                         took_events = True
                         self.microstep(list(enabled_transitions), internal_event)
 
@@ -102,6 +107,7 @@ class SyncEngine(BaseEngine):
                 while not self.external_queue.is_empty():
                     took_events = True
                     external_event = self.external_queue.pop()
+                    logger.debug("External event: %s", external_event)
                     current_time = time()
                     if external_event.execution_time > current_time:
                         self.put(external_event)
@@ -122,6 +128,7 @@ class SyncEngine(BaseEngine):
                     #             self.send(inv.id, external_event)
 
                     enabled_transitions = self.select_transitions(external_event)
+                    logger.debug("Enabled transitions: %s", enabled_transitions)
                     if enabled_transitions:
                         try:
                             result = self.microstep(list(enabled_transitions), external_event)
@@ -136,7 +143,7 @@ class SyncEngine(BaseEngine):
 
                     else:
                         if not self.sm.allow_event_without_transition:
-                            raise TransitionNotAllowed(external_event.event, self.sm.current_state)
+                            raise TransitionNotAllowed(external_event.event, self.sm.configuration)
 
         finally:
             self._processing.release()

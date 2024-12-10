@@ -166,7 +166,10 @@ class Cond(CallableAction):
             kwargs["_ioprocessors"] = self.processor.wrap(**kwargs)
 
         try:
-            return _eval(self.action, **kwargs)
+            result = _eval(self.action, **kwargs)
+            logger.debug("Cond %s -> %s", self.action, result)
+            return result
+
         except Exception as e:
             machine.send("error.execution", error=e, internal=True)
             return False
@@ -238,6 +241,7 @@ class Assign(CallableAction):
                 f"got: {self.action.location}"
             )
         setattr(obj, attr, value)
+        logger.debug(f"Assign: {self.action.location} = {value!r}")
 
 
 class Log(CallableAction):

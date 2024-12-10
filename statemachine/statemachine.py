@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Set
+from typing import MutableSet
 
 from statemachine.orderedset import OrderedSet
 
@@ -50,6 +50,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
             :ref:`transition`, including tolerance to unknown :ref:`event` triggers.
             Default: ``False``.
 
+        enable_self_transition_entries: If `False` (default), when a self-transition is selected,
+            the state entry/exit actions will not be executed. If `True`, the state entry actions
+            will be executed, which is conformant with the SCXML spec.
+
         listeners: An optional list of objects that provies attributes to be used as callbacks.
             See :ref:`listeners` for more details.
 
@@ -72,12 +76,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         state_field: str = "state",
         start_value: Any = None,
         allow_event_without_transition: bool = False,
+        enable_self_transition_entries: bool = False,
         listeners: "List[object] | None" = None,
     ):
         self.model = model if model else Model()
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
+        self.enable_self_transition_entries = enable_self_transition_entries
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
         self._listeners: Dict[int, Any] = {}
@@ -289,7 +295,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         setattr(self.model, self.state_field, value)
 
     @property
-    def current_state(self) -> "State | Set[State]":
+    def current_state(self) -> "State | MutableSet[State]":
         """Get/Set the current :ref:`state`.
 
         This is a low level API, that can be to assign any valid state
@@ -309,10 +315,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
                     ]
                 )
 
-            return self.states_map[current_value].for_instance(
+            state: State = self.states_map[current_value].for_instance(
                 machine=self,
                 cache=self._states_for_instance,
             )
+            return state
         except KeyError as err:
             if self.current_state_value is None:
                 raise InvalidStateValue(
@@ -336,7 +343,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
     @property
     def allowed_events(self) -> "List[Event]":
         """List of the current allowed events."""
-        return [getattr(self, event) for event in self.current_state.transitions.unique_events]
+        return [
+            getattr(self, event)
+            for state in self.configuration
+            for event in state.transitions.unique_events
+        ]
 
     def _put_nonblocking(self, trigger_data: TriggerData, internal: bool = False):
         """Put the trigger on the queue without blocking the caller."""

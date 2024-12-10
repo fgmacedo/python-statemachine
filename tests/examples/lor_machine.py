@@ -45,13 +45,13 @@ class LordOfTheRingsQuestStateMachine(StateMachine):
 quest = LordOfTheRingsQuestStateMachine()
 
 # Track state changes
-print(f"Current State: {quest.current_state.id}")  # Should start at "shire"
+print(f"Current State: {[s.id for s in quest.configuration]}")  # Should start at "shire"
 
 # Step 1: Start the journey
 quest.sauron_alive = False  # Assume Sauron is no longer alive
 try:
     quest.start_journey()
-    print(f"Current State: {quest.current_state.id}")  # Should be "bree"
+    print(f"Current State: {[s.id for s in quest.configuration]}")  # Should be "bree"
 except TransitionNotAllowed:
     print("Unable to start journey: conditions not met.")
 
@@ -59,7 +59,7 @@ except TransitionNotAllowed:
 quest.gandalf_present = True  # Gandalf is now present
 try:
     quest.meet_elves()
-    print(f"Current State: {quest.current_state.id}")  # Should be "rivendell"
+    print(f"Current State: {[s.id for s in quest.configuration]}")  # Should be "rivendell"
 except TransitionNotAllowed:
     print("Unable to meet elves: conditions not met.")
 
@@ -67,7 +67,7 @@ except TransitionNotAllowed:
 quest.orc_army_nearby = True  # Orc army is nearby
 try:
     quest.enter_moria()
-    print(f"Current State: {quest.current_state.id}")  # Should be "moria"
+    print(f"Current State: {[s.id for s in quest.configuration]}")  # Should be "moria"
 except TransitionNotAllowed:
     print("Unable to enter Moria: conditions not met.")
 
@@ -75,21 +75,21 @@ except TransitionNotAllowed:
 quest.orc_army_nearby = False  # Orcs are no longer nearby
 try:
     quest.reach_lothlorien()
-    print(f"Current State: {quest.current_state.id}")  # Should be "lothlorien"
+    print(f"Current State: {[s.id for s in quest.configuration]}")  # Should be "lothlorien"
 except TransitionNotAllowed:
     print("Unable to reach Lothlorien: conditions not met.")
 
 # Step 5: Journey to Mordor
 try:
     quest.journey_to_mordor()
-    print(f"Current State: {quest.current_state.id}")  # Should be "mordor"
+    print(f"Current State: {[s.id for s in quest.configuration]}")  # Should be "mordor"
 except TransitionNotAllowed:
     print("Unable to journey to Mordor: conditions not met.")
 
 # Step 6: Fight with Smeagol
 try:
     quest.destroy_ring()
-    print(f"Current State: {quest.current_state.id}")  # Should be "mount_doom"
+    print(f"Current State: {[s.id for s in quest.configuration]}")  # Should be "mount_doom"
 except TransitionNotAllowed:
     print("Unable to destroy the ring: conditions not met.")
 
@@ -98,6 +98,6 @@ except TransitionNotAllowed:
 quest.frodo_resists_ring = True  # Frodo is now resisting the ring
 try:
     quest.destroy_ring()
-    print(f"Current State: {quest.current_state.id}")  # Should be "mount_doom"
+    print(f"Current State: {[s.id for s in quest.configuration]}")  # Should be "mount_doom"
 except TransitionNotAllowed:
     print("Unable to destroy the ring: conditions not met.")

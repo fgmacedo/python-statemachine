@@ -296,15 +296,15 @@ class State:
     def is_compound(self):
         return bool(self.states)
 
-    def ancestors(self, parent: "State | None" = None) -> Generator:
-        selected = self
+    def ancestors(self, parent: "State | None" = None) -> Generator["State", None, None]:  # noqa: UP043
+        selected = self.parent
         while selected:
             if parent and selected == parent:
                 break
             yield selected
             selected = selected.parent
 
-    def is_descendant(self, state: "State | None") -> bool:
+    def is_descendant(self, state: "State") -> bool:
         return state in self.ancestors()
 
 
@@ -376,6 +376,14 @@ class InstanceState(State):
     @property
     def states(self):
         return self._state().states
+
+    @property
+    def parallel(self):
+        return self._state().parallel
+
+    @property
+    def is_compound(self):
+        return self._state().is_compound
 
 
 class AnyState(State):
