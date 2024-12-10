@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import MutableSet
 from typing import Set
 
 from statemachine.orderedset import OrderedSet
@@ -123,10 +122,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
         def __getattr__(self, attribute: str) -> Any: ...
 
     def __repr__(self):
-        current_state_id = self.current_state.id if self.current_state_value else None
+        configuration_ids = [s.id for s in self.configuration]
         return (
             f"{type(self).__name__}(model={self.model!r}, state_field={self.state_field!r}, "
-            f"current_state={current_state_id!r})"
+            f"configuration={configuration_ids!r})"
         )
 
     def __getstate__(self):
@@ -245,10 +244,25 @@ class StateMachine(metaclass=StateMachineMetaclass):
         if self.current_state_value is None:
             return OrderedSet()
 
-        if not isinstance(self.current_state_value, MutableSet):
-            return OrderedSet([self.states_map[self.current_state_value]])
+        if not isinstance(self.current_state_value, list):
+            return OrderedSet(
+                [
+                    self.states_map[self.current_state_value].for_instance(
+                        machine=self,
+                        cache=self._states_for_instance,
+                    )
+                ]
+            )
 
-        return self.current_state_value
+        return OrderedSet(
+            [
+                self.states_map[value].for_instance(
+                    machine=self,
+                    cache=self._states_for_instance,
+                )
+                for value in self.current_state_value
+            ]
+        )
 
     @configuration.setter
     def configuration(self, value: OrderedSet["State"]):
@@ -257,7 +271,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         elif len(value) == 1:
             self.current_state_value = value.pop().value
         else:
-            self.current_state_value = value
+            self.current_state_value = [s.value for s in value]
 
     @property
     def current_state_value(self):
@@ -270,11 +284,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @current_state_value.setter
     def current_state_value(self, value):
-        if (
-            value is not None
-            and not isinstance(value, MutableSet)
-            and value not in self.states_map
-        ):
+        if value is not None and not isinstance(value, list) and value not in self.states_map:
             raise InvalidStateValue(value)
         setattr(self.model, self.state_field, value)
 
@@ -285,13 +295,24 @@ class StateMachine(metaclass=StateMachineMetaclass):
         This is a low level API, that can be to assign any valid state
         completely bypassing all the hooks and validations.
         """
+        current_value = self.current_state_value
 
         try:
-            state: State = self.states_map[self.current_state_value].for_instance(
+            if isinstance(current_value, list):
+                return OrderedSet(
+                    [
+                        self.states_map[value].for_instance(
+                            machine=self,
+                            cache=self._states_for_instance,
+                        )
+                        for value in current_value
+                    ]
+                )
+
+            return self.states_map[current_value].for_instance(
                 machine=self,
                 cache=self._states_for_instance,
             )
-            return state
         except KeyError as err:
             if self.current_state_value is None:
                 raise InvalidStateValue(

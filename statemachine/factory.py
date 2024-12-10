@@ -32,6 +32,8 @@ class StateMachineMetaclass(type):
         registry.register(cls)
         cls.name = cls.__name__
         cls.id = cls.name.lower()
+        # TODO: Experiment with the IDEA of a root state
+        # cls.root = State(id=cls.id, name=cls.name)
         cls.states: States = States()
         cls.states_map: Dict[Any, State] = {}
         """Map of ``state.value`` to the corresponding :ref:`state`."""
@@ -50,7 +52,7 @@ class StateMachineMetaclass(type):
         if not cls.states:
             return
 
-        cls._initials_by_document_order(cls.states)
+        cls._initials_by_document_order(cls.states, parent=None)
 
         initials = [s for s in cls.states if s.initial]
         parallels = [s.id for s in cls.states if s.parallel]
@@ -79,16 +81,24 @@ class StateMachineMetaclass(type):
 
         def __getattr__(self, attribute: str) -> Any: ...
 
-    def _initials_by_document_order(cls, states):
+    def _initials_by_document_order(cls, states, parent: "State | None" = None):
         """Set initial state by document order if no explicit initial state is set"""
-        has_initial = False
+        initial: "State | None" = None
         for s in states:
-            cls._initials_by_document_order(s.states)
+            cls._initials_by_document_order(s.states, s)
             if s.initial:
-                has_initial = True
+                initial = s
                 break
-        if not has_initial and states:
-            states[0]._initial = True
+        if not initial and states:
+            initial = states[0]
+            initial._initial = True
+
+        if (
+            parent
+            and initial
+            and not any(t for t in parent.transitions if t.initial and t.target == initial)
+        ):
+            parent.to(initial, initial=True)
 
     def _unpack_builders_callbacks(cls):
         callbacks = {}

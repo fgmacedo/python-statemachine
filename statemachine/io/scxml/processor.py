@@ -88,7 +88,10 @@ class SCXMLProcessor:
             event = transition.event or None
             if event not in on_dict:
                 on_dict[event] = []
-            transition_dict: TransitionDict = {"target": transition.target}
+            transition_dict: TransitionDict = {
+                "target": transition.target,
+                "initial": transition.initial,
+            }
 
             # Process cond
             if transition.cond:

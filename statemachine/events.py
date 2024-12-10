@@ -8,9 +8,12 @@ class Events:
     def __init__(self):
         self._items: list[Event] = []
 
-    def __repr__(self):
+    def __str__(self):
         sep = " " if len(self._items) > 1 else ""
         return sep.join(item for item in self._items)
+
+    def __repr__(self):
+        return f"{self._items!r}"
 
     def __iter__(self):
         return iter(self._items)

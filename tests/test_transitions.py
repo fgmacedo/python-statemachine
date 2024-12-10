@@ -10,7 +10,10 @@ from .models import MyModel
 
 def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.draft.transitions if t.event == "produce"][0])
-    assert s == ("Transition('Draft', 'Being produced', event='produce', internal=False)")
+    assert s == (
+        "Transition('Draft', 'Being produced', event=["
+        "Event('produce', delay=0, internal=False)], internal=False)"
+    )
 
 
 def test_list_machine_events(classic_traffic_light_machine):

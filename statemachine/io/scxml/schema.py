@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Dict
 from typing import List
+from typing import Set
 
 
 @dataclass
@@ -93,6 +94,7 @@ class ScriptAction(Action):
 @dataclass
 class Transition:
     target: str
+    initial: bool = False
     event: "str | None" = None
     cond: "str | None" = None
     on: "ExecutableContent | None" = None
@@ -127,5 +129,5 @@ class DataModel:
 @dataclass
 class StateMachineDefinition:
     states: Dict[str, State] = field(default_factory=dict)
-    initial_state: "str | None" = None
+    initial_states: Set[str] = field(default_factory=set)
     datamodel: "DataModel | None" = None

@@ -1,5 +1,6 @@
 import re
 import xml.etree.ElementTree as ET
+from typing import Set
 
 from .schema import Action
 from .schema import AssignAction
@@ -32,6 +33,12 @@ def strip_namespaces(tree: ET.Element):
                 attrib[new_name] = attrib.pop(name)
 
 
+def _parse_initial(initial_content: "str | None") -> Set[str]:
+    if initial_content is None:
+        return set()
+    return set(initial_content.split())
+
+
 def parse_scxml(scxml_content: str) -> StateMachineDefinition:
     root = ET.fromstring(scxml_content)
     strip_namespaces(root)
@@ -40,9 +47,9 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:
     if scxml is None:
         raise ValueError("No scxml element found in document")
 
-    initial_state = scxml.get("initial")
+    initial_state = _parse_initial(scxml.get("initial"))
 
-    definition = StateMachineDefinition(initial_state=initial_state)
+    definition = StateMachineDefinition(initial_states=initial_state)
 
     # Parse datamodel
     datamodel = parse_datamodel(scxml)
@@ -52,19 +59,19 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:
     # Parse states
     for state_elem in scxml:
         if state_elem.tag == "state":
-            state = parse_state(state_elem, definition.initial_state)
+            state = parse_state(state_elem, definition.initial_states)
             definition.states[state.id] = state
         elif state_elem.tag == "final":
-            state = parse_state(state_elem, definition.initial_state, is_final=True)
+            state = parse_state(state_elem, definition.initial_states, is_final=True)
             definition.states[state.id] = state
         elif state_elem.tag == "parallel":
-            state = parse_state(state_elem, definition.initial_state, is_parallel=True)
+            state = parse_state(state_elem, definition.initial_states, is_parallel=True)
             definition.states[state.id] = state
 
     # If no initial state was specified, pick the first state
-    if not definition.initial_state and definition.states:
-        definition.initial_state = next(iter(definition.states.keys()))
-        definition.states[definition.initial_state].initial = True
+    if not definition.initial_states and definition.states:
+        definition.initial_states = next(iter(definition.states.keys()))
+        definition.states[definition.initial_states].initial = True
 
     return definition
 
@@ -95,7 +102,7 @@ def parse_datamodel(root: ET.Element) -> "DataModel | None":
 
 def parse_state(
     state_elem: ET.Element,
-    initial_state: "str | None",
+    initial_states: Set[str],
     is_final: bool = False,
     is_parallel: bool = False,
 ) -> State:
@@ -103,7 +110,7 @@ def parse_state(
     if not state_id:
         raise ValueError("State must have an 'id' attribute")
 
-    initial = state_id == initial_state
+    initial = state_id in initial_states
     state = State(id=state_id, initial=initial, final=is_final, parallel=is_parallel)
 
     # Parse onentry actions
@@ -122,18 +129,25 @@ def parse_state(
         state.transitions.append(transition)
 
     # Parse child states
-    initial_state = state_elem.get("initial")
+    initial_states |= _parse_initial(state_elem.get("initial"))
+    initial_elem = state_elem.find("initial")
+    if initial_elem is not None:
+        for trans_elem in initial_elem.findall("transition"):
+            transition = parse_transition(trans_elem, initial=True)
+            state.transitions.append(transition)
+            initial_states |= _parse_initial(trans_elem.get("target"))
+
     for child_state_elem in state_elem.findall("state"):
-        child_state = parse_state(child_state_elem, initial_state=initial_state)
+        child_state = parse_state(child_state_elem, initial_states=initial_states)
         state.states[child_state.id] = child_state
     for child_state_elem in state_elem.findall("parallel"):
-        state = parse_state(child_state_elem, initial_state=initial_state, is_parallel=True)
+        state = parse_state(child_state_elem, initial_states=initial_states, is_parallel=True)
         state.states[child_state.id] = child_state
 
     return state
 
 
-def parse_transition(trans_elem: ET.Element) -> Transition:
+def parse_transition(trans_elem: ET.Element, initial: bool = False) -> Transition:
     target = trans_elem.get("target")
     if not target:
         raise ValueError("Transition must have a 'target' attribute")
@@ -143,7 +157,9 @@ def parse_transition(trans_elem: ET.Element) -> Transition:
 
     executable_content = parse_executable_content(trans_elem)
 
-    return Transition(target=target, event=event, cond=cond, on=executable_content)
+    return Transition(
+        target=target, initial=initial, event=event, cond=cond, on=executable_content
+    )
 
 
 def parse_executable_content(element: ET.Element) -> ExecutableContent:

@@ -172,10 +172,10 @@ class DotGraphMachine:
 
     def get_graph(self):
         graph = self._get_graph(self.machine)
-        self._graph_states(self.machine, graph)
+        self._graph_states(self.machine, graph, is_root=True)
         return graph
 
-    def _graph_states(self, state, graph):
+    def _graph_states(self, state, graph, is_root=False):
         initial_node = self._initial_node(state)
         initial_subgraph = pydot.Subgraph(
             graph_name=f"{initial_node.get_name()}_initial",
@@ -193,8 +193,9 @@ class DotGraphMachine:
         graph.add_subgraph(initial_subgraph)
         graph.add_subgraph(atomic_states_subgraph)
 
-        initial = next(s for s in state.states if s.initial)
-        graph.add_edge(self._initial_edge(initial_node, initial))
+        if is_root:
+            initial = next(s for s in state.states if s.initial)
+            graph.add_edge(self._initial_edge(initial_node, initial))
 
         for substate in state.states:
             if substate.states:

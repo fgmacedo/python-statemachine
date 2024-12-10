@@ -241,8 +241,10 @@ class BaseEngine:
         def first_transition_that_matches(state: State, event: Event) -> "Transition | None":
             for s in chain([state], state.ancestors()):
                 for transition in s.transitions:
-                    if predicate(transition, event) and self._conditions_match(
-                        transition, trigger_data
+                    if (
+                        not transition.initial
+                        and predicate(transition, event)
+                        and self._conditions_match(transition, trigger_data)
                     ):
                         return transition
 
@@ -481,31 +483,28 @@ class BaseEngine:
             # Handle compound states
             states_for_default_entry.add(info)
             initial_state = next(s for s in state.states if s.initial)
-            for transition in initial_state.transitions:
-                info_initial = StateTransition(
-                    transition=transition,
-                    target=transition.target,
-                    source=transition.source,
-                )
-                self.add_descendant_states_to_enter(
-                    info_initial,
-                    states_to_enter,
-                    states_for_default_entry,
-                    default_history_content,
-                )
-            for transition in initial_state.transitions:
-                info_initial = StateTransition(
-                    transition=transition,
-                    target=transition.target,
-                    source=transition.source,
-                )
-                self.add_ancestor_states_to_enter(
-                    info_initial,
-                    state,
-                    states_to_enter,
-                    states_for_default_entry,
-                    default_history_content,
-                )
+            transition = next(
+                t for t in state.transitions if t.initial and t.target == initial_state
+            )
+            info_initial = StateTransition(
+                transition=transition,
+                target=transition.target,
+                source=transition.source,
+            )
+            self.add_descendant_states_to_enter(
+                info_initial,
+                states_to_enter,
+                states_for_default_entry,
+                default_history_content,
+            )
+
+            self.add_ancestor_states_to_enter(
+                info_initial,
+                state,
+                states_to_enter,
+                states_for_default_entry,
+                default_history_content,
+            )
         elif state.parallel:
             # Handle parallel states
             for child_state in state.states:
