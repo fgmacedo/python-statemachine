@@ -11,7 +11,7 @@ def test_machine_repr(campaign_machine):
     machine = campaign_machine(model)
     assert (
         repr(machine) == "CampaignMachine(model=MyModel({'state': 'draft'}), "
-        "state_field='state', current_state='draft')"
+        "state_field='state', configuration=['draft'])"
     )
 
 

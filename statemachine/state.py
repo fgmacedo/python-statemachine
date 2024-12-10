@@ -113,7 +113,7 @@ class State:
     Transitions are declared using the :func:`State.to` or :func:`State.from_` (reversed) methods.
 
     >>> draft.to(producing)
-    TransitionList([Transition('Draft', 'Producing', event='', internal=False)])
+    TransitionList([Transition('Draft', 'Producing', event=[], internal=False)])
 
     The result is a :ref:`TransitionList`.
     Don't worry about this internal class.
@@ -138,7 +138,7 @@ class State:
     expressed using an alternative syntax:
 
     >>> draft.to.itself()
-    TransitionList([Transition('Draft', 'Draft', event='', internal=False)])
+    TransitionList([Transition('Draft', 'Draft', event=[], internal=False)])
 
     You can even pass a list of target states to declare at once all transitions starting
     from the same state.
