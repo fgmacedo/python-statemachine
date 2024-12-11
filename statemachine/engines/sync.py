@@ -107,13 +107,13 @@ class SyncEngine(BaseEngine):
                 while not self.external_queue.is_empty():
                     took_events = True
                     external_event = self.external_queue.pop()
-                    logger.debug("External event: %s", external_event)
                     current_time = time()
                     if external_event.execution_time > current_time:
                         self.put(external_event)
                         sleep(0.001)
                         continue
 
+                    logger.debug("External event: %s", external_event)
                     # # TODO: Handle cancel event
                     # if self.is_cancel_event(external_event):
                     #     self.running = False
