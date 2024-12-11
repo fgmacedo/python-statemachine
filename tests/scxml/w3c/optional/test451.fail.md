@@ -1,0 +1,27 @@
+# Testcase: test451
+
+AssertionError: Assertion failed.
+
+Final configuration: `['fail']`
+
+---
+
+## Logs
+```py
+DEBUG    statemachine.engines.base:base.py:374 States to enter: {P, S0}
+DEBUG    statemachine.engines.sync:sync.py:64 Processing loop started: ['p', 's0']
+DEBUG    statemachine.engines.sync:sync.py:89 Eventless/internal queue: {transition  from S0 to Fail}
+DEBUG    statemachine.engines.base:base.py:283 States to exit: {P, S0}
+DEBUG    statemachine.engines.base:base.py:374 States to enter: {Fail}
+
+```
+
+## "On transition" events
+```py
+DebugEvent(source='s0', event='None', data='{}', target='fail')
+```
+
+## Traceback
+```py
+Assertion of the testcase failed.
+```

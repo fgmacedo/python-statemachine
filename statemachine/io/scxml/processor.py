@@ -3,6 +3,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+from ...exceptions import InvalidDefinition
 from .. import StateDefinition
 from .. import TransitionDict
 from .. import TransitionsDict
@@ -114,7 +115,7 @@ class SCXMLProcessor:
             self.scs[location] = sc_class
             return sc_class
         except Exception as e:
-            raise Exception(
+            raise InvalidDefinition(
                 f"Failed to create state machine class: {e} from definition: {definition}"
             ) from e
 
