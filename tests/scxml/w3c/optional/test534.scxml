@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that that <send> 'event' value gets sent as the param _scxmleventname . -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="python" version="1.0">
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="2s" />
+      <send event="test" targetexpr="_ioprocessors['basichttp']['location']"
+        type="http://www.w3.org/TR/scxml/#BasicHTTPEventProcessor">
+      </send>
+    </onentry>
+    <!-- if other end sends us back this event, we succeed -->
+    <transition event="test" cond="'_scxmleventname=test' in _event.raw" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

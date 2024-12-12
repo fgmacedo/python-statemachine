@@ -152,7 +152,7 @@ spy = machine.spy
 # Only before/on actions have their result collected.
 
 result = machine.go()
-assert result == [
+expected = [
     "before_transition",
     "before_go_inline_1",
     "before_go_inline_2",
@@ -164,6 +164,7 @@ assert result == [
     "go_on_decor",
     "on_go",
 ]
+assert result == expected
 
 # %%
 # Checking the method resolution order

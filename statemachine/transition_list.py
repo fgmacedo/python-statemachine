@@ -86,6 +86,9 @@ class TransitionList(AddCallbacksMixin):
         """
         return len(self.transitions)
 
+    def __iter__(self):
+        return iter(self.transitions)
+
     def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
         for transition in self.transitions:
             list_obj = transition._specs.grouper(grouper)
@@ -122,3 +125,7 @@ class TransitionList(AddCallbacksMixin):
                 tmp_ordered_unique_events_as_keys_on_dict[event] = True
 
         return list(tmp_ordered_unique_events_as_keys_on_dict.keys())
+
+    @property
+    def has_eventless_transition(self):
+        return any(transition.is_eventless for transition in self.transitions)

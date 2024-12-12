@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that sendid is present in error events triggered by send
+errors -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  version="1.0" initial="s0" datamodel="python" name="machineName">
+  <datamodel>
+    <data id="Var1" />
+    <data id="Var2" />
+  </datamodel>
+
+
+  <state id="s0">
+    <onentry>
+      <!-- this will raise an error and also store the sendid in var1 -->
+      <send target="baz" event="foo" idlocation="Var1" />
+    </onentry>
+    <transition event="error" target="s1">
+      <!-- get the sendid out of the error event -->
+      <assign location="Var2" expr="_event.sendid" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+
+  <state id="s1">
+    <!-- make sure that the sendid in the error event matches the one generated when send executed -->
+    <transition cond="Var1==Var2" target="pass" />
+    <transition target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

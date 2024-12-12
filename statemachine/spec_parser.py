@@ -3,6 +3,7 @@ import operator
 import re
 from functools import reduce
 from typing import Callable
+from typing import Dict
 
 replacements = {"!": "not ", "^": " and ", "v": " or "}
 
@@ -69,6 +70,38 @@ def build_constant(constant) -> Callable:
     return decorated
 
 
+class Functions:
+    registry: Dict[str, Callable] = {}
+
+    @classmethod
+    def register(cls, id) -> Callable:
+        def register(func):
+            cls.registry[id] = func
+            return func
+
+        return register
+
+    @classmethod
+    def get(cls, id):
+        id = id.lower()
+        if id not in cls.registry:
+            raise ValueError(f"Unsupported function: {id}")
+        return cls.registry[id]
+
+
+@Functions.register("in")
+def build_in_call(*state_ids: str) -> Callable:
+    state_ids_set = set(state_ids)
+
+    def decorated(*args, **kwargs):
+        machine = kwargs["machine"]
+        return state_ids_set.issubset({s.id for s in machine.configuration})
+
+    decorated.__name__ = f"in({state_ids_set})"
+    decorated.unique_key = f"in({state_ids_set})"  # type: ignore[attr-defined]
+    return decorated
+
+
 def build_custom_operator(operator) -> Callable:
     operator_repr = comparison_repr[operator]
 
@@ -104,6 +137,11 @@ def build_expression(node, variable_hook, operator_mapping):  # noqa: C901
             expressions.append(expression)
 
         return reduce(custom_and, expressions)
+    elif isinstance(node, ast.Call):
+        # Handle function calls
+        constructor = Functions.get(node.func.id)
+        params = [arg.value for arg in node.args if isinstance(arg, ast.Constant)]
+        return constructor(*params)
     elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
         # Handle `not` operation
         operand_expr = build_expression(node.operand, variable_hook, operator_mapping)
@@ -114,14 +152,6 @@ def build_expression(node, variable_hook, operator_mapping):  # noqa: C901
     elif isinstance(node, ast.Constant):
         # Handle constants by returning the value
         return build_constant(node.value)
-    elif hasattr(ast, "NameConstant") and isinstance(
-        node, ast.NameConstant
-    ):  # pragma: no cover  | python3.7
-        return build_constant(node.value)
-    elif hasattr(ast, "Str") and isinstance(node, ast.Str):  # pragma: no cover  | python3.7
-        return build_constant(node.s)
-    elif hasattr(ast, "Num") and isinstance(node, ast.Num):  # pragma: no cover | python3.7
-        return build_constant(node.n)
     else:
         raise ValueError(f"Unsupported expression structure: {node.__class__.__name__}")
 
@@ -130,7 +160,9 @@ def parse_boolean_expr(expr, variable_hook, operator_mapping):
     """Parses the expression into an AST and build a custom expression tree"""
     if expr.strip() == "":
         raise SyntaxError("Empty expression")
-    if "!" not in expr and " " not in expr:
+
+    # Optimization trying to avoid parsing the expression if not needed
+    if "!" not in expr and " " not in expr and "In(" not in expr:
         return variable_hook(expr)
     expr = replace_operators(expr)
     tree = ast.parse(expr, mode="eval")

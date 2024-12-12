@@ -1,23 +1,17 @@
+import asyncio
+from time import time
 from typing import TYPE_CHECKING
 
 from ..event_data import EventData
 from ..event_data import TriggerData
-from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
-from ..i18n import _
 from .base import BaseEngine
 
 if TYPE_CHECKING:
-    from ..statemachine import StateMachine
     from ..transition import Transition
 
 
 class AsyncEngine(BaseEngine):
-    def __init__(self, sm: "StateMachine", rtc: bool = True):
-        if not rtc:
-            raise InvalidDefinition(_("Only RTC is supported on async engine"))
-        super().__init__(sm=sm, rtc=rtc)
-
     async def activate_initial_state(self):
         """
         Activate the initial state.
@@ -33,16 +27,7 @@ class AsyncEngine(BaseEngine):
     async def processing_loop(self):
         """Process event triggers.
 
-        The simplest implementation is the non-RTC (synchronous),
-        where the trigger will be run immediately and the result collected as the return.
-
-        .. note::
-
-            While processing the trigger, if others events are generated, they
-            will also be processed immediately, so a "nested" behavior happens.
-
-        If the machine is on ``rtc`` model (queued), the event is put on a queue, and only the
-        first event will have the result collected.
+        The event is put on a queue, and only the first event will have the result collected.
 
         .. note::
             While processing the queue items, if others events are generated, they
@@ -60,8 +45,13 @@ class AsyncEngine(BaseEngine):
         first_result = self._sentinel
         try:
             # Execute the triggers in the queue in FIFO order until the queue is empty
-            while self._external_queue:
-                trigger_data = self._external_queue.popleft()
+            while self.running and not self.empty():
+                trigger_data = self.pop()
+                current_time = time()
+                if trigger_data.execution_time > current_time:
+                    self.put(trigger_data)
+                    await asyncio.sleep(0.001)
+                    continue
                 try:
                     result = await self._trigger(trigger_data)
                     if first_result is self._sentinel:
@@ -69,7 +59,7 @@ class AsyncEngine(BaseEngine):
                 except Exception:
                     # Whe clear the queue as we don't have an expected behavior
                     # and cannot keep processing
-                    self._external_queue.clear()
+                    self.clear()
                     raise
         finally:
             self._processing.release()
@@ -82,7 +72,9 @@ class AsyncEngine(BaseEngine):
             await self._activate(trigger_data, transition)
             return self._sentinel
 
-        state = self.sm.current_state
+        # TODO: Fix async engine
+        state = next(iter(self.sm.configuration))
+
         for transition in state.transitions:
             if not transition.match(trigger_data.event):
                 continue
@@ -93,7 +85,7 @@ class AsyncEngine(BaseEngine):
             break
         else:
             if not self.sm.allow_event_without_transition:
-                raise TransitionNotAllowed(trigger_data.event, state)
+                raise TransitionNotAllowed(trigger_data.event, self.sm.configuration)
 
         return result if executed else None
 
