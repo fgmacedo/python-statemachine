@@ -142,7 +142,7 @@ You can query a list of all final states from your statemachine.
 >>> machine = CampaignMachine()
 
 >>> machine.final_states
-[State('Closed', id='closed', value=3, initial=False, final=True)]
+[State('Closed', id='closed', value=3, initial=False, final=True, parallel=False)]
 
 >>> machine.current_state in machine.final_states
 False

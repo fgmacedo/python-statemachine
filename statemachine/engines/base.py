@@ -520,7 +520,22 @@ class BaseEngine:
         state = info.target
         assert state
 
-        if state.is_compound:
+        if state.parallel:
+            # Handle parallel states
+            for child_state in state.states:
+                if not any(s.target.is_descendant(child_state) for s in states_to_enter):
+                    info_to_add = StateTransition(
+                        transition=info.transition,
+                        target=child_state,
+                        source=info.transition.source,
+                    )
+                    self.add_descendant_states_to_enter(
+                        info_to_add,
+                        states_to_enter,
+                        states_for_default_entry,
+                        default_history_content,
+                    )
+        elif state.is_compound:
             # Handle compound states
             states_for_default_entry.add(info)
             initial_state = next(s for s in state.states if s.initial)
@@ -546,21 +561,6 @@ class BaseEngine:
                 states_for_default_entry,
                 default_history_content,
             )
-        elif state.parallel:
-            # Handle parallel states
-            for child_state in state.states:
-                if not any(s.target.is_descendant(child_state) for s in states_to_enter):
-                    info_to_add = StateTransition(
-                        transition=info.transition,
-                        target=child_state,
-                        source=info.transition.source,
-                    )
-                    self.add_descendant_states_to_enter(
-                        info_to_add,
-                        states_to_enter,
-                        states_for_default_entry,
-                        default_history_content,
-                    )
 
     def add_ancestor_states_to_enter(
         self,
@@ -602,7 +602,7 @@ class BaseEngine:
                             source=info.transition.source,
                         )
                         self.add_descendant_states_to_enter(
-                            child,
+                            info_to_add,
                             states_to_enter,
                             states_for_default_entry,
                             default_history_content,

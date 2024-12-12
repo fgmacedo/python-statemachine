@@ -88,7 +88,6 @@ class StateMachineMetaclass(type):
             cls._initials_by_document_order(s.states, s)
             if s.initial:
                 initial = s
-                break
         if not initial and states:
             initial = states[0]
             initial._initial = True

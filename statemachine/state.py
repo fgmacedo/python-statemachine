@@ -69,6 +69,22 @@ class NestedStateFactory(type):
 
         return State(name=name, states=states, _callbacks=callbacks, **kwargs)
 
+    @classmethod
+    def to(cls, *args: "State", **kwargs) -> "_ToState":  # pragma: no cover
+        """Create transitions to the given target states.
+        .. note: This method is only a type hint for mypy.
+            The actual implementation belongs to the :ref:`State` class.
+        """
+        return _ToState(State())
+
+    @classmethod
+    def from_(cls, *args: "State", **kwargs) -> "_FromState":  # pragma: no cover
+        """Create transitions from the given target states (reversed).
+        .. note: This method is only a type hint for mypy.
+            The actual implementation belongs to the :ref:`State` class.
+        """
+        return _FromState(State())
+
 
 class State:
     """
@@ -157,25 +173,10 @@ class State:
 
     """
 
-    class Builder(metaclass=NestedStateFactory):
+    class Compound(metaclass=NestedStateFactory):
         # Mimic the :ref:`State` public API to help linters discover the result of the Builder
         # class.
-
-        @classmethod
-        def to(cls, *args: "State", **kwargs) -> "_ToState":  # pragma: no cover
-            """Create transitions to the given target states.
-            .. note: This method is only a type hint for mypy.
-                The actual implementation belongs to the :ref:`State` class.
-            """
-            return _ToState(State())
-
-        @classmethod
-        def from_(cls, *args: "State", **kwargs) -> "_FromState":  # pragma: no cover
-            """Create transitions from the given target states (reversed).
-            .. note: This method is only a type hint for mypy.
-                The actual implementation belongs to the :ref:`State` class.
-            """
-            return _FromState(State())
+        pass
 
     def __init__(
         self,
@@ -212,10 +213,16 @@ class State:
     def _init_states(self):
         for state in self.states:
             state.parent = self
+            state._initial = state.initial or self.parallel
             setattr(self, state.id, state)
 
     def __eq__(self, other):
-        return isinstance(other, State) and self.name == other.name and self.id == other.id
+        return (
+            isinstance(other, State)
+            and self.name == other.name
+            and self.id == other.id
+            or (self.value == other)
+        )
 
     def __hash__(self):
         return hash(repr(self))
@@ -235,7 +242,7 @@ class State:
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
-            f"initial={self.initial!r}, final={self.final!r})"
+            f"initial={self.initial!r}, final={self.final!r}, parallel={self.parallel!r})"
         )
 
     def __str__(self):

@@ -140,9 +140,11 @@ def parse_state(
 
     for child_state_elem in state_elem.findall("state"):
         child_state = parse_state(child_state_elem, initial_states=initial_states)
+        child_state.initial = child_state.initial
         state.states[child_state.id] = child_state
     for child_state_elem in state_elem.findall("parallel"):
         state = parse_state(child_state_elem, initial_states=initial_states, is_parallel=True)
+        child_state.initial = child_state.initial
         state.states[child_state.id] = child_state
 
     return state
