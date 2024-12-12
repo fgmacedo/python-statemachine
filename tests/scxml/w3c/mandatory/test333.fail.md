@@ -10,7 +10,7 @@ Final configuration: `['fail']`
 ```py
 DEBUG    statemachine.engines.base:base.py:374 States to enter: {S0}
 DEBUG    statemachine.engines.sync:sync.py:64 Processing loop started: s0
-DEBUG    statemachine.engines.sync:sync.py:116 External event: TriggerData(machine=<weakproxy at 0x7efc22b141d0; to 'statemachine.io.test333' at 0x7efc22b08980>, event=Event('foo', delay=0, internal=False), send_id='75f40d755b8946a3a241117dfc72e9aa', _target=None, execution_time=1733943929.5607946, model=Model(state=s0), args=(), kwargs={})
+DEBUG    statemachine.engines.sync:sync.py:116 External event: TriggerData(machine=<weakproxy at 0x7f85fc545ad0; to 'statemachine.io.test333' at 0x7f85f7e16270>, event=Event('foo', delay=0, internal=False), send_id='4fd143c528ed44bc95318d4861d04821', _target=None, execution_time=1734002804.2679229, model=Model(state=s0), args=(), kwargs={})
 DEBUG    statemachine.engines.sync:sync.py:131 Enabled transitions: {transition * from S0 to Fail}
 DEBUG    statemachine.engines.base:base.py:283 States to exit: {S0}
 DEBUG    statemachine.engines.base:base.py:374 States to enter: {Fail}

@@ -10,6 +10,7 @@ from uuid import uuid4
 from statemachine.exceptions import InvalidDefinition
 
 from ...event import Event
+from ...event import _event_data_kwargs
 from ...statemachine import StateMachine
 from .parser import Action
 from .parser import AssignAction
@@ -26,6 +27,9 @@ from .schema import Param
 from .schema import ScriptAction
 
 logger = logging.getLogger(__name__)
+protected_attrs = _event_data_kwargs | {
+    "_sessionid",
+}
 
 
 class ParseTime:
@@ -97,6 +101,13 @@ class EventDataWrapper:
 
     def __init__(self, event_data):
         self.event_data = event_data
+        if event_data.trigger_data.event is None or event_data.trigger_data.event.internal:
+            if "error.execution" == event_data.trigger_data.event:
+                self.type = "platform"
+            else:
+                self.type = "internal"
+        else:
+            self.type = "external"
 
     def __getattr__(self, name):
         return getattr(self.event_data, name)
@@ -118,10 +129,13 @@ class EventDataWrapper:
 
 def _eval(expr: str, **kwargs) -> Any:
     if "machine" in kwargs:
-        kwargs.update(kwargs["machine"].model.__dict__)
-    if "event_data" in kwargs:
-        kwargs["_event"] = EventDataWrapper(kwargs["event_data"])
-
+        kwargs.update(
+            **{
+                k: v
+                for k, v in kwargs["machine"].model.__dict__.items()
+                if k not in protected_attrs
+            }
+        )
     return eval(expr, {}, kwargs)
 
 
@@ -162,9 +176,6 @@ class Cond(CallableAction):
 
     def __call__(self, *args, **kwargs):
         machine = kwargs["machine"]
-        if self.processor:
-            kwargs["_ioprocessors"] = self.processor.wrap(**kwargs)
-
         try:
             result = _eval(self.action, **kwargs)
             logger.debug("Cond %s -> %s", self.action, result)
@@ -235,10 +246,15 @@ class Assign(CallableAction):
         for p in path:
             obj = getattr(obj, p)
 
-        if not attr.isidentifier() or not hasattr(obj, attr):
+        if not attr.isidentifier() or not (hasattr(obj, attr) or attr in kwargs):
             raise ValueError(
                 f"<assign> 'location' must be a valid Python attribute name and must be declared, "
                 f"got: {self.action.location}"
+            )
+        if attr in protected_attrs:
+            raise ValueError(
+                f"<assign> 'location' cannot assign to a protected attribute: "
+                f"{self.action.location}"
             )
         setattr(obj, attr, value)
         logger.debug(f"Assign: {self.action.location} = {value!r}")
@@ -250,8 +266,6 @@ class Log(CallableAction):
         self.action = action
 
     def __call__(self, *args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
-        kwargs.update(machine.model.__dict__)
         value = _eval(self.action.expr, **kwargs)
 
         msg = f"{self.action.label}: {value!r}" if self.action.label else f"{value!r}"
@@ -311,9 +325,7 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
     def raise_action(*args, **kwargs):
         machine: StateMachine = kwargs["machine"]
 
-        Event(id=action.event, name=action.event, internal=True).put(
-            machine=machine,
-        )
+        Event(id=action.event, name=action.event, internal=True, _sm=machine).put()
 
     raise_action.action = action  # type: ignore[attr-defined]
     return raise_action
@@ -359,9 +371,8 @@ def create_send_action_callable(action: SendAction) -> Callable:
         for param in chain(names, action.params):
             params_values[param.name] = _eval(param.expr, **kwargs)
 
-        Event(id=event, name=event, delay=delay, internal=internal).put(
+        Event(id=event, name=event, delay=delay, internal=internal, _sm=machine).put(
             *content,
-            machine=machine,
             send_id=send_id,
             **params_values,
         )
@@ -438,7 +449,7 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
         machine: StateMachine = kwargs["machine"]
         for act in data_elements:
             try:
-                act(machine=machine)
+                act(**kwargs)
             except Exception as e:
                 logger.debug("Error executing actions", exc_info=True)
                 if isinstance(e, InvalidDefinition):

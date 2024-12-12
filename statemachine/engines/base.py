@@ -103,25 +103,12 @@ class BaseEngine:
         if self.sm.current_state_value is not None:
             return
 
-        BoundEvent("__initial__", _sm=self.sm).put(machine=self.sm)
+        BoundEvent("__initial__", _sm=self.sm).put()
 
     def _initial_transition(self, trigger_data):
         transition = Transition(State(), self.sm._get_initial_state(), event="__initial__")
         transition._specs.clear()
         return transition
-
-    def select_eventless_transitions(self, trigger_data: TriggerData):
-        """
-        Select the eventless transitions that match the trigger data.
-        """
-        return self._select_transitions(trigger_data, lambda t, _e: t.is_eventless)
-
-    def _conditions_match(self, transition: Transition, trigger_data: TriggerData):
-        event_data = EventData(trigger_data=trigger_data, transition=transition)
-        args, kwargs = event_data.args, event_data.extended_kwargs
-
-        self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
-        return self.sm._callbacks.all(transition.cond.key, *args, **kwargs)
 
     def _filter_conflicting_transitions(
         self, transitions: OrderedSet[Transition]
@@ -234,6 +221,12 @@ class BaseEngine:
         # TODO: Handle history states
         return OrderedSet([transition.target])
 
+    def select_eventless_transitions(self, trigger_data: TriggerData):
+        """
+        Select the eventless transitions that match the trigger data.
+        """
+        return self._select_transitions(trigger_data, lambda t, _e: t.is_eventless)
+
     def select_transitions(self, trigger_data: TriggerData) -> OrderedSet[Transition]:
         """
         Select the transitions that match the trigger data.
@@ -297,6 +290,27 @@ class BaseEngine:
 
         return result
 
+    def _get_args_kwargs(
+        self, transition: Transition, trigger_data: TriggerData, set_target_as_state: bool = False
+    ):
+        # TODO: Ideally this method should be called only once per microstep/transition
+        event_data = EventData(trigger_data=trigger_data, transition=transition)
+        if set_target_as_state:
+            event_data.state = transition.target
+
+        args, kwargs = event_data.args, event_data.extended_kwargs
+
+        result = self.sm._callbacks.call(self.sm.prepare.key, *args, **kwargs)
+        for new_kwargs in result:
+            kwargs.update(new_kwargs)
+        return args, kwargs
+
+    def _conditions_match(self, transition: Transition, trigger_data: TriggerData):
+        args, kwargs = self._get_args_kwargs(transition, trigger_data)
+
+        self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
+        return self.sm._callbacks.all(transition.cond.key, *args, **kwargs)
+
     def _exit_states(self, enabled_transitions: List[Transition], trigger_data: TriggerData):
         """Compute and process the states to exit for the given transitions."""
         states_to_exit = self._compute_exit_set(enabled_transitions)
@@ -309,8 +323,7 @@ class BaseEngine:
         # states_to_exit = sorted(states_to_exit, key=self.exit_order)
 
         for info in states_to_exit:
-            event_data = EventData(trigger_data=trigger_data, transition=info.transition)
-            args, kwargs = event_data.args, event_data.extended_kwargs
+            args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
             # # TODO: Update history
             # for history in state.history:
@@ -342,10 +355,9 @@ class BaseEngine:
     ):
         result = []
         for transition in enabled_transitions:
-            event_data = EventData(trigger_data=trigger_data, transition=transition)
-            if set_target_as_state:
-                event_data.state = transition.target
-            args, kwargs = event_data.args, event_data.extended_kwargs
+            args, kwargs = self._get_args_kwargs(
+                transition, trigger_data, set_target_as_state=set_target_as_state
+            )
 
             result += self.sm._callbacks.call(get_key(transition), *args, **kwargs)
 
@@ -379,14 +391,14 @@ class BaseEngine:
         )
 
         # Sort states to enter in entry order
-        # for state in sorted(states_to_enter, key=self.entry_order):   # TODO: ordegin of states_to_enter # noqa: E501
+        # for state in sorted(states_to_enter, key=self.entry_order):   # TODO: order of states_to_enter # noqa: E501
         for info in states_to_enter:
             target = info.target
             assert target
             transition = info.transition
-            event_data = EventData(trigger_data=trigger_data, transition=transition)
-            event_data.state = target
-            args, kwargs = event_data.args, event_data.extended_kwargs
+            args, kwargs = self._get_args_kwargs(
+                transition, trigger_data, set_target_as_state=True
+            )
 
             # Add state to the configuration
             # self.sm.configuration |= {target}
@@ -400,7 +412,6 @@ class BaseEngine:
             #     state.is_first_entry = False
 
             # Execute `onentry` handlers
-            # TODO: if not transition.internal:
             self.sm._callbacks.call(target.enter.key, *args, **kwargs)
 
             # Handle default initial states
@@ -420,18 +431,15 @@ class BaseEngine:
                     parent = target.parent
                     grandparent = parent.parent
 
-                    self.internal_queue.put(
-                        BoundEvent(f"done.state.{parent.id}", _sm=self.sm).build_trigger(
-                            machine=self.sm
-                        )
-                    )
+                    BoundEvent(
+                        f"done.state.{parent.id}",
+                        _sm=self.sm,
+                        internal=True,
+                    ).put()
+
                     if grandparent.parallel:
                         if all(child.final for child in grandparent.states):
-                            self.internal_queue.put(
-                                BoundEvent(f"done.state.{parent.id}", _sm=self.sm).build_trigger(
-                                    machine=self.sm
-                                )
-                            )
+                            BoundEvent(f"done.state.{parent.id}", _sm=self.sm, internal=True).put()
 
     def compute_entry_set(
         self, transitions, states_to_enter, states_for_default_entry, default_history_content
@@ -521,7 +529,6 @@ class BaseEngine:
         assert state
 
         if state.parallel:
-            # Handle parallel states
             for child_state in state.states:
                 if not any(s.target.is_descendant(child_state) for s in states_to_enter):
                     info_to_add = StateTransition(
@@ -536,7 +543,6 @@ class BaseEngine:
                         default_history_content,
                     )
         elif state.is_compound:
-            # Handle compound states
             states_for_default_entry.add(info)
             initial_state = next(s for s in state.states if s.initial)
             transition = next(

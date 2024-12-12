@@ -306,5 +306,5 @@ class TestExplicitEvent:
             created.to(started, event=Event("launch_rocket"))
 
         event = next(iter(StartMachine.events))
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AssertionError):
             event()

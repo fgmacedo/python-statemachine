@@ -3,6 +3,15 @@ from datetime import datetime
 import pytest
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--upd-fail",
+        action="store_true",
+        default=False,
+        help="Update marks for failing tests",
+    )
+
+
 @pytest.fixture()
 def current_time():
     return datetime.now()

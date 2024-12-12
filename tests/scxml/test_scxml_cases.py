@@ -108,7 +108,7 @@ Final configuration: `{configuration}`
             fail_file.write(report)
 
 
-def test_scxml_usecase(testcase_path: Path, caplog):
+def test_scxml_usecase(testcase_path: Path, update_fail_mark, caplog):
     # from statemachine.contrib.diagram import DotGraphMachine
 
     # DotGraphMachine(sm_class).get_graph().write_png(
@@ -125,15 +125,16 @@ def test_scxml_usecase(testcase_path: Path, caplog):
         assert "pass" in {s.id for s in sm.configuration}, debug
     except Exception as e:
         # Import necessary module
-        reason = f"{e.__class__.__name__}: {e.__class__.__doc__}"
-        is_assertion_error = isinstance(e, AssertionError)
-        fail_mark = FailedMark(
-            reason=reason,
-            is_assertion_error=is_assertion_error,
-            events=debug.events,
-            exception=e,
-            logs=caplog.text,
-            configuration=[s.id for s in sm.configuration] if sm else [],
-        )
-        fail_mark.write_fail_markdown(testcase_path)
+        if update_fail_mark:
+            reason = f"{e.__class__.__name__}: {e.__class__.__doc__}"
+            is_assertion_error = isinstance(e, AssertionError)
+            fail_mark = FailedMark(
+                reason=reason,
+                is_assertion_error=is_assertion_error,
+                events=debug.events,
+                exception=e,
+                logs=caplog.text,
+                configuration=[s.id for s in sm.configuration] if sm else [],
+            )
+            fail_mark.write_fail_markdown(testcase_path)
         raise

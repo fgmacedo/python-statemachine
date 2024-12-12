@@ -9,6 +9,7 @@ from .. import TransitionDict
 from .. import TransitionsDict
 from .. import create_machine_class_from_definition
 from .actions import Cond
+from .actions import EventDataWrapper
 from .actions import ExecuteBlock
 from .actions import create_datamodel_action_callable
 from .parser import parse_scxml
@@ -46,7 +47,21 @@ class SCXMLProcessor:
                 if isinstance(initial_state["enter"], list):
                     initial_state["enter"].insert(0, datamodel)
 
-        self._add(location, {"states": states_dict})
+        self._add(location, {"states": states_dict, "prepare_event": self._prepare_event})
+
+    def _prepare_event(self, *args, **kwargs):
+        machine = kwargs["machine"]
+        machine_weakref = getattr(machine, "__weakref__", None)
+        if machine_weakref:
+            machine = machine_weakref()
+        session_id = f"{machine.name}:{id(machine)}"
+
+        return {
+            "_name": machine.name,
+            "_sessionid": session_id,
+            "_ioprocessors": self.wrap(**kwargs),
+            "_event": EventDataWrapper(kwargs["event_data"]),
+        }
 
     def _process_states(self, states: Dict[str, State]) -> Dict[str, StateDefinition]:
         states_dict: Dict[str, StateDefinition] = {}
