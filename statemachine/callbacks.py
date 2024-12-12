@@ -43,6 +43,7 @@ SPECS_SAFE = SpecReference.NAME
 
 
 class CallbackGroup(IntEnum):
+    PREPARE = auto()
     ENTER = auto()
     EXIT = auto()
     VALIDATOR = auto()

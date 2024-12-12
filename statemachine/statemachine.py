@@ -177,6 +177,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _add_listener(self, listeners: "Listeners", allowed_references: SpecReference = SPECS_ALL):
         registry = self._callbacks
+        listeners.resolve(self._specs, registry=registry, allowed_references=allowed_references)
         for visited in iterate_states_and_transitions(self.states):
             listeners.resolve(
                 visited._specs,

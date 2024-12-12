@@ -113,7 +113,7 @@ class SyncEngine(BaseEngine):
                         sleep(0.001)
                         continue
 
-                    logger.debug("External event: %s", external_event)
+                    logger.debug("External event: %s", external_event.event)
                     # # TODO: Handle cancel event
                     # if self.is_cancel_event(external_event):
                     #     self.running = False

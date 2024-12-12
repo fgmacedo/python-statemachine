@@ -6,6 +6,9 @@ from typing import List
 from typing import Tuple
 
 from . import registry
+from .callbacks import CallbackGroup
+from .callbacks import CallbackPriority
+from .callbacks import CallbackSpecList
 from .event import Event
 from .exceptions import InvalidDefinition
 from .graph import iterate_states
@@ -43,7 +46,10 @@ class StateMachineMetaclass(type):
         cls._events: Dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
         cls._events_to_update: Dict[Event, Event | None] = {}
-
+        cls._specs = CallbackSpecList()
+        cls.prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
+            "prepare_event", priority=CallbackPriority.GENERIC, is_convention=True
+        )
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
         cls._unpack_builders_callbacks()

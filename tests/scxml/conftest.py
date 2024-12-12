@@ -6,6 +6,11 @@ CURRENT_DIR = Path(__file__).parent
 TESTCASES_DIR = CURRENT_DIR
 
 
+@pytest.fixture(scope="session")
+def update_fail_mark(request):
+    return request.config.getoption("--upd-fail")
+
+
 @pytest.fixture()
 def processor(testcase_path: Path):
     """

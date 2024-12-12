@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 from typing import List
+from typing import cast
 from uuid import uuid4
 
 from .callbacks import CallbackGroup
@@ -118,13 +119,14 @@ class Event(AddCallbacksMixin, str):
             return self
         return BoundEvent(id=self.id, name=self.name, delay=self.delay, _sm=instance)
 
-    def put(self, *args, machine: "StateMachine", send_id: "str | None" = None, **kwargs):
+    def put(self, *args, send_id: "str | None" = None, **kwargs):
         # The `__call__` is declared here to help IDEs knowing that an `Event`
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
-        trigger_data = self.build_trigger(*args, machine=machine, send_id=send_id, **kwargs)
-        machine._put_nonblocking(trigger_data, internal=self.internal)
+        assert self._sm is not None
+        trigger_data = self.build_trigger(*args, machine=self._sm, send_id=send_id, **kwargs)
+        self._sm._put_nonblocking(trigger_data, internal=self.internal)
         return trigger_data
 
     def build_trigger(
@@ -154,9 +156,8 @@ class Event(AddCallbacksMixin, str):
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
-        machine = self._sm
-        self.put(*args, machine=machine, **kwargs)
-        return machine._processing_loop()
+        self.put(*args, **kwargs)
+        return self._sm._processing_loop()
 
     def split(  # type: ignore[override]
         self, sep: "str | None" = None, maxsplit: int = -1
@@ -167,7 +168,31 @@ class Event(AddCallbacksMixin, str):
         return [Event(event) for event in result]
 
     def match(self, event: str) -> bool:
-        return self == event or self == "*"
+        if self == "*":
+            return True
+
+        # Normalize descriptor by removing trailing '.*' or '.'
+        # to handle cases like 'error', 'error.', 'error.*'
+        descriptor = cast(str, self)
+        if descriptor.endswith(".*"):
+            descriptor = descriptor[:-2]
+        elif descriptor.endswith("."):
+            descriptor = descriptor[:-1]
+
+        # Check prefix match:
+        # The descriptor must be a prefix of the event.
+        # Split both descriptor and event into tokens
+        descriptor_tokens = descriptor.split(".") if descriptor else []
+        event_tokens = event.split(".") if event else []
+
+        if len(descriptor_tokens) > len(event_tokens):
+            return False
+
+        for d_token, e_token in zip(descriptor_tokens, event_tokens):  # noqa: B905
+            if d_token != e_token:
+                return False
+
+        return True
 
 
 class BoundEvent(Event):
