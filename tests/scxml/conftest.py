@@ -4,7 +4,6 @@ import pytest
 
 CURRENT_DIR = Path(__file__).parent
 TESTCASES_DIR = CURRENT_DIR
-SUPPORTED_EXTENSIONS = "scxml"
 
 
 @pytest.fixture()

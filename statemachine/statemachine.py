@@ -301,6 +301,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
         This is a low level API, that can be to assign any valid state
         completely bypassing all the hooks and validations.
         """
+        warnings.warn(
+            """Property `current_state` is deprecated in favor of `configuration`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         current_value = self.current_state_value
 
         try:

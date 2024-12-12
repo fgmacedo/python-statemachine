@@ -67,29 +67,36 @@ class FailedMark:
         else:
             exception_traceback = "Assertion of the testcase failed."
 
-        report = f"""# Testcase: {testcase_path.stem}
+        report = """# Testcase: {testcase_path.stem}
 
-{self.reason}
+{reason}
 
-Final configuration: `{self.configuration if self.configuration else 'No configuration'}`
+Final configuration: `{configuration}`
 
 ---
 
 ## Logs
 ```py
-{self.logs if self.logs else 'No logs'}
+{logs}
 ```
 
 ## "On transition" events
 ```py
-{'\n'.join(map(repr, self.events)) if self.events else 'No events'}
+{events}
 ```
 
 ## Traceback
 ```py
 {exception_traceback}
 ```
-"""
+""".format(
+            testcase_path=testcase_path,
+            reason=self.reason,
+            configuration=self.configuration if self.configuration else "No configuration",
+            logs=self.logs if self.logs else "No logs",
+            events="\n".join(map(repr, self.events)) if self.events else "No events",
+            exception_traceback=exception_traceback,
+        )
 
         if fail_file_path.exists():
             last_report = fail_file_path.read_text()
