@@ -25,8 +25,6 @@ class TriggerData:
     Allow revoking a delayed :ref:`TriggerData` instance.
     """
 
-    _target: "str | None" = field(init=False, compare=False, default=None)
-
     execution_time: float = field(default=0.0)
     """The time at which the :ref:`Event` should run."""
 
