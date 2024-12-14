@@ -129,7 +129,7 @@ class State:
     Transitions are declared using the :func:`State.to` or :func:`State.from_` (reversed) methods.
 
     >>> draft.to(producing)
-    TransitionList([Transition('Draft', 'Producing', event=[], internal=False)])
+    TransitionList([Transition('Draft', 'Producing', event=[], internal=False, initial=False)])
 
     The result is a :ref:`TransitionList`.
     Don't worry about this internal class.
@@ -154,7 +154,7 @@ class State:
     expressed using an alternative syntax:
 
     >>> draft.to.itself()
-    TransitionList([Transition('Draft', 'Draft', event=[], internal=False)])
+    TransitionList([Transition('Draft', 'Draft', event=[], internal=False, initial=False)])
 
     You can even pass a list of target states to declare at once all transitions starting
     from the same state.
@@ -208,6 +208,7 @@ class State:
         self.exit = self._specs.grouper(CallbackGroup.EXIT).add(
             exit, priority=CallbackPriority.INLINE
         )
+        self.document_order = 0
         self._init_states()
 
     def _init_states(self):
@@ -370,7 +371,7 @@ class InstanceState(State):
 
     @property
     def is_active(self):
-        return self._machine().current_state == self
+        return self.value in self._machine().configuration_values
 
     @property
     def is_atomic(self):
@@ -391,6 +392,10 @@ class InstanceState(State):
     @property
     def is_compound(self):
         return self._state().is_compound
+
+    @property
+    def document_order(self):
+        return self._state().document_order
 
 
 class AnyState(State):

@@ -12,7 +12,7 @@ def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.draft.transitions if t.event == "produce"][0])
     assert s == (
         "Transition('Draft', 'Being produced', event=["
-        "Event('produce', delay=0, internal=False)], internal=False)"
+        "Event('produce', delay=0, internal=False)], internal=False, initial=False)"
     )
 
 

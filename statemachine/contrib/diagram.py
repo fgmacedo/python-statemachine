@@ -176,6 +176,7 @@ class DotGraphMachine:
         return graph
 
     def _graph_states(self, state, graph, is_root=False):
+        # TODO: handle parallel states in diagram
         initial_node = self._initial_node(state)
         initial_subgraph = pydot.Subgraph(
             graph_name=f"{initial_node.get_name()}_initial",

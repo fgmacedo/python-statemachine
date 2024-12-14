@@ -54,6 +54,16 @@ class StateMachine(metaclass=StateMachineMetaclass):
             the state entry/exit actions will not be executed. If `True`, the state entry actions
             will be executed, which is conformant with the SCXML spec.
 
+        atomic_configuration_update: If `False` (default), the state machine will follow the SCXML
+            specification, that means in a microstep, it will first exit and execute exit callbacks
+            for all the states in the exit set in reversed document order, then execute the
+            transition content (on callbaks), then enter all the states in the enter set in
+            document order.
+
+            If `True`, the state machine will execute the exit callbacks, the on transition
+            callbacks, then atomically update the configuration of exited and entered states, then
+            execute the enter callbacks.
+
         listeners: An optional list of objects that provies attributes to be used as callbacks.
             See :ref:`listeners` for more details.
 
@@ -70,6 +80,8 @@ class StateMachine(metaclass=StateMachineMetaclass):
             pass
     """
 
+    _loop_sleep_in_ms = 0.001
+
     def __init__(
         self,
         model: Any = None,
@@ -77,6 +89,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         start_value: Any = None,
         allow_event_without_transition: bool = False,
         enable_self_transition_entries: bool = False,
+        atomic_configuration_update: bool = False,
         listeners: "List[object] | None" = None,
     ):
         self.model = model if model else Model()
@@ -84,6 +97,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
         self.enable_self_transition_entries = enable_self_transition_entries
+        self.atomic_configuration_update = atomic_configuration_update
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
         self._listeners: Dict[int, Any] = {}
@@ -247,11 +261,20 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return DotGraphMachine(self).get_graph()
 
     @property
+    def configuration_values(self) -> OrderedSet[Any]:
+        """The state configuration values is the set of currently active states's values
+        (or ids if no custom value is defined)."""
+        if isinstance(self.current_state_value, OrderedSet):
+            return self.current_state_value
+        return OrderedSet([self.current_state_value])
+
+    @property
     def configuration(self) -> OrderedSet["State"]:
+        """The set of currently active states."""
         if self.current_state_value is None:
             return OrderedSet()
 
-        if not isinstance(self.current_state_value, list):
+        if not isinstance(self.current_state_value, MutableSet):
             return OrderedSet(
                 [
                     self.states_map[self.current_state_value].for_instance(
@@ -272,13 +295,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
         )
 
     @configuration.setter
-    def configuration(self, value: OrderedSet["State"]):
-        if len(value) == 0:
+    def configuration(self, new_configuration: OrderedSet["State"]):
+        if len(new_configuration) == 0:
             self.current_state_value = None
-        elif len(value) == 1:
-            self.current_state_value = value.pop().value
+        elif len(new_configuration) == 1:
+            self.current_state_value = new_configuration.pop().value
         else:
-            self.current_state_value = [s.value for s in value]
+            self.current_state_value = OrderedSet(s.value for s in new_configuration)
 
     @property
     def current_state_value(self):
@@ -291,7 +314,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @current_state_value.setter
     def current_state_value(self, value):
-        if value is not None and not isinstance(value, list) and value not in self.states_map:
+        if (
+            value is not None
+            and not isinstance(value, MutableSet)
+            and value not in self.states_map
+        ):
             raise InvalidStateValue(value)
         setattr(self.model, self.state_field, value)
 

@@ -90,7 +90,7 @@ class Transition:
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.source.name!r}, {self.target.name!r}, "
-            f"event={self._events!r}, internal={self.internal!r})"
+            f"event={self._events!r}, internal={self.internal!r}, initial={self.initial!r})"
         )
 
     def __str__(self):

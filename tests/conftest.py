@@ -10,6 +10,12 @@ def pytest_addoption(parser):
         default=False,
         help="Update marks for failing tests",
     )
+    parser.addoption(
+        "--gen-diagram",
+        action="store_true",
+        default=False,
+        help="Generate a diagram of the SCXML machine",
+    )
 
 
 @pytest.fixture()

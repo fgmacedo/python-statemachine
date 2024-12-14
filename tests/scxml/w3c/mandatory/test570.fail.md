@@ -1,50 +1,40 @@
 # Testcase: test570
 
-InvalidDefinition: The state machine has a definition error
+AssertionError: Assertion failed.
 
-Final configuration: `No configuration`
+Final configuration: `['fail']`
 
 ---
 
 ## Logs
 ```py
-No logs
+DEBUG    statemachine.engines.base:base.py:386 States to enter: {P0, P0s1, P0s11, P0s2, P0s21}
+DEBUG    statemachine.engines.sync:sync.py:64 Processing loop started: ['p0', 'p0s1', 'p0s11', 'p0s2', 'p0s21']
+DEBUG    statemachine.engines.sync:sync.py:89 Eventless/internal queue: {transition e1 from P0s11 to P0s1final}
+DEBUG    statemachine.engines.base:base.py:276 States to exit: {P0s11}
+DEBUG    statemachine.engines.base:base.py:386 States to enter: {P0s1final}
+DEBUG    statemachine.engines.sync:sync.py:89 Eventless/internal queue: {transition e2 from P0s21 to P0s2final}
+DEBUG    statemachine.engines.base:base.py:276 States to exit: {P0s21}
+DEBUG    statemachine.engines.base:base.py:386 States to enter: {P0s2final}
+DEBUG    statemachine.engines.sync:sync.py:89 Eventless/internal queue: {transition done.state.p0s2 from P0 to S1}
+DEBUG    statemachine.engines.base:base.py:276 States to exit: {P0, P0s1, P0s2, P0s1final, P0s2final}
+DEBUG    statemachine.engines.base:base.py:386 States to enter: {S1}
+DEBUG    statemachine.engines.sync:sync.py:116 External event: timeout
+DEBUG    statemachine.engines.sync:sync.py:131 Enabled transitions: {transition * from S1 to Fail}
+DEBUG    statemachine.engines.base:base.py:276 States to exit: {S1}
+DEBUG    statemachine.engines.base:base.py:386 States to enter: {Fail}
+
 ```
 
 ## "On transition" events
 ```py
-No events
+DebugEvent(source='p0s11', event='e1', data='{}', target='p0s1final')
+DebugEvent(source='p0s21', event='e2', data='{}', target='p0s2final')
+DebugEvent(source='p0', event='done.state.p0s2', data="{'donedata': {}}", target='s1')
+DebugEvent(source='s1', event='timeout', data='{}', target='fail')
 ```
 
 ## Traceback
 ```py
-Traceback (most recent call last):
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 114, in _add
-    sc_class = create_machine_class_from_definition(location, **definition)
-  File "/home/macedo/projects/python-statemachine/statemachine/io/__init__.py", line 115, in create_machine_class_from_definition
-    target = states_instances[transition_data["target"]]
-             ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
-KeyError: 'p0s1final'
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/home/macedo/projects/python-statemachine/tests/scxml/test_scxml_cases.py", line 114, in test_scxml_usecase
-    processor.parse_scxml_file(testcase_path)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 30, in parse_scxml_file
-    return self.parse_scxml(path.stem, scxml_content)
-           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 34, in parse_scxml
-    self.process_definition(definition, location=sm_name)
-    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 49, in process_definition
-    self._add(location, {"states": states_dict})
-    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 118, in _add
-    raise InvalidDefinition(
-        f"Failed to create state machine class: {e} from definition: {definition}"
-    ) from e
-statemachine.exceptions.InvalidDefinition: Failed to create state machine class: 'p0s1final' from definition: {'states': {'p0': {'initial': True, 'parallel': True, 'enter': [ExecuteBlock(ExecutableContent(actions=[SendAction(event='timeout', eventexpr=None, target=None, type=None, id=None, idlocation=None, delay='2s', delayexpr=None, namelist=None, params=[], content=None), RaiseAction(event='e1'), RaiseAction(event='e2')]))], 'states': [State('P0s1', id='p0s1', value='p0s1', initial=False, final=False), State('P0s2', id='p0s2', value='p0s2', initial=False, final=False)]}, 's1': {}, 'pass': {'final': True, 'enter': [ExecuteBlock(ExecutableContent(actions=[LogAction(label='Outcome', expr="'pass'")]))]}, 'fail': {'final': True, 'enter': [ExecuteBlock(ExecutableContent(actions=[LogAction(label='Outcome', expr="'fail'")]))]}}}
-
+Assertion of the testcase failed.
 ```

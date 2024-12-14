@@ -38,7 +38,7 @@ class SyncEngine(BaseEngine):
             transition = self._initial_transition(trigger_data)
             self._processing.acquire(blocking=False)
             try:
-                self._enter_states([transition], trigger_data, {})
+                self._enter_states([transition], trigger_data, OrderedSet(), OrderedSet())
             finally:
                 self._processing.release()
         return self.processing_loop()
@@ -109,8 +109,8 @@ class SyncEngine(BaseEngine):
                     external_event = self.external_queue.pop()
                     current_time = time()
                     if external_event.execution_time > current_time:
-                        self.put(external_event)
-                        sleep(0.001)
+                        self.put(external_event, _delayed=True)
+                        sleep(self.sm._loop_sleep_in_ms)
                         continue
 
                     logger.debug("External event: %s", external_event.event)

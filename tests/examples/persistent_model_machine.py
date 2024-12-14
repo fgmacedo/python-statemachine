@@ -102,7 +102,7 @@ class FilePersistentModel(AbstractPersistentModel):
     def _write_state(self, value):
         self.file.seek(0)
         self.file.truncate(0)
-        self.file.write(value)
+        self.file.write(value or "")
 
 
 # %%
