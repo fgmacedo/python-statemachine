@@ -11,6 +11,11 @@ def update_fail_mark(request):
     return request.config.getoption("--upd-fail")
 
 
+@pytest.fixture(scope="session")
+def should_generate_debug_diagram(request):
+    return request.config.getoption("--gen-diagram")
+
+
 @pytest.fixture()
 def processor(testcase_path: Path):
     """

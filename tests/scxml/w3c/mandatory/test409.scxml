@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?><!-- we test that states are removed from the active states list as
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- we test that states are removed from the active states list as
 they are exited.  When s01's onexit handler
 fires, s011 should not be on the active state list, so in(S011) should be false, and event1 should
 not

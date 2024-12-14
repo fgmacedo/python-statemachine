@@ -89,13 +89,21 @@ class Functions:
         return cls.registry[id]
 
 
+class InState:
+    def __init__(self, machine):
+        self.machine = machine
+
+    def __call__(self, *state_ids: str):
+        return set(state_ids).issubset({s.id for s in self.machine.configuration})
+
+
 @Functions.register("in")
 def build_in_call(*state_ids: str) -> Callable:
     state_ids_set = set(state_ids)
 
     def decorated(*args, **kwargs):
         machine = kwargs["machine"]
-        return state_ids_set.issubset({s.id for s in machine.configuration})
+        return InState(machine)(*state_ids)
 
     decorated.__name__ = f"in({state_ids_set})"
     decorated.unique_key = f"in({state_ids_set})"  # type: ignore[attr-defined]

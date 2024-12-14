@@ -7,10 +7,10 @@ from typing import Any
 from typing import Callable
 from uuid import uuid4
 
-from statemachine.exceptions import InvalidDefinition
-
 from ...event import Event
 from ...event import _event_data_kwargs
+from ...exceptions import InvalidDefinition
+from ...spec_parser import InState
 from ...statemachine import StateMachine
 from .parser import Action
 from .parser import AssignAction
@@ -134,6 +134,7 @@ def _eval(expr: str, **kwargs) -> Any:
                 if k not in protected_attrs
             }
         )
+        kwargs["In"] = InState(kwargs["machine"])
     return eval(expr, {}, kwargs)
 
 

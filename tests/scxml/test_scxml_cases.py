@@ -2,6 +2,7 @@ import traceback
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
+from typing import Any
 
 from statemachine import State
 from statemachine import StateMachine
@@ -19,21 +20,28 @@ Test cases as defined by W3C SCXML Test Suite
 """  # noqa: E501
 
 
-@dataclass(frozen=True, unsafe_hash=True, kw_only=True)
-class DebugEvent:
+@dataclass(frozen=True, unsafe_hash=True)
+class OnTransition:
     source: str
     event: str
     data: str
     target: str
 
 
-@dataclass(frozen=True, unsafe_hash=True, kw_only=True)
+@dataclass(frozen=True, unsafe_hash=True)
+class OnEnterState:
+    state: str
+    event: str
+    data: str
+
+
+@dataclass(frozen=True, unsafe_hash=True)
 class DebugListener:
-    events: list[DebugEvent] = field(default_factory=list)
+    events: list[Any] = field(default_factory=list)
 
     def on_transition(self, event: Event, source: State, target: State, event_data):
         self.events.append(
-            DebugEvent(
+            OnTransition(
                 source=f"{source and source.id}",
                 event=f"{event and event.id}",
                 data=f"{event_data.trigger_data.kwargs}",
@@ -41,11 +49,20 @@ class DebugListener:
             )
         )
 
+    def on_enter_state(self, event: Event, state: State, event_data):
+        self.events.append(
+            OnEnterState(
+                state=f"{state.id}",
+                event=f"{event and event.id}",
+                data=f"{event_data.trigger_data.kwargs}",
+            )
+        )
 
-@dataclass(kw_only=True)
+
+@dataclass
 class FailedMark:
     reason: str
-    events: list[DebugEvent]
+    events: list[OnTransition]
     is_assertion_error: bool
     exception: Exception
     logs: str
@@ -108,12 +125,11 @@ Final configuration: `{configuration}`
             fail_file.write(report)
 
 
-def test_scxml_usecase(testcase_path: Path, update_fail_mark, caplog):
-    # from statemachine.contrib.diagram import DotGraphMachine
+def test_scxml_usecase(
+    testcase_path: Path, update_fail_mark, should_generate_debug_diagram, caplog
+):
+    from statemachine.contrib.diagram import DotGraphMachine
 
-    # DotGraphMachine(sm_class).get_graph().write_png(
-    #     testcase_path.parent / f"{testcase_path.stem}.png"
-    # )
     sm: "StateMachine | None" = None
     try:
         debug = DebugListener()
@@ -121,6 +137,10 @@ def test_scxml_usecase(testcase_path: Path, update_fail_mark, caplog):
         processor.parse_scxml_file(testcase_path)
 
         sm = processor.start(listeners=[debug])
+        if should_generate_debug_diagram:
+            DotGraphMachine(sm).get_graph().write_png(
+                testcase_path.parent / f"{testcase_path.stem}.png"
+            )
         assert isinstance(sm, StateMachine)
         assert "pass" in {s.id for s in sm.configuration}, debug
     except Exception as e:

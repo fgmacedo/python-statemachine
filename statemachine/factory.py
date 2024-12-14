@@ -87,11 +87,15 @@ class StateMachineMetaclass(type):
 
         def __getattr__(self, attribute: str) -> Any: ...
 
-    def _initials_by_document_order(cls, states: List[State], parent: "State | None" = None):
+    def _initials_by_document_order(
+        cls, states: List[State], parent: "State | None" = None, order: int = 1
+    ):
         """Set initial state by document order if no explicit initial state is set"""
         initial: "State | None" = None
         for s in states:
-            cls._initials_by_document_order(s.states, s)
+            s.document_order = order
+            order += 1
+            cls._initials_by_document_order(s.states, s, order)
             if s.initial:
                 initial = s
         if not initial and states:
@@ -104,6 +108,12 @@ class StateMachineMetaclass(type):
             and not any(t for t in parent.transitions if t.initial and t.target == initial)
         ):
             parent.to(initial, initial=True)
+
+        if parent and parent.parallel:
+            for state in states:
+                state._initial = True
+                if not any(t for t in parent.transitions if t.initial and t.target == state):
+                    parent.to(state, initial=True)
 
     def _unpack_builders_callbacks(cls):
         callbacks = {}
