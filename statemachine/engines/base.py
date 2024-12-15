@@ -385,7 +385,7 @@ class BaseEngine:
 
         return result
 
-    def _enter_states(
+    def _enter_states(  # noqa: C901
         self,
         enabled_transitions: List[Transition],
         trigger_data: TriggerData,
@@ -425,8 +425,6 @@ class BaseEngine:
         if self.sm.atomic_configuration_update:
             self.sm.configuration = new_configuration
 
-        # Sort states to enter in entry order
-        # for state in sorted(states_to_enter, key=self.entry_order):   # TODO: order of states_to_enter # noqa: E501
         for info in ordered_states:
             target = info.target
             assert target
@@ -437,6 +435,7 @@ class BaseEngine:
                 target=target,
             )
 
+            logger.debug("Entering state: %s", target)
             # Add state to the configuration
             if not self.sm.atomic_configuration_update:
                 self.sm.configuration |= {target}
@@ -453,9 +452,12 @@ class BaseEngine:
             on_entry_result = self.sm._callbacks.call(target.enter.key, *args, **kwargs)
 
             # Handle default initial states
-            # TODO: Handle default initial states
-            # if state in states_for_default_entry:
-            #     self.execute_content(state.initial.transition)
+            if target.id in {t.target.id for t in states_for_default_entry if t.target}:
+                initial_transitions = [t for t in target.transitions if t.initial]
+                if len(initial_transitions) == 1:
+                    result += self.sm._callbacks.call(
+                        initial_transitions[0].on.key, *args, **kwargs
+                    )
 
             # Handle default history states
             # if state.id in default_history_content:

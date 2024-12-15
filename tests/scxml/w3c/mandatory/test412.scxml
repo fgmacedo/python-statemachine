@@ -1,6 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?><!-- test that executable content in the <initial> transition
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that executable content in the <initial> transition
 executes after the onentry handler on the state
-and before the onentry handler of the child states.  Event1, event2, and event3 should occur in that
+and before the onentry handler of the child states.
+Event1, event2, and event3 should occur in that
 order. -->
 <scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
   initial="s0" version="1.0" datamodel="python">

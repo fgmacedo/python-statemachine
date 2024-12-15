@@ -11,7 +11,7 @@ the iteration behavior.-->
 	<state id="s0">
 		<onentry>
 			<foreach array="Var1" item="Var3">
-				<assign expr="Var1 + '4'" location="Var1" />
+				<assign expr="Var1 + ['4']" location="Var1" />
 				<assign expr="Var2 + 1" location="Var2" />
 			</foreach>
 		</onentry>
