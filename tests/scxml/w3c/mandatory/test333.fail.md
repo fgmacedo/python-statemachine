@@ -8,18 +8,26 @@ Final configuration: `['fail']`
 
 ## Logs
 ```py
-DEBUG    statemachine.engines.base:base.py:374 States to enter: {S0}
+DEBUG    pydot:__init__.py:15 pydot initializing
+DEBUG    pydot:__init__.py:16 pydot 3.0.3
+DEBUG    pydot.dot_parser:dot_parser.py:43 pydot dot_parser module initializing
+DEBUG    pydot.core:core.py:20 pydot core module initializing
+DEBUG    statemachine.engines.base:base.py:415 States to enter: {S0}
+DEBUG    statemachine.engines.base:base.py:93 New event 'foo' put on the 'external' queue
 DEBUG    statemachine.engines.sync:sync.py:64 Processing loop started: s0
-DEBUG    statemachine.engines.sync:sync.py:116 External event: TriggerData(machine=<weakproxy at 0x7f85fc545ad0; to 'statemachine.io.test333' at 0x7f85f7e16270>, event=Event('foo', delay=0, internal=False), send_id='4fd143c528ed44bc95318d4861d04821', _target=None, execution_time=1734002804.2679229, model=Model(state=s0), args=(), kwargs={})
+DEBUG    statemachine.engines.sync:sync.py:116 External event: foo
+DEBUG    statemachine.engines.base:base.py:93 New event 'error.execution' put on the 'internal' queue
 DEBUG    statemachine.engines.sync:sync.py:131 Enabled transitions: {transition * from S0 to Fail}
-DEBUG    statemachine.engines.base:base.py:283 States to exit: {S0}
-DEBUG    statemachine.engines.base:base.py:374 States to enter: {Fail}
+DEBUG    statemachine.engines.base:base.py:339 States to exit: {S0}
+DEBUG    statemachine.engines.base:base.py:415 States to enter: {Fail}
 
 ```
 
 ## "On transition" events
 ```py
-DebugEvent(source='s0', event='foo', data='{}', target='fail')
+OnEnterState(state='s0', event='__initial__', data='{}')
+OnTransition(source='s0', event='foo', data='{}', target='fail')
+OnEnterState(state='fail', event='foo', data='{}')
 ```
 
 ## Traceback
