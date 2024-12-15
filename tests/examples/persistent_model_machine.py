@@ -102,7 +102,7 @@ class FilePersistentModel(AbstractPersistentModel):
     def _write_state(self, value):
         self.file.seek(0)
         self.file.truncate(0)
-        self.file.write(value)
+        self.file.write(value or "")
 
 
 # %%
@@ -116,11 +116,11 @@ state_file = tempfile.TemporaryFile(mode="r+")
 model = FilePersistentModel(file=state_file)
 sm = ResourceManagement(model=model)
 
-print(f"Initial state: {sm.current_state.id}")
+print(f"Initial state: {[s.id for s in sm.configuration]}")
 
 sm.send("turn_on")
 
-print(f"State after transition: {sm.current_state.id}")
+print(f"State after transition: {[s.id for s in sm.configuration]}")
 
 # %%
 # Remove the instances from memory.
@@ -134,7 +134,7 @@ del model
 model = FilePersistentModel(file=state_file)
 sm = ResourceManagement(model=model)
 
-print(f"State restored from file system: {sm.current_state.id}")
+print(f"State restored from file system: {[s.id for s in sm.configuration]}")
 
 # %%
 # Closing the file (the temporary file will be removed).

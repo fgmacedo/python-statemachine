@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Generator
 from typing import List
 from weakref import ref
 
@@ -48,6 +49,43 @@ class _FromState(_TransitionBuilder):
         return transitions
 
 
+class NestedStateFactory(type):
+    def __new__(  # type: ignore [misc]
+        cls, classname, bases, attrs, name=None, **kwargs
+    ) -> "State":
+        if not bases:
+            return super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
+
+        states = []
+        callbacks = {}
+        for key, value in attrs.items():
+            if isinstance(value, State):
+                value._set_id(key)
+                states.append(value)
+            elif isinstance(value, TransitionList):
+                value.add_event(key)
+            elif callable(value):
+                callbacks[key] = value
+
+        return State(name=name, states=states, _callbacks=callbacks, **kwargs)
+
+    @classmethod
+    def to(cls, *args: "State", **kwargs) -> "_ToState":  # pragma: no cover
+        """Create transitions to the given target states.
+        .. note: This method is only a type hint for mypy.
+            The actual implementation belongs to the :ref:`State` class.
+        """
+        return _ToState(State())
+
+    @classmethod
+    def from_(cls, *args: "State", **kwargs) -> "_FromState":  # pragma: no cover
+        """Create transitions from the given target states (reversed).
+        .. note: This method is only a type hint for mypy.
+            The actual implementation belongs to the :ref:`State` class.
+        """
+        return _FromState(State())
+
+
 class State:
     """
     A State in a :ref:`StateMachine` describes a particular behavior of the machine.
@@ -66,6 +104,7 @@ class State:
             value.
         initial: Set ``True`` if the ``State`` is the initial one. There must be one and only
             one initial state in a statemachine. Defaults to ``False``.
+            If not specified, the default initial state is the first child state in document order.
         final: Set ``True`` if represents a final state. A machine can have
             optionally many final states. Final states have no :ref:`transition` starting from It.
             Defaults to ``False``.
@@ -81,7 +120,7 @@ class State:
 
     Given a few states...
 
-    >>> draft = State("Draft", initial=True)
+    >>> draft = State(name="Draft", initial=True)
 
     >>> producing = State("Producing")
 
@@ -90,7 +129,7 @@ class State:
     Transitions are declared using the :func:`State.to` or :func:`State.from_` (reversed) methods.
 
     >>> draft.to(producing)
-    TransitionList([Transition(State('Draft', ...
+    TransitionList([Transition('Draft', 'Producing', event=[], internal=False, initial=False)])
 
     The result is a :ref:`TransitionList`.
     Don't worry about this internal class.
@@ -115,7 +154,7 @@ class State:
     expressed using an alternative syntax:
 
     >>> draft.to.itself()
-    TransitionList([Transition(State('Draft', ...
+    TransitionList([Transition('Draft', 'Draft', event=[], internal=False, initial=False)])
 
     You can even pass a list of target states to declare at once all transitions starting
     from the same state.
@@ -134,20 +173,33 @@ class State:
 
     """
 
+    class Compound(metaclass=NestedStateFactory):
+        # Mimic the :ref:`State` public API to help linters discover the result of the Builder
+        # class.
+        pass
+
     def __init__(
         self,
         name: str = "",
         value: Any = None,
         initial: bool = False,
         final: bool = False,
+        parallel: bool = False,
+        states: "List[State] | None" = None,
         enter: Any = None,
         exit: Any = None,
+        _callbacks: Any = None,
     ):
         self.name = name
         self.value = value
+        self._parallel = parallel
+        self.states = states or []
+        self.is_atomic = bool(not self.states)
         self._initial = initial
         self._final = final
         self._id: str = ""
+        self._callbacks = _callbacks
+        self.parent: State = None
         self.transitions = TransitionList()
         self._specs = CallbackSpecList()
         self.enter = self._specs.grouper(CallbackGroup.ENTER).add(
@@ -156,9 +208,22 @@ class State:
         self.exit = self._specs.grouper(CallbackGroup.EXIT).add(
             exit, priority=CallbackPriority.INLINE
         )
+        self.document_order = 0
+        self._init_states()
+
+    def _init_states(self):
+        for state in self.states:
+            state.parent = self
+            state._initial = state.initial or self.parallel
+            setattr(self, state.id, state)
 
     def __eq__(self, other):
-        return isinstance(other, State) and self.name == other.name and self.id == other.id
+        return (
+            isinstance(other, State)
+            and self.name == other.name
+            and self.id == other.id
+            or (self.value == other)
+        )
 
     def __hash__(self):
         return hash(repr(self))
@@ -178,7 +243,7 @@ class State:
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
-            f"initial={self.initial!r}, final={self.final!r})"
+            f"initial={self.initial!r}, final={self.final!r}, parallel={self.parallel!r})"
         )
 
     def __str__(self):
@@ -204,12 +269,14 @@ class State:
     def id(self) -> str:
         return self._id
 
-    def _set_id(self, id: str):
+    def _set_id(self, id: str) -> "State":
         self._id = id
         if self.value is None:
             self.value = id
         if not self.name:
             self.name = self._id.replace("_", " ").capitalize()
+
+        return self
 
     @property
     def to(self) -> _ToState:
@@ -229,6 +296,25 @@ class State:
     def final(self):
         return self._final
 
+    @property
+    def parallel(self):
+        return self._parallel
+
+    @property
+    def is_compound(self):
+        return bool(self.states)
+
+    def ancestors(self, parent: "State | None" = None) -> Generator["State", None, None]:  # noqa: UP043
+        selected = self.parent
+        while selected:
+            if parent and selected == parent:
+                break
+            yield selected
+            selected = selected.parent
+
+    def is_descendant(self, state: "State") -> bool:
+        return state in self.ancestors()
+
 
 class InstanceState(State):
     """ """
@@ -240,6 +326,7 @@ class InstanceState(State):
     ):
         self._state = ref(state)
         self._machine = ref(machine)
+        self._init_states()
 
     @property
     def name(self):
@@ -284,7 +371,31 @@ class InstanceState(State):
 
     @property
     def is_active(self):
-        return self._machine().current_state == self
+        return self.value in self._machine().configuration_values
+
+    @property
+    def is_atomic(self):
+        return self._state().is_atomic
+
+    @property
+    def parent(self):
+        return self._state().parent
+
+    @property
+    def states(self):
+        return self._state().states
+
+    @property
+    def parallel(self):
+        return self._state().parallel
+
+    @property
+    def is_compound(self):
+        return self._state().is_compound
+
+    @property
+    def document_order(self):
+        return self._state().document_order
 
 
 class AnyState(State):

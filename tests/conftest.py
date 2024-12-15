@@ -1,14 +1,21 @@
-import sys
 from datetime import datetime
-from typing import List
 
 import pytest
 
-collect_ignore_glob: List[str] = []
 
-# We support Python 3.8+ positional only syntax
-if sys.version_info[:2] < (3, 8):  # noqa: UP036
-    collect_ignore_glob.append("*_positional_only.py")
+def pytest_addoption(parser):
+    parser.addoption(
+        "--upd-fail",
+        action="store_true",
+        default=False,
+        help="Update marks for failing tests",
+    )
+    parser.addoption(
+        "--gen-diagram",
+        action="store_true",
+        default=False,
+        help="Generate a diagram of the SCXML machine",
+    )
 
 
 @pytest.fixture()
@@ -135,8 +142,8 @@ def classic_traffic_light_machine(engine):
         stop = yellow.to(red)
         go = red.to(green)
 
-        def _get_engine(self, rtc: bool):
-            return engine(self, rtc)
+        def _get_engine(self):
+            return engine(self)
 
     return TrafficLightMachine
 

@@ -41,7 +41,11 @@ def variable_hook(var_name):
     [
         ("frodo_has_ring", True, ["frodo_has_ring"]),
         ("frodo_has_ring or sauron_alive", True, ["frodo_has_ring"]),
-        ("frodo_has_ring and gandalf_present", True, ["frodo_has_ring", "gandalf_present"]),
+        (
+            "frodo_has_ring and gandalf_present",
+            True,
+            ["frodo_has_ring", "gandalf_present"],
+        ),
         ("sauron_alive", False, ["sauron_alive"]),
         ("not sauron_alive", True, ["sauron_alive"]),
         (
@@ -49,8 +53,16 @@ def variable_hook(var_name):
             True,
             ["frodo_has_ring", "gandalf_present"],
         ),
-        ("not sauron_alive and orc_army_ready", False, ["sauron_alive", "orc_army_ready"]),
-        ("not (not sauron_alive and orc_army_ready)", True, ["sauron_alive", "orc_army_ready"]),
+        (
+            "not sauron_alive and orc_army_ready",
+            False,
+            ["sauron_alive", "orc_army_ready"],
+        ),
+        (
+            "not (not sauron_alive and orc_army_ready)",
+            True,
+            ["sauron_alive", "orc_army_ready"],
+        ),
         (
             "(frodo_has_ring and sam_is_loyal) or (not sauron_alive and orc_army_ready)",
             True,
@@ -63,10 +75,26 @@ def variable_hook(var_name):
         ),
         ("not (not frodo_has_ring)", True, ["frodo_has_ring"]),
         ("!(!frodo_has_ring)", True, ["frodo_has_ring"]),
-        ("frodo_has_ring and orc_army_ready", False, ["frodo_has_ring", "orc_army_ready"]),
-        ("frodo_has_ring ^ orc_army_ready", False, ["frodo_has_ring", "orc_army_ready"]),
-        ("frodo_has_ring and not orc_army_ready", True, ["frodo_has_ring", "orc_army_ready"]),
-        ("frodo_has_ring ^ !orc_army_ready", True, ["frodo_has_ring", "orc_army_ready"]),
+        (
+            "frodo_has_ring and orc_army_ready",
+            False,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
+        (
+            "frodo_has_ring ^ orc_army_ready",
+            False,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
+        (
+            "frodo_has_ring and not orc_army_ready",
+            True,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
+        (
+            "frodo_has_ring ^ !orc_army_ready",
+            True,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
         (
             "frodo_has_ring and (sam_is_loyal or (gandalf_present and not sauron_alive))",
             True,
@@ -89,7 +117,11 @@ def variable_hook(var_name):
             True,
             ["orc_army_ready", "frodo_has_ring", "gandalf_present"],
         ),
-        ("orc_army_ready and (frodo_has_ring and gandalf_present)", False, ["orc_army_ready"]),
+        (
+            "orc_army_ready and (frodo_has_ring and gandalf_present)",
+            False,
+            ["orc_army_ready"],
+        ),
         (
             "!orc_army_ready and (frodo_has_ring and gandalf_present)",
             True,

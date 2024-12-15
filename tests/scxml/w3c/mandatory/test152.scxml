@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest152" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+	that an illegal array or item value causes error.execution and results in executable content
+not being executed.-->
+	<datamodel>
+		<data expr="0" id="Var1" />
+		<data id="Var2" />
+		<data id="Var3" />
+		<data expr="7" id="Var4" />
+		<data id="Var5">
+			[1,2,3]
+		</data>
+	</datamodel>
+	<state id="s0">
+		<onentry><!--invalid
+			array, legal item-->
+			<foreach array="Var4" index="Var3" item="Var2">
+				<assign expr="Var1 + 1" location="Var1" />
+			</foreach>
+			<raise event="foo" />
+		</onentry>
+		<transition event="error.execution" target="s1" />
+		<transition event="*" target="fail" />
+	</state>
+	<state id="s1">
+		<onentry><!--illegal
+			item, legal array-->
+			<foreach array="Var5" index="Var3" item="'continue'">
+				<assign expr="Var1 + 1" location="Var1" />
+			</foreach>
+			<raise event="bar" />
+		</onentry>
+		<transition event="error.execution" target="s2" />
+		<transition event="bar" target="fail" />
+	</state>
+	<state id="s2"><!--check
+		that var1 has its original value (so executable content never got executed-->
+		<transition cond="Var1==0" target="pass" />
+		<transition target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

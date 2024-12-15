@@ -11,10 +11,8 @@ from .models import MyModel
 def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.draft.transitions if t.event == "produce"][0])
     assert s == (
-        "Transition("
-        "State('Draft', id='draft', value='draft', initial=True, final=False), "
-        "State('Being produced', id='producing', value='producing', "
-        "initial=False, final=False), event='produce', internal=False)"
+        "Transition('Draft', 'Being produced', event=["
+        "Event('produce', delay=0, internal=False)], internal=False, initial=False)"
     )
 
 
@@ -252,8 +250,8 @@ class TestInternalTransition:
 
             loop = initial.to.itself(internal=internal)
 
-            def _get_engine(self, rtc: bool):
-                return engine(self, rtc)
+            def _get_engine(self):
+                return engine(self)
 
             def on_exit_initial(self):
                 calls.append("on_exit_initial")
@@ -270,7 +268,7 @@ class TestInternalTransition:
 
     def test_should_not_allow_internal_transitions_from_distinct_states(self):
         with pytest.raises(
-            InvalidDefinition, match="Internal transitions should be self-transitions."
+            InvalidDefinition, match="Not a valid internal transition from source."
         ):
 
             class TestStateMachine(StateMachine):

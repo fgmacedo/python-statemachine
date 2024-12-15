@@ -6,6 +6,7 @@ from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .events import Events
 from .exceptions import InvalidDefinition
+from .i18n import _
 
 if TYPE_CHECKING:
     from .statemachine import State
@@ -42,6 +43,7 @@ class Transition:
         target: "State",
         event=None,
         internal=False,
+        initial=False,
         validators=None,
         cond=None,
         unless=None,
@@ -52,9 +54,20 @@ class Transition:
         self.source = source
         self.target = target
         self.internal = internal
+        self.initial = initial
+        self.is_self = target is source
+        """Is the target state the same as the source state?"""
 
-        if internal and source is not target:
-            raise InvalidDefinition("Internal transitions should be self-transitions.")
+        if internal and not (self.is_self or target.is_descendant(source)):
+            raise InvalidDefinition(
+                _(
+                    "Not a valid internal transition from source {source!r}, "
+                    "target {target!r} should be self or a descendant."
+                ).format(source=source, target=target)
+            )
+
+        if initial and any([cond, unless, event]):
+            raise InvalidDefinition("Initial transitions should not have conditions or events.")
 
         self._events = Events().add(event)
         self._specs = CallbackSpecList()
@@ -76,8 +89,8 @@ class Transition:
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}({self.source!r}, {self.target!r}, event={self.event!r}, "
-            f"internal={self.internal!r})"
+            f"{type(self).__name__}({self.source.name!r}, {self.target.name!r}, "
+            f"event={self._events!r}, internal={self.internal!r}, initial={self.initial!r})"
         )
 
     def __str__(self):
@@ -145,3 +158,7 @@ class Transition:
             new_transition._specs.add(new_spec, new_spec.group)
 
         return new_transition
+
+    @property
+    def is_eventless(self):
+        return self._events.is_empty
