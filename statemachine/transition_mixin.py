@@ -1,14 +1,25 @@
+from typing import Any
 from typing import Callable
+from typing import TypeVar
 
 from .callbacks import CallbackGroup
+from .i18n import _
+
+T = TypeVar("T", bound=Callable)
 
 
 class AddCallbacksMixin:
-    def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
+    def _add_callback(self, callback: T, grouper: CallbackGroup, is_event=False, **kwargs) -> T:
         raise NotImplementedError
 
-    def __call__(self, f):
-        return self._add_callback(f, CallbackGroup.ON, is_event=True)
+    def __call__(self, *args, **kwargs) -> Any:
+        if len(args) == 1 and callable(args[0]):
+            return self._add_callback(args[0], CallbackGroup.ON, is_event=True)
+        raise ValueError(
+            _("Unsupported call signature. Call %s only to register callbacks").format(
+                self.__class__.__name__
+            )
+        )
 
     def before(self, f: Callable):
         """Adds a ``before`` :ref:`transition actions` callback to every :ref:`transition` in the
