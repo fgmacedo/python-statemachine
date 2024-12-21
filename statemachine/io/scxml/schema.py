@@ -9,10 +9,16 @@ from typing import Set
 class Action:
     pass
 
+    def __str__(self):
+        return f"{self.__class__.__name__}"
+
 
 @dataclass
 class ExecutableContent:
     actions: List[Action] = field(default_factory=list)
+
+    def __str__(self):
+        return ", ".join(str(action) for action in self.actions)
 
     @property
     def is_empty(self):
@@ -40,6 +46,9 @@ class LogAction(Action):
 class IfBranch(Action):
     cond: "str | None"
     actions: List[Action] = field(default_factory=list)
+
+    def __str__(self):
+        return self.cond
 
     def append(self, action: Action):
         self.actions.append(action)

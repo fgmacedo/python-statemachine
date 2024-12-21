@@ -145,6 +145,9 @@ class CallableAction:
     def __call__(self, *args, **kwargs):
         raise NotImplementedError
 
+    def __str__(self):
+        return f"{self.action}"
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.action!r})"
 

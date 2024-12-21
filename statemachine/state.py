@@ -302,7 +302,7 @@ class State:
 
     @property
     def is_compound(self):
-        return bool(self.states)
+        return bool(self.states) and not self.parallel
 
     def ancestors(self, parent: "State | None" = None) -> Generator["State", None, None]:  # noqa: UP043
         selected = self.parent

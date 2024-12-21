@@ -403,7 +403,7 @@ class BaseEngine:
         )
 
         ordered_states = sorted(
-            states_to_enter, key=lambda x: x.source and x.source.document_order or 0
+            states_to_enter, key=lambda x: x.target and x.target.document_order or 0
         )
 
         # We update the configuration atomically

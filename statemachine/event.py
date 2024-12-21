@@ -157,7 +157,7 @@ class Event(AddCallbacksMixin, str):
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
         self.put(*args, **kwargs)
-        return self._sm._processing_loop()
+        return self._sm._processing_loop()  # type: ignore
 
     def split(  # type: ignore[override]
         self, sep: "str | None" = None, maxsplit: int = -1
