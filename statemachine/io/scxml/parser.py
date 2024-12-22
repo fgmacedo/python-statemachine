@@ -48,8 +48,9 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:
         raise ValueError("No scxml element found in document")
 
     initial_state = _parse_initial(scxml.get("initial"))
+    name = scxml.get("name")
 
-    definition = StateMachineDefinition(initial_states=initial_state)
+    definition = StateMachineDefinition(name=name, initial_states=initial_state)
 
     # Parse datamodel
     datamodel = parse_datamodel(scxml)

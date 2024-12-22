@@ -138,6 +138,7 @@ class DataModel:
 
 @dataclass
 class StateMachineDefinition:
+    name: "str | None" = None
     states: Dict[str, State] = field(default_factory=dict)
     initial_states: Set[str] = field(default_factory=set)
     datamodel: "DataModel | None" = None

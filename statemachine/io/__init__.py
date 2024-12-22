@@ -19,7 +19,7 @@ class ActionProtocol(Protocol):
 
 
 class TransitionDict(TypedDict, total=False):
-    target: str
+    target: "str | None"
     event: "str | None"
     internal: bool
     initial: bool

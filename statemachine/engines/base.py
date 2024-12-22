@@ -195,7 +195,12 @@ class BaseEngine:
             and all(state.is_descendant(transition.source) for state in states)
         ):
             return transition.source
-        elif transition.internal and transition.is_self and transition.target.is_atomic:
+        elif (
+            transition.internal
+            and transition.is_self
+            and transition.target
+            and transition.target.is_atomic
+        ):
             return transition.source
         else:
             return self.find_lcca([transition.source] + list(states))
@@ -570,7 +575,10 @@ class BaseEngine:
             and info.transition.internal
             and (
                 info.transition.is_self
-                or info.transition.target.is_descendant(info.transition.source)
+                or (
+                    info.transition.target
+                    and info.transition.target.is_descendant(info.transition.source)
+                )
             )
         ):
             pass
@@ -578,7 +586,7 @@ class BaseEngine:
             states_to_enter.add(info)
         state = info.target
 
-        if state.parallel:
+        if state and state.parallel:
             for child_state in state.states:
                 if not any(s.target.is_descendant(child_state) for s in states_to_enter):
                     info_to_add = StateTransition(
@@ -592,7 +600,7 @@ class BaseEngine:
                         states_for_default_entry,
                         default_history_content,
                     )
-        elif state.is_compound:
+        elif state and state.is_compound:
             states_for_default_entry.add(info)
             initial_state = next(s for s in state.states if s.initial)
             transition = next(

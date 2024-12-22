@@ -32,7 +32,7 @@ class SCXMLProcessor:
 
     def parse_scxml(self, sm_name: str, scxml_content: str):
         definition = parse_scxml(scxml_content)
-        self.process_definition(definition, location=sm_name)
+        self.process_definition(definition, location=definition.name or sm_name)
 
     def process_definition(self, definition, location: str):
         states_dict = self._process_states(definition.states)

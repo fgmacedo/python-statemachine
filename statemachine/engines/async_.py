@@ -106,6 +106,8 @@ class AsyncEngine(BaseEngine):
 
         result += await self.sm._callbacks.async_call(transition.on.key, *args, **kwargs)
 
+        assert target  # TODO: Temp hack to make mypy happy until we bring SCXML to async
+
         self.sm.current_state = target
         event_data.state = target
         kwargs["state"] = target
