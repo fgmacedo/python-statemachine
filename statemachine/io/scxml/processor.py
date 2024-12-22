@@ -1,9 +1,11 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
 
 from ...exceptions import InvalidDefinition
+from ...statemachine import StateMachine
 from .. import StateDefinition
 from .. import TransitionDict
 from .. import TransitionsDict
@@ -17,10 +19,32 @@ from .schema import State
 from .schema import Transition
 
 
+class IOProcessor:
+    def __init__(self, processor: "SCXMLProcessor", machine: StateMachine):
+        self.scxml_processor = processor
+        self.machine = machine
+
+    def __getitem__(self, name: str):
+        return self
+
+    @property
+    def location(self):
+        return self.machine.name
+
+
+@dataclass
+class SessionData:
+    machine: StateMachine
+    processor: IOProcessor
+
+    def __post_init__(self):
+        self.session_id = f"{self.machine.name}:{id(self.machine)}"
+
+
 class SCXMLProcessor:
     def __init__(self):
         self.scs = {}
-        self.sessions = {}
+        self.sessions: Dict[str, SessionData] = {}
         self._ioprocessors = {
             "http://www.w3.org/TR/scxml/#SCXMLEventProcessor": self,
             "scxml": self,
@@ -54,14 +78,22 @@ class SCXMLProcessor:
         machine_weakref = getattr(machine, "__weakref__", None)
         if machine_weakref:
             machine = machine_weakref()
-        session_id = f"{machine.name}:{id(machine)}"
+
+        session_data = self._get_session(machine)
 
         return {
             "_name": machine.name,
-            "_sessionid": session_id,
-            "_ioprocessors": self.wrap(**kwargs),
+            "_sessionid": session_data.session_id,
+            "_ioprocessors": session_data.processor,
             "_event": EventDataWrapper(kwargs["event_data"]),
         }
+
+    def _get_session(self, machine: StateMachine):
+        if machine.name not in self.sessions:
+            self.sessions[machine.name] = SessionData(
+                processor=IOProcessor(self, machine=machine), machine=machine
+            )
+        return self.sessions[machine.name]
 
     def _process_states(self, states: Dict[str, State]) -> Dict[str, StateDefinition]:
         states_dict: Dict[str, StateDefinition] = {}
@@ -139,21 +171,4 @@ class SCXMLProcessor:
         kwargs["enable_self_transition_entries"] = True
         self.root_cls = next(iter(self.scs.values()))
         self.root = self.root_cls(**kwargs)
-        self.sessions[self.root.name] = self.root
         return self.root
-
-    def wrap(self, **kwargs):
-        return IOProcessor(self, **kwargs)
-
-
-class IOProcessor:
-    def __init__(self, processor: "SCXMLProcessor", **kwargs):
-        self.scxml_processor = processor
-        self.machine = kwargs["machine"]
-
-    def __getitem__(self, name: str):
-        return self
-
-    @property
-    def location(self):
-        return self.machine.name
