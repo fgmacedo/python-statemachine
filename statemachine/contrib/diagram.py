@@ -153,15 +153,20 @@ class DotGraphMachine:
             cond = f"\n[{cond}]"
 
         extra_params = {}
-        has_substates = transition.source.states or transition.target.states
+        has_substates = transition.source.states or (
+            transition.target and transition.target.states
+        )
         if transition.source.states:
             extra_params["ltail"] = f"cluster_{transition.source.id}"
-        if transition.target.states:
+        if transition.target and transition.target.states:
             extra_params["lhead"] = f"cluster_{transition.target.id}"
 
+        targetless = transition.target is None
         return pydot.Edge(
             self._state_id(transition.source),
-            self._state_id(transition.target),
+            self._state_id(transition.target)
+            if not targetless
+            else self._state_id(transition.source),
             label=f"{transition.event}{cond}",
             color="blue",
             fontname=self.font_name,

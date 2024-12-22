@@ -40,7 +40,7 @@ class Transition:
     def __init__(
         self,
         source: "State",
-        target: "State",
+        target: "State | None" = None,
         event=None,
         internal=False,
         initial=False,
@@ -58,7 +58,7 @@ class Transition:
         self.is_self = target is source
         """Is the target state the same as the source state?"""
 
-        if internal and not (self.is_self or target.is_descendant(source)):
+        if internal and not (self.is_self or (target and target.is_descendant(source))):
             raise InvalidDefinition(
                 _(
                     "Not a valid internal transition from source {source!r}, "
@@ -89,7 +89,7 @@ class Transition:
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}({self.source.name!r}, {self.target.name!r}, "
+            f"{type(self).__name__}({self.source.name!r}, {self.target and self.target.name!r}, "
             f"event={self._events!r}, internal={self.internal!r}, initial={self.initial!r})"
         )
 

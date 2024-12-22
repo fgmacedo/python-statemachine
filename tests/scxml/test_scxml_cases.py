@@ -45,7 +45,7 @@ class DebugListener:
                 source=f"{source and source.id}",
                 event=f"{event and event.id}",
                 data=f"{event_data.trigger_data.kwargs}",
-                target=f"{target.id}",
+                target=f"{target and target.id}",
             )
         )
 

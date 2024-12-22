@@ -11,7 +11,7 @@ def visit_connected_states(state):
             continue
         already_visited.add(state)
         yield state
-        visit.extend(t.target for t in state.transitions)
+        visit.extend(t.target for t in state.transitions if t.target)
 
 
 def iterate_states_and_transitions(states):

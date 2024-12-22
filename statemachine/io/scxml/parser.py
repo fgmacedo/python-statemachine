@@ -145,7 +145,9 @@ def parse_state(
         child_state = parse_state(child_state_elem, initial_states=initial_states, is_final=True)
         state.states[child_state.id] = child_state
     for child_state_elem in state_elem.findall("parallel"):
-        state = parse_state(child_state_elem, initial_states=initial_states, is_parallel=True)
+        child_state = parse_state(
+            child_state_elem, initial_states=initial_states, is_parallel=True
+        )
         state.states[child_state.id] = child_state
 
     return state
@@ -153,8 +155,6 @@ def parse_state(
 
 def parse_transition(trans_elem: ET.Element, initial: bool = False) -> Transition:
     target = trans_elem.get("target")
-    if not target:
-        raise ValueError("Transition must have a 'target' attribute")
 
     event = trans_elem.get("event")
     cond = trans_elem.get("cond")

@@ -1,38 +1,47 @@
 # Testcase: test422
 
-ValueError: Inappropriate argument value (of correct type).
+AssertionError: Assertion failed.
 
-Final configuration: `No configuration`
+Final configuration: `['fail']`
 
 ---
 
 ## Logs
 ```py
-No logs
+DEBUG    pydot:__init__.py:15 pydot initializing
+DEBUG    pydot:__init__.py:16 pydot 3.0.3
+DEBUG    pydot.dot_parser:dot_parser.py:43 pydot dot_parser module initializing
+DEBUG    pydot.core:core.py:20 pydot core module initializing
+DEBUG    statemachine.engines.base:base.py:415 States to enter: {S1, S11}
+DEBUG    statemachine.engines.base:base.py:438 Entering state: S1
+DEBUG    statemachine.engines.base:base.py:93 New event 'timeout' put on the 'external' queue
+DEBUG    statemachine.engines.base:base.py:438 Entering state: S11
+DEBUG    statemachine.engines.sync:sync.py:64 Processing loop started: {s1, s11}
+DEBUG    statemachine.engines.sync:sync.py:89 Eventless/internal queue: {transition  from S11 to S12}
+DEBUG    statemachine.engines.base:base.py:339 States to exit: {S11}
+DEBUG    statemachine.engines.base:base.py:415 States to enter: {S12}
+DEBUG    statemachine.engines.base:base.py:438 Entering state: S12
+DEBUG    statemachine.engines.sync:sync.py:116 External event: timeout
+DEBUG    statemachine.io.scxml.actions:actions.py:183 Cond Var1==2 -> False
+DEBUG    statemachine.engines.sync:sync.py:131 Enabled transitions: {transition timeout from S1 to Fail}
+DEBUG    statemachine.engines.base:base.py:339 States to exit: {S12, S1}
+DEBUG    statemachine.engines.base:base.py:415 States to enter: {Fail}
+DEBUG    statemachine.engines.base:base.py:438 Entering state: Fail
+
 ```
 
 ## "On transition" events
 ```py
-No events
+OnEnterState(state='s1', event='__initial__', data='{}')
+OnTransition(source='', event='__initial__', data='{}', target='s1')
+OnEnterState(state='s11', event='__initial__', data='{}')
+OnTransition(source='s11', event='None', data='{}', target='s12')
+OnEnterState(state='s12', event='None', data='{}')
+OnTransition(source='s1', event='timeout', data='{}', target='fail')
+OnEnterState(state='fail', event='timeout', data='{}')
 ```
 
 ## Traceback
 ```py
-Traceback (most recent call last):
-  File "/home/macedo/projects/python-statemachine/tests/scxml/test_scxml_cases.py", line 114, in test_scxml_usecase
-    processor.parse_scxml_file(testcase_path)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 30, in parse_scxml_file
-    return self.parse_scxml(path.stem, scxml_content)
-           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 33, in parse_scxml
-    definition = parse_scxml(scxml_content)
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/parser.py", line 62, in parse_scxml
-    state = parse_state(state_elem, definition.initial_states)
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/parser.py", line 129, in parse_state
-    transition = parse_transition(trans_elem)
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/parser.py", line 154, in parse_transition
-    raise ValueError("Transition must have a 'target' attribute")
-ValueError: Transition must have a 'target' attribute
-
+Assertion of the testcase failed.
 ```

@@ -112,7 +112,8 @@ def create_machine_class_from_definition(
             for transition_data in transitions_data:
                 source = states_instances[state_id]
 
-                target = states_instances[transition_data["target"]]
+                target_state_id = transition_data["target"]
+                target = states_instances[target_state_id] if target_state_id else None
 
                 # TODO: Join `trantion_data.event` with `event_name`
                 transition = source.to(

@@ -226,7 +226,7 @@ class BaseEngine:
 
     def get_effective_target_states(self, transition: Transition) -> OrderedSet[State]:
         # TODO: Handle history states
-        return OrderedSet([transition.target])
+        return OrderedSet([transition.target]) if transition.target else OrderedSet()
 
     def select_eventless_transitions(self, trigger_data: TriggerData):
         """
@@ -484,10 +484,10 @@ class BaseEngine:
                     ).put(donedata=donedata)
 
                     if grandparent and grandparent.parallel:
-                        if all(child.final for child in grandparent.states):
-                            BoundEvent(f"done.state.{parent.id}", _sm=self.sm, internal=True).put(
-                                donedata=donedata
-                            )
+                        if all(self.is_in_final_state(child) for child in grandparent.states):
+                            BoundEvent(
+                                f"done.state.{grandparent.id}", _sm=self.sm, internal=True
+                            ).put(donedata=donedata)
         return result
 
     def compute_entry_set(
@@ -506,6 +506,8 @@ class BaseEngine:
         for transition in transitions:
             # Process each target state of the transition
             for target_state in [transition.target]:
+                if target_state is None:
+                    continue
                 info = StateTransition(
                     transition=transition, target=target_state, source=transition.source
                 )
@@ -575,7 +577,6 @@ class BaseEngine:
         else:
             states_to_enter.add(info)
         state = info.target
-        assert state
 
         if state.parallel:
             for child_state in state.states:
@@ -662,3 +663,11 @@ class BaseEngine:
                             states_for_default_entry,
                             default_history_content,
                         )
+
+    def is_in_final_state(self, state: State) -> bool:
+        if state.is_compound:
+            return any(s.final and s in self.sm.configuration for s in state.states)
+        elif state.parallel:
+            return all(self.is_in_final_state(s) for s in state.states)
+        else:
+            return False

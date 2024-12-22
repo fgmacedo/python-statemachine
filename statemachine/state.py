@@ -29,7 +29,7 @@ class _TransitionBuilder:
 
 
 class _ToState(_TransitionBuilder):
-    def __call__(self, *states: "State", **kwargs):
+    def __call__(self, *states: "State | None", **kwargs):
         transitions = TransitionList(Transition(self._state, state, **kwargs) for state in states)
         self._state.transitions.add_transitions(transitions)
         return transitions
