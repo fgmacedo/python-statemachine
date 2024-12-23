@@ -27,7 +27,7 @@ from .schema import Param
 from .schema import ScriptAction
 
 logger = logging.getLogger(__name__)
-protected_attrs = _event_data_kwargs | {"_sessionid", "_ioprocessors", "_name"}
+protected_attrs = _event_data_kwargs | {"_sessionid", "_ioprocessors", "_name", "_event"}
 
 
 class ParseTime:

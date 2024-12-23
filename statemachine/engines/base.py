@@ -602,10 +602,7 @@ class BaseEngine:
                     )
         elif state and state.is_compound:
             states_for_default_entry.add(info)
-            initial_state = next(s for s in state.states if s.initial)
-            transition = next(
-                t for t in state.transitions if t.initial and t.target == initial_state
-            )
+            transition = next(t for t in state.transitions if t.initial)
             info_initial = StateTransition(
                 transition=transition,
                 target=transition.target,

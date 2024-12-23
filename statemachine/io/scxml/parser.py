@@ -1,5 +1,6 @@
 import re
 import xml.etree.ElementTree as ET
+from typing import Iterable
 from typing import Set
 
 from .schema import Action
@@ -33,13 +34,20 @@ def strip_namespaces(tree: ET.Element):
                 attrib[new_name] = attrib.pop(name)
 
 
+def visit_states(states: Iterable[State], parents: list[State]):
+    for state in states:
+        yield state, parents
+        if state.states:
+            yield from visit_states(state.states.values(), parents + [state])
+
+
 def _parse_initial(initial_content: "str | None") -> Set[str]:
     if initial_content is None:
         return set()
     return set(initial_content.split())
 
 
-def parse_scxml(scxml_content: str) -> StateMachineDefinition:
+def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     root = ET.fromstring(scxml_content)
     strip_namespaces(root)
 
@@ -74,6 +82,21 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:
         definition.initial_states = {next(key for key in definition.states.keys())}
         for s in definition.initial_states:
             definition.states[s].initial = True
+
+    # If the initial states definition does not contain any first level state,
+    # we find the first level states that are ancestor of the initial states
+    # and also set them as the initial states.
+    if not set(definition.states.keys()) & definition.initial_states:
+        not_found = set(definition.initial_states)
+        for state, parents in visit_states(definition.states.values(), []):
+            if state.id in definition.initial_states:
+                not_found.remove(state.id)
+                if parents:
+                    topmost_state = parents[0]
+                    topmost_state.initial = True
+                    definition.initial_states.add(topmost_state.id)
+            if not not_found:
+                break
 
     return definition
 

@@ -95,7 +95,8 @@ class StateMachineMetaclass(type):
         for s in states:
             s.document_order = order
             order += 1
-            cls._initials_by_document_order(s.states, s, order)
+            if s.states:
+                cls._initials_by_document_order(s.states, s, order)
             if s.initial:
                 initial = s
         if not initial and states:
