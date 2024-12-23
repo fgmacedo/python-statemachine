@@ -85,7 +85,7 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
 
     # If the initial states definition does not contain any first level state,
     # we find the first level states that are ancestor of the initial states
-    # and also set them as the initial states.
+    # and also set them as the initial states
     if not set(definition.states.keys()) & definition.initial_states:
         not_found = set(definition.initial_states)
         for state, parents in visit_states(definition.states.values(), []):
@@ -241,7 +241,7 @@ def parse_assign(element: ET.Element) -> AssignAction:
 
 def parse_log(element: ET.Element) -> LogAction:
     label = element.attrib.get("label")
-    expr = element.attrib["expr"]
+    expr = element.attrib.get("expr")
     return LogAction(label=label, expr=expr)
 
 

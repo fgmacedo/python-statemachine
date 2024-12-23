@@ -39,7 +39,7 @@ class AssignAction(Action):
 @dataclass
 class LogAction(Action):
     label: "str | None"
-    expr: str
+    expr: "str | None"
 
 
 @dataclass

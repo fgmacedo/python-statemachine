@@ -268,9 +268,14 @@ class Log(CallableAction):
         self.action = action
 
     def __call__(self, *args, **kwargs):
-        value = _eval(self.action.expr, **kwargs)
+        value = _eval(self.action.expr, **kwargs) if self.action.expr else None
 
-        msg = f"{self.action.label}: {value!r}" if self.action.label else f"{value!r}"
+        if self.action.label and self.action.expr is not None:
+            msg = f"{self.action.label}: {value!r}"
+        elif self.action.label:
+            msg = f"{self.action.label}"
+        else:
+            msg = f"{value!r}"
         print(msg)
 
 
