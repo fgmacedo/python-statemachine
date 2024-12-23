@@ -6,7 +6,6 @@ we enter s0 first we succeed, if s1, failure. -->
 
   <state id="s0">
     <transition target="pass" />
-    <transition target="s1" cond="1 &lt; 0" /><!-- fgm: added to have a single component in graph -->
   </state>
 
   <state id="s1">

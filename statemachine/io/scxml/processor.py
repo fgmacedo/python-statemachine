@@ -88,7 +88,14 @@ class SCXMLProcessor:
                     initial_state["enter"] = []
                 if isinstance(initial_state["enter"], list):
                     initial_state["enter"].insert(0, datamodel)
-        self._add(location, {"states": states_dict, "prepare_event": self._prepare_event})
+        self._add(
+            location,
+            {
+                "states": states_dict,
+                "prepare_event": self._prepare_event,
+                "validate_disconnected_states": False,
+            },
+        )
 
     def _prepare_event(self, *args, **kwargs):
         machine = kwargs["machine"]

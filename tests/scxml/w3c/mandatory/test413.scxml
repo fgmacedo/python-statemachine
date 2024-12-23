@@ -16,7 +16,6 @@ states we should not enter all have immediate transitions to failure in them -->
       we're in
   either s2p112 or s2p122, but not both of them -->
       <transition target="fail" />
-      <transition target="s1" cond="1 &lt; 0" /><!-- fgm: added to have a single component in graph -->
 
       <state id="s2p11" initial="s2p111">
         <state id="s2p111">

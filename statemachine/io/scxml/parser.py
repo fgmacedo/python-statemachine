@@ -92,10 +92,9 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
         for state, parents in visit_states(definition.states.values(), []):
             if state.id in definition.initial_states:
                 not_found.remove(state.id)
-                if parents:
-                    topmost_state = parents[0]
-                    topmost_state.initial = True
-                    definition.initial_states.add(topmost_state.id)
+                for parent in parents:
+                    parent.initial = True
+                    definition.initial_states.add(parent.id)
             if not not_found:
                 break
 

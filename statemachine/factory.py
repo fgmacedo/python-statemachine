@@ -11,9 +11,10 @@ from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .event import Event
 from .exceptions import InvalidDefinition
+from .graph import disconnected_states
 from .graph import iterate_states
 from .graph import iterate_states_and_transitions
-from .graph import visit_connected_states
+from .graph import states_without_path_to_final_states
 from .i18n import _
 from .state import State
 from .states import States
@@ -23,6 +24,9 @@ from .transition_list import TransitionList
 
 class StateMachineMetaclass(type):
     "Metaclass for constructing StateMachine classes"
+
+    validate_disconnected_states: bool = True
+    """If `True`, the state machine will validate that there are no unreachable states."""
 
     def __init__(
         cls,
@@ -179,7 +183,7 @@ class StateMachineMetaclass(type):
     def _check_reachable_final_states(cls):
         if not any(s.final for s in cls.states):
             return  # No need to check final reachability
-        disconnected_states = cls._states_without_path_to_final_states()
+        disconnected_states = list(states_without_path_to_final_states(cls.states))
         if disconnected_states:
             message = _(
                 "All non-final states should have at least one path to a final state. "
@@ -190,26 +194,18 @@ class StateMachineMetaclass(type):
             else:
                 warnings.warn(message, UserWarning, stacklevel=1)
 
-    def _states_without_path_to_final_states(cls):
-        return [
-            state
-            for state in cls.states
-            if not state.final and not any(s.final for s in visit_connected_states(state))
-        ]
-
-    def _disconnected_states(cls, starting_state):
-        visitable_states = set(visit_connected_states(starting_state))
-        return set(cls.states) - visitable_states
-
     def _check_disconnected_state(cls):
-        disconnected_states = cls._disconnected_states(cls.initial_state)
-        if disconnected_states:
+        if not cls.validate_disconnected_states:
+            return
+        assert cls.initial_state
+        states = disconnected_states(cls.initial_state, set(cls.states_map.values()))
+        if states:
             raise InvalidDefinition(
                 _(
                     "There are unreachable states. "
                     "The statemachine graph should have a single component. "
                     "Disconnected states: {}"
-                ).format([s.id for s in disconnected_states])
+                ).format([s.id for s in states])
             )
 
     def _setup(cls):
