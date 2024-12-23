@@ -44,6 +44,9 @@ class IOProcessor:
     def location(self):
         return self.machine.name
 
+    def get(self, name: str):
+        return getattr(self, name)
+
 
 @dataclass
 class SessionData:

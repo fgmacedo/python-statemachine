@@ -49,7 +49,7 @@ class IfBranch(Action):
     actions: List[Action] = field(default_factory=list)
 
     def __str__(self):
-        return self.cond
+        return self.cond or "<empty cond>"
 
     def append(self, action: Action):
         self.actions.append(action)

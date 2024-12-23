@@ -92,18 +92,32 @@ class _Data:
         return self.kwargs.get(name, default)
 
 
+class OriginTypeSCXML(str):
+    """The origintype of the :ref:`Event` as specified by the SCXML namespace."""
+
+    def __eq__(self, other):
+        return other == "http://www.w3.org/TR/scxml/#SCXMLEventProcessor" or other == "scxml"
+
+
 class EventDataWrapper:
     origin: str = ""
-    origintype: str = "http://www.w3.org/TR/scxml/#SCXMLEventProcessor"
+    origintype: str = OriginTypeSCXML("scxml")
     """The origintype of the :ref:`Event` as specified by the SCXML namespace."""
+    invokeid: str = ""
+    """If this event is generated from an invoked child process, the SCXML Processor MUST set
+    this field to the invoke id of the invocation that triggered the child process.
+    Otherwise it MUST leave it blank.
+    """
 
     def __init__(self, event_data):
         self.event_data = event_data
+        self.sendid = event_data.trigger_data.send_id
         if event_data.trigger_data.event is None or event_data.trigger_data.event.internal:
             if "error.execution" == event_data.trigger_data.event:
                 self.type = "platform"
             else:
                 self.type = "internal"
+                self.origintype = ""
         else:
             self.type = "external"
 
@@ -365,12 +379,12 @@ def create_send_action_callable(action: SendAction) -> Callable:
 
         internal = target in ("#_internal", "internal")
 
+        send_id = None
         if action.id:
             send_id = action.id
-        else:
+        elif action.idlocation:
             send_id = uuid4().hex
-            if action.idlocation:
-                setattr(machine.model, action.idlocation, send_id)
+            setattr(machine.model, action.idlocation, send_id)
 
         delay = ParseTime.parse_delay(action.delay, action.delayexpr, **kwargs)
         names = [
@@ -380,6 +394,8 @@ def create_send_action_callable(action: SendAction) -> Callable:
         ]
         params_values = {}
         for param in chain(names, action.params):
+            if param.expr is None:
+                continue
             params_values[param.name] = _eval(param.expr, **kwargs)
 
         Event(id=event, name=event, delay=delay, internal=internal, _sm=machine).put(
