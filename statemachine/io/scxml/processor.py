@@ -1,3 +1,5 @@
+import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,16 @@ from .actions import create_datamodel_action_callable
 from .parser import parse_scxml
 from .schema import State
 from .schema import Transition
+
+
+@contextmanager
+def temporary_directory(new_current_dir):
+    original_dir = os.getcwd()
+    try:
+        os.chdir(new_current_dir)
+        yield
+    finally:
+        os.chdir(original_dir)
 
 
 class IOProcessor:
@@ -52,7 +64,8 @@ class SCXMLProcessor:
 
     def parse_scxml_file(self, path: Path):
         scxml_content = path.read_text()
-        return self.parse_scxml(path.stem, scxml_content)
+        with temporary_directory(path.parent):
+            return self.parse_scxml(path.stem, scxml_content)
 
     def parse_scxml(self, sm_name: str, scxml_content: str):
         definition = parse_scxml(scxml_content)

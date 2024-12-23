@@ -2,6 +2,7 @@ import re
 import xml.etree.ElementTree as ET
 from typing import Iterable
 from typing import Set
+from urllib.parse import urlparse
 
 from .schema import Action
 from .schema import AssignAction
@@ -106,12 +107,19 @@ def parse_datamodel(root: ET.Element) -> "DataModel | None":
 
     for datamodel_elem in root.findall(".//datamodel"):
         for data_elem in datamodel_elem.findall("data"):
+            content = data_elem.text and re.sub(r"\s+", " ", data_elem.text).strip() or None
+            src = data_elem.attrib.get("src")
+            src_parsed = urlparse(src) if src else None
+            if src_parsed and src_parsed.scheme == "file" and content is None:
+                with open(src_parsed.path) as f:
+                    content = f.read()
+
             data_model.data.append(
                 DataItem(
                     id=data_elem.attrib["id"],
-                    src=data_elem.attrib.get("src"),
+                    src=src_parsed,
                     expr=data_elem.attrib.get("expr"),
-                    content=data_elem.text and re.sub(r"\s+", " ", data_elem.text).strip() or None,
+                    content=content,
                 )
             )
 

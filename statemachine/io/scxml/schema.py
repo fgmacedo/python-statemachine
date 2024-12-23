@@ -3,6 +3,7 @@ from dataclasses import field
 from typing import Dict
 from typing import List
 from typing import Set
+from urllib.parse import ParseResult
 
 
 @dataclass
@@ -125,7 +126,7 @@ class State:
 @dataclass
 class DataItem:
     id: str
-    src: "str | None"
+    src: "ParseResult | None"
     expr: "str | None"
     content: "str | None"
 
