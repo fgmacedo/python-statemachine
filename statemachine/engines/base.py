@@ -75,9 +75,14 @@ class BaseEngine:
         self._sentinel = object()
         self.running = True
         self._processing = Lock()
+        self._cache: Dict = {}  # Cache for _get_args_kwargs results
 
     def empty(self):
         return self.external_queue.is_empty()
+
+    def clear_cache(self):
+        """Clears the cache. Should be called at the start of each processing loop."""
+        self._cache.clear()
 
     def put(self, trigger_data: TriggerData, internal: bool = False, _delayed: bool = False):
         """Put the trigger on the queue without blocking the caller."""
@@ -310,7 +315,13 @@ class BaseEngine:
     def _get_args_kwargs(
         self, transition: Transition, trigger_data: TriggerData, target: "State | None" = None
     ):
-        # TODO: Ideally this method should be called only once per microstep/transition
+        # Generate a unique key for the cache, the cache is invalidated once per loop
+        cache_key = (id(transition), id(trigger_data), id(target))
+
+        # Check the cache for existing results
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
         event_data = EventData(trigger_data=trigger_data, transition=transition)
         if target:
             event_data.state = target
@@ -321,6 +332,9 @@ class BaseEngine:
         result = self.sm._callbacks.call(self.sm.prepare.key, *args, **kwargs)
         for new_kwargs in result:
             kwargs.update(new_kwargs)
+
+        # Store the result in the cache
+        self._cache[cache_key] = (args, kwargs)
         return args, kwargs
 
     def _conditions_match(self, transition: Transition, trigger_data: TriggerData):
@@ -329,7 +343,9 @@ class BaseEngine:
         self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
         return self.sm._callbacks.all(transition.cond.key, *args, **kwargs)
 
-    def _exit_states(self, enabled_transitions: List[Transition], trigger_data: TriggerData):
+    def _exit_states(
+        self, enabled_transitions: List[Transition], trigger_data: TriggerData
+    ) -> OrderedSet[State]:
         """Compute and process the states to exit for the given transitions."""
         states_to_exit = self._compute_exit_set(enabled_transitions)
 
@@ -340,7 +356,7 @@ class BaseEngine:
         ordered_states = sorted(
             states_to_exit, key=lambda x: x.source and x.source.document_order or 0, reverse=True
         )
-        result = OrderedSet([info.source for info in ordered_states])
+        result = OrderedSet([info.source for info in ordered_states if info.source])
         logger.debug("States to exit: %s", result)
 
         for info in ordered_states:

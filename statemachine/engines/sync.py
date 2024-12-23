@@ -66,6 +66,7 @@ class SyncEngine(BaseEngine):
         try:
             took_events = True
             while took_events:
+                self.clear_cache()
                 took_events = False
                 # Execute the triggers in the queue in FIFO order until the queue is empty
                 # while self._running and not self.external_queue.is_empty():
@@ -74,6 +75,7 @@ class SyncEngine(BaseEngine):
 
                 # handles eventless transitions and internal events
                 while not macrostep_done:
+                    self.clear_cache()
                     internal_event = TriggerData(
                         self.sm, event=None
                     )  # this one is a "null object"
@@ -101,10 +103,11 @@ class SyncEngine(BaseEngine):
                     internal_event = self.internal_queue.pop()
                     enabled_transitions = self.select_transitions(internal_event)
                     if enabled_transitions:
-                        self.microstep(list(enabled_transitions))
+                        self.microstep(list(enabled_transitions), internal_event)
 
                 # Process external events
                 while not self.external_queue.is_empty():
+                    self.clear_cache()
                     took_events = True
                     external_event = self.external_queue.pop()
                     current_time = time()

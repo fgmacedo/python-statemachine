@@ -6,6 +6,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+from ...event import Event
 from ...exceptions import InvalidDefinition
 from ...statemachine import StateMachine
 from .. import StateDefinition
@@ -48,6 +49,7 @@ class IOProcessor:
 class SessionData:
     machine: StateMachine
     processor: IOProcessor
+    first_event_raised: bool = False
 
     def __post_init__(self):
         self.session_id = f"{self.machine.name}:{id(self.machine)}"
@@ -97,7 +99,7 @@ class SCXMLProcessor:
             },
         )
 
-    def _prepare_event(self, *args, **kwargs):
+    def _prepare_event(self, *args, event: Event, **kwargs):
         machine = kwargs["machine"]
         machine_weakref = getattr(machine, "__weakref__", None)
         if machine_weakref:
@@ -105,11 +107,18 @@ class SCXMLProcessor:
 
         session_data = self._get_session(machine)
 
+        extra_params = {}
+        if not session_data.first_event_raised and event and not event == "__initial__":
+            session_data.first_event_raised = True
+
+        if session_data.first_event_raised:
+            extra_params = {"_event": EventDataWrapper(kwargs["event_data"])}
+
         return {
             "_name": machine.name,
             "_sessionid": session_data.session_id,
             "_ioprocessors": session_data.processor,
-            "_event": EventDataWrapper(kwargs["event_data"]),
+            **extra_params,
         }
 
     def _get_session(self, machine: StateMachine):
