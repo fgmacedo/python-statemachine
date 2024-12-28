@@ -31,6 +31,8 @@ def iterate_states_and_transitions(states: Iterable["State"]):
         yield from state.transitions
         if state.states:
             yield from iterate_states_and_transitions(state.states)
+        if state.history:
+            yield from iterate_states_and_transitions(state.history)
 
 
 def iterate_states(states: Iterable["State"]):
@@ -38,6 +40,8 @@ def iterate_states(states: Iterable["State"]):
         yield state
         if state.states:
             yield from iterate_states(state.states)
+        if state.history:
+            yield from iterate_states(state.history)
 
 
 def states_without_path_to_final_states(states: Iterable["State"]):

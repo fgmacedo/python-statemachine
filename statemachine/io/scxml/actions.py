@@ -472,7 +472,13 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
     if not data_elements:
         return None
 
+    initialized = False
+
     def datamodel(*args, **kwargs):
+        nonlocal initialized
+        if initialized:
+            return
+        initialized = True
         machine: StateMachine = kwargs["machine"]
         for act in data_elements:
             try:

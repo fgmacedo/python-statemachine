@@ -1,6 +1,5 @@
 import re
 import xml.etree.ElementTree as ET
-from typing import Iterable
 from typing import Set
 from urllib.parse import urlparse
 
@@ -11,6 +10,7 @@ from .schema import DataItem
 from .schema import DataModel
 from .schema import ExecutableContent
 from .schema import ForeachAction
+from .schema import HistoryState
 from .schema import IfAction
 from .schema import IfBranch
 from .schema import LogAction
@@ -35,13 +35,6 @@ def strip_namespaces(tree: ET.Element):
                 attrib[new_name] = attrib.pop(name)
 
 
-def visit_states(states: Iterable[State], parents: list[State]):
-    for state in states:
-        yield state, parents
-        if state.states:
-            yield from visit_states(state.states.values(), parents + [state])
-
-
 def _parse_initial(initial_content: "str | None") -> Set[str]:
     if initial_content is None:
         return set()
@@ -56,10 +49,12 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     if scxml is None:
         raise ValueError("No scxml element found in document")
 
-    initial_state = _parse_initial(scxml.get("initial"))
     name = scxml.get("name")
 
-    definition = StateMachineDefinition(name=name, initial_states=initial_state)
+    initial_states = _parse_initial(scxml.get("initial"))
+    all_initial_states = set(initial_states)
+
+    definition = StateMachineDefinition(name=name, initial_states=initial_states)
 
     # Parse datamodel
     datamodel = parse_datamodel(scxml)
@@ -69,34 +64,20 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     # Parse states
     for state_elem in scxml:
         if state_elem.tag == "state":
-            state = parse_state(state_elem, definition.initial_states)
+            state = parse_state(state_elem, all_initial_states)
             definition.states[state.id] = state
         elif state_elem.tag == "final":
-            state = parse_state(state_elem, definition.initial_states, is_final=True)
+            state = parse_state(state_elem, all_initial_states, is_final=True)
             definition.states[state.id] = state
         elif state_elem.tag == "parallel":
-            state = parse_state(state_elem, definition.initial_states, is_parallel=True)
+            state = parse_state(state_elem, all_initial_states, is_parallel=True)
             definition.states[state.id] = state
 
     # If no initial state was specified, pick the first state
-    if not definition.initial_states and definition.states:
-        definition.initial_states = {next(key for key in definition.states.keys())}
-        for s in definition.initial_states:
+    if not all_initial_states and definition.states:
+        all_initial_states = {next(key for key in definition.states.keys())}
+        for s in all_initial_states:
             definition.states[s].initial = True
-
-    # If the initial states definition does not contain any first level state,
-    # we find the first level states that are ancestor of the initial states
-    # and also set them as the initial states
-    if not set(definition.states.keys()) & definition.initial_states:
-        not_found = set(definition.initial_states)
-        for state, parents in visit_states(definition.states.values(), []):
-            if state.id in definition.initial_states:
-                not_found.remove(state.id)
-                for parent in parents:
-                    parent.initial = True
-                    definition.initial_states.add(parent.id)
-            if not not_found:
-                break
 
     return definition
 
@@ -132,7 +113,23 @@ def parse_datamodel(root: ET.Element) -> "DataModel | None":
     return data_model if data_model.data or data_model.scripts else None
 
 
-def parse_state(
+def parse_history(state_elem: ET.Element) -> HistoryState:
+    state_id = state_elem.get("id")
+    if not state_id:
+        raise ValueError("History must have an 'id' attribute")
+
+    state = HistoryState(
+        id=state_id,
+        deep=state_elem.get("type") == "deep",
+    )
+    for trans_elem in state_elem.findall("transition"):
+        transition = parse_transition(trans_elem)
+        state.transitions.append(transition)
+
+    return state
+
+
+def parse_state(  # noqa: C901
     state_elem: ET.Element,
     initial_states: Set[str],
     is_final: bool = False,
@@ -180,6 +177,9 @@ def parse_state(
             child_state_elem, initial_states=initial_states, is_parallel=True
         )
         state.states[child_state.id] = child_state
+    for child_state_elem in state_elem.findall("history"):
+        child_history_state = parse_history(child_state_elem)
+        state.history[child_history_state.id] = child_history_state
 
     return state
 

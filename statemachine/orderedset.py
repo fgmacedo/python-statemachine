@@ -103,3 +103,16 @@ class OrderedSet(MutableSet[T]):
 
     def __repr__(self):
         return f"OrderedSet({list(self._d.keys())})"
+
+    def union(self, *others: Iterable[T]) -> "OrderedSet[T]":
+        """Return a new OrderedSet containing elements from the set and all others."""
+        new_set = OrderedSet(self)
+        for other in others:
+            new_set.update(other)
+        return new_set
+
+    def update(self, *others: Iterable[T]) -> None:
+        """Update the set, adding elements from all others."""
+        for other in others:
+            for element in other:
+                self.add(element)

@@ -121,6 +121,14 @@ class State:
     onentry: List[ExecutableContent] = field(default_factory=list)
     onexit: List[ExecutableContent] = field(default_factory=list)
     states: Dict[str, "State"] = field(default_factory=dict)
+    history: Dict[str, "HistoryState"] = field(default_factory=dict)
+
+
+@dataclass
+class HistoryState:
+    id: str
+    deep: bool = False  # Must be 'deep' or 'shallow'
+    transitions: List[Transition] = field(default_factory=list)
 
 
 @dataclass

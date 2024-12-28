@@ -9,15 +9,17 @@ from typing import List
 from ...event import Event
 from ...exceptions import InvalidDefinition
 from ...statemachine import StateMachine
+from .. import HistoryDefinition
 from .. import StateDefinition
 from .. import TransitionDict
-from .. import TransitionsDict
+from .. import TransitionsList
 from .. import create_machine_class_from_definition
 from .actions import Cond
 from .actions import EventDataWrapper
 from .actions import ExecuteBlock
 from .actions import create_datamodel_action_callable
 from .parser import parse_scxml
+from .schema import HistoryState
 from .schema import State
 from .schema import Transition
 
@@ -93,21 +95,19 @@ class SCXMLProcessor:
                     initial_state["enter"] = []
                 if isinstance(initial_state["enter"], list):
                     initial_state["enter"].insert(0, datamodel)
+
         self._add(
             location,
             {
                 "states": states_dict,
                 "prepare_event": self._prepare_event,
                 "validate_disconnected_states": False,
+                "start_configuration_values": list(definition.initial_states),
             },
         )
 
     def _prepare_event(self, *args, event: Event, **kwargs):
         machine = kwargs["machine"]
-        machine_weakref = getattr(machine, "__weakref__", None)
-        if machine_weakref:
-            machine = machine_weakref()
-
         session_data = self._get_session(machine)
 
         extra_params = {}
@@ -130,6 +130,21 @@ class SCXMLProcessor:
                 processor=IOProcessor(self, machine=machine), machine=machine
             )
         return self.sessions[machine.name]
+
+    def _process_history(self, history: Dict[str, HistoryState]) -> Dict[str, HistoryDefinition]:
+        states_dict: Dict[str, HistoryDefinition] = {}
+        for state_id, state in history.items():
+            state_dict = HistoryDefinition()
+
+            state_dict["deep"] = state.deep
+
+            # Process transitions
+            if state.transitions:
+                state_dict["transitions"] = self._process_transitions(state.transitions)
+
+            states_dict[state_id] = state_dict
+
+        return states_dict
 
     def _process_states(self, states: Dict[str, State]) -> Dict[str, StateDefinition]:
         states_dict: Dict[str, StateDefinition] = {}
@@ -158,22 +173,24 @@ class SCXMLProcessor:
 
             # Process transitions
             if state.transitions:
-                state_dict["on"] = self._process_transitions(state.transitions)
+                state_dict["transitions"] = self._process_transitions(state.transitions)
 
             states_dict[state_id] = state_dict
 
             if state.states:
                 state_dict["states"] = self._process_states(state.states)
 
+            if state.history:
+                state_dict["history"] = self._process_history(state.history)
+
         return states_dict
 
     def _process_transitions(self, transitions: List[Transition]):
-        on_dict: TransitionsDict = {}
+        result: TransitionsList = []
         for transition in transitions:
             event = transition.event or None
-            if event not in on_dict:
-                on_dict[event] = []
             transition_dict: TransitionDict = {
+                "event": event,
                 "target": transition.target,
                 "internal": transition.internal,
                 "initial": transition.initial,
@@ -182,15 +199,16 @@ class SCXMLProcessor:
             # Process cond
             if transition.cond:
                 cond_callable = Cond.create(transition.cond, processor=self)
-                transition_dict["cond"] = cond_callable
+                if cond_callable is not None:
+                    transition_dict["cond"] = cond_callable
 
                 # Process actions
             if transition.on and not transition.on.is_empty:
                 callable = ExecuteBlock(transition.on)
                 transition_dict["on"] = callable
 
-            on_dict[event].append(transition_dict)
-        return on_dict
+            result.append(transition_dict)
+        return result
 
     def _add(self, location: str, definition: Dict[str, Any]):
         try:

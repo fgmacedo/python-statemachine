@@ -1,38 +1,33 @@
 # Testcase: test229
 
-ValueError: Inappropriate argument value (of correct type).
+AssertionError: Assertion failed.
 
-Final configuration: `No configuration`
+Final configuration: `['fail']`
 
 ---
 
 ## Logs
 ```py
-No logs
+DEBUG    statemachine.engines.base:base.py:436 States to enter: {S0}
+DEBUG    statemachine.engines.base:base.py:459 Entering state: S0
+DEBUG    statemachine.engines.base:base.py:98 New event 'timeout' put on the 'external' queue
+DEBUG    statemachine.engines.sync:sync.py:64 Processing loop started: s0
+DEBUG    statemachine.engines.sync:sync.py:119 External event: timeout
+DEBUG    statemachine.engines.sync:sync.py:134 Enabled transitions: {transition * from S0 to Fail}
+DEBUG    statemachine.engines.base:base.py:360 States to exit: {S0}
+DEBUG    statemachine.engines.base:base.py:436 States to enter: {Fail}
+DEBUG    statemachine.engines.base:base.py:459 Entering state: Fail
+
 ```
 
 ## "On transition" events
 ```py
-No events
+OnEnterState(state='s0', event='__initial__', data='{}')
+OnTransition(source='s0', event='timeout', data='{}', target='fail')
+OnEnterState(state='fail', event='timeout', data='{}')
 ```
 
 ## Traceback
 ```py
-Traceback (most recent call last):
-  File "/home/macedo/projects/python-statemachine/tests/scxml/test_scxml_cases.py", line 114, in test_scxml_usecase
-    processor.parse_scxml_file(testcase_path)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 30, in parse_scxml_file
-    return self.parse_scxml(path.stem, scxml_content)
-           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/processor.py", line 33, in parse_scxml
-    definition = parse_scxml(scxml_content)
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/parser.py", line 62, in parse_scxml
-    state = parse_state(state_elem, definition.initial_states)
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/parser.py", line 129, in parse_state
-    transition = parse_transition(trans_elem)
-  File "/home/macedo/projects/python-statemachine/statemachine/io/scxml/parser.py", line 154, in parse_transition
-    raise ValueError("Transition must have a 'target' attribute")
-ValueError: Transition must have a 'target' attribute
-
+Assertion of the testcase failed.
 ```

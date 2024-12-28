@@ -51,7 +51,7 @@ class _FromState(_TransitionBuilder):
 
 class NestedStateFactory(type):
     def __new__(  # type: ignore [misc]
-        cls, classname, bases, attrs, name=None, **kwargs
+        cls, classname, bases, attrs, name="", **kwargs
     ) -> "State":
         if not bases:
             return super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
@@ -174,9 +174,10 @@ class State:
     """
 
     class Compound(metaclass=NestedStateFactory):
-        # Mimic the :ref:`State` public API to help linters discover the result of the Builder
-        # class.
-        pass
+        "Uses the class namespace to build a :ref:`State` instance of a compound state"
+
+    class Parallel(metaclass=NestedStateFactory, parallel=True):
+        "Uses the class namespace to build a :ref:`State` instance of a parallel state"
 
     def __init__(
         self,
@@ -186,6 +187,7 @@ class State:
         final: bool = False,
         parallel: bool = False,
         states: "List[State] | None" = None,
+        history: "List[HistoryState] | None" = None,
         enter: Any = None,
         exit: Any = None,
         _callbacks: Any = None,
@@ -194,12 +196,14 @@ class State:
         self.value = value
         self._parallel = parallel
         self.states = states or []
+        self.history = history or []
         self.is_atomic = bool(not self.states)
         self._initial = initial
         self._final = final
+        self.is_active = False
         self._id: str = ""
         self._callbacks = _callbacks
-        self.parent: State = None
+        self.parent: "State | None" = None
         self.transitions = TransitionList()
         self._specs = CallbackSpecList()
         self.enter = self._specs.grouper(CallbackGroup.ENTER).add(
@@ -216,6 +220,10 @@ class State:
             state.parent = self
             state._initial = state.initial or self.parallel
             setattr(self, state.id, state)
+
+        for history in self.history:
+            history.parent = self
+            setattr(self, history.id, history)
 
     def __eq__(self, other):
         return (
@@ -304,6 +312,10 @@ class State:
     def is_compound(self):
         return bool(self.states) and not self.parallel
 
+    @property
+    def is_history(self):
+        return isinstance(self, HistoryState)
+
     def ancestors(self, parent: "State | None" = None) -> Generator["State", None, None]:  # noqa: UP043
         selected = self.parent
         while selected:
@@ -386,6 +398,10 @@ class InstanceState(State):
         return self._state().states
 
     @property
+    def history(self):
+        return self._state().history
+
+    @property
     def parallel(self):
         return self._state().parallel
 
@@ -412,3 +428,10 @@ class AnyState(State):
             new_transition = transition._copy_with_args(source=state, event=event)
 
             state.transitions.add_transitions(new_transition)
+
+
+class HistoryState(State):
+    def __init__(self, name: str = "", value: Any = None, deep: bool = False):
+        super().__init__(name=name, value=value)
+        self.deep = deep
+        self.is_active = False

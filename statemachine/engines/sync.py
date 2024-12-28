@@ -35,10 +35,10 @@ class SyncEngine(BaseEngine):
         """
         if self.sm.current_state_value is None:
             trigger_data = BoundEvent("__initial__", _sm=self.sm).build_trigger(machine=self.sm)
-            transition = self._initial_transition(trigger_data)
+            transitions = self._initial_transitions(trigger_data)
             self._processing.acquire(blocking=False)
             try:
-                self._enter_states([transition], trigger_data, OrderedSet(), OrderedSet())
+                self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
             finally:
                 self._processing.release()
         return self.processing_loop()
@@ -75,6 +75,8 @@ class SyncEngine(BaseEngine):
 
                 # handles eventless transitions and internal events
                 while not macrostep_done:
+                    logger.debug("Macrostep: eventless/internal queue")
+
                     self.clear_cache()
                     internal_event = TriggerData(
                         self.sm, event=None
@@ -85,10 +87,9 @@ class SyncEngine(BaseEngine):
                             macrostep_done = True
                         else:
                             internal_event = self.internal_queue.pop()
-
                             enabled_transitions = self.select_transitions(internal_event)
                     if enabled_transitions:
-                        logger.debug("Eventless/internal queue: %s", enabled_transitions)
+                        logger.debug("Enabled transitions: %s", enabled_transitions)
                         took_events = True
                         self.microstep(list(enabled_transitions), internal_event)
 
@@ -106,6 +107,7 @@ class SyncEngine(BaseEngine):
                         self.microstep(list(enabled_transitions), internal_event)
 
                 # Process external events
+                logger.debug("Macrostep: external queue")
                 while not self.external_queue.is_empty():
                     self.clear_cache()
                     took_events = True

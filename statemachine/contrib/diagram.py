@@ -140,7 +140,10 @@ class DotGraphMachine:
             fontsize=self.state_font_size,
             peripheries=2 if state.final else 1,
         )
-        if state == self.machine.current_state:
+        if (
+            isinstance(self.machine, StateMachine)
+            and state.value in self.machine.configuration_values
+        ):
             node.set_penwidth(self.state_active_penwidth)
             node.set_fillcolor(self.state_active_fillcolor)
         else:

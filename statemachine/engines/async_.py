@@ -68,7 +68,9 @@ class AsyncEngine(BaseEngine):
     async def _trigger(self, trigger_data: TriggerData):
         executed = False
         if trigger_data.event == "__initial__":
-            transition = self._initial_transition(trigger_data)
+            transitions = self._initial_transitions(trigger_data)
+            # TODO: Async does not support multiple initial state activation yet
+            transition = transitions[0]
             await self._activate(trigger_data, transition)
             return self._sentinel
 

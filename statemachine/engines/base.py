@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from dataclasses import field
 from itertools import chain
 from queue import PriorityQueue
 from queue import Queue
@@ -10,7 +11,8 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import cast
-from weakref import proxy
+from weakref import ReferenceType
+from weakref import ref
 
 from ..event import BoundEvent
 from ..event import Event
@@ -18,6 +20,7 @@ from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import TransitionNotAllowed
 from ..orderedset import OrderedSet
+from ..state import HistoryState
 from ..state import State
 from ..transition import Transition
 
@@ -27,11 +30,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, unsafe_hash=True)
+@dataclass(frozen=True, unsafe_hash=True, eq=True)
 class StateTransition:
-    transition: Transition
-    source: "State | None" = None
-    target: "State | None" = None
+    transition: Transition = field(compare=False)
+    state: State
 
 
 class EventQueue:
@@ -69,7 +71,7 @@ class EventQueue:
 
 class BaseEngine:
     def __init__(self, sm: "StateMachine"):
-        self.sm: StateMachine = proxy(sm)
+        self._sm: ReferenceType["StateMachine"] = ref(sm)
         self.external_queue = EventQueue()
         self.internal_queue = EventQueue()
         self._sentinel = object()
@@ -79,6 +81,12 @@ class BaseEngine:
 
     def empty(self):
         return self.external_queue.is_empty()
+
+    @property
+    def sm(self) -> "StateMachine":
+        sm = self._sm()
+        assert sm, "StateMachine has been destroyed"
+        return sm
 
     def clear_cache(self):
         """Clears the cache. Should be called at the start of each processing loop."""
@@ -117,10 +125,15 @@ class BaseEngine:
 
         BoundEvent("__initial__", _sm=self.sm).put()
 
-    def _initial_transition(self, trigger_data):
-        transition = Transition(State(), self.sm._get_initial_state(), event="__initial__")
-        transition._specs.clear()
-        return transition
+    def _initial_transitions(self, trigger_data):
+        empty_state = State()
+        configuration = self.sm._get_initial_configuration()
+        transitions = [
+            Transition(empty_state, state, event="__initial__") for state in configuration
+        ]
+        for transition in transitions:
+            transition._specs.clear()
+        return transitions
 
     def _filter_conflicting_transitions(
         self, transitions: OrderedSet[Transition]
@@ -177,9 +190,7 @@ class BaseEngine:
             domain = self.get_transition_domain(transition)
             for state in self.sm.configuration:
                 if domain is None or state.is_descendant(domain):
-                    info = StateTransition(
-                        transition=transition, source=state, target=transition.target
-                    )
+                    info = StateTransition(transition=transition, state=state)
                     states_to_exit.add(info)
 
         return states_to_exit
@@ -235,8 +246,23 @@ class BaseEngine:
         return None
 
     def get_effective_target_states(self, transition: Transition) -> OrderedSet[State]:
-        # TODO: Handle history states
-        return OrderedSet([transition.target]) if transition.target else OrderedSet()
+        targets = OrderedSet[State]()
+        for state in [transition.target]:
+            if not state:
+                continue
+            if state.is_history:
+                if state.id in self.sm.history_values:
+                    targets.update(self.sm.history_values[state.id])
+                else:
+                    targets.update(
+                        state
+                        for t in state.transitions
+                        for state in self.get_effective_target_states(t)
+                    )
+            else:
+                targets.add(state)
+
+        return targets
 
     def select_eventless_transitions(self, trigger_data: TriggerData):
         """
@@ -354,25 +380,34 @@ class BaseEngine:
         #     self.states_to_invoke.discard(state)
 
         ordered_states = sorted(
-            states_to_exit, key=lambda x: x.source and x.source.document_order or 0, reverse=True
+            states_to_exit, key=lambda x: x.state and x.state.document_order or 0, reverse=True
         )
-        result = OrderedSet([info.source for info in ordered_states if info.source])
+        result = OrderedSet([info.state for info in ordered_states if info.state])
         logger.debug("States to exit: %s", result)
+
+        # Update history
+        for info in ordered_states:
+            state = info.state
+            for history in state.history:
+                if history.deep:
+                    history_value = [s for s in self.sm.configuration if s.is_descendant(state)]  # noqa: E501
+                else:  # shallow history
+                    history_value = [s for s in self.sm.configuration if s.parent == state]
+
+                logger.debug(
+                    "Saving '%s.%s' history state: '%s'",
+                    state,
+                    history,
+                    [s.id for s in history_value],
+                )
+                self.sm.history_values[history.id] = history_value
 
         for info in ordered_states:
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
-            # # TODO: Update history
-            # for history in state.history:
-            #     if history.type == "deep":
-            #         history_value = [s for s in self.sm.configuration if self.is_descendant(s, state)] # noqa: E501
-            #     else:  # shallow history
-            #         history_value = [s for s in self.sm.configuration if s.parent == state]
-            #     self.history_values[history.id] = history_value
-
             # Execute `onexit` handlers
-            if info.source is not None:  # TODO: and not info.transition.internal:
-                self.sm._callbacks.call(info.source.exit.key, *args, **kwargs)
+            if info.state is not None:  # TODO: and not info.transition.internal:
+                self.sm._callbacks.call(info.state.exit.key, *args, **kwargs)
 
             # TODO: Cancel invocations
             # for invocation in state.invoke:
@@ -380,7 +415,7 @@ class BaseEngine:
 
             # Remove state from configuration
             if not self.sm.atomic_configuration_update:
-                self.sm.configuration -= {info.source}  # .discard(info.source)
+                self.sm.configuration -= {info.state}  # .discard(info.source)
 
         return result
 
@@ -424,11 +459,11 @@ class BaseEngine:
         )
 
         ordered_states = sorted(
-            states_to_enter, key=lambda x: x.target and x.target.document_order or 0
+            states_to_enter, key=lambda x: x.state and x.state.document_order or 0
         )
 
         # We update the configuration atomically
-        states_targets_to_enter = OrderedSet(info.target for info in ordered_states if info.target)
+        states_targets_to_enter = OrderedSet(info.state for info in ordered_states if info.state)
 
         new_configuration = cast(
             OrderedSet[State], (previous_configuration - states_to_exit) | states_targets_to_enter
@@ -447,8 +482,7 @@ class BaseEngine:
             self.sm.configuration = new_configuration
 
         for info in ordered_states:
-            target = info.target
-            assert target
+            target = info.state
             transition = info.transition
             args, kwargs = self._get_args_kwargs(
                 transition,
@@ -473,7 +507,7 @@ class BaseEngine:
             on_entry_result = self.sm._callbacks.call(target.enter.key, *args, **kwargs)
 
             # Handle default initial states
-            if target.id in {t.target.id for t in states_for_default_entry if t.target}:
+            if target.id in {t.state.id for t in states_for_default_entry if t.state}:
                 initial_transitions = [t for t in target.transitions if t.initial]
                 if len(initial_transitions) == 1:
                     result += self.sm._callbacks.call(
@@ -483,6 +517,17 @@ class BaseEngine:
             # Handle default history states
             # if state.id in default_history_content:
             #     self.execute_content(default_history_content[state.id])
+            default_history_transitions = [
+                i.transition for i in default_history_content.get(target.id, [])
+            ]
+            if default_history_transitions:
+                self._execute_transition_content(
+                    default_history_transitions,
+                    trigger_data,
+                    lambda t: t.on.key,
+                    previous_configuration=previous_configuration,
+                    new_configuration=new_configuration,
+                )
 
             # Handle final states
             if target.final:
@@ -529,9 +574,7 @@ class BaseEngine:
             for target_state in [transition.target]:
                 if target_state is None:
                     continue
-                info = StateTransition(
-                    transition=transition, target=target_state, source=transition.source
-                )
+                info = StateTransition(transition=transition, state=target_state)
                 self.add_descendant_states_to_enter(
                     info, states_to_enter, states_for_default_entry, default_history_content
                 )
@@ -541,9 +584,7 @@ class BaseEngine:
 
             # Add ancestor states to enter for each effective target state
             for effective_target in self.get_effective_target_states(transition):
-                info = StateTransition(
-                    transition=transition, target=effective_target, source=transition.source
-                )
+                info = StateTransition(transition=transition, state=effective_target)
                 self.add_ancestor_states_to_enter(
                     info,
                     ancestor,
@@ -552,7 +593,7 @@ class BaseEngine:
                     default_history_content,
                 )
 
-    def add_descendant_states_to_enter(
+    def add_descendant_states_to_enter(  # noqa: C901
         self,
         info: StateTransition,
         states_to_enter,
@@ -569,21 +610,70 @@ class BaseEngine:
             processing.
             default_history_content: A dictionary to hold temporary content for history states.
         """
-        # if self.is_history_state(state):
-        #     # Handle history state
-        #     if state.id in self.history_values:
-        #         for history_state in self.history_values[state.id]:
-        #             self.add_descendant_states_to_enter(history_state, states_to_enter, states_for_default_entry, default_history_content)  # noqa: E501
-        #         for history_state in self.history_values[state.id]:
-        #             self.add_ancestor_states_to_enter(history_state, state.parent, states_to_enter, states_for_default_entry, default_history_content)  # noqa: E501
-        #     else:
-        #         # Handle default history content
-        #         default_history_content[state.parent.id] = state.transition.content
-        #         for target_state in state.transition.target:
-        #             self.add_descendant_states_to_enter(target_state, states_to_enter, states_for_default_entry, default_history_content)  # noqa: E501
-        #         for target_state in state.transition.target:
-        #             self.add_ancestor_states_to_enter(target_state, state.parent, states_to_enter, states_for_default_entry, default_history_content)  # noqa: E501
-        #     return
+        state = info.state
+
+        if state and state.is_history:
+            # Handle history state
+            state = cast(HistoryState, state)
+            parent_id = state.parent and state.parent.id
+            default_history_content[parent_id] = [info]
+            if state.id in self.sm.history_values:
+                logger.debug(
+                    "History state '%s.%s' %s restoring: '%s'",
+                    state.parent,
+                    state,
+                    "deep" if state.deep else "shallow",
+                    [s.id for s in self.sm.history_values[state.id]],
+                )
+                for history_state in self.sm.history_values[state.id]:
+                    info_to_add = StateTransition(transition=info.transition, state=history_state)
+                    if state.deep:
+                        states_to_enter.add(info_to_add)
+                    else:
+                        self.add_descendant_states_to_enter(
+                            info_to_add,
+                            states_to_enter,
+                            states_for_default_entry,
+                            default_history_content,
+                        )
+                for history_state in self.sm.history_values[state.id]:
+                    info_to_add = StateTransition(transition=info.transition, state=history_state)
+                    self.add_ancestor_states_to_enter(
+                        info_to_add,
+                        state.parent,
+                        states_to_enter,
+                        states_for_default_entry,
+                        default_history_content,
+                    )
+            else:
+                # Handle default history content
+                logger.debug(
+                    "History state '%s.%s' default content: %s",
+                    state.parent,
+                    state,
+                    [t.target.id for t in state.transitions if t.target],
+                )
+
+                for transition in state.transitions:
+                    info_history = StateTransition(transition=transition, state=transition.target)
+                    default_history_content[parent_id].append(info_history)
+                    self.add_descendant_states_to_enter(
+                        info_history,
+                        states_to_enter,
+                        states_for_default_entry,
+                        default_history_content,
+                    )  # noqa: E501
+                for transition in state.transitions:
+                    info_history = StateTransition(transition=transition, state=transition.target)
+
+                    self.add_ancestor_states_to_enter(
+                        info_history,
+                        state.parent,
+                        states_to_enter,
+                        states_for_default_entry,
+                        default_history_content,
+                    )  # noqa: E501
+            return
 
         # Add the state to the entry set
         if (
@@ -600,30 +690,22 @@ class BaseEngine:
             pass
         else:
             states_to_enter.add(info)
-        state = info.target
+        state = info.state
 
-        if state and state.parallel:
+        if state.parallel:
             for child_state in state.states:
-                if not any(s.target.is_descendant(child_state) for s in states_to_enter):
-                    info_to_add = StateTransition(
-                        transition=info.transition,
-                        target=child_state,
-                        source=info.transition.source,
-                    )
+                if not any(s.state.is_descendant(child_state) for s in states_to_enter):
+                    info_to_add = StateTransition(transition=info.transition, state=child_state)
                     self.add_descendant_states_to_enter(
                         info_to_add,
                         states_to_enter,
                         states_for_default_entry,
                         default_history_content,
                     )
-        elif state and state.is_compound:
+        elif state.is_compound:
             states_for_default_entry.add(info)
             transition = next(t for t in state.transitions if t.initial)
-            info_initial = StateTransition(
-                transition=transition,
-                target=transition.target,
-                source=transition.source,
-            )
+            info_initial = StateTransition(transition=transition, state=transition.target)
             self.add_descendant_states_to_enter(
                 info_initial,
                 states_to_enter,
@@ -658,26 +740,18 @@ class BaseEngine:
             processing.
             default_history_content: A dictionary to hold temporary content for history states.
         """
-        state = info.target
+        state = info.state
         assert state
         for anc in state.ancestors(parent=ancestor):
             # Add the ancestor to the entry set
-            info_to_add = StateTransition(
-                transition=info.transition,
-                target=anc,
-                source=info.transition.source,
-            )
+            info_to_add = StateTransition(transition=info.transition, state=anc)
             states_to_enter.add(info_to_add)
 
             if anc.parallel:
                 # Handle parallel states
                 for child in anc.states:
-                    if not any(s.target.is_descendant(child) for s in states_to_enter):
-                        info_to_add = StateTransition(
-                            transition=info.transition,
-                            target=child,
-                            source=info.transition.source,
-                        )
+                    if not any(s.state.is_descendant(child) for s in states_to_enter):
+                        info_to_add = StateTransition(transition=info.transition, state=child)
                         self.add_descendant_states_to_enter(
                             info_to_add,
                             states_to_enter,

@@ -81,6 +81,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
     """
 
     _loop_sleep_in_ms = 0.001
+    start_configuration_values: List[Any] = []
+    """Default state values to be entered when the state machine starts.
+
+    If empty (default), the root ``initial`` state will be used.
+    """
 
     def __init__(
         self,
@@ -93,8 +98,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
         listeners: "List[object] | None" = None,
     ):
         self.model = model if model else Model()
+        self.history_values: Dict[
+            str, List[State]
+        ] = {}  # Mapping of compound states to last active state(s).
         self.state_field = state_field
-        self.start_value = start_value
+        self.start_configuration_values = (
+            [start_value] if start_value is not None else list(self.start_configuration_values)
+        )
         self.allow_event_without_transition = allow_event_without_transition
         self.enable_self_transition_entries = enable_self_transition_entries
         self.atomic_configuration_update = atomic_configuration_update
@@ -167,12 +177,16 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.add_listener(*listeners.values())
         self._engine = self._get_engine()
 
-    def _get_initial_state(self):
-        initial_state_value = self.start_value if self.start_value else self.initial_state.value
+    def _get_initial_configuration(self):
+        initial_state_values = (
+            self.start_configuration_values
+            if self.start_configuration_values
+            else [self.initial_state.value]
+        )
         try:
-            return self.states_map[initial_state_value]
+            return [self.states_map[value] for value in initial_state_values]
         except KeyError as err:
-            raise InvalidStateValue(initial_state_value) from err
+            raise InvalidStateValue(initial_state_values) from err
 
     def bind_events_to(self, *targets):
         """Bind the state machine events to the target objects."""

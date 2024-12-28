@@ -9,6 +9,7 @@ from typing import TypedDict
 from typing import cast
 
 from ..factory import StateMachineMetaclass
+from ..state import HistoryState
 from ..state import State
 from ..statemachine import StateMachine
 from ..transition_list import TransitionList
@@ -32,6 +33,7 @@ class TransitionDict(TypedDict, total=False):
 
 
 TransitionsDict = Dict["str | None", List[TransitionDict]]
+TransitionsList = List[TransitionDict]
 
 
 class BaseStateKwargs(TypedDict, total=False):
@@ -46,11 +48,46 @@ class BaseStateKwargs(TypedDict, total=False):
 
 class StateKwargs(BaseStateKwargs, total=False):
     states: List[State]
+    history: List[HistoryState]
+
+
+class HistoryKwargs(TypedDict, total=False):
+    name: str
+    value: Any
+    deep: bool
+
+
+class HistoryDefinition(HistoryKwargs, total=False):
+    on: TransitionsDict
+    transitions: TransitionsList
 
 
 class StateDefinition(BaseStateKwargs, total=False):
     states: Dict[str, "StateDefinition"]
+    history: Dict[str, "HistoryDefinition"]
     on: TransitionsDict
+    transitions: TransitionsList
+
+
+def _parse_history(
+    states: Mapping[str, "HistoryKwargs |HistoryDefinition"],
+) -> Tuple[Dict[str, HistoryState], Dict[str, dict]]:
+    states_instances: Dict[str, HistoryState] = {}
+    events_definitions: Dict[str, dict] = {}
+    for state_id, state_definition in states.items():
+        state_definition = cast(HistoryDefinition, state_definition)
+        transition_defs = state_definition.pop("on", {})
+        transition_list = state_definition.pop("transitions", [])
+        if transition_list:
+            transition_defs[None] = transition_list
+
+        if transition_defs:
+            events_definitions[state_id] = transition_defs
+
+        state_definition = cast(HistoryKwargs, state_definition)
+        states_instances[state_id] = HistoryState(**state_definition)
+
+    return (states_instances, events_definitions)
 
 
 def _parse_states(
@@ -59,27 +96,47 @@ def _parse_states(
     states_instances: Dict[str, State] = {}
     events_definitions: Dict[str, dict] = {}
 
-    for state_id, state_kwargs in states.items():
+    for state_id, state_definition in states.items():
         # Process nested states. Replaces `states` as a definition by a list of `State` instances.
-        inner_states_definitions: Dict[str, StateDefinition] = cast(
-            StateDefinition, state_kwargs
-        ).pop("states", {})
-        if inner_states_definitions:
-            inner_states, inner_events = _parse_states(inner_states_definitions)
+        state_definition = cast(StateDefinition, state_definition)
+
+        # pop the nested states, history and transitions definitions
+        inner_states_defs: Dict[str, StateDefinition] = state_definition.pop("states", {})
+        inner_history_defs: Dict[str, HistoryDefinition] = state_definition.pop("history", {})
+        transition_defs = state_definition.pop("on", {})
+        transition_list = state_definition.pop("transitions", [])
+        if transition_list:
+            transition_defs[None] = transition_list
+
+        if inner_states_defs:
+            inner_states, inner_events = _parse_states(inner_states_defs)
 
             top_level_states = [
                 state._set_id(state_id)
                 for state_id, state in inner_states.items()
                 if not state.parent
             ]
-            state_kwargs["states"] = top_level_states  # type: ignore
+            state_definition["states"] = top_level_states  # type: ignore
             states_instances.update(inner_states)
             events_definitions.update(inner_events)
-        transition_definitions = cast(StateDefinition, state_kwargs).pop("on", {})
-        if transition_definitions:
-            events_definitions[state_id] = transition_definitions
 
-        states_instances[state_id] = State(**state_kwargs)
+        if inner_history_defs:
+            inner_history, inner_events = _parse_history(inner_history_defs)
+
+            top_level_history = [
+                state._set_id(state_id)
+                for state_id, state in inner_history.items()
+                if not state.parent
+            ]
+            state_definition["history"] = top_level_history  # type: ignore
+            states_instances.update(inner_history)
+            events_definitions.update(inner_events)
+
+        if transition_defs:
+            events_definitions[state_id] = transition_defs
+
+        state_definition = cast(BaseStateKwargs, state_definition)
+        states_instances[state_id] = State(**state_definition)
 
     return (states_instances, events_definitions)
 
@@ -114,11 +171,13 @@ def create_machine_class_from_definition(
 
                 target_state_id = transition_data["target"]
                 target = states_instances[target_state_id] if target_state_id else None
+                transition_event_name = transition_data.get("event")
+                if event_name is not None:
+                    transition_event_name = f"{event_name} {transition_event_name}".strip()
 
-                # TODO: Join `trantion_data.event` with `event_name`
                 transition = source.to(
                     target,
-                    event=event_name,
+                    event=transition_event_name,
                     internal=transition_data.get("internal"),
                     initial=transition_data.get("initial"),
                     cond=transition_data.get("cond"),
