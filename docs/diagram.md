@@ -63,7 +63,9 @@ If you find the resolution of the image lacking, you can
 
 ```py
 >>> dot.set_dpi(300)
+
 >>> dot.write_png("docs/images/order_control_machine_initial_300dpi.png")
+
 ```
 
 ![OrderControl](images/order_control_machine_initial_300dpi.png)
