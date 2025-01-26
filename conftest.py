@@ -1,3 +1,4 @@
+import shutil
 import sys
 
 import pytest
@@ -31,3 +32,14 @@ def pytest_ignore_collect(collection_path, path, config):
 
     if "django_project" in str(path):
         return True
+
+
+@pytest.fixture(scope="session")
+def has_dot_installed():
+    return bool(shutil.which("dot"))
+
+
+@pytest.fixture()
+def requires_dot_installed(request, has_dot_installed):
+    if not has_dot_installed:
+        pytest.skip(f"Test {request.node.nodeid} requires 'dot' that is not installed.")

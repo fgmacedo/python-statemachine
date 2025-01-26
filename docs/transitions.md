@@ -131,6 +131,9 @@ Example:
 Usage:
 
 ```py
+>>> # This example will only run on automated tests if dot is present
+>>> getfixture("requires_dot_installed")
+
 >>> sm = TestStateMachine()
 
 >>> sm._graph().write_png("docs/images/test_state_machine_internal.png")

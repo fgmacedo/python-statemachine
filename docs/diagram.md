@@ -74,6 +74,8 @@ If you find the resolution of the image lacking, you can
 The current {ref}`state` is also highlighted:
 
 ``` py
+>>> # This example will only run on automated tests if dot is present
+>>> getfixture("requires_dot_installed")
 
 >>> from statemachine.contrib.diagram import DotGraphMachine
 
