@@ -99,6 +99,8 @@ You can now create an instance:
 This state machine can be represented graphically as follows:
 
 ```py
+>>> # This example will only run on automated tests if dot is present
+>>> getfixture("requires_dot_installed")
 >>> img_path = "docs/images/readme_trafficlightmachine.png"
 >>> sm._graph().write_png(img_path)
 

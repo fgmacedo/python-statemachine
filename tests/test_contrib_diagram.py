@@ -7,6 +7,8 @@ from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
 
+pytestmark = pytest.mark.usefixtures("requires_dot_installed")
+
 
 @pytest.fixture(
     params=[
