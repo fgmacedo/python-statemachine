@@ -11,7 +11,7 @@ from ...event import Event
 from ...event import _event_data_kwargs
 from ...exceptions import InvalidDefinition
 from ...spec_parser import InState
-from ...statemachine import StateMachine
+from ...statemachine import StateChart
 from .parser import Action
 from .parser import AssignAction
 from .parser import IfAction
@@ -258,7 +258,7 @@ class Assign(CallableAction):
         self.action = action
 
     def __call__(self, *args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
         value = _eval(self.action.expr, **kwargs)
 
         *path, attr = self.action.location.split(".")
@@ -321,7 +321,7 @@ def create_foreach_action_callable(action: ForeachAction) -> Callable:
     child_actions = [create_action_callable(act) for act in action.content.actions]
 
     def foreach_action(*args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
         try:
             # Evaluate the array expression to get the iterable
             array = _eval(action.array, **kwargs)
@@ -348,7 +348,7 @@ def create_foreach_action_callable(action: ForeachAction) -> Callable:
 
 def create_raise_action_callable(action: RaiseAction) -> Callable:
     def raise_action(*args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
 
         Event(id=action.event, name=action.event, internal=True, _sm=machine).put()
 
@@ -366,7 +366,7 @@ def create_send_action_callable(action: SendAction) -> Callable:
             content = (action.content,)
 
     def send_action(*args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
         event = action.event or _eval(action.eventexpr, **kwargs)
         target = action.target if action.target else None
 
@@ -410,7 +410,7 @@ def create_send_action_callable(action: SendAction) -> Callable:
 
 def create_cancel_action_callable(action: CancelAction) -> Callable:
     def cancel_action(*args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
         if action.sendid:
             send_id = action.sendid
         elif action.sendidexpr:
@@ -427,7 +427,7 @@ def create_cancel_action_callable(action: CancelAction) -> Callable:
 
 def create_script_action_callable(action: ScriptAction) -> Callable:
     def script_action(*args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
         local_vars = {
             **machine.model.__dict__,
         }
@@ -443,7 +443,7 @@ def create_script_action_callable(action: ScriptAction) -> Callable:
 
 def _create_dataitem_callable(action: DataItem) -> Callable:
     def data_initializer(**kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
 
         if action.expr:
             try:
@@ -479,7 +479,7 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
         if initialized:
             return
         initialized = True
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
         for act in data_elements:
             try:
                 act(**kwargs)
@@ -501,7 +501,7 @@ class ExecuteBlock(CallableAction):
         self.action_callables = [create_action_callable(action) for action in content.actions]
 
     def __call__(self, *args, **kwargs):
-        machine: StateMachine = kwargs["machine"]
+        machine: StateChart = kwargs["machine"]
         try:
             for action in self.action_callables:
                 action(*args, **kwargs)

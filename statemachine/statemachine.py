@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from .state import State
 
 
-class StateMachine(metaclass=StateMachineMetaclass):
+class StateChart(metaclass=StateMachineMetaclass):
     """
 
     Args:
@@ -44,33 +44,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
         start_value: An optional start state value if there's no current state assigned
             on the :ref:`domain models`. Default: ``None``.
 
-        allow_event_without_transition: If ``False`` when an event does not result in a transition,
-            an exception ``TransitionNotAllowed`` will be raised.
-            If ``True`` the state machine allows triggering events that may not lead to a state
-            :ref:`transition`, including tolerance to unknown :ref:`event` triggers.
-            Default: ``False``.
-
-        enable_self_transition_entries: If `False` (default), when a self-transition is selected,
-            the state entry/exit actions will not be executed. If `True`, the state entry actions
-            will be executed, which is conformant with the SCXML spec.
-
-        atomic_configuration_update: If `False` (default), the state machine will follow the SCXML
-            specification, that means in a microstep, it will first exit and execute exit callbacks
-            for all the states in the exit set in reversed document order, then execute the
-            transition content (on callbaks), then enter all the states in the enter set in
-            document order.
-
-            If `True`, the state machine will execute the exit callbacks, the on transition
-            callbacks, then atomically update the configuration of exited and entered states, then
-            execute the enter callbacks.
-
         listeners: An optional list of objects that provies attributes to be used as callbacks.
             See :ref:`listeners` for more details.
 
     """
 
     TransitionNotAllowed = TransitionNotAllowed
-    """Shortcut for easy exception handling.
+    """Shortcut alias for easy exception handling.
 
     Example::
 
@@ -81,6 +61,31 @@ class StateMachine(metaclass=StateMachineMetaclass):
     """
 
     _loop_sleep_in_ms = 0.001
+
+    allow_event_without_transition: bool = True
+    """If ``False`` when an event does not result in a transition, an exception 
+    ``TransitionNotAllowed`` will be raised. If ``True`` the state machine allows triggering 
+    events that may not lead to a state :ref:`transition`, including tolerance to unknown 
+    :ref:`event` triggers. Default: ``True``."""
+
+    enable_self_transition_entries: bool = True
+    """If `False` (default), when a self-transition is selected,
+    the state entry/exit actions will not be executed. If `True`, the state entry actions
+    will be executed, which is conformant with the SCXML spec.
+    """
+
+    atomic_configuration_update: bool = False
+    """If `False` (default), the state machine will follow the SCXML
+    specification, that means in a microstep, it will first exit and execute exit callbacks
+    for all the states in the exit set in reversed document order, then execute the
+    transition content (on callbaks), then enter all the states in the enter set in
+    document order.
+
+    If `True`, the state machine will execute the exit callbacks, the on transition
+    callbacks, then atomically update the configuration of exited and entered states, then
+    execute the enter callbacks.
+    """
+
     start_configuration_values: List[Any] = []
     """Default state values to be entered when the state machine starts.
 
@@ -92,9 +97,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         model: Any = None,
         state_field: str = "state",
         start_value: Any = None,
-        allow_event_without_transition: bool = False,
-        enable_self_transition_entries: bool = False,
-        atomic_configuration_update: bool = False,
         listeners: "List[object] | None" = None,
     ):
         self.model = model if model else Model()
@@ -105,9 +107,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.start_configuration_values = (
             [start_value] if start_value is not None else list(self.start_configuration_values)
         )
-        self.allow_event_without_transition = allow_event_without_transition
-        self.enable_self_transition_entries = enable_self_transition_entries
-        self.atomic_configuration_update = atomic_configuration_update
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
         self._listeners: Dict[int, Any] = {}
@@ -452,3 +451,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
     @property
     def is_terminated(self):
         return not self._engine.running
+
+
+class StateMachine(StateChart):
+    allow_event_without_transition: bool = False
+    enable_self_transition_entries: bool = False
+    atomic_configuration_update: bool = True

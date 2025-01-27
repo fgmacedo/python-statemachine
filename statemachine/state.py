@@ -14,7 +14,7 @@ from .transition import Transition
 from .transition_list import TransitionList
 
 if TYPE_CHECKING:
-    from .statemachine import StateMachine
+    from .statemachine import StateChart
 
 
 class _TransitionBuilder:
@@ -267,7 +267,7 @@ class State:
             _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
         )
 
-    def for_instance(self, machine: "StateMachine", cache: Dict["State", "State"]) -> "State":
+    def for_instance(self, machine: "StateChart", cache: Dict["State", "State"]) -> "State":
         if self not in cache:
             cache[self] = InstanceState(self, machine)
 
@@ -334,7 +334,7 @@ class InstanceState(State):
     def __init__(
         self,
         state: State,
-        machine: "StateMachine",
+        machine: "StateChart",
     ):
         self._state = ref(state)
         self._machine = ref(machine)

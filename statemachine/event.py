@@ -10,7 +10,7 @@ from .i18n import _
 from .transition_mixin import AddCallbacksMixin
 
 if TYPE_CHECKING:
-    from .statemachine import StateMachine
+    from .statemachine import StateChart
     from .transition_list import TransitionList
 
 
@@ -49,7 +49,7 @@ class Event(AddCallbacksMixin, str):
     internal: bool = False
     """Indicates if the events should be placed on the internal event queue."""
 
-    _sm: "StateMachine | None" = None
+    _sm: "StateChart | None" = None
     """The state machine instance."""
 
     _transitions: "TransitionList | None" = None
@@ -62,7 +62,7 @@ class Event(AddCallbacksMixin, str):
         name: "str | None" = None,
         delay: float = 0,
         internal: bool = False,
-        _sm: "StateMachine | None" = None,
+        _sm: "StateChart | None" = None,
     ):
         if isinstance(transitions, str):
             id = transitions
@@ -129,9 +129,7 @@ class Event(AddCallbacksMixin, str):
         self._sm._put_nonblocking(trigger_data, internal=self.internal)
         return trigger_data
 
-    def build_trigger(
-        self, *args, machine: "StateMachine", send_id: "str | None" = None, **kwargs
-    ):
+    def build_trigger(self, *args, machine: "StateChart", send_id: "str | None" = None, **kwargs):
         if machine is None:
             raise RuntimeError(_("Event {} cannot be called without a SM instance").format(self))
 

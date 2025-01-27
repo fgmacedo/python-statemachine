@@ -279,16 +279,18 @@ class TestInternalTransition:
 
 
 class TestAllowEventWithoutTransition:
-    def test_send_unknown_event(self, classic_traffic_light_machine):
-        sm = classic_traffic_light_machine(allow_event_without_transition=True)
+    def test_send_unknown_event(self, classic_traffic_light_machine_allow_event):
+        sm = classic_traffic_light_machine_allow_event()
         sm.activate_initial_state()  # no-op on sync engine
 
         assert sm.green.is_active
         sm.send("unknow_event")
         assert sm.green.is_active
 
-    def test_send_not_valid_for_the_current_state_event(self, classic_traffic_light_machine):
-        sm = classic_traffic_light_machine(allow_event_without_transition=True)
+    def test_send_not_valid_for_the_current_state_event(
+        self, classic_traffic_light_machine_allow_event
+    ):
+        sm = classic_traffic_light_machine_allow_event()
         sm.activate_initial_state()  # no-op on sync engine
 
         assert sm.green.is_active

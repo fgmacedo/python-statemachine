@@ -11,7 +11,7 @@ from typing import cast
 from ..factory import StateMachineMetaclass
 from ..state import HistoryState
 from ..state import State
-from ..statemachine import StateMachine
+from ..statemachine import StateChart
 from ..transition_list import TransitionList
 
 
@@ -143,9 +143,9 @@ def _parse_states(
 
 def create_machine_class_from_definition(
     name: str, states: Mapping[str, "StateKwargs | StateDefinition"], **definition
-) -> StateMachine:  # noqa: C901
+) -> StateChart:  # noqa: C901
     """
-    Creates a StateMachine class from a dictionary definition, using the StateMachineMetaclass.
+    Creates a StateChart class from a dictionary definition, using the StateMachineMetaclass.
 
     Example usage with a traffic light machine:
 
@@ -197,4 +197,4 @@ def create_machine_class_from_definition(
     }
 
     attrs_mapper = {**definition, **top_level_states, **events}
-    return StateMachineMetaclass(name, (StateMachine,), attrs_mapper)  # type: ignore[return-value]
+    return StateMachineMetaclass(name, (StateChart,), attrs_mapper)  # type: ignore[return-value]

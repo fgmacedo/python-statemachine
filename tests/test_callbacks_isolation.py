@@ -7,6 +7,8 @@ from statemachine import StateMachine
 @pytest.fixture()
 def simple_sm_cls():
     class TestStateMachine(StateMachine):
+        allow_event_without_transition = True
+
         # States
         initial = State(initial=True)
         final = State(final=True, enter="do_enter_final")
@@ -17,7 +19,7 @@ def simple_sm_cls():
             self.name = name
             self.can_finish = False
             self.finalized = False
-            super().__init__(allow_event_without_transition=True)
+            super().__init__()
 
         def do_finish(self):
             return self.name, self.can_finish

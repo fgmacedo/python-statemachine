@@ -7,13 +7,13 @@ from typing import Any
 if TYPE_CHECKING:
     from .event import Event
     from .state import State
-    from .statemachine import StateMachine
+    from .statemachine import StateChart
     from .transition import Transition
 
 
 @dataclass(order=True)
 class TriggerData:
-    machine: "StateMachine" = field(compare=False)
+    machine: "StateChart" = field(compare=False)
 
     event: "Event | None" = field(compare=False)
     """The Event that was triggered."""

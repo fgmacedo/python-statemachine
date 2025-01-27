@@ -149,6 +149,14 @@ def classic_traffic_light_machine(engine):
 
 
 @pytest.fixture()
+def classic_traffic_light_machine_allow_event(classic_traffic_light_machine):
+    class TrafficLightMachineAllowingEventWithoutTransition(classic_traffic_light_machine):
+        allow_event_without_transition = True
+
+    return TrafficLightMachineAllowingEventWithoutTransition
+
+
+@pytest.fixture()
 def reverse_traffic_light_machine():
     from statemachine import State
     from statemachine import StateMachine

@@ -8,7 +8,7 @@ from typing import List
 
 from ...event import Event
 from ...exceptions import InvalidDefinition
-from ...statemachine import StateMachine
+from ...statemachine import StateChart
 from .. import HistoryDefinition
 from .. import StateDefinition
 from .. import TransitionDict
@@ -35,7 +35,7 @@ def temporary_directory(new_current_dir):
 
 
 class IOProcessor:
-    def __init__(self, processor: "SCXMLProcessor", machine: StateMachine):
+    def __init__(self, processor: "SCXMLProcessor", machine: StateChart):
         self.scxml_processor = processor
         self.machine = machine
 
@@ -52,7 +52,7 @@ class IOProcessor:
 
 @dataclass
 class SessionData:
-    machine: StateMachine
+    machine: StateChart
     processor: IOProcessor
     first_event_raised: bool = False
 
@@ -124,7 +124,7 @@ class SCXMLProcessor:
             **extra_params,
         }
 
-    def _get_session(self, machine: StateMachine):
+    def _get_session(self, machine: StateChart):
         if machine.name not in self.sessions:
             self.sessions[machine.name] = SessionData(
                 processor=IOProcessor(self, machine=machine), machine=machine
@@ -221,8 +221,6 @@ class SCXMLProcessor:
             ) from e
 
     def start(self, **kwargs):
-        kwargs["allow_event_without_transition"] = True
-        kwargs["enable_self_transition_entries"] = True
         self.root_cls = next(iter(self.scs.values()))
         self.root = self.root_cls(**kwargs)
         return self.root

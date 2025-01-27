@@ -5,7 +5,7 @@ from urllib.request import urlopen
 
 import pydot
 
-from ..statemachine import StateMachine
+from ..statemachine import StateChart
 
 
 class DotGraphMachine:
@@ -84,7 +84,7 @@ class DotGraphMachine:
         )
 
     def _actions_getter(self):
-        if isinstance(self.machine, StateMachine):
+        if isinstance(self.machine, StateChart):
 
             def getter(grouper):
                 return self.machine._callbacks.str(grouper.key)
@@ -141,7 +141,7 @@ class DotGraphMachine:
             peripheries=2 if state.final else 1,
         )
         if (
-            isinstance(self.machine, StateMachine)
+            isinstance(self.machine, StateChart)
             and state.value in self.machine.configuration_values
         ):
             node.set_penwidth(self.state_active_penwidth)
@@ -223,7 +223,7 @@ class DotGraphMachine:
         return self.get_graph()
 
 
-def quickchart_write_svg(sm: StateMachine, path: str):
+def quickchart_write_svg(sm: StateChart, path: str):
     """
     If the default dependency of GraphViz installed locally doesn't work for you. As an option,
     you can generate the image online from the output of the `dot` language,
@@ -270,7 +270,7 @@ def import_sm(qualname):
     module_name, class_name = qualname.rsplit(".", 1)
     module = importlib.import_module(module_name)
     smclass = getattr(module, class_name, None)
-    if not smclass or not issubclass(smclass, StateMachine):
+    if not smclass or not issubclass(smclass, StateChart):
         raise ValueError(f"{class_name} is not a subclass of StateMachine")
 
     return smclass

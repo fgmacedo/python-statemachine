@@ -1,8 +1,8 @@
 import pytest
 
+from statemachine import StateChart
 from statemachine.io.scxml.processor import SCXMLProcessor
 from statemachine.state import State
-from statemachine.statemachine import StateMachine
 
 """
 The <initial> specifies a transition that specifies the default child initial states.
@@ -66,7 +66,7 @@ def test_microwave_scxml():
 class TestMicrowave:
     @pytest.fixture()
     def microwave_cls(self):
-        class MicroWave(StateMachine):
+        class MicroWave(StateChart):
             door_closed: bool = True
 
             class oven(State.Compound, name="Microwave oven", parallel=True):
@@ -105,7 +105,7 @@ class TestMicrowave:
             def __init__(self):
                 self.cook_time = 5
                 self.timer = 0
-                super().__init__(allow_event_without_transition=True)
+                super().__init__()
 
         return MicroWave
 

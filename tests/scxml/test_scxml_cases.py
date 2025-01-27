@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 from statemachine.event import Event
 from statemachine.io.scxml.processor import SCXMLProcessor
 
@@ -130,7 +130,7 @@ def test_scxml_usecase(
 ):
     from statemachine.contrib.diagram import DotGraphMachine
 
-    sm: "StateMachine | None" = None
+    sm: "StateChart | None" = None
     try:
         debug = DebugListener()
         processor = SCXMLProcessor()
@@ -141,7 +141,7 @@ def test_scxml_usecase(
             DotGraphMachine(sm).get_graph().write_png(
                 testcase_path.parent / f"{testcase_path.stem}.png"
             )
-        assert isinstance(sm, StateMachine)
+        assert isinstance(sm, StateChart)
         assert "pass" in {s.id for s in sm.configuration}, debug
     except Exception as e:
         # Import necessary module

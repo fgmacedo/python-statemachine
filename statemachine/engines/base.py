@@ -25,7 +25,7 @@ from ..state import State
 from ..transition import Transition
 
 if TYPE_CHECKING:
-    from ..statemachine import StateMachine
+    from ..statemachine import StateChart
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,8 @@ class EventQueue:
 
 
 class BaseEngine:
-    def __init__(self, sm: "StateMachine"):
-        self._sm: ReferenceType["StateMachine"] = ref(sm)
+    def __init__(self, sm: "StateChart"):
+        self._sm: ReferenceType["StateChart"] = ref(sm)
         self.external_queue = EventQueue()
         self.internal_queue = EventQueue()
         self._sentinel = object()
@@ -83,7 +83,7 @@ class BaseEngine:
         return self.external_queue.is_empty()
 
     @property
-    def sm(self) -> "StateMachine":
+    def sm(self) -> "StateChart":
         sm = self._sm()
         assert sm, "StateMachine has been destroyed"
         return sm
