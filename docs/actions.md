@@ -14,7 +14,7 @@ There are several action callbacks that you can define to interact with a
 StateMachine in execution.
 
 There are callbacks that you can specify that are generic and will be called
-when something changes and are not bounded to a specific state or event:
+when something changes, and are not bound to a specific state or event:
 
 - `before_transition()`
 
@@ -26,7 +26,7 @@ when something changes and are not bounded to a specific state or event:
 
 - `after_transition()`
 
-The following example can get you an overview of the "generic" callbacks available:
+The following example offers an overview of the "generic" callbacks available:
 
 ```py
 >>> from statemachine import StateMachine, State
