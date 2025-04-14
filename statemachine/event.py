@@ -28,9 +28,9 @@ _event_data_kwargs = {
 
 
 class Event(AddCallbacksMixin, str):
-    """An event is triggers a signal that something has happened.
+    """An event triggers a signal that something has happened.
 
-    They are send to a state machine and allow the state machine to react.
+    They are sent to a state machine and allow the state machine to react.
 
     An event starts a :ref:`Transition`, which can be thought of as a “cause” that initiates a
     change in the state of the system.

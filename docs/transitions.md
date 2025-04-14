@@ -166,7 +166,7 @@ the event name is used to describe the transition.
 ## Events
 
 An event is an external signal that something has happened.
-They are send to a state machine and allow the state machine to react.
+They are sent to a state machine and allow the state machine to react.
 
 An event starts a {ref}`transition`, which can be thought of as a "cause" that
 initiates a change in the state of the system.
@@ -176,7 +176,7 @@ In `python-statemachine`, an event is specified as an attribute of the state mac
 
 ### Declaring events
 
-The simplest way to declare an {ref}`event` is by assiging a transitions list to a name at the
+The simplest way to declare an {ref}`event` is by assigning a transitions list to a name at the
 State machine class level. The name will be converted to an {ref}`Event`:
 
 ```py
@@ -196,7 +196,7 @@ True
 ```
 
 ```{versionadded} 2.4.0
-You can also explict declare an {ref}`Event` instance, this helps IDEs to know that the event is callable and also with transtation strings.
+You can also explictly declare an {ref}`Event` instance, this helps IDEs to know that the event is callable, and also with translation strings.
 ```
 
 To declare an explicit event you must also import the {ref}`Event`:
