@@ -1,1 +1,1 @@
-Please see [docs/contributing.md](docs/contributing).
+Please see [docs/contributing.md](docs/contributing.md).
