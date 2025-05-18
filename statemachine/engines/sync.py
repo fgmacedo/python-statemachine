@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from ..callbacks import CallbackGroup
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import TransitionNotAllowed
@@ -103,30 +104,49 @@ class SyncEngine(BaseEngine):
         event_data = EventData(trigger_data=trigger_data, transition=transition)
         args, kwargs = event_data.args, event_data.extended_kwargs
 
-        self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
-        if not self.sm._callbacks.all(transition.cond.key, *args, **kwargs):
-            return False, None
+        try:
+            self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
+            if not self.sm._callbacks.all(transition.cond.key, *args, **kwargs):
+                return False, None
 
-        source = transition.source
-        target = transition.target
+            source = transition.source
+            target = transition.target
 
-        result = self.sm._callbacks.call(transition.before.key, *args, **kwargs)
-        if source is not None and not transition.internal:
-            self.sm._callbacks.call(source.exit.key, *args, **kwargs)
+            result = self.sm._callbacks.call(transition.before.key, *args, **kwargs)
+            if source is not None and not transition.internal:
+                self.sm._callbacks.call(source.exit.key, *args, **kwargs)
 
-        result += self.sm._callbacks.call(transition.on.key, *args, **kwargs)
+            result += self.sm._callbacks.call(transition.on.key, *args, **kwargs)
 
-        self.sm.current_state = target
-        event_data.state = target
-        kwargs["state"] = target
+            self.sm.current_state = target
+            event_data.state = target
+            kwargs["state"] = target
 
-        if not transition.internal:
-            self.sm._callbacks.call(target.enter.key, *args, **kwargs)
-        self.sm._callbacks.call(transition.after.key, *args, **kwargs)
+            if not transition.internal:
+                self.sm._callbacks.call(target.enter.key, *args, **kwargs)
+            self.sm._callbacks.call(transition.after.key, *args, **kwargs)
 
-        if len(result) == 0:
-            result = None
-        elif len(result) == 1:
-            result = result[0]
+            if len(result) == 0:
+                result = None
+            elif len(result) == 1:
+                result = result[0]
 
-        return True, result
+            return True, result
+        finally:
+            # Run finalize actions regardless of success/failure
+            self._run_finalize_actions(event_data)
+
+    def _run_finalize_actions(self, event_data: EventData):
+        """Run finalize actions after a transition attempt."""
+        try:
+            args, kwargs = event_data.args, event_data.extended_kwargs
+            self.sm._callbacks.call(
+                CallbackGroup.FINALIZE.build_key(event_data.transition._specs),
+                *args,
+                **kwargs,
+            )
+        except Exception as e:
+            # Log but don't re-raise finalize errors
+            import logging
+
+            logging.error(f"Error in finalize action: {e}")

@@ -26,6 +26,8 @@ when something changes, and are not bound to a specific state or event:
 
 - `after_transition()`
 
+- `finalize()`
+
 The following example offers an overview of the "generic" callbacks available:
 
 ```py
@@ -54,6 +56,10 @@ The following example offers an overview of the "generic" callbacks available:
 ...
 ...     def after_transition(self, event, state):
 ...         print(f"After '{event}', on the '{state.id}' state.")
+...
+...     def finalize(self, event, source, target, state):
+...         print(f"Finalizing transition {event} from {source.id} to {target.id}")
+...         print(f"Current state: {state.id}")
 
 
 >>> sm = ExampleStateMachine()  # On initialization, the machine run a special event `__initial__`
@@ -65,6 +71,8 @@ Exiting 'initial' state from 'loop' event.
 On 'loop', on the 'initial' state.
 Entering 'initial' state from 'loop' event.
 After 'loop', on the 'initial' state.
+Finalizing transition loop from initial to initial
+Current state: initial
 ['before_transition_return', 'on_transition_return']
 
 >>> sm.go()
@@ -73,6 +81,8 @@ Exiting 'initial' state from 'go' event.
 On 'go', on the 'initial' state.
 Entering 'final' state from 'go' event.
 After 'go', on the 'final' state.
+Finalizing transition go from initial to final
+Current state: final
 ['before_transition_return', 'on_transition_return']
 
 ```
@@ -346,6 +356,10 @@ Actions registered on the same group don't have order guaranties and are execute
     - `after_<event>()`, `after_transition()`
     - `destination`
     - Callbacks declared in the transition or event.
+*   - Finalize
+    - `finalize()`
+    - `destination`
+    - Guaranteed to run after every transition attempt, whether successful or failed.
 
 ```
 
@@ -381,6 +395,9 @@ defined explicitly. The following provides an example:
 ...     def on_loop(self):
 ...         return "On loop"
 ...
+...     def finalize(self):
+...         # Finalize return values are not included in results
+...         return "Finalize"
 
 >>> sm = ExampleStateMachine()
 

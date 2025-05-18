@@ -34,6 +34,8 @@ class Transition:
             before the transition is executed.
         after (Optional[Union[str, Callable, List[Callable]]]): The callbacks to be invoked
             after the transition is executed.
+        finalize (Optional[Union[str, Callable, List[Callable]]]): The callbacks to be invoked
+            after the transition is executed.
     """
 
     def __init__(
@@ -48,6 +50,7 @@ class Transition:
         on=None,
         before=None,
         after=None,
+        finalize=None,
     ):
         self.source = source
         self.target = target
@@ -68,6 +71,9 @@ class Transition:
         self.after = self._specs.grouper(CallbackGroup.AFTER).add(
             after, priority=CallbackPriority.INLINE
         )
+        self.finalize = self._specs.grouper(CallbackGroup.FINALIZE).add(
+            finalize, priority=CallbackPriority.INLINE
+        )
         self.cond = (
             self._specs.grouper(CallbackGroup.COND)
             .add(cond, priority=CallbackPriority.INLINE, expected_value=True)
@@ -87,6 +93,7 @@ class Transition:
         before = self.before.add
         on = self.on.add
         after = self.after.add
+        finalize = self.finalize.add
 
         before("before_transition", priority=CallbackPriority.GENERIC, is_convention=True)
         on("on_transition", priority=CallbackPriority.GENERIC, is_convention=True)
@@ -114,6 +121,12 @@ class Transition:
 
         after(
             "after_transition",
+            priority=CallbackPriority.AFTER,
+            is_convention=True,
+        )
+
+        finalize(
+            "finalize",
             priority=CallbackPriority.AFTER,
             is_convention=True,
         )
