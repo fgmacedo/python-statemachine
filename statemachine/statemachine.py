@@ -75,7 +75,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         allow_event_without_transition: bool = False,
         listeners: "List[object] | None" = None,
     ):
-        self.model = model if model else Model()
+        self.model = model if model is not None else Model()
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition

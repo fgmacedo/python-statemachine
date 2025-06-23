@@ -488,3 +488,18 @@ class TestWarnings:
                 start = started.to(producing)
                 close = started.to(closed)
                 add_job = producing.to.itself(internal=True)
+
+
+def test_model_with_custom_bool_is_not_replaced(campaign_machine):
+    class FalseyModel(MyModel):
+        def __bool__(self):
+            return False
+
+    model = FalseyModel()
+    machine = campaign_machine(model)
+
+    assert machine.model is model
+    assert model.state == "draft"
+
+    machine.produce()
+    assert model.state == "producing"
