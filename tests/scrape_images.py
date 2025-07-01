@@ -1,3 +1,4 @@
+import os
 import re
 
 from statemachine.contrib.diagram import DotGraphMachine
@@ -13,7 +14,8 @@ class MachineScraper:
 
     def __init__(self, project_root):
         self.project_root = project_root
-        self.re_machine_module_name = re.compile(f"{self.project_root}/(.*).py$")
+        sanitized_path = re.escape(os.path.abspath(self.project_root))
+        self.re_machine_module_name = re.compile(f"{sanitized_path}/(.*)\\.py$")
         self.seen = set()
 
     def __repr__(self):
