@@ -1,3 +1,4 @@
+import random
 import warnings
 from inspect import isawaitable
 from typing import TYPE_CHECKING
@@ -53,6 +54,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
         listeners: An optional list of objects that provies attributes to be used as callbacks.
             See :ref:`listeners` for more details.
 
+        random_seed: An optional seed for the random number generator used in probabilistic
+            transitions. When multiple transitions share the same event from the same source
+            state and have weights assigned, one will be chosen randomly. Setting a seed
+            ensures deterministic behavior for testing and reproducibility. Default: ``None``.
+
     """
 
     TransitionNotAllowed = TransitionNotAllowed
@@ -74,6 +80,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         rtc: bool = True,
         allow_event_without_transition: bool = False,
         listeners: "List[object] | None" = None,
+        random_seed: Any = None,
     ):
         self.model = model if model is not None else Model()
         self.state_field = state_field
@@ -81,6 +88,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self.allow_event_without_transition = allow_event_without_transition
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
+        self._random = random.Random(random_seed)
 
         self._listeners: Dict[Any, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
@@ -130,17 +138,22 @@ class StateMachine(metaclass=StateMachineMetaclass):
     def __getstate__(self):
         state = self.__dict__.copy()
         state["_rtc"] = self._engine._rtc
+        state["_random_state"] = self._random.getstate()
         del state["_callbacks"]
         del state["_states_for_instance"]
         del state["_engine"]
+        del state["_random"]
         return state
 
     def __setstate__(self, state):
         listeners = state.pop("_listeners")
         rtc = state.pop("_rtc")
+        random_state = state.pop("_random_state")
         self.__dict__.update(state)
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
+        self._random = random.Random()
+        self._random.setstate(random_state)
 
         self._listeners: Dict[Any, Any] = {}
 

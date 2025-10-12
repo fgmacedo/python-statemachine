@@ -83,10 +83,42 @@ class AsyncEngine(BaseEngine):
             return self._sentinel
 
         state = self.sm.current_state
-        for transition in state.transitions:
-            if not transition.match(trigger_data.event):
-                continue
-
+        
+        # Collect all matching transitions
+        matching_transitions = [
+            t for t in state.transitions if t.match(trigger_data.event)
+        ]
+        
+        if not matching_transitions:
+            if not self.sm.allow_event_without_transition:
+                raise TransitionNotAllowed(trigger_data.event, state)
+            return None
+        
+        # Check if any transition has a positive weight
+        weighted_transitions = [
+            t for t in matching_transitions if t.weight is not None and t.weight > 0
+        ]
+        
+        # If we have weighted transitions, select one randomly
+        if weighted_transitions:
+            weights = [t.weight for t in weighted_transitions]
+            selected_transition = self.sm._random.choices(weighted_transitions, weights=weights, k=1)[0]
+            executed, result = await self._activate(trigger_data, selected_transition)
+            if executed:
+                return result
+            # If the selected transition failed its conditions, try others
+            for transition in weighted_transitions:
+                if transition == selected_transition:
+                    continue
+                executed, result = await self._activate(trigger_data, transition)
+                if executed:
+                    return result
+            if not self.sm.allow_event_without_transition:
+                raise TransitionNotAllowed(trigger_data.event, state)
+            return None
+        
+        # Otherwise, use first-match behavior (backward compatible)
+        for transition in matching_transitions:
             executed, result = await self._activate(trigger_data, transition)
             if not executed:
                 continue

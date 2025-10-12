@@ -127,10 +127,31 @@ class DotGraphMachine:
         cond = ", ".join([str(cond) for cond in transition.cond])
         if cond:
             cond = f"\n[{cond}]"
+        
+        # Calculate probability label if this transition has a weight
+        probability_label = ""
+        if transition.weight is not None and transition.weight > 0:
+            # Find all transitions from the same source with the same event
+            same_event_transitions = [
+                t for t in transition.source.transitions
+                if t.match(transition.event) and t.weight is not None and t.weight > 0
+            ]
+            
+            if len(same_event_transitions) > 1:
+                # Calculate probability as percentage
+                total_weight = sum(t.weight for t in same_event_transitions)
+                probability = (transition.weight / total_weight) * 100
+                
+                # Format as percentage if it's a clean calculation
+                if probability == int(probability):
+                    probability_label = f" [{int(probability)}%]"
+                else:
+                    probability_label = f" [{probability:.1f}%]"
+        
         return pydot.Edge(
             transition.source.id,
             transition.target.id,
-            label=f"{transition.event}{cond}",
+            label=f"{transition.event}{probability_label}{cond}",
             color="blue",
             fontname=self.font_name,
             fontsize=self.transition_font_size,

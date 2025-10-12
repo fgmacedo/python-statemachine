@@ -163,6 +163,77 @@ the event name is used to describe the transition.
 
 ```
 
+### Probabilistic transitions
+
+```{versionadded} 2.5.0
+Probabilistic transitions allow you to define weighted random selection when multiple transitions
+share the same event from the same source state.
+```
+
+Probabilistic transitions are useful for:
+- Game AI with non-deterministic behavior
+- Simulations requiring randomness
+- Idle animations in games
+- Randomized workflows
+
+When you define multiple transitions with the same event and source state, you can assign weights
+to control the probability of each transition being chosen:
+
+```py
+>>> class GameCharacter(StateMachine):
+...     standing = State(initial=True)
+...     shift_weight = State()
+...     adjust_hair = State()
+...     bang_shield = State()
+...
+...     # Weighted transitions: 70/20/10 probability split
+...     idle = (
+...         standing.to(shift_weight, event="idle", weight=70)
+...         | standing.to(adjust_hair, event="idle", weight=20)
+...         | standing.to(bang_shield, event="idle", weight=10)
+...     )
+...
+...     # Return transitions
+...     finish = (
+...         shift_weight.to(standing)
+...         | adjust_hair.to(standing)
+...         | bang_shield.to(standing)
+...     )
+
+```
+
+The `weight` parameter controls the relative probability of each transition. In the example above:
+- `shift_weight` has a 70% chance (70/(70+20+10))
+- `adjust_hair` has a 20% chance (20/(70+20+10))
+- `bang_shield` has a 10% chance (10/(70+20+10))
+
+```{note}
+Weights are relative, not absolute. The actual probability is calculated as `weight / sum(all_weights)`.
+```
+
+**Key behaviors:**
+
+1. **Deterministic testing**: Use `random_seed` parameter for reproducible behavior:
+
+```py
+>>> character = GameCharacter(random_seed=42)
+
+```
+
+2. **Zero/negative weights ignored**: Transitions with weight ≤ 0 are excluded from selection.
+
+3. **Mixed weighted/unweighted**: When any transition has a weight, only weighted transitions are considered.
+
+4. **Conditions still apply**: Guards and validators filter transitions before weight-based selection.
+
+5. **Backward compatibility**: If no weights are specified, the first matching transition is used (original behavior).
+
+```{tip}
+Probabilistic transitions integrate seamlessly with guards and validators. The weight-based selection
+happens first among matching transitions, then conditions are evaluated to determine if the selected
+transition can execute.
+```
+
 ## Events
 
 An event is an external signal that something has happened.
