@@ -25,6 +25,7 @@ machines in sync or asynchonous Python codebases.
 - ✨ **Basic components**: Easily define **States**, **Events**, and **Transitions** to model your logic.
 - ⚙️ **Actions and handlers**: Attach actions and handlers to states, events, and transitions to control behavior dynamically.
 - 🛡️ **Conditional transitions**: Implement **Guards** and **Validators** to conditionally control transitions, ensuring they only occur when specific conditions are met.
+- 🎲 **Probabilistic transitions**: Define weighted transitions for non-deterministic behavior, perfect for game AI, simulations, and randomized workflows.
 - 🚀 **Full async support**: Enjoy full asynchronous support. Await events, and dispatch callbacks asynchronously for seamless integration with async codebases.
 - 🔄 **Full sync support**: Use the same state machine from synchronous codebases without any modifications.
 - 🎨 **Declarative and simple API**: Utilize a clean, elegant, and readable API to define your state machine, making it easy to maintain and understand.

@@ -34,6 +34,10 @@ class Transition:
             before the transition is executed.
         after (Optional[Union[str, Callable, List[Callable]]]): The callbacks to be invoked
             after the transition is executed.
+        weight (Optional[float]): The weight for probabilistic transition selection. When multiple
+            transitions share the same event from the same source state and at least one has a
+            positive weight, the transition will be chosen randomly based on the weights.
+            Default ``None``.
     """
 
     def __init__(
@@ -48,10 +52,12 @@ class Transition:
         on=None,
         before=None,
         after=None,
+        weight=None,
     ):
         self.source = source
         self.target = target
         self.internal = internal
+        self.weight = weight
 
         if internal and source is not target:
             raise InvalidDefinition("Internal transitions should be self-transitions.")
@@ -75,9 +81,10 @@ class Transition:
         )
 
     def __repr__(self):
+        weight_str = f", weight={self.weight!r}" if self.weight is not None else ""
         return (
             f"{type(self).__name__}({self.source!r}, {self.target!r}, event={self.event!r}, "
-            f"internal={self.internal!r})"
+            f"internal={self.internal!r}{weight_str})"
         )
 
     def __str__(self):
@@ -137,8 +144,9 @@ class Transition:
         target = kwargs.pop("target", self.target)
         event = kwargs.pop("event", self.event)
         internal = kwargs.pop("internal", self.internal)
+        weight = kwargs.pop("weight", self.weight)
         new_transition = Transition(
-            source=source, target=target, event=event, internal=internal, **kwargs
+            source=source, target=target, event=event, internal=internal, weight=weight, **kwargs
         )
         for spec in self._specs:
             new_spec = deepcopy(spec)
