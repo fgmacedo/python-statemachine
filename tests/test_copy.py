@@ -5,11 +5,11 @@ from enum import Enum
 from enum import auto
 
 import pytest
+from statemachine.exceptions import TransitionNotAllowed
+from statemachine.states import States
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import TransitionNotAllowed
-from statemachine.states import States
 
 logger = logging.getLogger(__name__)
 DEBUG = logging.DEBUG
@@ -181,3 +181,33 @@ def test_copy_with_custom_init_and_vars(copy_method):
     assert sm2.custom == 1
     assert sm2.value == [1, 2, 3]
     assert sm2.current_state == MyStateMachine.started
+
+
+class _AsyncTrafficLightForPickleTest(StateMachine):
+    """Defined at module level to be picklable for test_pickle_async_statemachine."""
+
+    green = State(initial=True)
+    yellow = State()
+    red = State()
+
+    cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+    async def on_enter_state(self, target):
+        pass
+
+
+def test_pickle_async_statemachine():
+    """Regression test for issue #544: async SM fails after pickle."""
+    import asyncio
+
+    sm = _AsyncTrafficLightForPickleTest()
+
+    sm_copy = pickle.loads(pickle.dumps(sm))
+
+    async def verify():
+        await sm_copy.activate_initial_state()  # type: ignore[awaitable]
+        assert sm_copy.current_state == _AsyncTrafficLightForPickleTest.green
+        await sm_copy.cycle()
+        assert sm_copy.current_state == _AsyncTrafficLightForPickleTest.yellow
+
+    asyncio.run(verify())
