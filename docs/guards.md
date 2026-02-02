@@ -33,13 +33,13 @@ For example:
 
 ```python
 # These are evaluated in DECLARATION ORDER (when state.to() was called):
-last_checked = state_a.to(state_x)   # Created FIRST → Checked FIRST
-mid_checked = state_a.to(state_y)    # Created SECOND → Checked SECOND
-first_checked = state_a.to(state_z)  # Created THIRD → Checked THIRD
+created_first = state_a.to(state_x)   # Created FIRST → Checked FIRST
+created_second = state_a.to(state_y)  # Created SECOND → Checked SECOND
+created_third = state_a.to(state_z)   # Created THIRD → Checked THIRD
 
 # The | operator does NOT change evaluation order:
-my_event = first_checked | mid_checked | last_checked
-# Evaluation order is still: last_checked → mid_checked → first_checked
+my_event = created_third | created_second | created_first
+# Evaluation order is still: created_first → created_second → created_third
 ```
 
 To control the evaluation order, declare transitions in the desired order:
