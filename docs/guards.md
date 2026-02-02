@@ -24,7 +24,7 @@ When a transition is conditional, it includes a condition (also known as a _guar
 
 This feature allows for multiple transitions on the same {ref}`event`, with each {ref}`transition` checked in **declaration order** — that is, the order in which the transitions themselves were created using `state.to()`. A condition acts like a predicate (a function that evaluates to true/false) and is checked when a {ref}`statemachine` handles an {ref}`event` with a transition from the current state bound to this event. The first transition that meets the conditions (if any) is executed. If none of the transitions meet the conditions, the state machine either raises an exception or does nothing (see the `allow_event_without_transition` parameter of {ref}`StateMachine`).
 
-```{important}
+````{important}
 **Evaluation order is based on declaration order, not composition order.**
 
 When using conditional transitions, the order of evaluation is determined by **when each transition was created** (the order of `state.to()` calls), **not** by the order they appear when combined with the `|` operator.
@@ -52,7 +52,7 @@ third = state_a.to(state_d, cond="check3")   # Checked THIRD
 
 my_event = first | second | third  # Order matches declaration
 ```
-```
+````
 
 When {ref}`transitions` have guards, it is possible to define two or more transitions for the same {ref}`event` from the same {ref}`state`. When the {ref}`event` occurs, the guarded transitions are checked one by one, and the first transition whose guard is true will be executed, while the others will be ignored.
 
