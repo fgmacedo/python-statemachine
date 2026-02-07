@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import partial
 from inspect import BoundArguments
 from inspect import Parameter
@@ -6,6 +8,12 @@ from inspect import iscoroutinefunction
 from itertools import chain
 from types import MethodType
 from typing import Any
+from typing import FrozenSet
+from typing import Optional
+from typing import Tuple
+
+BindCacheKey = Tuple[int, FrozenSet[str]]
+BindTemplate = Tuple[Tuple[str, ...], Optional[str]]  # noqa: UP007
 
 
 def _make_key(method):
@@ -44,6 +52,11 @@ def signature_cache(user_function):
 
 class SignatureAdapter(Signature):
     is_coroutine: bool = False
+    _bind_cache: dict[BindCacheKey, BindTemplate]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._bind_cache = {}
 
     @classmethod
     @signature_cache
@@ -60,19 +73,56 @@ class SignatureAdapter(Signature):
         adapter.is_coroutine = iscoroutinefunction(method)
         return adapter
 
-    def bind_expected(self, *args: Any, **kwargs: Any) -> BoundArguments:  # noqa: C901
+    def bind_expected(self, *args: Any, **kwargs: Any) -> BoundArguments:
+        cache_key: BindCacheKey = (len(args), frozenset(kwargs.keys()))
+        template = self._bind_cache.get(cache_key)
+
+        if template is not None:
+            return self._fast_bind(args, kwargs, template)
+
+        result = self._full_bind(cache_key, *args, **kwargs)
+        return result
+
+    def _fast_bind(
+        self,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        template: BindTemplate,
+    ) -> BoundArguments:
+        param_names, kwargs_param_name = template
+        arguments: dict[str, Any] = {}
+
+        for i, name in enumerate(param_names):
+            if i < len(args):
+                arguments[name] = args[i]
+            else:
+                arguments[name] = kwargs.get(name)
+
+        if kwargs_param_name is not None:
+            arguments[kwargs_param_name] = kwargs
+
+        return BoundArguments(self, arguments)  # type: ignore[arg-type]
+
+    def _full_bind(  # noqa: C901
+        self,
+        cache_key: BindCacheKey,
+        *args: Any,
+        **kwargs: Any,
+    ) -> BoundArguments:
         """Get a BoundArguments object, that maps the passed `args`
         and `kwargs` to the function's signature.  It avoids to raise `TypeError`
         trying to fill all the required arguments and ignoring the unknown ones.
 
         Adapted from the internal `inspect.Signature._bind`.
         """
-        arguments = {}
+        arguments: dict[str, Any] = {}
+        param_names_used: list[str] = []
 
         parameters = iter(self.parameters.values())
         arg_vals = iter(args)
         parameters_ex: Any = ()
         kwargs_param = None
+        kwargs_param_name: str | None = None
 
         while True:
             # Let's iterate through the positional arguments and corresponding
@@ -95,8 +145,7 @@ class SignatureAdapter(Signature):
                     elif param.name in kwargs:
                         if param.kind == Parameter.POSITIONAL_ONLY:
                             msg = (
-                                "{arg!r} parameter is positional only, "
-                                "but was passed as a keyword"
+                                "{arg!r} parameter is positional only, but was passed as a keyword"
                             )
                             msg = msg.format(arg=param.name)
                             raise TypeError(msg) from None
@@ -141,12 +190,14 @@ class SignatureAdapter(Signature):
                         values = [arg_val]
                         values.extend(arg_vals)
                         arguments[param.name] = tuple(values)
+                        param_names_used.append(param.name)
                         break
 
                     if param.name in kwargs and param.kind != Parameter.POSITIONAL_ONLY:
                         arguments[param.name] = kwargs.pop(param.name)
                     else:
                         arguments[param.name] = arg_val
+                    param_names_used.append(param.name)
 
         # Now, we iterate through the remaining parameters to process
         # keyword arguments
@@ -172,14 +223,19 @@ class SignatureAdapter(Signature):
                 # arguments.
                 pass
             else:
-                arguments[param_name] = arg_val  #
+                arguments[param_name] = arg_val
+                param_names_used.append(param_name)
 
         if kwargs:
             if kwargs_param is not None:
                 # Process our '**kwargs'-like parameter
-                arguments[kwargs_param.name] = kwargs  # type: ignore [assignment]
+                arguments[kwargs_param.name] = kwargs  # type: ignore[assignment]
+                kwargs_param_name = kwargs_param.name
             else:
                 # 'ignoring we got an unexpected keyword argument'
                 pass
 
-        return BoundArguments(self, arguments)  # type: ignore [arg-type]
+        template: BindTemplate = (tuple(param_names_used), kwargs_param_name)
+        self._bind_cache[cache_key] = template
+
+        return BoundArguments(self, arguments)  # type: ignore[arg-type]
