@@ -6,9 +6,10 @@ Example that demonstrates the use of Boolean algebra in conditions.
 
 """
 
+from statemachine.exceptions import TransitionNotAllowed
+
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import TransitionNotAllowed
 
 
 class LordOfTheRingsQuestStateMachine(StateMachine):

@@ -5,10 +5,10 @@ from enum import Enum
 from enum import auto
 
 import pytest
+from statemachine.states import States
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.states import States
 
 logger = logging.getLogger(__name__)
 

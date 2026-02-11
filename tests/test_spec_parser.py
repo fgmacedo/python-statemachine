@@ -1,7 +1,6 @@
 import logging
 
 import pytest
-
 from statemachine.spec_parser import operator_mapping
 from statemachine.spec_parser import parse_boolean_expr
 

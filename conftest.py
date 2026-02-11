@@ -6,9 +6,10 @@ import pytest
 
 @pytest.fixture(autouse=True, scope="session")
 def add_doctest_context(doctest_namespace):  # noqa: PT004
+    from statemachine.utils import run_async_from_sync
+
     from statemachine import State
     from statemachine import StateMachine
-    from statemachine.utils import run_async_from_sync
 
     class ContribAsyncio:
         """

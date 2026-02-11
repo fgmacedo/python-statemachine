@@ -1,8 +1,8 @@
 import pytest
+from statemachine.exceptions import InvalidDefinition
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import InvalidDefinition
 
 
 class AnyConditionSM(StateMachine):

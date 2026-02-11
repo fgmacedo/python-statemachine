@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
     - uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
       #              run ruff
       #----------------------------------------------
     - name: Linter with ruff
-      if: matrix.python-version == 3.13
+      if: matrix.python-version == 3.14
       run: |
         uv run ruff check .
         uv run ruff format --check .
@@ -53,7 +53,7 @@ jobs:
       #----------------------------------------------
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
-      if: matrix.python-version == 3.13
+      if: matrix.python-version == 3.14
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
         directory: .

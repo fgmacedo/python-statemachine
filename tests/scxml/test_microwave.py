@@ -1,8 +1,8 @@
 import pytest
-
-from statemachine import StateChart
 from statemachine.io.scxml.processor import SCXMLProcessor
 from statemachine.state import State
+
+from statemachine import StateChart
 
 """
 The <initial> specifies a transition that specifies the default child initial states.

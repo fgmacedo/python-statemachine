@@ -4,10 +4,11 @@ from dataclasses import field
 from pathlib import Path
 from typing import Any
 
-from statemachine import State
-from statemachine import StateChart
 from statemachine.event import Event
 from statemachine.io.scxml.processor import SCXMLProcessor
+
+from statemachine import State
+from statemachine import StateChart
 
 """
 Test cases as defined by W3C SCXML Test Suite

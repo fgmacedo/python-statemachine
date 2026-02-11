@@ -63,9 +63,9 @@ class StateChart(metaclass=StateMachineMetaclass):
     _loop_sleep_in_ms = 0.001
 
     allow_event_without_transition: bool = True
-    """If ``False`` when an event does not result in a transition, an exception 
-    ``TransitionNotAllowed`` will be raised. If ``True`` the state machine allows triggering 
-    events that may not lead to a state :ref:`transition`, including tolerance to unknown 
+    """If ``False`` when an event does not result in a transition, an exception
+    ``TransitionNotAllowed`` will be raised. If ``True`` the state machine allows triggering
+    events that may not lead to a state :ref:`transition`, including tolerance to unknown
     :ref:`event` triggers. Default: ``True``."""
 
     enable_self_transition_entries: bool = True
@@ -99,7 +99,7 @@ class StateChart(metaclass=StateMachineMetaclass):
         start_value: Any = None,
         listeners: "List[object] | None" = None,
     ):
-        self.model = model if model else Model()
+        self.model = model if model is not None else Model()
         self.history_values: Dict[
             str, List[State]
         ] = {}  # Mapping of compound states to last active state(s).

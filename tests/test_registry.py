@@ -28,7 +28,7 @@ def test_should_register_a_state_machine(caplog, django_autodiscover_modules):
     assert "CampaignMachine" in registry._REGISTRY
     assert registry.get_machine_cls("tests.test_registry.CampaignMachine") == CampaignMachine
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning, match="fully qualified names"):
         assert registry.get_machine_cls("CampaignMachine") == CampaignMachine
 
 

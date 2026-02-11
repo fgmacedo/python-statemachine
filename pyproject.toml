@@ -17,6 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.9",
     "Topic :: Home Automation",
     "Topic :: Software Development :: Libraries",
@@ -35,7 +36,8 @@ dev = [
     "pre-commit",
     "mypy",
     "pytest",
-    "pytest-cov",
+    "pytest-cov >=6.0.0; python_version >='3.9'",
+    "pytest-cov; python_version <'3.9'",
     "pytest-sugar >=1.0.0",
     "pytest-mock >=3.10.0",
     "pytest-benchmark >=4.0.0",
@@ -118,7 +120,7 @@ directory = "tmp/htmlcov"
 show_contexts = true
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disable_error_code = "annotation-unchecked"
@@ -132,7 +134,7 @@ ignore_missing_imports = true
 src = ["statemachine"]
 
 line-length = 99
-target-version = "py313"
+target-version = "py314"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -171,8 +173,8 @@ select = [
 ignore = [
     "UP006", # `use-pep585-annotation` Requires Python3.9+
     "UP035", # `use-pep585-annotation` Requires Python3.9+
-    "UP037", # `use-pep586-annotation` Requires Python3.9+
-    "UP038", # `use-pep585-annotation` Requires Python3.9+
+    "UP037", # `remove-quotes-from-type-annotation` Not safe without `from __future__ import annotations`
+    "UP042", # `use-str-enum` Requires Python3.11+
 ]
 
 # Allow unused variables when underscore-prefixed.

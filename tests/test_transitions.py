@@ -1,9 +1,9 @@
 import pytest
+from statemachine.exceptions import InvalidDefinition
+from statemachine.transition import Transition
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import InvalidDefinition
-from statemachine.transition import Transition
 
 from .models import MyModel
 
