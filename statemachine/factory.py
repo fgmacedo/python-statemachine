@@ -245,9 +245,17 @@ class StateMachineMetaclass(type):
             if isinstance(value, State):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
-                cls.add_event(event=Event(transitions=value, id=key, name=key))
+                event_id = key
+                if key.startswith("error_"):
+                    event_id = f"{key} {key.replace('_', '.')}"
+                cls.add_event(event=Event(transitions=value, id=event_id, name=key))
             elif isinstance(value, (Event,)):
-                event_id = value.id if value._has_real_id else key
+                if value._has_real_id:
+                    event_id = value.id
+                elif key.startswith("error_"):
+                    event_id = f"{key} {key.replace('_', '.')}"
+                else:
+                    event_id = key
                 new_event = Event(
                     transitions=value._transitions,
                     id=event_id,

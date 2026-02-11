@@ -32,7 +32,7 @@ diagrams = ["pydot >= 2.0.0"]
 
 [dependency-groups]
 dev = [
-    "ruff >=0.8.1",
+    "ruff >=0.15.0",
     "pre-commit",
     "mypy",
     "pytest",
