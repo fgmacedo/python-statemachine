@@ -235,9 +235,10 @@ def quickchart_write_svg(sm: StateChart, path: str):
     >>> sm = OrderControl()
     >>> print(sm._graph().to_string())
     digraph OrderControl {
-    label=OrderControl;
+    compound=true;
     fontname=Arial;
     fontsize="10pt";
+    label=OrderControl;
     rankdir=LR;
     ...
 
