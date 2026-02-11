@@ -182,7 +182,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return self
 
     def _register_callbacks(self, listeners: List[object]):
-        self._listeners.update({listener: None for listener in listeners})
+        self._listeners.update(dict.fromkeys(listeners))
         self._add_listener(
             Listeners.from_listeners(
                 (
@@ -223,7 +223,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
             :ref:`listeners`.
         """
-        self._listeners.update({o: None for o in listeners})
+        self._listeners.update(dict.fromkeys(listeners))
         return self._add_listener(
             Listeners.from_listeners(Listener.from_obj(o) for o in listeners),
             allowed_references=SPECS_SAFE,

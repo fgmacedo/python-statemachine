@@ -6,9 +6,10 @@ An StateMachine that demonstrates :ref:`Actions` being used on a rich model.
 
 """
 
+from statemachine.exceptions import InvalidDefinition
+
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import InvalidDefinition
 
 
 class Order:

@@ -2,11 +2,11 @@ import inspect
 from unittest import mock
 
 import pytest
+from statemachine.exceptions import InvalidDefinition
+from statemachine.exceptions import TransitionNotAllowed
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import InvalidDefinition
-from statemachine.exceptions import TransitionNotAllowed
 
 
 @pytest.fixture()

@@ -1,5 +1,4 @@
 import pytest
-
 from statemachine.callbacks import CallbackGroup
 from statemachine.callbacks import CallbackSpec
 from statemachine.dispatcher import Listener

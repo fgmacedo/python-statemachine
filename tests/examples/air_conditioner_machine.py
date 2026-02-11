@@ -8,9 +8,10 @@ A StateMachine that exercises reading from a stream of events.
 
 import random
 
+from statemachine.utils import run_async_from_sync
+
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.utils import run_async_from_sync
 
 
 def sensor_temperature_reader(seed: int, lower: int = 15, higher: int = 35):

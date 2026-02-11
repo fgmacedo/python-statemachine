@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from unittest import mock
 
 import pytest
-
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
