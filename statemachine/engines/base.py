@@ -18,6 +18,7 @@ from ..event import BoundEvent
 from ..event import Event
 from ..event_data import EventData
 from ..event_data import TriggerData
+from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
 from ..orderedset import OrderedSet
 from ..state import HistoryState
@@ -118,6 +119,34 @@ class BaseEngine:
     def cancel_event(self, send_id: str):
         """Cancel the event with the given send_id."""
         self.external_queue.remove(send_id)
+
+    @property
+    def _on_error_execution(self):
+        """Return an error handler for per-block error isolation, or None.
+
+        When ``error_on_execution`` is enabled, returns a handler that queues
+        ``error.execution`` on the internal queue.  Otherwise returns ``None``
+        so that exceptions propagate normally.
+        """
+        if self.sm.error_on_execution:
+
+            def _handler(e: Exception):
+                if isinstance(e, InvalidDefinition):
+                    raise
+                self.sm.send("error.execution", error=e, internal=True)
+
+            return _handler
+        return None
+
+    def _send_error_execution(self, trigger_data: TriggerData, error: Exception):
+        """Send error.execution to internal queue (SCXML spec).
+
+        If already processing an error.execution event, ignore to avoid infinite loops.
+        """
+        if trigger_data.event and str(trigger_data.event) == "error.execution":
+            logger.warning("Error while processing error.execution, ignoring: %s", error)
+            return
+        self.sm.send("error.execution", error=error, internal=True)
 
     def start(self):
         if self.sm.current_state_value is not None:
@@ -321,15 +350,30 @@ class BaseEngine:
             result += self._enter_states(
                 transitions, trigger_data, states_to_exit, previous_configuration
             )
-        except Exception:
+        except InvalidDefinition:
             self.sm.configuration = previous_configuration
             raise
-        self._execute_transition_content(
-            transitions,
-            trigger_data,
-            lambda t: t.after.key,
-            set_target_as_state=True,
-        )
+        except Exception as e:
+            self.sm.configuration = previous_configuration
+            if self.sm.error_on_execution:
+                self._send_error_execution(trigger_data, e)
+                return None
+            raise
+
+        try:
+            self._execute_transition_content(
+                transitions,
+                trigger_data,
+                lambda t: t.after.key,
+                set_target_as_state=True,
+            )
+        except InvalidDefinition:
+            raise
+        except Exception as e:
+            if self.sm.error_on_execution:
+                self._send_error_execution(trigger_data, e)
+            else:
+                raise
 
         if len(result) == 0:
             result = None
@@ -366,8 +410,12 @@ class BaseEngine:
     def _conditions_match(self, transition: Transition, trigger_data: TriggerData):
         args, kwargs = self._get_args_kwargs(transition, trigger_data)
 
-        self.sm._callbacks.call(transition.validators.key, *args, **kwargs)
-        return self.sm._callbacks.all(transition.cond.key, *args, **kwargs)
+        self.sm._callbacks.call(
+            transition.validators.key, *args, on_error=self._on_error_execution, **kwargs
+        )
+        return self.sm._callbacks.all(
+            transition.cond.key, *args, on_error=self._on_error_execution, **kwargs
+        )
 
     def _exit_states(
         self, enabled_transitions: List[Transition], trigger_data: TriggerData
@@ -405,9 +453,11 @@ class BaseEngine:
         for info in ordered_states:
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
-            # Execute `onexit` handlers
+            # Execute `onexit` handlers — same per-block error isolation as onentry.
             if info.state is not None:  # TODO: and not info.transition.internal:
-                self.sm._callbacks.call(info.state.exit.key, *args, **kwargs)
+                self.sm._callbacks.call(
+                    info.state.exit.key, *args, on_error=self._on_error_execution, **kwargs
+                )
 
             # TODO: Cancel invocations
             # for invocation in state.invoke:
@@ -503,8 +553,11 @@ class BaseEngine:
             #     self.initialize_data_model(state)
             #     state.is_first_entry = False
 
-            # Execute `onentry` handlers
-            on_entry_result = self.sm._callbacks.call(target.enter.key, *args, **kwargs)
+            # Execute `onentry` handlers — each handler is a separate block per
+            # SCXML spec: errors in one block MUST NOT affect other blocks.
+            on_entry_result = self.sm._callbacks.call(
+                target.enter.key, *args, on_error=self._on_error_execution, **kwargs
+            )
 
             # Handle default initial states
             if target.id in {t.state.id for t in states_for_default_entry if t.state}:

@@ -247,14 +247,16 @@ class StateMachineMetaclass(type):
             elif isinstance(value, (Transition, TransitionList)):
                 cls.add_event(event=Event(transitions=value, id=key, name=key))
             elif isinstance(value, (Event,)):
-                cls.add_event(
-                    event=Event(
-                        transitions=value._transitions,
-                        id=key,
-                        name=value.name,
-                    ),
-                    old_event=value,
+                event_id = value.id if value._has_real_id else key
+                new_event = Event(
+                    transitions=value._transitions,
+                    id=event_id,
+                    name=value.name,
                 )
+                cls.add_event(event=new_event, old_event=value)
+                # Ensure the event is accessible by the Python attribute name
+                if event_id != key:
+                    setattr(cls, key, new_event)
             elif getattr(value, "attr_name", None):
                 cls._add_unbounded_callback(key, value)
 

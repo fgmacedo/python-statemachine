@@ -314,17 +314,33 @@ class CallbacksExecutor:
                 return False
         return True
 
-    def call(self, *args, **kwargs):
-        return [
-            callback.call(*args, **kwargs)
-            for callback in self
-            if callback.condition(*args, **kwargs)
-        ]
+    def call(self, *args, on_error: "Callable[[Exception], None] | None" = None, **kwargs):
+        if on_error is None:
+            return [
+                callback.call(*args, **kwargs)
+                for callback in self
+                if callback.condition(*args, **kwargs)
+            ]
 
-    def all(self, *args, **kwargs):
+        results = []
+        for callback in self:
+            if callback.condition(*args, **kwargs):
+                try:
+                    results.append(callback.call(*args, **kwargs))
+                except Exception as e:
+                    on_error(e)
+        return results
+
+    def all(self, *args, on_error: "Callable[[Exception], None] | None" = None, **kwargs):
         for condition in self:
-            if not condition.call(*args, **kwargs):
-                return False
+            try:
+                if not condition.call(*args, **kwargs):
+                    return False
+            except Exception as e:
+                if on_error is not None:
+                    on_error(e)
+                    return False
+                raise
         return True
 
 
@@ -361,18 +377,30 @@ class CallbacksRegistry:
             callback._iscoro for executor in self._registry.values() for callback in executor
         )
 
-    def call(self, key: str, *args, **kwargs):
+    def call(
+        self,
+        key: str,
+        *args,
+        on_error: "Callable[[Exception], None] | None" = None,
+        **kwargs,
+    ):
         if key not in self._registry:
             return []
-        return self._registry[key].call(*args, **kwargs)
+        return self._registry[key].call(*args, on_error=on_error, **kwargs)
 
     def async_call(self, key: str, *args, **kwargs):
         return self._registry[key].async_call(*args, **kwargs)
 
-    def all(self, key: str, *args, **kwargs):
+    def all(
+        self,
+        key: str,
+        *args,
+        on_error: "Callable[[Exception], None] | None" = None,
+        **kwargs,
+    ):
         if key not in self._registry:
             return True
-        return self._registry[key].all(*args, **kwargs)
+        return self._registry[key].all(*args, on_error=on_error, **kwargs)
 
     def async_all(self, key: str, *args, **kwargs):
         return self._registry[key].async_all(*args, **kwargs)

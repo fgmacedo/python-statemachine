@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ..event_data import EventData
 from ..event_data import TriggerData
+from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
 from .base import BaseEngine
 
@@ -91,14 +92,27 @@ class AsyncEngine(BaseEngine):
 
         return result if executed else None
 
-    async def _activate(self, trigger_data: TriggerData, transition: "Transition"):
-        event_data = EventData(trigger_data=trigger_data, transition=transition)
+    async def _async_conditions_match(
+        self, transition: "Transition", trigger_data: TriggerData, args, kwargs
+    ):
+        if self.sm.error_on_execution:
+            try:
+                await self.sm._callbacks.async_call(transition.validators.key, *args, **kwargs)
+                return await self.sm._callbacks.async_all(transition.cond.key, *args, **kwargs)
+            except InvalidDefinition:
+                raise
+            except Exception as e:
+                self._send_error_execution(trigger_data, e)
+                return False
+        else:
+            await self.sm._callbacks.async_call(transition.validators.key, *args, **kwargs)
+            return await self.sm._callbacks.async_all(transition.cond.key, *args, **kwargs)
+
+    async def _async_execute_transition(
+        self, transition: "Transition", event_data: EventData, trigger_data: TriggerData
+    ):
+        """Execute transition callbacks (before, exit, on, enter) with error handling."""
         args, kwargs = event_data.args, event_data.extended_kwargs
-
-        await self.sm._callbacks.async_call(transition.validators.key, *args, **kwargs)
-        if not await self.sm._callbacks.async_all(transition.cond.key, *args, **kwargs):
-            return False, None
-
         source = transition.source
         target = transition.target
 
@@ -116,7 +130,34 @@ class AsyncEngine(BaseEngine):
 
         if not transition.internal:
             await self.sm._callbacks.async_call(target.enter.key, *args, **kwargs)
-        await self.sm._callbacks.async_call(transition.after.key, *args, **kwargs)
+        return result
+
+    async def _activate(self, trigger_data: TriggerData, transition: "Transition"):
+        event_data = EventData(trigger_data=trigger_data, transition=transition)
+        args, kwargs = event_data.args, event_data.extended_kwargs
+
+        if not await self._async_conditions_match(transition, trigger_data, args, kwargs):
+            return False, None
+
+        try:
+            result = await self._async_execute_transition(transition, event_data, trigger_data)
+        except InvalidDefinition:
+            raise
+        except Exception as e:
+            if self.sm.error_on_execution:
+                self._send_error_execution(trigger_data, e)
+                return True, None
+            raise
+
+        try:
+            await self.sm._callbacks.async_call(transition.after.key, *args, **kwargs)
+        except InvalidDefinition:
+            raise
+        except Exception as e:
+            if self.sm.error_on_execution:
+                self._send_error_execution(trigger_data, e)
+            else:
+                raise
 
         if len(result) == 0:
             result = None

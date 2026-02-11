@@ -9,7 +9,6 @@ from uuid import uuid4
 
 from ...event import Event
 from ...event import _event_data_kwargs
-from ...exceptions import InvalidDefinition
 from ...spec_parser import InState
 from ...statemachine import StateChart
 from .parser import Action
@@ -195,15 +194,9 @@ class Cond(CallableAction):
         self.processor = processor
 
     def __call__(self, *args, **kwargs):
-        machine = kwargs["machine"]
-        try:
-            result = _eval(self.action, **kwargs)
-            logger.debug("Cond %s -> %s", self.action, result)
-            return result
-
-        except Exception as e:
-            machine.send("error.execution", error=e, internal=True)
-            return False
+        result = _eval(self.action, **kwargs)
+        logger.debug("Cond %s -> %s", self.action, result)
+        return result
 
     @staticmethod
     def _normalize(cond: "str | None") -> "str | None":
@@ -307,8 +300,18 @@ def create_if_action_callable(action: IfAction) -> Callable:
     ]
 
     def if_action(*args, **kwargs):
+        machine: StateChart = kwargs["machine"]
         for cond, actions in branches:
-            if not cond or cond(*args, **kwargs):
+            try:
+                cond_result = not cond or cond(*args, **kwargs)
+            except Exception as e:
+                # SCXML spec: condition error → treat as false, queue error.execution.
+                if machine.error_on_execution:
+                    machine.send("error.execution", error=e, internal=True)
+                    cond_result = False
+                else:
+                    raise
+            if cond_result:
                 for action in actions:
                     action(*args, **kwargs)
                 return
@@ -479,15 +482,8 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
         if initialized:
             return
         initialized = True
-        machine: StateChart = kwargs["machine"]
         for act in data_elements:
-            try:
-                act(**kwargs)
-            except Exception as e:
-                logger.debug("Error executing actions", exc_info=True)
-                if isinstance(e, InvalidDefinition):
-                    raise
-                machine.send("error.execution", error=e, internal=True)
+            act(**kwargs)
 
     return datamodel
 
@@ -502,13 +498,7 @@ class ExecuteBlock(CallableAction):
 
     def __call__(self, *args, **kwargs):
         machine: StateChart = kwargs["machine"]
-        try:
-            for action in self.action_callables:
-                action(*args, **kwargs)
+        for action in self.action_callables:
+            action(*args, **kwargs)
 
-            machine._processing_loop()
-        except Exception as e:
-            logger.debug("Error executing actions", exc_info=True)
-            if isinstance(e, InvalidDefinition):
-                raise
-            machine.send("error.execution", error=e, internal=True)
+        machine._processing_loop()

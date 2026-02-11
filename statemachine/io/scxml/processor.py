@@ -110,18 +110,18 @@ class SCXMLProcessor:
         machine = kwargs["machine"]
         session_data = self._get_session(machine)
 
-        extra_params = {}
         if not session_data.first_event_raised and event and not event == "__initial__":
             session_data.first_event_raised = True
 
+        _event: "EventDataWrapper | None" = None
         if session_data.first_event_raised:
-            extra_params = {"_event": EventDataWrapper(kwargs["event_data"])}
+            _event = EventDataWrapper(kwargs["event_data"])
 
         return {
             "_name": machine.name,
             "_sessionid": session_data.session_id,
             "_ioprocessors": session_data.processor,
-            **extra_params,
+            "_event": _event,
         }
 
     def _get_session(self, machine: StateChart):

@@ -7,6 +7,7 @@ from statemachine.event import BoundEvent
 from statemachine.orderedset import OrderedSet
 
 from ..event_data import TriggerData
+from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
 from .base import BaseEngine
 
@@ -17,6 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 class SyncEngine(BaseEngine):
+    def _run_microstep(self, enabled_transitions, trigger_data):
+        """Run a microstep for internal/eventless transitions with error handling."""
+        try:
+            self.microstep(list(enabled_transitions), trigger_data)
+        except InvalidDefinition:
+            raise
+        except Exception as e:
+            if self.sm.error_on_execution:
+                self._send_error_execution(trigger_data, e)
+            else:
+                raise
+
     def start(self):
         if self.sm.current_state_value is not None:
             return
@@ -91,7 +104,7 @@ class SyncEngine(BaseEngine):
                     if enabled_transitions:
                         logger.debug("Enabled transitions: %s", enabled_transitions)
                         took_events = True
-                        self.microstep(list(enabled_transitions), internal_event)
+                        self._run_microstep(enabled_transitions, internal_event)
 
                 # TODO: Invoke platform-specific logic
                 # for state in sorted(self.states_to_invoke, key=self.entry_order):
@@ -104,7 +117,7 @@ class SyncEngine(BaseEngine):
                     internal_event = self.internal_queue.pop()
                     enabled_transitions = self.select_transitions(internal_event)
                     if enabled_transitions:
-                        self.microstep(list(enabled_transitions), internal_event)
+                        self._run_microstep(enabled_transitions, internal_event)
 
                 # Process external events
                 logger.debug("Macrostep: external queue")
@@ -141,7 +154,7 @@ class SyncEngine(BaseEngine):
                                 first_result = result
 
                         except Exception:
-                            # Whe clear the queue as we don't have an expected behavior
+                            # We clear the queue as we don't have an expected behavior
                             # and cannot keep processing
                             self.clear()
                             raise
