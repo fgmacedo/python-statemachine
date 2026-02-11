@@ -45,7 +45,7 @@ dev = [
     "pytest-benchmark >=4.0.0",
     "pytest-asyncio",
     "pydot",
-    "django >=5.0.8; python_version >='3.10'",
+    "django >=5.2.11; python_version >='3.10'",
     "pytest-django >=4.8.0; python_version >'3.8'",
     "Sphinx; python_version >'3.8'",
     "sphinx-gallery; python_version >'3.8'",
@@ -129,7 +129,7 @@ ignore_missing_imports = true
 src = ["statemachine"]
 
 line-length = 99
-target-version = "py314"
+target-version = "py39"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
