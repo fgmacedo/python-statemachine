@@ -72,7 +72,7 @@ uv run mypy statemachine/ tests/
 
 ## Code style
 
-- **Formatter/Linter:** ruff (line length 99, target Python 3.14)
+- **Formatter/Linter:** ruff (line length 99, target Python 3.9)
 - **Rules:** pycodestyle, pyflakes, isort, pyupgrade, flake8-comprehensions, flake8-bugbear, flake8-pytest-style
 - **Imports:** single-line, sorted by isort
 - **Docstrings:** Google convention
