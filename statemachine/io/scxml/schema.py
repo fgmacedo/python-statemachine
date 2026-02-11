@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Dict
 from typing import List
-from typing import Set
 from urllib.parse import ParseResult
 
 
@@ -149,5 +148,5 @@ class DataModel:
 class StateMachineDefinition:
     name: "str | None" = None
     states: Dict[str, State] = field(default_factory=dict)
-    initial_states: Set[str] = field(default_factory=set)
+    initial_states: List[str] = field(default_factory=list)
     datamodel: "DataModel | None" = None

@@ -1,5 +1,6 @@
 import re
 import xml.etree.ElementTree as ET
+from typing import List
 from typing import Set
 from urllib.parse import urlparse
 
@@ -35,10 +36,10 @@ def strip_namespaces(tree: ET.Element):
                 attrib[new_name] = attrib.pop(name)
 
 
-def _parse_initial(initial_content: "str | None") -> Set[str]:
+def _parse_initial(initial_content: "str | None") -> List[str]:
     if initial_content is None:
-        return set()
-    return set(initial_content.split())
+        return []
+    return initial_content.split()
 
 
 def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
@@ -75,9 +76,10 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
 
     # If no initial state was specified, pick the first state
     if not all_initial_states and definition.states:
-        all_initial_states = {next(key for key in definition.states.keys())}
-        for s in all_initial_states:
-            definition.states[s].initial = True
+        first_state = next(iter(definition.states.keys()))
+        all_initial_states = {first_state}
+        definition.initial_states = [first_state]
+        definition.states[first_state].initial = True
 
     return definition
 
@@ -158,13 +160,13 @@ def parse_state(  # noqa: C901
         state.transitions.append(transition)
 
     # Parse child states
-    initial_states |= _parse_initial(state_elem.get("initial"))
+    initial_states.update(_parse_initial(state_elem.get("initial")))
     initial_elem = state_elem.find("initial")
     if initial_elem is not None:
         for trans_elem in initial_elem.findall("transition"):
             transition = parse_transition(trans_elem, initial=True)
             state.transitions.append(transition)
-            initial_states |= _parse_initial(trans_elem.get("target"))
+            initial_states.update(_parse_initial(trans_elem.get("target")))
 
     for child_state_elem in state_elem.findall("state"):
         child_state = parse_state(child_state_elem, initial_states=initial_states)
