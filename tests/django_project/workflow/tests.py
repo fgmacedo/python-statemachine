@@ -1,6 +1,6 @@
 import pytest
-
 from statemachine.exceptions import TransitionNotAllowed
+
 from workflow.models import WorkflowSteps
 from workflow.statemachines import WorfklowStateMachine
 

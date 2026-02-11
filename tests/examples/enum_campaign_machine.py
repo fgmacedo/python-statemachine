@@ -9,8 +9,9 @@ A :ref:`StateMachine` that demonstrates declaring :ref:`States from Enum types` 
 
 from enum import Enum
 
-from statemachine import StateMachine
 from statemachine.states import States
+
+from statemachine import StateMachine
 
 
 class CampaignStatus(Enum):

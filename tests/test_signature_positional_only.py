@@ -1,7 +1,6 @@
 import inspect
 
 import pytest
-
 from statemachine.dispatcher import callable_method
 
 

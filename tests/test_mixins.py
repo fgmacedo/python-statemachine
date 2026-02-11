@@ -1,6 +1,6 @@
 import pytest
-
 from statemachine.mixins import MachineMixin
+
 from tests.models import MyModel
 
 

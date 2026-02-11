@@ -95,8 +95,7 @@ class SignatureAdapter(Signature):
                     elif param.name in kwargs:
                         if param.kind == Parameter.POSITIONAL_ONLY:
                             msg = (
-                                "{arg!r} parameter is positional only, "
-                                "but was passed as a keyword"
+                                "{arg!r} parameter is positional only, but was passed as a keyword"
                             )
                             msg = msg.format(arg=param.name)
                             raise TypeError(msg) from None

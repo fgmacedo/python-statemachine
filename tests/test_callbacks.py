@@ -1,15 +1,15 @@
 from unittest import mock
 
 import pytest
-
-from statemachine import State
-from statemachine import StateMachine
 from statemachine.callbacks import CallbackGroup
 from statemachine.callbacks import CallbackSpec
 from statemachine.callbacks import CallbackSpecList
 from statemachine.callbacks import CallbacksRegistry
 from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.exceptions import InvalidDefinition
+
+from statemachine import State
+from statemachine import StateMachine
 
 
 @pytest.fixture()

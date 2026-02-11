@@ -1,9 +1,9 @@
 import pytest
+from statemachine.event import Event
+from statemachine.exceptions import InvalidDefinition
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.event import Event
-from statemachine.exceptions import InvalidDefinition
 
 
 def test_assign_events_on_transitions():
