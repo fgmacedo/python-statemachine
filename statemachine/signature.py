@@ -99,7 +99,8 @@ class SignatureAdapter(Signature):
                 arguments[name] = kwargs.get(name)
 
         if kwargs_param_name is not None:
-            arguments[kwargs_param_name] = kwargs
+            matched = set(param_names)
+            arguments[kwargs_param_name] = {k: v for k, v in kwargs.items() if k not in matched}
 
         return BoundArguments(self, arguments)  # type: ignore[arg-type]
 
