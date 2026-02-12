@@ -45,6 +45,7 @@ class BaseStateKwargs(TypedDict, total=False):
     parallel: bool
     enter: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
     exit: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
+    donedata: "ActionProtocol | None"
 
 
 class StateKwargs(BaseStateKwargs, total=False):

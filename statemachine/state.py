@@ -8,6 +8,7 @@ from weakref import ref
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .exceptions import InvalidDefinition
 from .exceptions import StateMachineError
 from .i18n import _
 from .transition import Transition
@@ -190,6 +191,7 @@ class State:
         history: "List[HistoryState] | None" = None,
         enter: Any = None,
         exit: Any = None,
+        donedata: Any = None,
         _callbacks: Any = None,
     ):
         self.name = name
@@ -212,6 +214,10 @@ class State:
         self.exit = self._specs.grouper(CallbackGroup.EXIT).add(
             exit, priority=CallbackPriority.INLINE
         )
+        if donedata is not None:
+            if not final:
+                raise InvalidDefinition(_("'donedata' can only be specified on final states."))
+            self.enter.add(donedata, priority=CallbackPriority.INLINE)
         self.document_order = 0
         self._init_states()
 

@@ -511,11 +511,8 @@ class ExecuteBlock(CallableAction):
         self.action_callables = [create_action_callable(action) for action in content.actions]
 
     def __call__(self, *args, **kwargs):
-        machine: StateChart = kwargs["machine"]
         for action in self.action_callables:
             action(*args, **kwargs)
-
-        machine._processing_loop()
 
 
 class DoneDataCallable(CallableAction):

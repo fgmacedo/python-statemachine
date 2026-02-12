@@ -162,14 +162,14 @@ class SCXMLProcessor:
         if state.parallel:
             state_dict["parallel"] = True
 
-        # Process enter actions + donedata
+        # Process enter actions
         enter_callables: list = [
             ExecuteBlock(content) for content in state.onentry if not content.is_empty
         ]
-        if state.final and state.donedata:
-            enter_callables.append(DoneDataCallable(state.donedata))
         if enter_callables:
             state_dict["enter"] = enter_callables
+        if state.final and state.donedata:
+            state_dict["donedata"] = DoneDataCallable(state.donedata)
 
         # Process exit actions
         if state.onexit:
