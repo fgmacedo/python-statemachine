@@ -45,7 +45,7 @@ def pytest_generate_tests(metafunc):
                 id=str(testcase_path.relative_to(TESTCASES_DIR)),
                 marks=compute_testcase_marks(testcase_path),
             )
-            for testcase_path in TESTCASES_DIR.glob("**/*.scxml")
+            for testcase_path in sorted(TESTCASES_DIR.glob("**/*.scxml"))
             if "sub" not in testcase_path.name
         ],
     )

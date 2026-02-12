@@ -4,6 +4,7 @@ from dataclasses import field
 from pathlib import Path
 from typing import Any
 
+import pytest
 from statemachine.event import Event
 from statemachine.io.scxml.processor import SCXMLProcessor
 
@@ -58,6 +59,13 @@ class DebugListener:
                 data=f"{event_data.trigger_data.kwargs}",
             )
         )
+
+
+class AsyncListener:
+    """No-op async listener to trigger AsyncEngine selection."""
+
+    async def on_enter_state(self, **kwargs):
+        pass
 
 
 @dataclass
@@ -126,26 +134,38 @@ Final configuration: `{configuration}`
             fail_file.write(report)
 
 
-def test_scxml_usecase(
-    testcase_path: Path, update_fail_mark, should_generate_debug_diagram, caplog
-):
+def _run_scxml_testcase(
+    testcase_path: Path,
+    update_fail_mark,
+    should_generate_debug_diagram,
+    caplog,
+    *,
+    async_mode: bool = False,
+) -> StateChart:
+    """Shared logic for sync and async SCXML test variants.
+
+    Parses the SCXML file, starts the state machine, and asserts the final
+    configuration contains ``pass``.  Returns the SM instance.
+    """
     from statemachine.contrib.diagram import DotGraphMachine
 
     sm: "StateChart | None" = None
     try:
         debug = DebugListener()
+        listeners: list = [debug]
+        if async_mode:
+            listeners.append(AsyncListener())
         processor = SCXMLProcessor()
         processor.parse_scxml_file(testcase_path)
 
-        sm = processor.start(listeners=[debug])
+        sm = processor.start(listeners=listeners)
         if should_generate_debug_diagram:
             DotGraphMachine(sm).get_graph().write_png(
                 testcase_path.parent / f"{testcase_path.stem}.png"
             )
-        assert isinstance(sm, StateChart)
-        assert "pass" in {s.id for s in sm.configuration}, debug
+        assert sm is not None
+        return sm
     except Exception as e:
-        # Import necessary module
         if update_fail_mark:
             reason = f"{e.__class__.__name__}: {e.__class__.__doc__}"
             is_assertion_error = isinstance(e, AssertionError)
@@ -159,3 +179,38 @@ def test_scxml_usecase(
             )
             fail_mark.write_fail_markdown(testcase_path)
         raise
+
+
+def _assert_passed(sm: StateChart, debug: "DebugListener | None" = None):
+    assert isinstance(sm, StateChart)
+    assert "pass" in {s.id for s in sm.configuration}, debug
+
+
+def test_scxml_usecase_sync(
+    testcase_path: Path, update_fail_mark, should_generate_debug_diagram, caplog
+):
+    sm = _run_scxml_testcase(
+        testcase_path,
+        update_fail_mark,
+        should_generate_debug_diagram,
+        caplog,
+        async_mode=False,
+    )
+    _assert_passed(sm)
+
+
+@pytest.mark.asyncio()
+async def test_scxml_usecase_async(
+    testcase_path: Path, update_fail_mark, should_generate_debug_diagram, caplog
+):
+    sm = _run_scxml_testcase(
+        testcase_path,
+        update_fail_mark,
+        should_generate_debug_diagram,
+        caplog,
+        async_mode=True,
+    )
+    # In async context, the engine only queued __initial__ during __init__.
+    # Activate now within the running event loop.
+    await sm.activate_initial_state()
+    _assert_passed(sm)

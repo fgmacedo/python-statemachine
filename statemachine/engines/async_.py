@@ -324,13 +324,16 @@ class AsyncEngine(BaseEngine):
 
                     logger.debug("External event: %s", external_event.event)
 
-                    # Handle lazy initial state activation
+                    # Handle lazy initial state activation.
+                    # Break out of phase 3 so the outer loop restarts from phase 1
+                    # (eventless/internal), ensuring internal events queued during
+                    # initial entry are processed before any external events.
                     if external_event.event == "__initial__":
                         transitions = self._initial_transitions(external_event)
                         await self._enter_states(
                             transitions, external_event, OrderedSet(), OrderedSet()
                         )
-                        continue
+                        break
 
                     enabled_transitions = await self.select_transitions(external_event)
                     logger.debug("Enabled transitions: %s", enabled_transitions)

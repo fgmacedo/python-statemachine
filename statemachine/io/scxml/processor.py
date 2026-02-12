@@ -207,8 +207,7 @@ class SCXMLProcessor:
 
                 # Process actions
             if transition.on and not transition.on.is_empty:
-                callable = ExecuteBlock(transition.on)
-                transition_dict["on"] = callable
+                transition_dict["on"] = ExecuteBlock(transition.on)
 
             result.append(transition_dict)
         return result
