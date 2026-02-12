@@ -160,14 +160,23 @@ def parse_state(  # noqa: C901
         transition = parse_transition(trans_elem)
         state.transitions.append(transition)
 
-    # Parse child states
-    initial_states.update(_parse_initial(state_elem.get("initial")))
+    # Parse child states — handle initial attribute and <initial> element
+    # Per SCXML spec, the initial attribute is equivalent to an <initial> element
+    # with a <transition> whose target is the attribute value.
+    initial_attr = state_elem.get("initial")
+    if initial_attr:
+        initial_states.update(_parse_initial(initial_attr))
+
     initial_elem = state_elem.find("initial")
     if initial_elem is not None:
         for trans_elem in initial_elem.findall("transition"):
             transition = parse_transition(trans_elem, initial=True)
             state.transitions.append(transition)
             initial_states.update(_parse_initial(trans_elem.get("target")))
+    elif initial_attr:
+        # Convert initial attribute to an initial transition
+        transition = Transition(target=initial_attr, initial=True)
+        state.transitions.append(transition)
 
     for child_state_elem in state_elem.findall("state"):
         child_state = parse_state(child_state_elem, initial_states=initial_states)

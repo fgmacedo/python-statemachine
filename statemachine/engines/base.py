@@ -214,7 +214,7 @@ class BaseEngine:
         states_to_exit = OrderedSet[StateTransition]()
 
         for transition in transitions:
-            if transition.target is None:
+            if not transition.targets:
                 continue
             domain = self.get_transition_domain(transition)
             for state in self.sm.configuration:
@@ -276,9 +276,7 @@ class BaseEngine:
 
     def get_effective_target_states(self, transition: Transition) -> OrderedSet[State]:
         targets = OrderedSet[State]()
-        for state in [transition.target]:
-            if not state:
-                continue
+        for state in transition.targets:
             if state.is_history:
                 if state.id in self.sm.history_values:
                     targets.update(self.sm.history_values[state.id])
@@ -417,15 +415,12 @@ class BaseEngine:
             transition.cond.key, *args, on_error=self._on_error_execution, **kwargs
         )
 
-    def _exit_states(
-        self, enabled_transitions: List[Transition], trigger_data: TriggerData
-    ) -> OrderedSet[State]:
-        """Compute and process the states to exit for the given transitions."""
+    def _prepare_exit_states(
+        self,
+        enabled_transitions: List[Transition],
+    ) -> "tuple[list[StateTransition], OrderedSet[State]]":
+        """Compute exit set, sort, and update history. Pure computation, no callbacks."""
         states_to_exit = self._compute_exit_set(enabled_transitions)
-
-        # # TODO: Remove states from states_to_invoke
-        # for state in states_to_exit:
-        #     self.states_to_invoke.discard(state)
 
         ordered_states = sorted(
             states_to_exit, key=lambda x: x.state and x.state.document_order or 0, reverse=True
@@ -450,6 +445,19 @@ class BaseEngine:
                 )
                 self.sm.history_values[history.id] = history_value
 
+        return ordered_states, result
+
+    def _remove_state_from_configuration(self, state: State):
+        """Remove a state from the configuration if not using atomic updates."""
+        if not self.sm.atomic_configuration_update:
+            self.sm.configuration -= {state}
+
+    def _exit_states(
+        self, enabled_transitions: List[Transition], trigger_data: TriggerData
+    ) -> OrderedSet[State]:
+        """Compute and process the states to exit for the given transitions."""
+        ordered_states, result = self._prepare_exit_states(enabled_transitions)
+
         for info in ordered_states:
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
@@ -459,13 +467,7 @@ class BaseEngine:
                     info.state.exit.key, *args, on_error=self._on_error_execution, **kwargs
                 )
 
-            # TODO: Cancel invocations
-            # for invocation in state.invoke:
-            #     self.cancel_invoke(invocation)
-
-            # Remove state from configuration
-            if not self.sm.atomic_configuration_update:
-                self.sm.configuration -= {info.state}  # .discard(info.source)
+            self._remove_state_from_configuration(info.state)
 
         return result
 
@@ -491,19 +493,21 @@ class BaseEngine:
 
         return result
 
-    def _enter_states(  # noqa: C901
+    def _prepare_entry_states(
         self,
         enabled_transitions: List[Transition],
-        trigger_data: TriggerData,
         states_to_exit: OrderedSet[State],
         previous_configuration: OrderedSet[State],
-    ):
-        """Enter the states as determined by the given transitions."""
+    ) -> "tuple[list[StateTransition], OrderedSet[StateTransition], Dict[str, Any], OrderedSet[State]]":  # noqa: E501
+        """Compute entry set, ordering, and new configuration. Pure computation, no callbacks.
+
+        Returns:
+            (ordered_states, states_for_default_entry, default_history_content, new_configuration)
+        """
         states_to_enter = OrderedSet[StateTransition]()
         states_for_default_entry = OrderedSet[StateTransition]()
         default_history_content: Dict[str, Any] = {}
 
-        # Compute the set of states to enter
         self.compute_entry_set(
             enabled_transitions, states_to_enter, states_for_default_entry, default_history_content
         )
@@ -512,13 +516,61 @@ class BaseEngine:
             states_to_enter, key=lambda x: x.state and x.state.document_order or 0
         )
 
-        # We update the configuration atomically
         states_targets_to_enter = OrderedSet(info.state for info in ordered_states if info.state)
 
         new_configuration = cast(
             OrderedSet[State], (previous_configuration - states_to_exit) | states_targets_to_enter
         )
         logger.debug("States to enter: %s", states_targets_to_enter)
+
+        return ordered_states, states_for_default_entry, default_history_content, new_configuration
+
+    def _add_state_to_configuration(self, target: State):
+        """Add a state to the configuration if not using atomic updates."""
+        if not self.sm.atomic_configuration_update:
+            self.sm.configuration |= {target}
+
+    def _handle_final_state(self, target: State, on_entry_result: list):
+        """Handle final state entry: queue done events. No direct callback dispatch."""
+        if target.parent is None:
+            self.running = False
+        else:
+            parent = target.parent
+            grandparent = parent.parent
+
+            donedata_args: tuple = ()
+            donedata_kwargs: dict = {}
+            for item in on_entry_result:
+                if not item:
+                    continue
+                if isinstance(item, dict):
+                    donedata_kwargs.update(item)
+                else:
+                    donedata_args = (item,)
+
+            BoundEvent(
+                f"done.state.{parent.id}",
+                _sm=self.sm,
+                internal=True,
+            ).put(*donedata_args, **donedata_kwargs)
+
+            if grandparent and grandparent.parallel:
+                if all(self.is_in_final_state(child) for child in grandparent.states):
+                    BoundEvent(f"done.state.{grandparent.id}", _sm=self.sm, internal=True).put(
+                        *donedata_args, **donedata_kwargs
+                    )
+
+    def _enter_states(  # noqa: C901
+        self,
+        enabled_transitions: List[Transition],
+        trigger_data: TriggerData,
+        states_to_exit: OrderedSet[State],
+        previous_configuration: OrderedSet[State],
+    ):
+        """Enter the states as determined by the given transitions."""
+        ordered_states, states_for_default_entry, default_history_content, new_configuration = (
+            self._prepare_entry_states(enabled_transitions, states_to_exit, previous_configuration)
+        )
 
         result = self._execute_transition_content(
             enabled_transitions,
@@ -541,17 +593,7 @@ class BaseEngine:
             )
 
             logger.debug("Entering state: %s", target)
-            # Add state to the configuration
-            if not self.sm.atomic_configuration_update:
-                self.sm.configuration |= {target}
-
-            # TODO: Add state to states_to_invoke
-            # self.states_to_invoke.add(state)
-
-            # Initialize data model if using late binding
-            # if self.binding == "late" and state.is_first_entry:
-            #     self.initialize_data_model(state)
-            #     state.is_first_entry = False
+            self._add_state_to_configuration(target)
 
             # Execute `onentry` handlers — each handler is a separate block per
             # SCXML spec: errors in one block MUST NOT affect other blocks.
@@ -568,8 +610,6 @@ class BaseEngine:
                     )
 
             # Handle default history states
-            # if state.id in default_history_content:
-            #     self.execute_content(default_history_content[state.id])
             default_history_transitions = [
                 i.transition for i in default_history_content.get(target.id, [])
             ]
@@ -584,33 +624,8 @@ class BaseEngine:
 
             # Handle final states
             if target.final:
-                if target.parent is None:
-                    self.running = False
-                else:
-                    parent = target.parent
-                    grandparent = parent.parent
+                self._handle_final_state(target, on_entry_result)
 
-                    donedata_args: tuple = ()
-                    donedata_kwargs: dict = {}
-                    for item in on_entry_result:
-                        if not item:
-                            continue
-                        if isinstance(item, dict):
-                            donedata_kwargs.update(item)
-                        else:
-                            donedata_args = (item,)
-
-                    BoundEvent(
-                        f"done.state.{parent.id}",
-                        _sm=self.sm,
-                        internal=True,
-                    ).put(*donedata_args, **donedata_kwargs)
-
-                    if grandparent and grandparent.parallel:
-                        if all(self.is_in_final_state(child) for child in grandparent.states):
-                            BoundEvent(
-                                f"done.state.{grandparent.id}", _sm=self.sm, internal=True
-                            ).put(*donedata_args, **donedata_kwargs)
         return result
 
     def compute_entry_set(
@@ -628,9 +643,7 @@ class BaseEngine:
         """
         for transition in transitions:
             # Process each target state of the transition
-            for target_state in [transition.target]:
-                if target_state is None:
-                    continue
+            for target_state in transition.targets:
                 info = StateTransition(transition=transition, state=target_state)
                 self.add_descendant_states_to_enter(
                     info, states_to_enter, states_for_default_entry, default_history_content
@@ -762,21 +775,24 @@ class BaseEngine:
         elif state.is_compound:
             states_for_default_entry.add(info)
             transition = next(t for t in state.transitions if t.initial)
-            info_initial = StateTransition(transition=transition, state=transition.target)
-            self.add_descendant_states_to_enter(
-                info_initial,
-                states_to_enter,
-                states_for_default_entry,
-                default_history_content,
-            )
-
-            self.add_ancestor_states_to_enter(
-                info_initial,
-                state,
-                states_to_enter,
-                states_for_default_entry,
-                default_history_content,
-            )
+            # Process all targets (supports multi-target initial transitions for parallel regions)
+            for initial_target in transition.targets:
+                info_initial = StateTransition(transition=transition, state=initial_target)
+                self.add_descendant_states_to_enter(
+                    info_initial,
+                    states_to_enter,
+                    states_for_default_entry,
+                    default_history_content,
+                )
+            for initial_target in transition.targets:
+                info_initial = StateTransition(transition=transition, state=initial_target)
+                self.add_ancestor_states_to_enter(
+                    info_initial,
+                    state,
+                    states_to_enter,
+                    states_for_default_entry,
+                    default_history_content,
+                )
 
     def add_ancestor_states_to_enter(
         self,

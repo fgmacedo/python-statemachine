@@ -12,6 +12,7 @@ from ..factory import StateMachineMetaclass
 from ..state import HistoryState
 from ..state import State
 from ..statemachine import StateChart
+from ..transition import Transition
 from ..transition_list import TransitionList
 
 
@@ -170,22 +171,31 @@ def create_machine_class_from_definition(
                 source = states_instances[state_id]
 
                 target_state_id = transition_data["target"]
-                target = states_instances[target_state_id] if target_state_id else None
                 transition_event_name = transition_data.get("event")
                 if event_name is not None:
                     transition_event_name = f"{event_name} {transition_event_name}".strip()
 
-                transition = source.to(
-                    target,
-                    event=transition_event_name,
-                    internal=transition_data.get("internal"),
-                    initial=transition_data.get("initial"),
-                    cond=transition_data.get("cond"),
-                    unless=transition_data.get("unless"),
-                    on=transition_data.get("on"),
-                    before=transition_data.get("before"),
-                    after=transition_data.get("after"),
-                )
+                transition_kwargs = {
+                    "event": transition_event_name,
+                    "internal": transition_data.get("internal"),
+                    "initial": transition_data.get("initial"),
+                    "cond": transition_data.get("cond"),
+                    "unless": transition_data.get("unless"),
+                    "on": transition_data.get("on"),
+                    "before": transition_data.get("before"),
+                    "after": transition_data.get("after"),
+                }
+
+                # Handle multi-target transitions (space-separated target IDs)
+                if target_state_id and isinstance(target_state_id, str) and " " in target_state_id:
+                    target_ids = target_state_id.split()
+                    targets = [states_instances[tid] for tid in target_ids]
+                    t = Transition(source, target=targets, **transition_kwargs)
+                    source.transitions.add_transitions(t)
+                    transition = TransitionList([t])
+                else:
+                    target = states_instances[target_state_id] if target_state_id else None
+                    transition = source.to(target, **transition_kwargs)
 
                 if event_name in events:
                     events[event_name] |= transition

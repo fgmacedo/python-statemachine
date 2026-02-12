@@ -362,7 +362,7 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
     return raise_action
 
 
-def create_send_action_callable(action: SendAction) -> Callable:
+def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
     content: Any = ()
     _valid_targets = (None, "#_internal", "internal", "#_parent", "parent")
     if action.content:
@@ -377,11 +377,19 @@ def create_send_action_callable(action: SendAction) -> Callable:
         target = action.target if action.target else None
 
         if action.type and action.type != "http://www.w3.org/TR/scxml/#SCXMLEventProcessor":
+            # Per SCXML spec 6.2.3, unsupported type raises error.execution
             raise ValueError(
-                "Only 'http://www.w3.org/TR/scxml/#SCXMLEventProcessor' event type is supported"
+                f"Unsupported send type: {action.type}. "
+                "Only 'http://www.w3.org/TR/scxml/#SCXMLEventProcessor' is supported"
             )
         if target not in _valid_targets:
-            raise ValueError(f"Invalid target: {target}. Must be one of {_valid_targets}")
+            if target and target.startswith("#_scxml_"):
+                # Valid SCXML session reference but undispatchable → error.communication
+                machine.send("error.communication", internal=True)
+            else:
+                # Invalid target expression → error.execution (raised as exception)
+                raise ValueError(f"Invalid target: {target}. Must be one of {_valid_targets}")
+            return
 
         internal = target in ("#_internal", "internal")
 
@@ -393,11 +401,14 @@ def create_send_action_callable(action: SendAction) -> Callable:
             setattr(machine.model, action.idlocation, send_id)
 
         delay = ParseTime.parse_delay(action.delay, action.delayexpr, **kwargs)
-        names = [
-            Param(name=name, expr=name)
-            for name in (action.namelist or "").strip().split()
-            if hasattr(machine.model, name)
-        ]
+
+        # Per SCXML spec, if namelist evaluation causes an error (e.g., variable not found),
+        # the send MUST NOT be dispatched and error.execution is raised.
+        names = []
+        for name in (action.namelist or "").strip().split():
+            if not hasattr(machine.model, name):
+                raise NameError(f"Namelist variable '{name}' not found on model")
+            names.append(Param(name=name, expr=name))
         params_values = {}
         for param in chain(names, action.params):
             if param.expr is None:

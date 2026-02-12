@@ -112,6 +112,11 @@ class StateMachineMetaclass(type):
         if not parent:
             return
 
+        # If parent already has a multi-target initial transition (e.g., from SCXML initial
+        # attribute targeting multiple parallel regions), don't create default initial transitions.
+        if any(t for t in parent.transitions if t.initial and len(t.targets) > 1):
+            return
+
         for initial in initials:
             if not any(t for t in parent.transitions if t.initial and t.target == initial):
                 parent.to(initial, initial=True)
