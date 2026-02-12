@@ -3,6 +3,7 @@ from functools import partial
 
 import pytest
 from statemachine.dispatcher import callable_method
+from statemachine.signature import SignatureAdapter
 
 
 def single_positional_param(a):
@@ -161,3 +162,37 @@ class TestSignatureAdapter:
 
         assert wrapped_func("A", "B") == ("A", "B", "activated")
         assert wrapped_func.__name__ == positional_and_kw_arguments.__name__
+
+
+def named_and_kwargs(source, **kwargs):
+    return source, kwargs
+
+
+class TestCachedBindExpected:
+    """Tests that exercise the cache fast-path by calling the same
+    wrapped function twice with the same argument shape."""
+
+    def setup_method(self):
+        SignatureAdapter.from_callable.clear_cache()
+
+    def test_named_param_not_leaked_into_kwargs(self):
+        """Named params should not appear in the **kwargs dict on cache hit."""
+        wrapped = callable_method(named_and_kwargs)
+
+        # 1st call: cache miss -> _full_bind
+        result1 = wrapped(source="A", target="B", event="go")
+        assert result1 == ("A", {"target": "B", "event": "go"})
+
+        # 2nd call: cache hit -> _fast_bind
+        result2 = wrapped(source="X", target="Y", event="stop")
+        assert result2 == ("X", {"target": "Y", "event": "stop"})
+
+    def test_kwargs_only_receives_unmatched_keys_with_positional(self):
+        """When mixing positional and keyword args with **kwargs."""
+        wrapped = callable_method(named_and_kwargs)
+
+        result1 = wrapped("A", target="B")
+        assert result1 == ("A", {"target": "B"})
+
+        result2 = wrapped("X", target="Y")
+        assert result2 == ("X", {"target": "Y"})
