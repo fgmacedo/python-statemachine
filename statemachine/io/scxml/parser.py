@@ -9,6 +9,7 @@ from .schema import AssignAction
 from .schema import CancelAction
 from .schema import DataItem
 from .schema import DataModel
+from .schema import DoneData
 from .schema import ExecutableContent
 from .schema import ForeachAction
 from .schema import HistoryState
@@ -183,7 +184,30 @@ def parse_state(  # noqa: C901
         child_history_state = parse_history(child_state_elem)
         state.history[child_history_state.id] = child_history_state
 
+    # Parse donedata (only valid on final states)
+    if is_final:
+        donedata_elem = state_elem.find("donedata")
+        if donedata_elem is not None:
+            state.donedata = parse_donedata(donedata_elem)
+
     return state
+
+
+def parse_donedata(element: ET.Element) -> DoneData:
+    """Parse a <donedata> element containing <param> and/or <content> children."""
+    params = []
+    content_expr = None
+    for child in element:
+        if child.tag == "param":
+            name = child.attrib["name"]
+            expr = child.attrib.get("expr")
+            location = child.attrib.get("location")
+            params.append(Param(name=name, expr=expr, location=location))
+        elif child.tag == "content":
+            content_expr = child.attrib.get("expr")
+            if content_expr is None and child.text:
+                content_expr = re.sub(r"\s+", " ", child.text).strip()
+    return DoneData(params=params, content_expr=content_expr)
 
 
 def parse_transition(trans_elem: ET.Element, initial: bool = False) -> Transition:

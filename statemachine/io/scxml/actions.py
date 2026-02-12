@@ -20,6 +20,7 @@ from .parser import SendAction
 from .schema import CancelAction
 from .schema import DataItem
 from .schema import DataModel
+from .schema import DoneData
 from .schema import ExecutableContent
 from .schema import ForeachAction
 from .schema import Param
@@ -138,8 +139,10 @@ class EventDataWrapper:
             return _Data(self.trigger_data.kwargs)
         elif self.trigger_data.args and len(self.trigger_data.args) == 1:
             return self.trigger_data.args[0]
-        else:
+        elif self.trigger_data.args:
             return self.trigger_data.args
+        else:
+            return None
 
 
 def _eval(expr: str, **kwargs) -> Any:
@@ -502,3 +505,30 @@ class ExecuteBlock(CallableAction):
             action(*args, **kwargs)
 
         machine._processing_loop()
+
+
+class DoneDataCallable(CallableAction):
+    """Evaluates <donedata> params/content and returns the data for done events."""
+
+    def __init__(self, donedata: DoneData):
+        super().__init__()
+        self.action = donedata
+        self.donedata = donedata
+
+    def __call__(self, *args, **kwargs):
+        if self.donedata.content_expr is not None:
+            return _eval(self.donedata.content_expr, **kwargs)
+
+        result = {}
+        for param in self.donedata.params:
+            if param.expr is not None:
+                result[param.name] = _eval(param.expr, **kwargs)
+            elif param.location is not None:
+                location = param.location.strip()
+                try:
+                    result[param.name] = _eval(location, **kwargs)
+                except Exception as e:
+                    raise ValueError(
+                        f"<param> location '{location}' does not resolve to a valid value"
+                    ) from e
+        return result

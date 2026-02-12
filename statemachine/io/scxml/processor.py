@@ -15,6 +15,7 @@ from .. import TransitionDict
 from .. import TransitionsList
 from .. import create_machine_class_from_definition
 from .actions import Cond
+from .actions import DoneDataCallable
 from .actions import EventDataWrapper
 from .actions import ExecuteBlock
 from .actions import create_datamodel_action_callable
@@ -149,41 +150,43 @@ class SCXMLProcessor:
     def _process_states(self, states: Dict[str, State]) -> Dict[str, StateDefinition]:
         states_dict: Dict[str, StateDefinition] = {}
         for state_id, state in states.items():
-            state_dict = StateDefinition()
-            if state.initial:
-                state_dict["initial"] = True
-            if state.final:
-                state_dict["final"] = True
-            if state.parallel:
-                state_dict["parallel"] = True
-
-            # Process enter actions
-            if state.onentry:
-                callables = [
-                    ExecuteBlock(content) for content in state.onentry if not content.is_empty
-                ]
-                state_dict["enter"] = callables
-
-            # Process exit actions
-            if state.onexit:
-                callables = [
-                    ExecuteBlock(content) for content in state.onexit if not content.is_empty
-                ]
-                state_dict["exit"] = callables
-
-            # Process transitions
-            if state.transitions:
-                state_dict["transitions"] = self._process_transitions(state.transitions)
-
-            states_dict[state_id] = state_dict
-
-            if state.states:
-                state_dict["states"] = self._process_states(state.states)
-
-            if state.history:
-                state_dict["history"] = self._process_history(state.history)
-
+            states_dict[state_id] = self._process_state(state)
         return states_dict
+
+    def _process_state(self, state: State) -> StateDefinition:
+        state_dict = StateDefinition()
+        if state.initial:
+            state_dict["initial"] = True
+        if state.final:
+            state_dict["final"] = True
+        if state.parallel:
+            state_dict["parallel"] = True
+
+        # Process enter actions + donedata
+        enter_callables: list = [
+            ExecuteBlock(content) for content in state.onentry if not content.is_empty
+        ]
+        if state.final and state.donedata:
+            enter_callables.append(DoneDataCallable(state.donedata))
+        if enter_callables:
+            state_dict["enter"] = enter_callables
+
+        # Process exit actions
+        if state.onexit:
+            callables = [ExecuteBlock(content) for content in state.onexit if not content.is_empty]
+            state_dict["exit"] = callables
+
+        # Process transitions
+        if state.transitions:
+            state_dict["transitions"] = self._process_transitions(state.transitions)
+
+        if state.states:
+            state_dict["states"] = self._process_states(state.states)
+
+        if state.history:
+            state_dict["history"] = self._process_history(state.history)
+
+        return state_dict
 
     def _process_transitions(self, transitions: List[Transition]):
         result: TransitionsList = []

@@ -590,23 +590,27 @@ class BaseEngine:
                     parent = target.parent
                     grandparent = parent.parent
 
-                    donedata = {}
+                    donedata_args: tuple = ()
+                    donedata_kwargs: dict = {}
                     for item in on_entry_result:
                         if not item:
                             continue
-                        donedata.update(item)
+                        if isinstance(item, dict):
+                            donedata_kwargs.update(item)
+                        else:
+                            donedata_args = (item,)
 
                     BoundEvent(
                         f"done.state.{parent.id}",
                         _sm=self.sm,
                         internal=True,
-                    ).put(donedata=donedata)
+                    ).put(*donedata_args, **donedata_kwargs)
 
                     if grandparent and grandparent.parallel:
                         if all(self.is_in_final_state(child) for child in grandparent.states):
                             BoundEvent(
                                 f"done.state.{grandparent.id}", _sm=self.sm, internal=True
-                            ).put(donedata=donedata)
+                            ).put(*donedata_args, **donedata_kwargs)
         return result
 
     def compute_entry_set(

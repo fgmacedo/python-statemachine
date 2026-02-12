@@ -111,6 +111,12 @@ class Transition:
 
 
 @dataclass
+class DoneData:
+    params: List[Param] = field(default_factory=list)
+    content_expr: "str | None" = None
+
+
+@dataclass
 class State:
     id: str
     initial: bool = False
@@ -121,6 +127,7 @@ class State:
     onexit: List[ExecutableContent] = field(default_factory=list)
     states: Dict[str, "State"] = field(default_factory=dict)
     history: Dict[str, "HistoryState"] = field(default_factory=dict)
+    donedata: "DoneData | None" = None
 
 
 @dataclass
