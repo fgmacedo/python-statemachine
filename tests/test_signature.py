@@ -2,7 +2,6 @@ import inspect
 from functools import partial
 
 import pytest
-
 from statemachine.dispatcher import callable_method
 from statemachine.signature import SignatureAdapter
 
@@ -197,4 +196,3 @@ class TestCachedBindExpected:
 
         result2 = wrapped("X", target="Y")
         assert result2 == ("X", {"target": "Y"})
-
