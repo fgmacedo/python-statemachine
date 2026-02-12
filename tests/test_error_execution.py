@@ -916,3 +916,196 @@ class TestErrorHandlerBehaviorLOTR:
         sm = LothlorienDeparture()
         sm.send("depart")
         assert sm.configuration == {sm.lost}
+
+
+@pytest.mark.timeout(5)
+class TestEngineErrorPropagation:
+    def test_invalid_definition_in_enter_propagates(self):
+        """InvalidDefinition during enter_states propagates and restores configuration."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State()
+
+            go = s1.to(s2)
+
+            def on_enter_s2(self, **kwargs):
+                raise InvalidDefinition("Bad definition")
+
+        sm = SM()
+        with pytest.raises(InvalidDefinition, match="Bad definition"):
+            sm.send("go")
+
+    def test_invalid_definition_in_after_propagates(self):
+        """InvalidDefinition in after callback propagates."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+            def after_go(self, **kwargs):
+                raise InvalidDefinition("Bad after")
+
+        sm = SM()
+        with pytest.raises(InvalidDefinition, match="Bad after"):
+            sm.send("go")
+
+    def test_runtime_error_in_after_without_error_on_execution_propagates(self):
+        """RuntimeError in after callback without error_on_execution raises."""
+
+        class SM(StateMachine):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+            def after_go(self, **kwargs):
+                raise RuntimeError("After boom")
+
+        sm = SM()
+        with pytest.raises(RuntimeError, match="After boom"):
+            sm.send("go")
+
+    def test_runtime_error_in_after_with_error_on_execution_handled(self):
+        """RuntimeError in after callback with error_on_execution is caught."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State()
+            error_state = State(final=True)
+
+            go = s1.to(s2)
+            error_execution = s2.to(error_state)
+
+            def after_go(self, **kwargs):
+                raise RuntimeError("After boom")
+
+        sm = SM()
+        sm.send("go")
+        assert sm.configuration == {sm.error_state}
+
+    def test_runtime_error_in_microstep_without_error_on_execution(self):
+        """RuntimeError in microstep without error_on_execution raises."""
+
+        class SM(StateMachine):
+            s1 = State(initial=True)
+            s2 = State()
+
+            go = s1.to(s2)
+
+            def on_enter_s2(self, **kwargs):
+                raise RuntimeError("Microstep boom")
+
+        sm = SM()
+        with pytest.raises(RuntimeError, match="Microstep boom"):
+            sm.send("go")
+
+
+@pytest.mark.timeout(5)
+def test_internal_queue_processes_raised_events():
+    """Internal events raised during processing are handled."""
+
+    class SM(StateMachine):
+        s1 = State(initial=True)
+        s2 = State()
+        s3 = State(final=True)
+
+        go = s1.to(s2)
+        next_step = s2.to(s3)
+
+        def on_enter_s2(self, **kwargs):
+            self.raise_("next_step")
+
+    sm = SM()
+    sm.send("go")
+    assert sm.s3.is_active
+
+
+@pytest.mark.timeout(5)
+def test_engine_start_when_already_started():
+    """start() is a no-op when state machine is already initialized."""
+
+    class SM(StateMachine):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+    sm = SM()
+    sm._engine.start()
+    assert sm.s1.is_active
+
+
+@pytest.mark.timeout(5)
+def test_error_in_internal_event_transition_caught_by_microstep():
+    """Error in a transition triggered by an internal event is caught by _run_microstep."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+        s3 = State()
+        error_state = State(final=True)
+
+        go = s1.to(s2)
+        step = s2.to(s3, on="bad_action")
+        error_execution = s2.to(error_state) | s3.to(error_state)
+
+        def on_enter_s2(self, **kwargs):
+            self.raise_("step")
+
+        def bad_action(self):
+            raise RuntimeError("Internal event error")
+
+    sm = SM()
+    sm.send("go")
+    assert sm.configuration == {sm.error_state}
+
+
+@pytest.mark.timeout(5)
+def test_invalid_definition_in_internal_event_propagates():
+    """InvalidDefinition in an internal event transition propagates through _run_microstep."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+        s3 = State()
+        error_state = State(final=True)
+
+        go = s1.to(s2)
+        step = s2.to(s3, on="bad_action")
+        error_execution = s2.to(error_state)
+
+        def on_enter_s2(self, **kwargs):
+            self.raise_("step")
+
+        def bad_action(self):
+            raise InvalidDefinition("Internal event bad definition")
+
+    sm = SM()
+    with pytest.raises(InvalidDefinition, match="Internal event bad definition"):
+        sm.send("go")
+
+
+@pytest.mark.timeout(5)
+def test_runtime_error_in_internal_event_propagates_without_error_on_execution():
+    """RuntimeError in internal event propagates when error_on_execution is False."""
+
+    class SM(StateMachine):
+        s1 = State(initial=True)
+        s2 = State()
+        s3 = State()
+
+        go = s1.to(s2)
+        step = s2.to(s3, on="bad_action")
+
+        def on_enter_s2(self, **kwargs):
+            self.raise_("step")
+
+        def bad_action(self):
+            raise RuntimeError("Internal event boom")
+
+    sm = SM()
+    with pytest.raises(RuntimeError, match="Internal event boom"):
+        sm.send("go")

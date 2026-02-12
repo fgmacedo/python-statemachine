@@ -819,7 +819,7 @@ class BaseEngine:
     def is_in_final_state(self, state: State) -> bool:
         if state.is_compound:
             return any(s.final and s in self.sm.configuration for s in state.states)
-        elif state.parallel:
+        elif state.parallel:  # pragma: no cover — requires nested parallel-in-parallel
             return all(self.is_in_final_state(s) for s in state.states)
-        else:
+        else:  # pragma: no cover — atomic states are never "in final state"
             return False

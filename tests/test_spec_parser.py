@@ -1,6 +1,7 @@
 import logging
 
 import pytest
+from statemachine.spec_parser import Functions
 from statemachine.spec_parser import operator_mapping
 from statemachine.spec_parser import parse_boolean_expr
 
@@ -290,3 +291,9 @@ def test_should_evaluate_values_only_once(expression, expected, caplog, hooks_ca
         assert caplog.record_tuples == [
             ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
         ]
+
+
+def test_functions_get_unknown_raises():
+    """Functions.get raises ValueError for unknown functions."""
+    with pytest.raises(ValueError, match="Unsupported function"):
+        Functions.get("nonexistent_function")

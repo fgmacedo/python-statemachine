@@ -1,4 +1,5 @@
 import pytest
+from statemachine.orderedset import OrderedSet
 
 from statemachine import State
 from statemachine import StateMachine
@@ -39,3 +40,31 @@ class TestState:
         assert not sm.pending.final
         assert not sm.waiting_approval.final
         assert sm.approved.final
+
+
+def test_ordered_set_clear():
+    """OrderedSet.clear empties the set."""
+    s = OrderedSet([1, 2, 3])
+    s.clear()
+    assert len(s) == 0
+
+
+def test_ordered_set_getitem():
+    """OrderedSet supports index access."""
+    s = OrderedSet([10, 20, 30])
+    assert s[0] == 10
+    assert s[2] == 30
+
+
+def test_ordered_set_getitem_out_of_range():
+    """OrderedSet raises IndexError for out-of-range index."""
+    s = OrderedSet([10, 20])
+    with pytest.raises(IndexError, match="index 5 out of range"):
+        s[5]
+
+
+def test_ordered_set_union():
+    """OrderedSet.union returns new set with elements from both."""
+    s1 = OrderedSet([1, 2])
+    result = s1.union([3, 4], [5, 6])
+    assert list(result) == [1, 2, 3, 4, 5, 6]

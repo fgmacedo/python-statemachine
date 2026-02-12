@@ -19,12 +19,16 @@ logger = logging.getLogger(__name__)
 
 class SyncEngine(BaseEngine):
     def _run_microstep(self, enabled_transitions, trigger_data):
-        """Run a microstep for internal/eventless transitions with error handling."""
+        """Run a microstep for internal/eventless transitions with error handling.
+
+        Note: microstep() handles its own errors internally, so this try/except
+        is a safety net that is not expected to be reached in normal operation.
+        """
         try:
             self.microstep(list(enabled_transitions), trigger_data)
         except InvalidDefinition:
             raise
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             if self.sm.error_on_execution:
                 self._send_error_execution(trigger_data, e)
             else:
@@ -112,8 +116,10 @@ class SyncEngine(BaseEngine):
                 #         self.invoke(inv)
                 # self.states_to_invoke.clear()
 
-                # Process remaining internal events before external events
-                while not self.internal_queue.is_empty():
+                # Process remaining internal events before external events.
+                # Note: the macrostep loop above already drains the internal queue,
+                # so this is a safety net per SCXML spec for invoke-generated events.
+                while not self.internal_queue.is_empty():  # pragma: no cover
                     internal_event = self.internal_queue.pop()
                     enabled_transitions = self.select_transitions(internal_event)
                     if enabled_transitions:

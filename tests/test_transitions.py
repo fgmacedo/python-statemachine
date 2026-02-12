@@ -371,3 +371,19 @@ class TestTransitionFromAny:
         sm.close_account()
         assert sm.closed.is_active
         assert sm.flag_for_debug is True
+
+
+def test_initial_transition_with_cond_raises():
+    """Initial transitions cannot have conditions."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2")
+    with pytest.raises(InvalidDefinition, match="Initial transitions"):
+        Transition(s1, s2, initial=True, cond="some_cond")
+
+
+def test_initial_transition_with_event_raises():
+    """Initial transitions cannot have events."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2")
+    with pytest.raises(InvalidDefinition, match="Initial transitions"):
+        Transition(s1, s2, initial=True, event="some_event")

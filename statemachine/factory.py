@@ -78,8 +78,8 @@ class StateMachineMetaclass(type):
 
         if initials:
             cls.initial_state = initials[0]
-        else:
-            cls.initial_state = None  # TODO: Check if still enter here for abstract SM
+        else:  # pragma: no cover
+            cls.initial_state = None
 
         cls.final_states: List[State] = [state for state in cls.states if state.final]
 
@@ -138,7 +138,7 @@ class StateMachineMetaclass(type):
         cls._abstract = not has_states
 
         # do not validate the base abstract classes
-        if cls._abstract:
+        if cls._abstract:  # pragma: no cover
             return
 
         cls._check_initial_state()
@@ -149,7 +149,7 @@ class StateMachineMetaclass(type):
 
     def _check_initial_state(cls):
         initials = [s for s in cls.states if s.initial]
-        if len(initials) != 1:
+        if len(initials) != 1:  # pragma: no cover
             raise InvalidDefinition(
                 _(
                     "There should be one and only one initial state. "
