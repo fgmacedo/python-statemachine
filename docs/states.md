@@ -164,3 +164,107 @@ For this, use {ref}`States (class)` to convert your `Enum` type to a list of {re
 ```{seealso}
 See the example {ref}`sphx_glr_auto_examples_enum_campaign_machine.py`.
 ```
+
+## Compound states
+
+```{versionadded} 3.0.0
+```
+
+Compound states contain inner child states, enabling hierarchical state machines.
+Define them using the `State.Compound` inner class syntax:
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class Journey(StateChart):
+...     class shire(State.Compound):
+...         bag_end = State(initial=True)
+...         green_dragon = State()
+...         visit_pub = bag_end.to(green_dragon)
+...     road = State(final=True)
+...     depart = shire.to(road)
+
+>>> sm = Journey()
+>>> set(sm.configuration_values) == {"shire", "bag_end"}
+True
+
+```
+
+Entering a compound activates both the parent and its `initial` child. You can query
+whether a state is compound using the `is_compound` property.
+
+```{seealso}
+See {ref}`compound-states` for full details, nesting, and `done.state` events.
+```
+
+## Parallel states
+
+```{versionadded} 3.0.0
+```
+
+Parallel states activate all child regions simultaneously. Each region operates
+independently. Define them using `State.Parallel`:
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class WarOfTheRing(StateChart):
+...     validate_disconnected_states = False
+...     class war(State.Parallel):
+...         class quest(State.Compound):
+...             start = State(initial=True)
+...             end = State(final=True)
+...             go = start.to(end)
+...         class battle(State.Compound):
+...             fighting = State(initial=True)
+...             won = State(final=True)
+...             victory = fighting.to(won)
+
+>>> sm = WarOfTheRing()
+>>> "start" in sm.configuration_values and "fighting" in sm.configuration_values
+True
+
+```
+
+```{seealso}
+See {ref}`parallel-states` for full details and done events.
+```
+
+## History pseudo-states
+
+```{versionadded} 3.0.0
+```
+
+A history pseudo-state records the active child of a compound state when it is exited.
+Re-entering via the history state restores the previously active child. Import and use
+`HistoryState` inside a `State.Compound`:
+
+```py
+>>> from statemachine import HistoryState, State, StateChart
+
+>>> class WithHistory(StateChart):
+...     validate_disconnected_states = False
+...     class mode(State.Compound):
+...         a = State(initial=True)
+...         b = State()
+...         h = HistoryState()
+...         switch = a.to(b)
+...     outside = State()
+...     leave = mode.to(outside)
+...     resume = outside.to(mode.h)
+
+>>> sm = WithHistory()
+>>> sm.send("switch")
+>>> sm.send("leave")
+>>> sm.send("resume")
+>>> "b" in sm.configuration_values
+True
+
+```
+
+Use `HistoryState(deep=True)` for deep history that remembers the exact leaf state
+in nested compounds.
+
+```{seealso}
+See {ref}`history-states` for shallow vs deep history and default transitions.
+```

@@ -376,3 +376,47 @@ You can raise an exception at this point to stop a transition from completing.
 'green'
 
 ```
+
+(eventless)=
+
+### Eventless (automatic) transitions
+
+```{versionadded} 3.0.0
+```
+
+Eventless transitions have no event trigger — they fire automatically when their guard
+condition evaluates to `True`. If no guard is specified, they fire immediately
+(unconditional). This is useful for modeling automatic state progressions.
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class RingCorruption(StateChart):
+...     resisting = State(initial=True)
+...     corrupted = State(final=True)
+...     resisting.to(corrupted, cond="is_corrupted")
+...     bear_ring = resisting.to.itself(internal=True, on="increase_power")
+...     ring_power = 0
+...     def is_corrupted(self):
+...         return self.ring_power > 5
+...     def increase_power(self):
+...         self.ring_power += 2
+
+>>> sm = RingCorruption()
+>>> sm.send("bear_ring")
+>>> sm.send("bear_ring")
+>>> "resisting" in sm.configuration_values
+True
+
+>>> sm.send("bear_ring")
+>>> "corrupted" in sm.configuration_values
+True
+
+```
+
+The eventless transition from `resisting` to `corrupted` fires automatically after
+the third `bear_ring` event pushes `ring_power` past the threshold.
+
+```{seealso}
+See {ref}`eventless-transitions` for chains, compound interactions, and `In()` guards.
+```

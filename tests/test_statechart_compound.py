@@ -9,7 +9,6 @@ Theme: Fellowship journey through Middle-earth.
 
 import pytest
 
-from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
 
@@ -181,9 +180,7 @@ class TestCompoundStates:
                 enter_mountain = approach.to(inside)
 
             victory = State(final=True)
-            done_state_lonely_mountain = Event(
-                lonely_mountain.to(victory), id="done.state.lonely_mountain"
-            )
+            done_state_lonely_mountain = lonely_mountain.to(victory)
 
         sm = await sm_runner.start(QuestForErebor)
         assert "approach" in sm.configuration_values

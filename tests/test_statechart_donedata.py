@@ -32,9 +32,7 @@ class TestDoneData:
                     return {"ring_destroyed": True, "hero": "frodo"}
 
             epilogue = State(final=True)
-            done_state_quest = Event(
-                quest.to(epilogue, on="capture_result"), id="done.state.quest"
-            )
+            done_state_quest = Event(quest.to(epilogue, on="capture_result"))
 
             def capture_result(self, ring_destroyed=None, hero=None, **kwargs):
                 received["ring_destroyed"] = ring_destroyed
@@ -59,7 +57,7 @@ class TestDoneData:
                     return {"outcome": "victory"}
 
             celebration = State(final=True)
-            done_state_quest = Event(quest.to(celebration), id="done.state.quest")
+            done_state_quest = Event(quest.to(celebration))
 
         sm = await sm_runner.start(DestroyTheRing)
         await sm_runner.send(sm, "finish")
@@ -81,10 +79,10 @@ class TestDoneData:
 
                 assert isinstance(inner, State)
                 after_inner = State(final=True)
-                done_state_inner = Event(inner.to(after_inner), id="done.state.inner")
+                done_state_inner = Event(inner.to(after_inner))
 
             final = State(final=True)
-            done_state_outer = Event(outer.to(final), id="done.state.outer")
+            done_state_outer = Event(outer.to(final))
 
         sm = await sm_runner.start(NestedQuestDoneData)
         await sm_runner.send(sm, "go")
@@ -121,9 +119,80 @@ class TestDoneData:
                     return {"ring_destroyed": True}
 
             celebration = State(final=True)
-            done_state_quest = Event(quest.to(celebration), id="done.state.quest")
+            done_state_quest = Event(quest.to(celebration))
 
         listener = QuestListener()
         sm = await sm_runner.start(DestroyTheRing, listeners=[listener])
         await sm_runner.send(sm, "finish")
         assert {"celebration"} == set(sm.configuration_values)
+
+
+@pytest.mark.timeout(5)
+class TestDoneStateConvention:
+    async def test_done_state_convention_with_transition_list(self, sm_runner):
+        """Bare TransitionList with done_state_ name auto-registers done.state.X."""
+
+        class QuestForErebor(StateChart):
+            class quest(State.Compound):
+                traveling = State(initial=True)
+                arrived = State(final=True)
+
+                finish = traveling.to(arrived)
+
+            celebration = State(final=True)
+            done_state_quest = quest.to(celebration)
+
+        sm = await sm_runner.start(QuestForErebor)
+        await sm_runner.send(sm, "finish")
+        assert {"celebration"} == set(sm.configuration_values)
+
+    async def test_done_state_convention_with_event_no_explicit_id(self, sm_runner):
+        """Event() wrapper without explicit id= applies the convention."""
+
+        class QuestForErebor(StateChart):
+            class quest(State.Compound):
+                traveling = State(initial=True)
+                arrived = State(final=True)
+
+                finish = traveling.to(arrived)
+
+            celebration = State(final=True)
+            done_state_quest = Event(quest.to(celebration))
+
+        sm = await sm_runner.start(QuestForErebor)
+        await sm_runner.send(sm, "finish")
+        assert {"celebration"} == set(sm.configuration_values)
+
+    async def test_done_state_convention_preserves_explicit_id(self, sm_runner):
+        """Explicit id= takes precedence over the convention."""
+
+        class QuestForErebor(StateChart):
+            class quest(State.Compound):
+                traveling = State(initial=True)
+                arrived = State(final=True)
+
+                finish = traveling.to(arrived)
+
+            celebration = State(final=True)
+            done_state_quest = Event(quest.to(celebration), id="done.state.quest")
+
+        sm = await sm_runner.start(QuestForErebor)
+        await sm_runner.send(sm, "finish")
+        assert {"celebration"} == set(sm.configuration_values)
+
+    async def test_done_state_convention_with_multi_word_state(self, sm_runner):
+        """done_state_lonely_mountain maps to done.state.lonely_mountain."""
+
+        class QuestForErebor(StateChart):
+            class lonely_mountain(State.Compound):
+                approach = State(initial=True)
+                inside = State(final=True)
+
+                enter_mountain = approach.to(inside)
+
+            victory = State(final=True)
+            done_state_lonely_mountain = lonely_mountain.to(victory)
+
+        sm = await sm_runner.start(QuestForErebor)
+        await sm_runner.send(sm, "enter_mountain")
+        assert {"victory"} == set(sm.configuration_values)

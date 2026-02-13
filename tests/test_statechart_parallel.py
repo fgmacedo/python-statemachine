@@ -9,7 +9,6 @@ Theme: War of the Ring — multiple simultaneous fronts.
 
 import pytest
 
-from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
 
@@ -151,7 +150,7 @@ class TestParallelStates:
                     flood = besieging.to(flooded)
 
             aftermath = State(final=True)
-            done_state_battle = Event(battle.to(aftermath), id="done.state.battle")
+            done_state_battle = battle.to(aftermath)
 
         sm = await sm_runner.start(TwoTowers)
         await sm_runner.send(sm, "win")
@@ -182,7 +181,7 @@ class TestParallelStates:
                     flood = besieging.to(flooded)
 
             aftermath = State(final=True)
-            done_state_battle = Event(battle.to(aftermath), id="done.state.battle")
+            done_state_battle = battle.to(aftermath)
 
         sm = await sm_runner.start(TwoTowers)
         await sm_runner.send(sm, "win")

@@ -184,3 +184,20 @@ before the event is handled:
 Initial
 
 ```
+
+## StateChart async support
+
+```{versionadded} 3.0.0
+```
+
+`StateChart` works identically with the async engine. All statechart features —
+compound states, parallel states, history pseudo-states, eventless transitions,
+and `done.state` events — are fully supported in async code. The same
+`activate_initial_state()` pattern applies:
+
+```python
+async def run():
+    sm = MyStateChart()
+    await sm.activate_initial_state()
+    await sm.send("event")
+```

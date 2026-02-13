@@ -253,12 +253,18 @@ class StateMachineMetaclass(type):
                 event_id = key
                 if key.startswith("error_"):
                     event_id = f"{key} {key.replace('_', '.')}"
+                elif key.startswith("done_state_"):
+                    suffix = key[len("done_state_") :]
+                    event_id = f"{key} done.state.{suffix}"
                 cls.add_event(event=Event(transitions=value, id=event_id, name=key))
             elif isinstance(value, (Event,)):
                 if value._has_real_id:
                     event_id = value.id
                 elif key.startswith("error_"):
                     event_id = f"{key} {key.replace('_', '.')}"
+                elif key.startswith("done_state_"):
+                    suffix = key[len("done_state_") :]
+                    event_id = f"{key} done.state.{suffix}"
                 else:
                     event_id = key
                 new_event = Event(

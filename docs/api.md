@@ -1,5 +1,16 @@
 # API
 
+## StateChart
+
+```{versionadded} 3.0.0
+```
+
+```{eval-rst}
+.. autoclass:: statemachine.statemachine.StateChart
+    :members:
+    :undoc-members:
+```
+
 ## StateMachine
 
 ```{eval-rst}
@@ -17,6 +28,16 @@
 
 ```{eval-rst}
 .. autoclass:: statemachine.state.State
+    :members:
+```
+
+## HistoryState
+
+```{versionadded} 3.0.0
+```
+
+```{eval-rst}
+.. autoclass:: statemachine.state.HistoryState
     :members:
 ```
 
@@ -78,4 +99,13 @@
 ```{eval-rst}
 .. autoclass:: statemachine.event_data.EventData
     :members:
+```
+
+## create_machine_class_from_definition
+
+```{versionadded} 3.0.0
+```
+
+```{eval-rst}
+.. autofunction:: statemachine.io.create_machine_class_from_definition
 ```

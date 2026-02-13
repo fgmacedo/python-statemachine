@@ -9,7 +9,6 @@ Theme: The One Ring's corruption and Beacons of Gondor.
 
 import pytest
 
-from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
 
@@ -78,7 +77,7 @@ class TestEventlessTransitions:
                 nardol.to(halifirien)
 
             all_lit = State(final=True)
-            done_state_chain = Event(chain.to(all_lit), id="done.state.chain")
+            done_state_chain = chain.to(all_lit)
 
         sm = await sm_runner.start(BeaconChainLighting)
         # The chain should cascade through all states in a single macrostep
@@ -125,7 +124,7 @@ class TestEventlessTransitions:
                 step2.to(step3)
 
             done = State(final=True)
-            done_state_journey = Event(journey.to(done), id="done.state.journey")
+            done_state_journey = journey.to(done)
 
         sm = await sm_runner.start(AutoAdvance)
         # Eventless chain cascades through all children
@@ -171,7 +170,7 @@ class TestEventlessTransitions:
                 first.to(last)
 
             signal_received = State(final=True)
-            done_state_beacons = Event(beacons.to(signal_received), id="done.state.beacons")
+            done_state_beacons = beacons.to(signal_received)
 
         sm = await sm_runner.start(BeaconChain)
         assert {"signal_received"} == set(sm.configuration_values)
