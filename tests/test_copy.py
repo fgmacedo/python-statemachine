@@ -6,11 +6,11 @@ from enum import Enum
 from enum import auto
 
 import pytest
+from statemachine.exceptions import TransitionNotAllowed
+from statemachine.states import States
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import TransitionNotAllowed
-from statemachine.states import States
 
 logger = logging.getLogger(__name__)
 DEBUG = logging.DEBUG

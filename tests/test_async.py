@@ -1,10 +1,10 @@
 import re
 
 import pytest
+from statemachine.exceptions import InvalidStateValue
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import InvalidStateValue
 
 
 @pytest.fixture()

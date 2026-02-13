@@ -14,9 +14,10 @@ And that logic can be reused with listeners.
 from dataclasses import dataclass
 from enum import Enum
 
+from statemachine.states import States
+
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.states import States
 
 
 class UserStatus(str, Enum):
