@@ -1,14 +1,21 @@
 from typing import Callable
 
 from .callbacks import CallbackGroup
+from .i18n import _
 
 
 class AddCallbacksMixin:
     def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
         raise NotImplementedError
 
-    def __call__(self, f):
-        return self._add_callback(f, CallbackGroup.ON, is_event=True)
+    def __call__(self, *args, **kwargs):
+        if len(args) == 1 and callable(args[0]) and not kwargs:
+            return self._add_callback(args[0], CallbackGroup.ON, is_event=True)
+        raise TypeError(
+            _("{} only supports the decorator syntax to register callbacks.").format(
+                type(self).__name__
+            )
+        )
 
     def before(self, f: Callable):
         """Adds a ``before`` :ref:`transition actions` callback to every :ref:`transition` in the

@@ -1,5 +1,4 @@
 import pytest
-
 from statemachine.state import State
 from statemachine.statemachine import StateMachine
 

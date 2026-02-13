@@ -1,5 +1,6 @@
-from statemachine import StateMachine
 from statemachine.states import States
+
+from statemachine import StateMachine
 
 from .models import WorkflowSteps
 

@@ -14,9 +14,10 @@ And that logic can be reused with listeners.
 from dataclasses import dataclass
 from enum import Enum
 
+from statemachine.states import States
+
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.states import States
 
 
 class UserStatus(str, Enum):
@@ -87,7 +88,7 @@ class UserStatusMachine(StateMachine):
     def on_signup(self, token: str):
         if token == "":
             raise ValueError("Token is required")
-        self.model.verified = True
+        self.model.verified = True  # type: ignore[union-attr]
 
 
 class UserExperienceMachine(StateMachine):

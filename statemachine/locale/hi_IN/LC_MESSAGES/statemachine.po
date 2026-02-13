@@ -5,22 +5,32 @@ msgid ""
 msgstr ""
 "Project-Id-Version:  2.4.0\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2023-03-04 16:10-0300\n"
+"POT-Creation-Date: 2026-02-13 18:28-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: hi_IN\n"
+"Language-Team: hi_IN <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.14.0\n"
+"Generated-By: Babel 2.16.0\n"
 
-#: statemachine/callbacks.py:165
+#: statemachine/callbacks.py:349 statemachine/callbacks.py:354
+msgid "Did not found name '{}' from model or statemachine"
+msgstr "मॉडल या स्टेटमशीन में नाम '{}' नहीं मिला"
+
+#: statemachine/dispatcher.py:126
 msgid "Failed to parse boolean expression '{}'"
 msgstr "बूलियन अभिव्यक्ति '{}' को पार्स करने में विफल रहा"
 
-#: statemachine/callbacks.py:407 statemachine/callbacks.py:412
-msgid "Did not found name '{}' from model or statemachine"
-msgstr "मॉडल या स्टेटमशीन में नाम '{}' नहीं मिला"
+#: statemachine/event.py:90
+msgid "Cannot add callback '{}' to an event with no transitions."
+msgstr "बिना ट्रांज़िशन वाले इवेंट में कॉलबैक '{}' नहीं जोड़ सकते।"
+
+#: statemachine/event.py:123
+msgid "Event {} cannot be called without a SM instance"
+msgstr "इवेंट {} को SM इंस्टेंस के बिना कॉल नहीं किया जा सकता"
 
 #: statemachine/exceptions.py:24
 msgid "{!r} is not a valid state value."
@@ -30,64 +40,80 @@ msgstr "{!r} एक मान्य स्टेट मान नहीं ह�
 msgid "Can't {} when in {}."
 msgstr "{} स्थिति में {} नहीं कर सकते।"
 
-#: statemachine/factory.py:74
+#: statemachine/factory.py:73
 msgid "There are no states."
 msgstr "कोई स्टेट नहीं है।"
 
-#: statemachine/factory.py:77
+#: statemachine/factory.py:76
 msgid "There are no events."
 msgstr "कोई इवेंट नहीं है।"
 
-#: statemachine/factory.py:89
+#: statemachine/factory.py:88
 msgid ""
 "There should be one and only one initial state. You currently have these:"
 " {!r}"
-msgstr "एक और केवल एक प्रारंभिक स्टेट होना चाहिए। वर्तमान में आपके पास ये हैं: {!r}"
+msgstr ""
+"एक और केवल एक प्रारंभिक स्टेट होना चाहिए। वर्तमान में आपके पास ये हैं: "
+"{!r}"
 
-#: statemachine/factory.py:102
+#: statemachine/factory.py:101
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
 msgstr "अंतिम स्टेट से ट्रांज़िशन घोषित नहीं कर सकते। अमान्य स्टेट: {}"
 
-#: statemachine/factory.py:110
+#: statemachine/factory.py:109
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
 "states have no outgoing transition: {!r}"
-msgstr "सभी गैर-अंतिम स्टेट में कम से कम एक आउटगोइंग ट्रांज़िशन होना चाहिए। इन स्टेट में कोई आउटगोइंग ट्रांज़िशन नहीं है: {!r}"
+msgstr ""
+"सभी गैर-अंतिम स्टेट में कम से कम एक आउटगोइंग ट्रांज़िशन होना चाहिए। इन "
+"स्टेट में कोई आउटगोइंग ट्रांज़िशन नहीं है: {!r}"
 
-#: statemachine/factory.py:124
+#: statemachine/factory.py:123
 msgid ""
 "All non-final states should have at least one path to a final state. "
 "These states have no path to a final state: {!r}"
-msgstr "सभी गैर-अंतिम स्टेट में अंतिम स्टेट तक कम से कम एक पथ होना चाहिए। इन स्टेट में अंतिम स्टेट तक कोई पथ नहीं है: {!r}"
+msgstr ""
+"सभी गैर-अंतिम स्टेट में अंतिम स्टेट तक कम से कम एक पथ होना चाहिए। इन "
+"स्टेट में अंतिम स्टेट तक कोई पथ नहीं है: {!r}"
 
-#: statemachine/factory.py:148
+#: statemachine/factory.py:147
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
-msgstr "कुछ स्टेट पहुंच योग्य नहीं हैं। स्टेटमशीन ग्राफ में एक ही घटक होना चाहिए। डिस्कनेक्टेड स्टेट: {}"
+msgstr ""
+"कुछ स्टेट पहुंच योग्य नहीं हैं। स्टेटमशीन ग्राफ में एक ही घटक होना चाहिए।"
+" डिस्कनेक्टेड स्टेट: {}"
 
-#: statemachine/factory.py:257
+#: statemachine/factory.py:253
 msgid "An event in the '{}' has no id."
 msgstr "'{}' में एक इवेंट का आईडी नहीं है।"
 
-#: statemachine/mixins.py:26
+#: statemachine/mixins.py:28
 msgid "{!r} is not a valid state machine name."
 msgstr "{!r} एक मान्य स्टेटमशीन नाम नहीं है।"
 
-#: statemachine/state.py:155
+#: statemachine/state.py:194
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
-msgstr "स्टेट ओवरराइड करना अनुमति नहीं है। '{}' को {} में जोड़ने की कोशिश कर रहे हैं"
+msgstr ""
+"स्टेट ओवरराइड करना अनुमति नहीं है। '{}' को {} में जोड़ने की कोशिश कर रहे "
+"हैं"
 
-#: statemachine/statemachine.py:94
+#: statemachine/statemachine.py:89
 msgid "There are no states or transitions."
 msgstr "कोई स्टेट या ट्रांज़िशन नहीं हैं।"
 
-#: statemachine/statemachine.py:285
+#: statemachine/statemachine.py:277
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
-msgstr "कोई वर्तमान स्टेट सेट नहीं है। असिंक्रोनस कोड में, क्या आपने प्रारंभिक स्टेट को सक्रिय किया? (उदाहरण: `await sm.activate_initial_state()`)"
+msgstr ""
+"कोई वर्तमान स्टेट सेट नहीं है। असिंक्रोनस कोड में, क्या आपने प्रारंभिक "
+"स्टेट को सक्रिय किया? (उदाहरण: `await sm.activate_initial_state()`)"
 
-#: statemachine/engines/async_.py:22
+#: statemachine/transition_mixin.py:15
+msgid "{} only supports the decorator syntax to register callbacks."
+msgstr "{} केवल कॉलबैक रजिस्टर करने के लिए डेकोरेटर सिंटैक्स का समर्थन करता है।"
+
+#: statemachine/engines/async_.py:18
 msgid "Only RTC is supported on async engine"
 msgstr "असिंक्रोनस इंजन पर केवल RTC समर्थित है"

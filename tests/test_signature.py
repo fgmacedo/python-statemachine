@@ -2,8 +2,8 @@ import inspect
 from functools import partial
 
 import pytest
-
 from statemachine.dispatcher import callable_method
+from statemachine.signature import SignatureAdapter
 
 
 def single_positional_param(a):
@@ -162,3 +162,131 @@ class TestSignatureAdapter:
 
         assert wrapped_func("A", "B") == ("A", "B", "activated")
         assert wrapped_func.__name__ == positional_and_kw_arguments.__name__
+
+
+def named_and_kwargs(source, **kwargs):
+    return source, kwargs
+
+
+class TestCachedBindExpected:
+    """Tests that exercise the cache fast-path by calling the same
+    wrapped function twice with the same argument shape."""
+
+    def setup_method(self):
+        SignatureAdapter.from_callable.clear_cache()
+
+    def test_named_param_not_leaked_into_kwargs(self):
+        """Named params should not appear in the **kwargs dict on cache hit."""
+        wrapped = callable_method(named_and_kwargs)
+
+        # 1st call: cache miss -> _full_bind
+        result1 = wrapped(source="A", target="B", event="go")
+        assert result1 == ("A", {"target": "B", "event": "go"})
+
+        # 2nd call: cache hit -> _fast_bind
+        result2 = wrapped(source="X", target="Y", event="stop")
+        assert result2 == ("X", {"target": "Y", "event": "stop"})
+
+    def test_kwargs_only_receives_unmatched_keys_with_positional(self):
+        """When mixing positional and keyword args with **kwargs."""
+        wrapped = callable_method(named_and_kwargs)
+
+        result1 = wrapped("A", target="B")
+        assert result1 == ("A", {"target": "B"})
+
+        result2 = wrapped("X", target="Y")
+        assert result2 == ("X", {"target": "Y"})
+
+    def test_var_positional_collected_as_tuple(self):
+        """VAR_POSITIONAL (*args) must be collected into a tuple on cache hit."""
+
+        def fn(*args, **kwargs):
+            return args, kwargs
+
+        wrapped = callable_method(fn)
+
+        result1 = wrapped(1, 2, 3, key="val")
+        assert result1 == ((1, 2, 3), {"key": "val"})
+
+        result2 = wrapped(4, 5, key="other")
+        assert result2 == ((4, 5), {"key": "other"})
+
+    def test_keyword_only_after_var_positional(self):
+        """KEYWORD_ONLY params after *args must be extracted from kwargs on cache hit."""
+
+        def fn(*args, event, **kwargs):
+            return args, event, kwargs
+
+        wrapped = callable_method(fn)
+
+        result1 = wrapped(100, event="ev1", source="s0")
+        assert result1 == ((100,), "ev1", {"source": "s0"})
+
+        result2 = wrapped(200, event="ev2", source="s1")
+        assert result2 == ((200,), "ev2", {"source": "s1"})
+
+    def test_positional_or_keyword_prefers_kwargs_over_positional(self):
+        """When a POSITIONAL_OR_KEYWORD param is in both args and kwargs, kwargs wins."""
+
+        def fn(event, source, target):
+            return event, source, target
+
+        wrapped = callable_method(fn)
+
+        # 1st call: positional arg provided but 'event' also in kwargs -> kwargs wins
+        result1 = wrapped("discarded_content", event="ev1", source="s0", target="t0")
+        assert result1 == ("ev1", "s0", "t0")
+
+        # 2nd call: cache hit, same behavior expected
+        result2 = wrapped("other_content", event="ev2", source="s1", target="t1")
+        assert result2 == ("ev2", "s1", "t1")
+
+    def test_empty_var_positional(self):
+        """Empty *args is handled correctly on cache hit."""
+
+        def fn(*args, **kwargs):
+            return args, kwargs
+
+        wrapped = callable_method(fn)
+
+        # 1st call with args
+        result1 = wrapped(1, key="val")
+        assert result1 == ((1,), {"key": "val"})
+
+        # 2nd call: only kwargs, no positional args — different cache key (len=0)
+        result2 = wrapped(key="val2")
+        assert result2 == ((), {"key": "val2"})
+
+        # 3rd call: hits cache for len=0
+        result3 = wrapped(key="val3")
+        assert result3 == ((), {"key": "val3"})
+
+    def test_named_params_before_var_positional(self):
+        """Named params before *args are filled correctly on cache hit."""
+
+        def fn(a, b, *args, **kwargs):
+            return a, b, args, kwargs
+
+        wrapped = callable_method(fn)
+
+        result1 = wrapped(1, 2, 3, 4, key="val")
+        assert result1 == (1, 2, (3, 4), {"key": "val"})
+
+        result2 = wrapped(10, 20, 30, key="val2")
+        assert result2 == (10, 20, (30,), {"key": "val2"})
+
+    def test_kwargs_wins_with_var_positional_present(self):
+        """POSITIONAL_OR_KEYWORD before *args prefers kwargs when name matches."""
+
+        def fn(event, *args, **kwargs):
+            return event, args, kwargs
+
+        wrapped = callable_method(fn)
+
+        # 1st call: 'event' in both positional and kwargs — kwargs wins
+        result1 = wrapped("discarded", "extra", event="ev1", key="a")
+        assert result1 == ("ev1", ("extra",), {"key": "a"})
+
+        # 2nd call: cache hit, same behavior
+        result2 = wrapped("other", "more", event="ev2", key="b")
+        assert result2 == ("ev2", ("more",), {"key": "b"})

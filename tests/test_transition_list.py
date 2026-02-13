@@ -1,8 +1,8 @@
 import pytest
-
-from statemachine import State
 from statemachine.callbacks import CallbacksRegistry
 from statemachine.dispatcher import resolver_factory_from_objects
+
+from statemachine import State
 
 
 def test_transition_list_or_operator():

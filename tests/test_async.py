@@ -1,10 +1,10 @@
 import re
 
 import pytest
+from statemachine.exceptions import InvalidStateValue
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import InvalidStateValue
 
 
 @pytest.fixture()
@@ -96,6 +96,86 @@ def test_async_state_from_sync_context(async_order_control_machine):
     assert sm.completed.is_active
 
 
+class AsyncConditionExpressionMachine(StateMachine):
+    """Regression test for issue #535: async conditions in boolean expressions."""
+
+    s1 = State(initial=True)
+
+    go_not = s1.to.itself(cond="not cond_false")
+    go_and = s1.to.itself(cond="cond_true and cond_true")
+    go_or_false_first = s1.to.itself(cond="cond_false or cond_true")
+    go_or_true_first = s1.to.itself(cond="cond_true or cond_false")
+    go_blocked = s1.to.itself(cond="not cond_true")
+    go_and_blocked = s1.to.itself(cond="cond_true and cond_false")
+    go_or_both_false = s1.to.itself(cond="cond_false or cond_false")
+
+    async def cond_true(self):
+        return True
+
+    async def cond_false(self):
+        return False
+
+    async def on_enter_state(self, target):
+        """Async callback to ensure the SM uses AsyncEngine."""
+
+
+async def test_async_condition_not(recwarn):
+    """Issue #535: 'not cond_false' should allow the transition."""
+    sm = AsyncConditionExpressionMachine()
+    await sm.activate_initial_state()
+    await sm.go_not()
+    assert sm.s1.is_active
+    assert not any("coroutine" in str(w.message) for w in recwarn.list)
+
+
+async def test_async_condition_not_blocked():
+    """Issue #535: 'not cond_true' should block the transition."""
+    sm = AsyncConditionExpressionMachine()
+    await sm.activate_initial_state()
+    with pytest.raises(sm.TransitionNotAllowed):
+        await sm.go_blocked()
+
+
+async def test_async_condition_and():
+    """Issue #535: 'cond_true and cond_true' should allow the transition."""
+    sm = AsyncConditionExpressionMachine()
+    await sm.activate_initial_state()
+    await sm.go_and()
+    assert sm.s1.is_active
+
+
+async def test_async_condition_and_blocked():
+    """Issue #535: 'cond_true and cond_false' should block the transition."""
+    sm = AsyncConditionExpressionMachine()
+    await sm.activate_initial_state()
+    with pytest.raises(sm.TransitionNotAllowed):
+        await sm.go_and_blocked()
+
+
+async def test_async_condition_or_false_first():
+    """Issue #535: 'cond_false or cond_true' should allow the transition."""
+    sm = AsyncConditionExpressionMachine()
+    await sm.activate_initial_state()
+    await sm.go_or_false_first()
+    assert sm.s1.is_active
+
+
+async def test_async_condition_or_true_first():
+    """'cond_true or cond_false' should allow the transition."""
+    sm = AsyncConditionExpressionMachine()
+    await sm.activate_initial_state()
+    await sm.go_or_true_first()
+    assert sm.s1.is_active
+
+
+async def test_async_condition_or_both_false():
+    """'cond_false or cond_false' should block the transition."""
+    sm = AsyncConditionExpressionMachine()
+    await sm.activate_initial_state()
+    with pytest.raises(sm.TransitionNotAllowed):
+        await sm.go_or_both_false()
+
+
 async def test_async_state_should_be_initialized(async_order_control_machine):
     """Test that the state machine is initialized before any event is triggered
 
@@ -119,3 +199,81 @@ async def test_async_state_should_be_initialized(async_order_control_machine):
 
     await sm.activate_initial_state()
     assert sm.current_state == sm.waiting_for_payment
+
+
+class TestAsyncEnabledEvents:
+    async def test_passing_async_condition(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="is_ready")
+
+            async def is_ready(self):
+                return True
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert [e.id for e in await sm.enabled_events()] == ["go"]
+
+    async def test_failing_async_condition(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="is_ready")
+
+            async def is_ready(self):
+                return False
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert await sm.enabled_events() == []
+
+    async def test_kwargs_forwarded_to_async_conditions(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="check_value")
+
+            async def check_value(self, value=0):
+                return value > 10
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert await sm.enabled_events() == []
+        assert [e.id for e in await sm.enabled_events(value=20)] == ["go"]
+
+    async def test_async_condition_exception_treated_as_enabled(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="bad_cond")
+
+            async def bad_cond(self):
+                raise RuntimeError("boom")
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert [e.id for e in await sm.enabled_events()] == ["go"]
+
+    async def test_mixed_enabled_and_disabled_async(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State()
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_true")
+            stop = s0.to(s2, cond="cond_false")
+
+            async def cond_true(self):
+                return True
+
+            async def cond_false(self):
+                return False
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert [e.id for e in await sm.enabled_events()] == ["go"]

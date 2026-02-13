@@ -5,22 +5,32 @@ msgid ""
 msgstr ""
 "Project-Id-Version:  2.4.0\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2023-03-04 16:10-0300\n"
+"POT-Creation-Date: 2026-02-13 18:28-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: pt_BR\n"
+"Language-Team: pt_BR <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.14.0\n"
+"Generated-By: Babel 2.16.0\n"
 
-#: statemachine/callbacks.py:165
+#: statemachine/callbacks.py:349 statemachine/callbacks.py:354
+msgid "Did not found name '{}' from model or statemachine"
+msgstr "Nome '{}' não encontrado no modelo ou na máquina de estados"
+
+#: statemachine/dispatcher.py:126
 msgid "Failed to parse boolean expression '{}'"
 msgstr "Falha ao interpretar a expressão booleana '{}'"
 
-#: statemachine/callbacks.py:407 statemachine/callbacks.py:412
-msgid "Did not found name '{}' from model or statemachine"
-msgstr "Nome '{}' não encontrado no modelo ou na máquina de estados"
+#: statemachine/event.py:90
+msgid "Cannot add callback '{}' to an event with no transitions."
+msgstr "Não é possível adicionar callback '{}' a um evento sem transições."
+
+#: statemachine/event.py:123
+msgid "Event {} cannot be called without a SM instance"
+msgstr "O evento {} não pode ser chamado sem uma instância de SM"
 
 #: statemachine/exceptions.py:24
 msgid "{!r} is not a valid state value."
@@ -30,64 +40,81 @@ msgstr "{!r} não é um valor de estado válido."
 msgid "Can't {} when in {}."
 msgstr "Não é possível {} quando em {}."
 
-#: statemachine/factory.py:74
+#: statemachine/factory.py:73
 msgid "There are no states."
 msgstr "Não há estados."
 
-#: statemachine/factory.py:77
+#: statemachine/factory.py:76
 msgid "There are no events."
 msgstr "Não há eventos."
 
-#: statemachine/factory.py:89
+#: statemachine/factory.py:88
 msgid ""
 "There should be one and only one initial state. You currently have these:"
 " {!r}"
-msgstr "Deve haver um e apenas um estado inicial. Atualmente, você possui estes: {!r}"
+msgstr ""
+"Deve haver um e apenas um estado inicial. Atualmente, você possui estes: "
+"{!r}"
 
-#: statemachine/factory.py:102
+#: statemachine/factory.py:101
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
-msgstr "Não é possível declarar transições a partir de um estado final. Estado(s) inválido(s): {}"
+msgstr ""
+"Não é possível declarar transições a partir de um estado final. Estado(s)"
+" inválido(s): {}"
 
-#: statemachine/factory.py:110
+#: statemachine/factory.py:109
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
 "states have no outgoing transition: {!r}"
-msgstr "Todos os estados não finais devem ter pelo menos uma transição de saída. Estes estados não possuem transição de saída: {!r}"
+msgstr ""
+"Todos os estados não finais devem ter pelo menos uma transição de saída. "
+"Estes estados não possuem transição de saída: {!r}"
 
-#: statemachine/factory.py:124
+#: statemachine/factory.py:123
 msgid ""
 "All non-final states should have at least one path to a final state. "
 "These states have no path to a final state: {!r}"
-msgstr "Todos os estados não finais devem ter pelo menos um caminho para um estado final. Estes estados não possuem caminho para um estado final: {!r}"
+msgstr ""
+"Todos os estados não finais devem ter pelo menos um caminho para um "
+"estado final. Estes estados não possuem caminho para um estado final: "
+"{!r}"
 
-#: statemachine/factory.py:148
+#: statemachine/factory.py:147
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
-msgstr "Há estados inacessíveis. O grafo da máquina de estados deve ter um único componente. Estados desconectados: {}"
+msgstr ""
+"Há estados inacessíveis. O grafo da máquina de estados deve ter um único "
+"componente. Estados desconectados: {}"
 
-#: statemachine/factory.py:257
+#: statemachine/factory.py:253
 msgid "An event in the '{}' has no id."
 msgstr "Um evento em '{}' não possui id."
 
-#: statemachine/mixins.py:26
+#: statemachine/mixins.py:28
 msgid "{!r} is not a valid state machine name."
 msgstr "{!r} não é um nome de máquina de estados válido."
 
-#: statemachine/state.py:155
+#: statemachine/state.py:194
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
 msgstr "Sobrescrever estados não é permitido. Tentando adicionar '{}' a {}"
 
-#: statemachine/statemachine.py:94
+#: statemachine/statemachine.py:89
 msgid "There are no states or transitions."
 msgstr "Não há estados ou transições."
 
-#: statemachine/statemachine.py:285
+#: statemachine/statemachine.py:277
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
-msgstr "Nenhum estado atual definido. Em código assíncrono, você ativou o estado inicial? (ex.: `await sm.activate_initial_state()`)"
+msgstr ""
+"Nenhum estado atual definido. Em código assíncrono, você ativou o estado "
+"inicial? (ex.: `await sm.activate_initial_state()`)"
 
-#: statemachine/engines/async_.py:22
+#: statemachine/transition_mixin.py:15
+msgid "{} only supports the decorator syntax to register callbacks."
+msgstr "{} suporta apenas a sintaxe de decorator para registrar callbacks."
+
+#: statemachine/engines/async_.py:18
 msgid "Only RTC is supported on async engine"
 msgstr "Apenas RTC é suportado no motor assíncrono"

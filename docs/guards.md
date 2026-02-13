@@ -22,7 +22,37 @@ A conditional transition occurs only if specific conditions or criteria are met.
 
 When a transition is conditional, it includes a condition (also known as a _guard_) that must be satisfied for the transition to take place. If the condition is not met, the transition does not occur, and the state machine remains in its current state or follows an alternative path.
 
-This feature allows for multiple transitions on the same {ref}`event`, with each {ref}`transition` checked in the order they are declared. A condition acts like a predicate (a function that evaluates to true/false) and is checked when a {ref}`statemachine` handles an {ref}`event` with a transition from the current state bound to this event. The first transition that meets the conditions (if any) is executed. If none of the transitions meet the conditions, the state machine either raises an exception or does nothing (see the `allow_event_without_transition` parameter of {ref}`StateMachine`).
+This feature allows for multiple transitions on the same {ref}`event`, with each {ref}`transition` checked in **declaration order** — that is, the order in which the transitions themselves were created using `state.to()`. A condition acts like a predicate (a function that evaluates to true/false) and is checked when a {ref}`statemachine` handles an {ref}`event` with a transition from the current state bound to this event. The first transition that meets the conditions (if any) is executed. If none of the transitions meet the conditions, the state machine either raises an exception or does nothing (see the `allow_event_without_transition` parameter of {ref}`StateMachine`).
+
+````{important}
+**Evaluation order is based on declaration order, not composition order.**
+
+When using conditional transitions, the order of evaluation is determined by **when each transition was created** (the order of `state.to()` calls), **not** by the order they appear when combined with the `|` operator.
+
+For example:
+
+```python
+# These are evaluated in DECLARATION ORDER (when state.to() was called):
+created_first = state_a.to(state_x)   # Created FIRST → Checked FIRST
+created_second = state_a.to(state_y)  # Created SECOND → Checked SECOND
+created_third = state_a.to(state_z)   # Created THIRD → Checked THIRD
+
+# The | operator does NOT change evaluation order:
+my_event = created_third | created_second | created_first
+# Evaluation order is still: created_first → created_second → created_third
+```
+
+To control the evaluation order, declare transitions in the desired order:
+
+```python
+# Declare in the order you want them checked:
+first = state_a.to(state_b, cond="check1")   # Checked FIRST
+second = state_a.to(state_c, cond="check2")  # Checked SECOND
+third = state_a.to(state_d, cond="check3")   # Checked THIRD
+
+my_event = first | second | third  # Order matches declaration
+```
+````
 
 When {ref}`transitions` have guards, it is possible to define two or more transitions for the same {ref}`event` from the same {ref}`state`. When the {ref}`event` occurs, the guarded transitions are checked one by one, and the first transition whose guard is true will be executed, while the others will be ignored.
 
@@ -127,6 +157,79 @@ On the other hand, any value that is not considered "**falsy**" is considered "*
 
 So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an empty list is a
 **falsy** value.
+```
+
+### Checking enabled events
+
+The {ref}`StateMachine.allowed_events` property returns events reachable from the current state,
+but it does **not** evaluate `cond`/`unless` guards. To check which events actually have their
+conditions satisfied, use {ref}`StateMachine.enabled_events`.
+
+```{testsetup}
+
+>>> from statemachine import StateMachine, State
+
+```
+
+```py
+>>> class ApprovalMachine(StateMachine):
+...     pending = State(initial=True)
+...     approved = State(final=True)
+...     rejected = State(final=True)
+...
+...     approve = pending.to(approved, cond="is_manager")
+...     reject = pending.to(rejected)
+...
+...     is_manager = False
+
+>>> sm = ApprovalMachine()
+
+>>> [e.id for e in sm.allowed_events]
+['approve', 'reject']
+
+>>> [e.id for e in sm.enabled_events()]
+['reject']
+
+>>> sm.is_manager = True
+
+>>> [e.id for e in sm.enabled_events()]
+['approve', 'reject']
+
+```
+
+`enabled_events` is a method (not a property) because conditions may depend on runtime
+arguments. Any `*args`/`**kwargs` passed to `enabled_events()` are forwarded to the
+condition callbacks, just like when triggering an event:
+
+```py
+>>> class TaskMachine(StateMachine):
+...     idle = State(initial=True)
+...     running = State(final=True)
+...
+...     start = idle.to(running, cond="has_enough_resources")
+...
+...     def has_enough_resources(self, cpu=0):
+...         return cpu >= 4
+
+>>> sm = TaskMachine()
+
+>>> sm.enabled_events()
+[]
+
+>>> [e.id for e in sm.enabled_events(cpu=8)]
+['start']
+
+```
+
+```{tip}
+This is useful for UI scenarios where you want to show or hide buttons based on whether
+an event's conditions are currently satisfied.
+```
+
+```{note}
+An event is considered **enabled** if at least one of its transitions from the current state
+has all conditions satisfied. If a condition raises an exception, the event is treated as
+enabled (permissive behavior).
 ```
 
 ## Validators

@@ -59,9 +59,23 @@ As this one:
 ![OrderControl](images/order_control_machine_initial.png)
 
 
+If you find the resolution of the image lacking, you can
+
+```py
+>>> dot.set_dpi(300)
+
+>>> dot.write_png("docs/images/order_control_machine_initial_300dpi.png")
+
+```
+
+![OrderControl](images/order_control_machine_initial_300dpi.png)
+
+
 The current {ref}`state` is also highlighted:
 
 ``` py
+>>> # This example will only run on automated tests if dot is present
+>>> getfixture("requires_dot_installed")
 
 >>> from statemachine.contrib.diagram import DotGraphMachine
 

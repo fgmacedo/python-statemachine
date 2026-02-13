@@ -75,7 +75,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         allow_event_without_transition: bool = False,
         listeners: "List[object] | None" = None,
     ):
-        self.model = model if model else Model()
+        self.model = model if model is not None else Model()
         self.state_field = state_field
         self.start_value = start_value
         self.allow_event_without_transition = allow_event_without_transition
@@ -147,6 +147,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._register_callbacks([])
         self.add_listener(*listeners.keys())
         self._engine = self._get_engine(rtc)
+        self._engine.start()
 
     def _get_initial_state(self):
         initial_state_value = self.start_value if self.start_value else self.initial_state.value
@@ -182,7 +183,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return self
 
     def _register_callbacks(self, listeners: List[object]):
-        self._listeners.update({listener: None for listener in listeners})
+        self._listeners.update(dict.fromkeys(listeners))
         self._add_listener(
             Listeners.from_listeners(
                 (
@@ -223,7 +224,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
             :ref:`listeners`.
         """
-        self._listeners.update({o: None for o in listeners})
+        self._listeners.update(dict.fromkeys(listeners))
         return self._add_listener(
             Listeners.from_listeners(Listener.from_obj(o) for o in listeners),
             allowed_references=SPECS_SAFE,
@@ -293,6 +294,24 @@ class StateMachine(metaclass=StateMachineMetaclass):
     def allowed_events(self) -> "List[Event]":
         """List of the current allowed events."""
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
+
+    def enabled_events(self, *args, **kwargs):
+        """List of the current enabled events, considering guard conditions.
+
+        An event is **enabled** if at least one of its transitions from the current
+        state has all ``cond``/``unless`` guards satisfied.
+
+        Args:
+            *args: Positional arguments forwarded to condition callbacks.
+            **kwargs: Keyword arguments forwarded to condition callbacks.
+
+        Returns:
+            A list of enabled :ref:`Event` instances.
+        """
+        result = self._engine.enabled_events(*args, **kwargs)
+        if not isawaitable(result):
+            return result
+        return run_async_from_sync(result)
 
     def _put_nonblocking(self, trigger_data: TriggerData):
         """Put the trigger on the queue without blocking the caller."""

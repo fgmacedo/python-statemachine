@@ -1,9 +1,9 @@
 import pytest
+from statemachine.exceptions import InvalidDefinition
+from statemachine.transition import Transition
 
 from statemachine import State
 from statemachine import StateMachine
-from statemachine.exceptions import InvalidDefinition
-from statemachine.transition import Transition
 
 from .models import MyModel
 
@@ -69,6 +69,20 @@ def test_transition_call_can_only_be_used_as_decorator():
 
     with pytest.raises(TypeError):
         transition("not a callable")
+
+
+def test_transition_list_call_can_only_be_used_as_decorator():
+    source, dest = State("Source"), State("Destination")
+    transition_list = source.to(dest)
+
+    with pytest.raises(TypeError, match="TransitionList"):
+        transition_list("not a callable")
+
+    with pytest.raises(TypeError, match="TransitionList"):
+        transition_list()
+
+    with pytest.raises(TypeError, match="TransitionList"):
+        transition_list(42, extra="kwarg")
 
 
 @pytest.fixture(params=["bounded", "unbounded"])
