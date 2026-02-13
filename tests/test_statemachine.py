@@ -503,3 +503,134 @@ def test_model_with_custom_bool_is_not_replaced(campaign_machine):
 
     machine.produce()
     assert model.state == "producing"
+
+
+class TestEnabledEvents:
+    def test_no_conditions_same_as_allowed_events(self, campaign_machine):
+        """Without conditions, enabled_events should match allowed_events."""
+        sm = campaign_machine()
+        assert [e.id for e in sm.enabled_events()] == [e.id for e in sm.allowed_events]
+
+    def test_passing_condition_returns_event(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="is_ready")
+
+            def is_ready(self):
+                return True
+
+        sm = MyMachine()
+        assert [e.id for e in sm.enabled_events()] == ["go"]
+
+    def test_failing_condition_excludes_event(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="is_ready")
+
+            def is_ready(self):
+                return False
+
+        sm = MyMachine()
+        assert sm.enabled_events() == []
+
+    def test_multiple_transitions_one_passes(self):
+        """Same event with multiple transitions: included if at least one passes."""
+
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State()
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_false") | s0.to(s2, cond="cond_true")
+
+            def cond_false(self):
+                return False
+
+            def cond_true(self):
+                return True
+
+        sm = MyMachine()
+        assert [e.id for e in sm.enabled_events()] == ["go"]
+
+    def test_final_state_returns_empty(self, campaign_machine):
+        sm = campaign_machine()
+        sm.produce()
+        sm.deliver()
+        assert sm.enabled_events() == []
+
+    def test_kwargs_forwarded_to_conditions(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="check_value")
+
+            def check_value(self, value=0):
+                return value > 10
+
+        sm = MyMachine()
+        assert sm.enabled_events() == []
+        assert [e.id for e in sm.enabled_events(value=20)] == ["go"]
+
+    def test_condition_exception_treated_as_enabled(self):
+        """If a condition raises, the event is treated as enabled (permissive)."""
+
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="bad_cond")
+
+            def bad_cond(self):
+                raise RuntimeError("boom")
+
+        sm = MyMachine()
+        assert [e.id for e in sm.enabled_events()] == ["go"]
+
+    def test_mixed_enabled_and_disabled(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State()
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_true")
+            stop = s0.to(s2, cond="cond_false")
+
+            def cond_true(self):
+                return True
+
+            def cond_false(self):
+                return False
+
+        sm = MyMachine()
+        assert [e.id for e in sm.enabled_events()] == ["go"]
+
+    def test_unless_condition(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, unless="is_blocked")
+
+            def is_blocked(self):
+                return True
+
+        sm = MyMachine()
+        assert sm.enabled_events() == []
+
+    def test_unless_condition_passes(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, unless="is_blocked")
+
+            def is_blocked(self):
+                return False
+
+        sm = MyMachine()
+        assert [e.id for e in sm.enabled_events()] == ["go"]

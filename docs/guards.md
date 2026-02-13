@@ -47,7 +47,7 @@ To control the evaluation order, declare transitions in the desired order:
 ```python
 # Declare in the order you want them checked:
 first = state_a.to(state_b, cond="check1")   # Checked FIRST
-second = state_a.to(state_c, cond="check2")  # Checked SECOND  
+second = state_a.to(state_c, cond="check2")  # Checked SECOND
 third = state_a.to(state_d, cond="check3")   # Checked THIRD
 
 my_event = first | second | third  # Order matches declaration
@@ -157,6 +157,79 @@ On the other hand, any value that is not considered "**falsy**" is considered "*
 
 So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an empty list is a
 **falsy** value.
+```
+
+### Checking enabled events
+
+The {ref}`StateMachine.allowed_events` property returns events reachable from the current state,
+but it does **not** evaluate `cond`/`unless` guards. To check which events actually have their
+conditions satisfied, use {ref}`StateMachine.enabled_events`.
+
+```{testsetup}
+
+>>> from statemachine import StateMachine, State
+
+```
+
+```py
+>>> class ApprovalMachine(StateMachine):
+...     pending = State(initial=True)
+...     approved = State(final=True)
+...     rejected = State(final=True)
+...
+...     approve = pending.to(approved, cond="is_manager")
+...     reject = pending.to(rejected)
+...
+...     is_manager = False
+
+>>> sm = ApprovalMachine()
+
+>>> [e.id for e in sm.allowed_events]
+['approve', 'reject']
+
+>>> [e.id for e in sm.enabled_events()]
+['reject']
+
+>>> sm.is_manager = True
+
+>>> [e.id for e in sm.enabled_events()]
+['approve', 'reject']
+
+```
+
+`enabled_events` is a method (not a property) because conditions may depend on runtime
+arguments. Any `*args`/`**kwargs` passed to `enabled_events()` are forwarded to the
+condition callbacks, just like when triggering an event:
+
+```py
+>>> class TaskMachine(StateMachine):
+...     idle = State(initial=True)
+...     running = State(final=True)
+...
+...     start = idle.to(running, cond="has_enough_resources")
+...
+...     def has_enough_resources(self, cpu=0):
+...         return cpu >= 4
+
+>>> sm = TaskMachine()
+
+>>> sm.enabled_events()
+[]
+
+>>> [e.id for e in sm.enabled_events(cpu=8)]
+['start']
+
+```
+
+```{tip}
+This is useful for UI scenarios where you want to show or hide buttons based on whether
+an event's conditions are currently satisfied.
+```
+
+```{note}
+An event is considered **enabled** if at least one of its transitions from the current state
+has all conditions satisfied. If a condition raises an exception, the event is treated as
+enabled (permissive behavior).
 ```
 
 ## Validators

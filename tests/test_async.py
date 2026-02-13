@@ -199,3 +199,81 @@ async def test_async_state_should_be_initialized(async_order_control_machine):
 
     await sm.activate_initial_state()
     assert sm.current_state == sm.waiting_for_payment
+
+
+class TestAsyncEnabledEvents:
+    async def test_passing_async_condition(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="is_ready")
+
+            async def is_ready(self):
+                return True
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert [e.id for e in await sm.enabled_events()] == ["go"]
+
+    async def test_failing_async_condition(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="is_ready")
+
+            async def is_ready(self):
+                return False
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert await sm.enabled_events() == []
+
+    async def test_kwargs_forwarded_to_async_conditions(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="check_value")
+
+            async def check_value(self, value=0):
+                return value > 10
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert await sm.enabled_events() == []
+        assert [e.id for e in await sm.enabled_events(value=20)] == ["go"]
+
+    async def test_async_condition_exception_treated_as_enabled(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+
+            go = s0.to(s1, cond="bad_cond")
+
+            async def bad_cond(self):
+                raise RuntimeError("boom")
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert [e.id for e in await sm.enabled_events()] == ["go"]
+
+    async def test_mixed_enabled_and_disabled_async(self):
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State()
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_true")
+            stop = s0.to(s2, cond="cond_false")
+
+            async def cond_true(self):
+                return True
+
+            async def cond_false(self):
+                return False
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        assert [e.id for e in await sm.enabled_events()] == ["go"]
