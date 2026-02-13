@@ -2,6 +2,7 @@ import ast
 import operator
 import re
 from functools import reduce
+from inspect import isawaitable
 from typing import Callable
 
 replacements = {"!": "not ", "^": " and ", "v": " or "}
@@ -33,8 +34,15 @@ def replace_operators(expr: str) -> str:
 
 
 def custom_not(predicate: Callable) -> Callable:
-    def decorated(*args, **kwargs) -> bool:
-        return not predicate(*args, **kwargs)
+    def decorated(*args, **kwargs):
+        result = predicate(*args, **kwargs)
+        if isawaitable(result):
+
+            async def _negate():
+                return not await result
+
+            return _negate()
+        return not result
 
     decorated.__name__ = f"not({predicate.__name__})"
     unique_key = getattr(predicate, "unique_key", "")
@@ -43,8 +51,26 @@ def custom_not(predicate: Callable) -> Callable:
 
 
 def custom_and(left: Callable, right: Callable) -> Callable:
-    def decorated(*args, **kwargs) -> bool:
-        return left(*args, **kwargs) and right(*args, **kwargs)  # type: ignore[no-any-return]
+    def decorated(*args, **kwargs):
+        left_result = left(*args, **kwargs)
+        if isawaitable(left_result):
+
+            async def _async_and():
+                lr = await left_result
+                if not lr:
+                    return lr
+                rr = right(*args, **kwargs)
+                if isawaitable(rr):
+                    return await rr
+                return rr
+
+            return _async_and()
+        if not left_result:
+            return left_result
+        right_result = right(*args, **kwargs)
+        if isawaitable(right_result):
+            return right_result
+        return right_result
 
     decorated.__name__ = f"({left.__name__} and {right.__name__})"
     decorated.unique_key = _unique_key(left, right, "and")  # type: ignore[attr-defined]
@@ -52,8 +78,26 @@ def custom_and(left: Callable, right: Callable) -> Callable:
 
 
 def custom_or(left: Callable, right: Callable) -> Callable:
-    def decorated(*args, **kwargs) -> bool:
-        return left(*args, **kwargs) or right(*args, **kwargs)  # type: ignore[no-any-return]
+    def decorated(*args, **kwargs):
+        left_result = left(*args, **kwargs)
+        if isawaitable(left_result):
+
+            async def _async_or():
+                lr = await left_result
+                if lr:
+                    return lr
+                rr = right(*args, **kwargs)
+                if isawaitable(rr):
+                    return await rr
+                return rr
+
+            return _async_or()
+        if left_result:
+            return left_result
+        right_result = right(*args, **kwargs)
+        if isawaitable(right_result):
+            return right_result
+        return right_result
 
     decorated.__name__ = f"({left.__name__} or {right.__name__})"
     decorated.unique_key = _unique_key(left, right, "or")  # type: ignore[attr-defined]
@@ -73,8 +117,18 @@ def build_custom_operator(operator) -> Callable:
     operator_repr = comparison_repr[operator]
 
     def custom_comparator(left: Callable, right: Callable) -> Callable:
-        def decorated(*args, **kwargs) -> bool:
-            return bool(operator(left(*args, **kwargs), right(*args, **kwargs)))
+        def decorated(*args, **kwargs):
+            left_result = left(*args, **kwargs)
+            right_result = right(*args, **kwargs)
+            if isawaitable(left_result) or isawaitable(right_result):
+
+                async def _async_compare():
+                    lr = (await left_result) if isawaitable(left_result) else left_result
+                    rr = (await right_result) if isawaitable(right_result) else right_result
+                    return bool(operator(lr, rr))
+
+                return _async_compare()
+            return bool(operator(left_result, right_result))
 
         decorated.__name__ = f"({left.__name__} {operator_repr} {right.__name__})"
         decorated.unique_key = _unique_key(left, right, operator_repr)  # type: ignore[attr-defined]

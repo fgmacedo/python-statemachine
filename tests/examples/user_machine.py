@@ -88,7 +88,7 @@ class UserStatusMachine(StateMachine):
     def on_signup(self, token: str):
         if token == "":
             raise ValueError("Token is required")
-        self.model.verified = True
+        self.model.verified = True  # type: ignore[union-attr]
 
 
 class UserExperienceMachine(StateMachine):
