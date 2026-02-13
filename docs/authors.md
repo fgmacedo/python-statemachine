@@ -10,6 +10,7 @@
 * [Rafael Rêgo](mailto:crafards@gmail.com)
 * [Raphael Schrader](mailto:raphael@schradercloud.de)
 * [João S. O. Bueno](mailto:gwidion@gmail.com)
+* [Rodrigo Nogueira](mailto:rodrigo.b.nogueira@gmail.com)
 
 
 ## Scaffolding
