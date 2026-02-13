@@ -71,6 +71,20 @@ def test_transition_call_can_only_be_used_as_decorator():
         transition("not a callable")
 
 
+def test_transition_list_call_can_only_be_used_as_decorator():
+    source, dest = State("Source"), State("Destination")
+    transition_list = source.to(dest)
+
+    with pytest.raises(TypeError, match="TransitionList"):
+        transition_list("not a callable")
+
+    with pytest.raises(TypeError, match="TransitionList"):
+        transition_list()
+
+    with pytest.raises(TypeError, match="TransitionList"):
+        transition_list(42, extra="kwarg")
+
+
 @pytest.fixture(params=["bounded", "unbounded"])
 def transition_callback_machine(request):
     if request.param == "bounded":
