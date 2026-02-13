@@ -29,10 +29,7 @@ class SyncEngine(BaseEngine):
         except InvalidDefinition:
             raise
         except Exception as e:  # pragma: no cover
-            if self.sm.error_on_execution:
-                self._send_error_execution(trigger_data, e)
-            else:
-                raise
+            self._handle_error(e, trigger_data)
 
     def start(self):
         if self.sm.current_state_value is not None:

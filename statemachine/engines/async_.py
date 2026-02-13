@@ -54,12 +54,13 @@ class AsyncEngine(BaseEngine):
 
     async def _conditions_match(self, transition: "Transition", trigger_data: TriggerData):
         args, kwargs = await self._get_args_kwargs(transition, trigger_data)
+        on_error = self._on_error_handler(trigger_data)
 
         await self.sm._callbacks.async_call(
-            transition.validators.key, *args, on_error=self._on_error_execution, **kwargs
+            transition.validators.key, *args, on_error=on_error, **kwargs
         )
         return await self.sm._callbacks.async_all(
-            transition.cond.key, *args, on_error=self._on_error_execution, **kwargs
+            transition.cond.key, *args, on_error=on_error, **kwargs
         )
 
     async def _select_transitions(  # type: ignore[override]
@@ -122,13 +123,14 @@ class AsyncEngine(BaseEngine):
         self, enabled_transitions: "List[Transition]", trigger_data: TriggerData
     ) -> "OrderedSet[State]":
         ordered_states, result = self._prepare_exit_states(enabled_transitions)
+        on_error = self._on_error_handler(trigger_data)
 
         for info in ordered_states:
             args, kwargs = await self._get_args_kwargs(info.transition, trigger_data)
 
             if info.state is not None:
                 await self.sm._callbacks.async_call(
-                    info.state.exit.key, *args, on_error=self._on_error_execution, **kwargs
+                    info.state.exit.key, *args, on_error=on_error, **kwargs
                 )
 
             self._remove_state_from_configuration(info.state)
@@ -142,6 +144,7 @@ class AsyncEngine(BaseEngine):
         states_to_exit: "OrderedSet[State]",
         previous_configuration: "OrderedSet[State]",
     ):
+        on_error = self._on_error_handler(trigger_data)
         ordered_states, states_for_default_entry, default_history_content, new_configuration = (
             self._prepare_entry_states(enabled_transitions, states_to_exit, previous_configuration)
         )
@@ -170,7 +173,7 @@ class AsyncEngine(BaseEngine):
             self._add_state_to_configuration(target)
 
             on_entry_result = await self.sm._callbacks.async_call(
-                target.enter.key, *args, on_error=self._on_error_execution, **kwargs
+                target.enter.key, *args, on_error=on_error, **kwargs
             )
 
             # Handle default initial states
@@ -216,10 +219,8 @@ class AsyncEngine(BaseEngine):
             raise
         except Exception as e:
             self.sm.configuration = previous_configuration
-            if self.sm.error_on_execution:
-                self._send_error_execution(trigger_data, e)
-                return None
-            raise
+            self._handle_error(e, trigger_data)
+            return None
 
         try:
             await self._execute_transition_content(
@@ -231,10 +232,7 @@ class AsyncEngine(BaseEngine):
         except InvalidDefinition:
             raise
         except Exception as e:
-            if self.sm.error_on_execution:
-                self._send_error_execution(trigger_data, e)
-            else:
-                raise
+            self._handle_error(e, trigger_data)
 
         if len(result) == 0:
             result = None
@@ -252,10 +250,7 @@ class AsyncEngine(BaseEngine):
         except InvalidDefinition:
             raise
         except Exception as e:  # pragma: no cover
-            if self.sm.error_on_execution:
-                self._send_error_execution(trigger_data, e)
-            else:
-                raise
+            self._handle_error(e, trigger_data)
 
     async def activate_initial_state(self):
         """Activate the initial state.

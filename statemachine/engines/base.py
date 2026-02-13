@@ -120,29 +120,45 @@ class BaseEngine:
         """Cancel the event with the given send_id."""
         self.external_queue.remove(send_id)
 
-    @property
-    def _on_error_execution(self):
-        """Return an error handler for per-block error isolation, or None.
+    def _on_error_handler(self, trigger_data: TriggerData) -> "Callable[[Exception], None] | None":
+        """Return a per-block error handler bound to *trigger_data*, or ``None``.
 
-        When ``error_on_execution`` is enabled, returns a handler that queues
+        When ``error_on_execution`` is enabled, returns a callable that queues
         ``error.execution`` on the internal queue.  Otherwise returns ``None``
         so that exceptions propagate normally.
         """
+        if not self.sm.error_on_execution:
+            return None
+
+        def handler(error: Exception) -> None:
+            if isinstance(error, InvalidDefinition):
+                raise error
+            # Per-block errors always queue error.execution — even when the current
+            # event is itself error.execution.  The SCXML spec mandates that the
+            # new error.execution is a separate event that may trigger a different
+            # transition (see W3C test 152).  The infinite-loop guard lives at the
+            # *microstep* level (in ``_send_error_execution``), not here.
+            self.sm.send("error.execution", error=error, internal=True)
+
+        return handler
+
+    def _handle_error(self, error: Exception, trigger_data: TriggerData):
+        """Handle an execution error: send ``error.execution`` or re-raise.
+
+        Centralises the ``if error_on_execution`` check so callers don't need
+        to know about the variation.
+        """
         if self.sm.error_on_execution:
+            self._send_error_execution(error, trigger_data)
+        else:
+            raise error
 
-            def _handler(e: Exception):
-                if isinstance(e, InvalidDefinition):
-                    raise
-                self.sm.send("error.execution", error=e, internal=True)
-
-            return _handler
-        return None
-
-    def _send_error_execution(self, trigger_data: TriggerData, error: Exception):
+    def _send_error_execution(self, error: Exception, trigger_data: TriggerData):
         """Send error.execution to internal queue (SCXML spec).
 
         If already processing an error.execution event, ignore to avoid infinite loops.
         """
+        logger.debug("Error %s captured while executing event=%s", error, trigger_data.event)
         if trigger_data.event and str(trigger_data.event) == "error.execution":
             logger.warning("Error while processing error.execution, ignoring: %s", error)
             return
@@ -353,10 +369,8 @@ class BaseEngine:
             raise
         except Exception as e:
             self.sm.configuration = previous_configuration
-            if self.sm.error_on_execution:
-                self._send_error_execution(trigger_data, e)
-                return None
-            raise
+            self._handle_error(e, trigger_data)
+            return None
 
         try:
             self._execute_transition_content(
@@ -368,10 +382,7 @@ class BaseEngine:
         except InvalidDefinition:
             raise
         except Exception as e:
-            if self.sm.error_on_execution:
-                self._send_error_execution(trigger_data, e)
-            else:
-                raise
+            self._handle_error(e, trigger_data)
 
         if len(result) == 0:
             result = None
@@ -407,13 +418,10 @@ class BaseEngine:
 
     def _conditions_match(self, transition: Transition, trigger_data: TriggerData):
         args, kwargs = self._get_args_kwargs(transition, trigger_data)
+        on_error = self._on_error_handler(trigger_data)
 
-        self.sm._callbacks.call(
-            transition.validators.key, *args, on_error=self._on_error_execution, **kwargs
-        )
-        return self.sm._callbacks.all(
-            transition.cond.key, *args, on_error=self._on_error_execution, **kwargs
-        )
+        self.sm._callbacks.call(transition.validators.key, *args, on_error=on_error, **kwargs)
+        return self.sm._callbacks.all(transition.cond.key, *args, on_error=on_error, **kwargs)
 
     def _prepare_exit_states(
         self,
@@ -457,15 +465,14 @@ class BaseEngine:
     ) -> OrderedSet[State]:
         """Compute and process the states to exit for the given transitions."""
         ordered_states, result = self._prepare_exit_states(enabled_transitions)
+        on_error = self._on_error_handler(trigger_data)
 
         for info in ordered_states:
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
             # Execute `onexit` handlers — same per-block error isolation as onentry.
             if info.state is not None:  # TODO: and not info.transition.internal:
-                self.sm._callbacks.call(
-                    info.state.exit.key, *args, on_error=self._on_error_execution, **kwargs
-                )
+                self.sm._callbacks.call(info.state.exit.key, *args, on_error=on_error, **kwargs)
 
             self._remove_state_from_configuration(info.state)
 
@@ -568,6 +575,7 @@ class BaseEngine:
         previous_configuration: OrderedSet[State],
     ):
         """Enter the states as determined by the given transitions."""
+        on_error = self._on_error_handler(trigger_data)
         ordered_states, states_for_default_entry, default_history_content, new_configuration = (
             self._prepare_entry_states(enabled_transitions, states_to_exit, previous_configuration)
         )
@@ -598,7 +606,7 @@ class BaseEngine:
             # Execute `onentry` handlers — each handler is a separate block per
             # SCXML spec: errors in one block MUST NOT affect other blocks.
             on_entry_result = self.sm._callbacks.call(
-                target.enter.key, *args, on_error=self._on_error_execution, **kwargs
+                target.enter.key, *args, on_error=on_error, **kwargs
             )
 
             # Handle default initial states
