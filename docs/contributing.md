@@ -159,3 +159,133 @@ Before you submit a pull request, check that it meets these guidelines:
    feature to the list in the next release notes.
 3. Consider adding yourself to the contributor's list.
 4. The pull request should work for all supported Python versions.
+
+## Releasing a New Version
+
+This project uses [git-flow](https://github.com/nvie/gitflow) for release management and
+publishes to PyPI automatically via GitHub Actions when a version tag is pushed.
+
+### Prerequisites
+
+- You must be on the `develop` branch with a clean working tree.
+- `git-flow` must be installed and initialized:
+
+  ```shell
+  brew install git-flow   # macOS
+  git flow init           # use main for production, develop for next release
+  ```
+
+- All changes intended for the release must already be merged into `develop`.
+
+### Step-by-step release process
+
+The following steps use version `X.Y.Z` as a placeholder. Replace it with the actual version
+number (e.g., `2.6.0`).
+
+#### 1. Start the release branch
+
+```shell
+git checkout develop
+git pull origin develop
+git flow release start X.Y.Z
+```
+
+This creates and switches to a `release/X.Y.Z` branch based on `develop`.
+
+#### 2. Bump the version number
+
+Update the version string in **both** files:
+
+- `pyproject.toml` — the `version` field under `[project]`
+- `statemachine/__init__.py` — the `__version__` variable
+
+#### 3. Update translations
+
+Extract new translatable strings, merge them into all existing `.po` files, translate the
+new entries, and compile:
+
+```shell
+uv run pybabel extract statemachine -o statemachine/locale/statemachine.pot
+uv run pybabel update -i statemachine/locale/statemachine.pot -d statemachine/locale/ -D statemachine
+# Edit each .po file to translate new empty msgstr entries
+uv run pybabel compile -d statemachine/locale/ -D statemachine
+```
+
+```{note}
+The `.pot` and `.mo` files are git-ignored. Only the `.po` source files are committed.
+The compiled `.mo` files may cause test failures if your system locale matches a translated
+language (error messages will appear translated instead of in English). Delete them after
+verifying translations work: `rm -f statemachine/locale/*/LC_MESSAGES/statemachine.mo`
+```
+
+#### 4. Write release notes
+
+Create `docs/releases/X.Y.Z.md` documenting all changes since the previous release. Include
+sections for new features, bugfixes, performance improvements, and miscellaneous changes.
+Reference GitHub issues/PRs where applicable.
+
+Add the new file to the toctree in `docs/releases/index.md` (at the top of the appropriate
+major version section).
+
+Update any related documentation pages (e.g., if a bugfix adds a new behavior that users
+should know about).
+
+#### 5. Run linters and tests
+
+```shell
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy statemachine/
+uv run pytest -n auto
+```
+
+All checks must pass before committing.
+
+#### 6. Commit
+
+Stage all changed files and commit. The pre-commit hooks will run ruff, mypy, and pytest
+automatically.
+
+```shell
+git add <files>
+git commit -m "chore: prepare release X.Y.Z"
+```
+
+#### 7. Finish the release
+
+```shell
+git flow release finish X.Y.Z -m "vX.Y.Z"
+```
+
+This will:
+- Merge `release/X.Y.Z` into `main`
+- Create an annotated tag `X.Y.Z` on `main`
+- Merge `main` back into `develop`
+- Delete the `release/X.Y.Z` branch
+
+```{note}
+If tagging fails (e.g., GPG or editor issues), create the tag manually and re-run:
+`git tag -a X.Y.Z -m "vX.Y.Z"` then `git flow release finish X.Y.Z -m "vX.Y.Z"`.
+```
+
+#### 8. Update the `latest` tag and push
+
+```shell
+git tag latest -f
+git push origin main develop --tags -f
+```
+
+Force-pushing tags is needed to move the `latest` tag.
+
+#### 9. Verify the release
+
+The tag push triggers the `release` GitHub Actions workflow (`.github/workflows/release.yml`),
+which will:
+
+1. Check out the tag
+2. Run the full test suite
+3. Build the sdist and wheel with `uv build`
+4. Publish to PyPI using trusted publishing
+
+Monitor the workflow run at `https://github.com/fgmacedo/python-statemachine/actions` to
+confirm the release was published successfully.
