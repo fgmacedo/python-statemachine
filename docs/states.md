@@ -268,3 +268,43 @@ in nested compounds.
 ```{seealso}
 See {ref}`history-states` for shallow vs deep history and default transitions.
 ```
+
+## Configuration
+
+```{versionadded} 3.0.0
+```
+
+The `configuration` property returns the set of currently active states as an
+`OrderedSet[State]`. With compound and parallel states, multiple states can be
+active simultaneously:
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class Journey(StateChart):
+...     class shire(State.Compound):
+...         bag_end = State(initial=True)
+...         green_dragon = State()
+...         visit_pub = bag_end.to(green_dragon)
+...     road = State(final=True)
+...     depart = shire.to(road)
+
+>>> sm = Journey()
+>>> {s.id for s in sm.configuration} == {"shire", "bag_end"}
+True
+
+```
+
+Use `configuration_values` for a set of the active state values (or IDs if no
+custom value is defined):
+
+```py
+>>> set(sm.configuration_values) == {"shire", "bag_end"}
+True
+
+```
+
+```{note}
+The older `current_state` property is deprecated. Use `configuration` instead,
+which works consistently for both flat and hierarchical state machines.
+```

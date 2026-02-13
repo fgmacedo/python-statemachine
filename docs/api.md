@@ -101,6 +101,31 @@
     :members:
 ```
 
+## Callback conventions
+
+These are convention-based callbacks that you can define on your state machine
+subclass. They are not methods on the base class — define them in your subclass
+to enable the behavior.
+
+### `prepare_event`
+
+Called before every event is processed. Returns a `dict` of keyword arguments
+that will be merged into `**kwargs` for all subsequent callbacks (guards, actions,
+entry/exit handlers) during that event's processing:
+
+```python
+class MyMachine(StateMachine):
+    initial = State(initial=True)
+    loop = initial.to.itself()
+
+    def prepare_event(self):
+        return {"request_id": generate_id()}
+
+    def on_loop(self, request_id):
+        # request_id is available here
+        ...
+```
+
 ## create_machine_class_from_definition
 
 ```{versionadded} 3.0.0

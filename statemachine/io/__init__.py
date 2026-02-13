@@ -146,10 +146,22 @@ def _parse_states(
 def create_machine_class_from_definition(
     name: str, states: Mapping[str, "StateKwargs | StateDefinition"], **definition
 ) -> StateChart:  # noqa: C901
-    """
-    Creates a StateChart class from a dictionary definition, using the StateMachineMetaclass.
+    """Create a StateChart class dynamically from a dictionary definition.
 
-    Example usage with a traffic light machine:
+    Args:
+        name: The class name for the generated state machine.
+        states: A mapping of state IDs to state definitions. Each state definition
+            can include ``initial``, ``final``, ``parallel``, ``name``, ``value``,
+            ``enter``/``exit`` callbacks, ``donedata``, nested ``states``,
+            ``history``, and transitions via ``on`` (event-triggered) or
+            ``transitions`` (eventless).
+        **definition: Additional keyword arguments passed to the metaclass
+            (e.g., ``validate_disconnected_states=False``).
+
+    Returns:
+        A new StateChart subclass configured with the given states and transitions.
+
+    Example:
 
     >>> machine = create_machine_class_from_definition(
     ...     "TrafficLightMachine",
@@ -173,8 +185,10 @@ def create_machine_class_from_definition(
 
                 target_state_id = transition_data["target"]
                 transition_event_name = transition_data.get("event")
-                if event_name is not None:
-                    transition_event_name = f"{event_name} {transition_event_name}".strip()
+                if event_name is not None and transition_event_name is not None:
+                    transition_event_name = f"{event_name} {transition_event_name}"
+                elif event_name is not None:
+                    transition_event_name = event_name
 
                 transition_kwargs = {
                     "event": transition_event_name,

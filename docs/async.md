@@ -201,3 +201,14 @@ async def run():
     await sm.activate_initial_state()
     await sm.send("event")
 ```
+
+### Async-specific limitations
+
+- **Initial state activation**: In async code, you must `await sm.activate_initial_state()`
+  before inspecting `sm.configuration` or `sm.current_state`. In sync code this happens
+  automatically at instantiation time.
+- **Delayed events**: Both sync and async engines support `delay=` on `send()`. The async
+  engine uses `asyncio.sleep()` internally, so it integrates naturally with event loops.
+- **Thread safety**: The processing loop uses a non-blocking lock (`_processing.acquire`).
+  All callbacks run on the same thread they are called from — do not share a state machine
+  instance across threads without external synchronization.
