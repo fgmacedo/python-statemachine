@@ -69,3 +69,22 @@ class Campaign(models.Model, MachineMixin):
 ```{seealso}
 Learn more about using the [](mixins.md#machinemixin).
 ```
+
+### Data migrations
+
+Django's `apps.get_model()` returns **historical model** classes that are dynamically created
+and don't carry user-defined class attributes like `state_machine_name`. Since version 2.6.0,
+`MachineMixin` detects these historical models and gracefully skips state machine
+initialization, so data migrations that use `apps.get_model()` work without errors.
+
+```{note}
+The state machine instance will **not** be available on historical model objects.
+If your data migration needs to interact with the state machine, set the attributes
+manually on the historical model class:
+
+    def backfill_data(apps, schema_editor):
+        MyModel = apps.get_model("myapp", "MyModel")
+        MyModel.state_machine_name = "myapp.statemachines.MyStateMachine"
+        for obj in MyModel.objects.all():
+            obj.statemachine  # now available
+```

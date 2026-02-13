@@ -48,6 +48,9 @@ wheels = [
 name = "babel"
 version = "2.16.0"
 source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytz", marker = "python_full_version == '3.8.*'" },
+]
 sdist = { url = "https://files.pythonhosted.org/packages/2a/74/f1bc80f23eeba13393b7222b11d95ca3af2c1e28edca18af487137eefed9/babel-2.16.0.tar.gz", hash = "sha256:d1f3554ca26605fe173f3de0c65f750f5a42f924499bf134de6423582298e316", size = 9348104 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/20/bc79bc575ba2e2a7f70e8a1155618bb1301eaa5132a8271373a6903f73f8/babel-2.16.0-py3-none-any.whl", hash = "sha256:368b5b98b37c06b7daf6696391c3240c938b37767d4584413e8438c5c435fa8b", size = 9587599 },
@@ -1329,7 +1332,7 @@ wheels = [
 
 [[package]]
 name = "python-statemachine"
-version = "2.5.0"
+version = "2.6.0"
 source = { editable = "." }
 
 [package.optional-dependencies]
@@ -1339,6 +1342,7 @@ diagrams = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "babel", marker = "python_full_version >= '3.8'" },
     { name = "django", marker = "python_full_version >= '3.10'" },
     { name = "furo", marker = "python_full_version >= '3.9'" },
     { name = "mypy", version = "1.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.8'" },
@@ -1371,6 +1375,7 @@ requires-dist = [{ name = "pydot", marker = "extra == 'diagrams'", specifier = "
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "babel", marker = "python_full_version >= '3.8'", specifier = ">=2.16.0" },
     { name = "django", marker = "python_full_version >= '3.10'", specifier = ">=5.2.11" },
     { name = "furo", marker = "python_full_version >= '3.9'", specifier = ">=2024.5.6" },
     { name = "mypy" },
@@ -1392,6 +1397,15 @@ dev = [
     { name = "sphinx-autobuild", marker = "python_full_version >= '3.9'" },
     { name = "sphinx-copybutton", marker = "python_full_version >= '3.9'", specifier = ">=0.5.2" },
     { name = "sphinx-gallery", marker = "python_full_version >= '3.9'" },
+]
+
+[[package]]
+name = "pytz"
+version = "2025.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3", size = 320884 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00", size = 509225 },
 ]
 
 [[package]]
