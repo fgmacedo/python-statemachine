@@ -47,8 +47,11 @@ class DotGraphMachine:
         style = ", solid"
         if state.parent and state.parent.parallel:
             style = ", dashed"
+        label = state.name
+        if state.parallel:
+            label = f"<<b>{state.name}</b> &#9783;>"
         subgraph = pydot.Subgraph(
-            label=f"{state.name}",
+            label=label,
             graph_name=f"cluster_{state.id}",
             style=f"rounded{style}",
             cluster="true",
@@ -128,6 +131,21 @@ class DotGraphMachine:
         else:
             return state.id
 
+    def _history_node(self, state):
+        label = "H*" if state.deep else "H"
+        return pydot.Node(
+            self._state_id(state),
+            label=label,
+            shape="circle",
+            style="filled",
+            fillcolor="white",
+            fontname=self.font_name,
+            fontsize="8pt",
+            fixedsize="true",
+            width=0.3,
+            height=0.3,
+        )
+
     def _state_as_node(self, state):
         actions = self._state_actions(state)
 
@@ -150,41 +168,51 @@ class DotGraphMachine:
             node.set_fillcolor("white")
         return node
 
-    def _transition_as_edge(self, transition):
-        cond = ", ".join([str(cond) for cond in transition.cond])
+    def _transition_as_edges(self, transition):
+        targets = transition.targets if transition.targets else [None]
+        cond = ", ".join([str(c) for c in transition.cond])
         if cond:
             cond = f"\n[{cond}]"
 
-        extra_params = {}
-        has_substates = transition.source.states or (
-            transition.target and transition.target.states
-        )
-        if transition.source.states:
-            extra_params["ltail"] = f"cluster_{transition.source.id}"
-        if transition.target and transition.target.states:
-            extra_params["lhead"] = f"cluster_{transition.target.id}"
+        edges = []
+        for i, target in enumerate(targets):
+            extra_params = {}
+            has_substates = transition.source.states or (target and target.states)
+            if transition.source.states:
+                extra_params["ltail"] = f"cluster_{transition.source.id}"
+            if target and target.states:
+                extra_params["lhead"] = f"cluster_{target.id}"
 
-        targetless = transition.target is None
-        return pydot.Edge(
-            self._state_id(transition.source),
-            self._state_id(transition.target)
-            if not targetless
-            else self._state_id(transition.source),
-            label=f"{transition.event}{cond}",
-            color="blue",
-            fontname=self.font_name,
-            fontsize=self.transition_font_size,
-            minlen=2 if has_substates else 1,
-            **extra_params,
-        )
+            targetless = target is None
+            label = f"{transition.event}{cond}" if i == 0 else ""
+            dst = self._state_id(target) if not targetless else self._state_id(transition.source)
+            edges.append(
+                pydot.Edge(
+                    self._state_id(transition.source),
+                    dst,
+                    label=label,
+                    color="blue",
+                    fontname=self.font_name,
+                    fontsize=self.transition_font_size,
+                    minlen=2 if has_substates else 1,
+                    **extra_params,
+                )
+            )
+        return edges
 
     def get_graph(self):
         graph = self._get_graph(self.machine)
         self._graph_states(self.machine, graph, is_root=True)
         return graph
 
+    def _add_transitions(self, graph, state):
+        for transition in state.transitions:
+            if transition.internal:
+                continue
+            for edge in self._transition_as_edges(transition):
+                graph.add_edge(edge)
+
     def _graph_states(self, state, graph, is_root=False):
-        # TODO: handle parallel states in diagram
         initial_node = self._initial_node(state)
         initial_subgraph = pydot.Subgraph(
             graph_name=f"{initial_node.get_name()}_initial",
@@ -202,9 +230,10 @@ class DotGraphMachine:
         graph.add_subgraph(initial_subgraph)
         graph.add_subgraph(atomic_states_subgraph)
 
-        if is_root:
-            initial = next(s for s in state.states if s.initial)
-            graph.add_edge(self._initial_edge(initial_node, initial))
+        if state.states and not getattr(state, "parallel", False):
+            initial = next((s for s in state.states if s.initial), None)
+            if initial:
+                graph.add_edge(self._initial_edge(initial_node, initial))
 
         for substate in state.states:
             if substate.states:
@@ -213,11 +242,11 @@ class DotGraphMachine:
                 graph.add_subgraph(subgraph)
             else:
                 atomic_states_subgraph.add_node(self._state_as_node(substate))
+            self._add_transitions(graph, substate)
 
-            for transition in substate.transitions:
-                if transition.internal:
-                    continue
-                graph.add_edge(self._transition_as_edge(transition))
+        for history_state in getattr(state, "history", []):
+            atomic_states_subgraph.add_node(self._history_node(history_state))
+            self._add_transitions(graph, history_state)
 
     def __call__(self):
         return self.get_graph()

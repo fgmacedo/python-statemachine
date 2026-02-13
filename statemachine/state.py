@@ -55,7 +55,15 @@ class NestedStateFactory(type):
         cls, classname, bases, attrs, name="", **kwargs
     ) -> "State":
         if not bases:
-            return super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
+            new_cls = super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
+            new_cls._factory_kwargs = kwargs  # type: ignore [attr-defined]
+            return new_cls  # type: ignore [return-value]
+
+        # Inherit factory kwargs from base classes (e.g., parallel=True from State.Parallel)
+        inherited_kwargs: dict = {}
+        for base in bases:
+            inherited_kwargs.update(getattr(base, "_factory_kwargs", {}))
+        inherited_kwargs.update(kwargs)
 
         states = []
         callbacks = {}
@@ -68,7 +76,7 @@ class NestedStateFactory(type):
             elif callable(value):
                 callbacks[key] = value
 
-        return State(name=name, states=states, _callbacks=callbacks, **kwargs)
+        return State(name=name, states=states, _callbacks=callbacks, **inherited_kwargs)
 
     @classmethod
     def to(cls, *args: "State", **kwargs) -> "_ToState":  # pragma: no cover
