@@ -1,6 +1,6 @@
 [project]
 name = "python-statemachine"
-version = "2.5.0"
+version = "2.6.0"
 description = "Python Finite State Machines made easy."
 authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
 maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
@@ -55,6 +55,7 @@ dev = [
     "furo >=2024.5.6; python_version >'3.8'",
     "sphinx-copybutton >=0.5.2; python_version >'3.8'",
     "pdbr>=0.8.9; python_version >'3.8'",
+    "babel >=2.16.0; python_version >='3.8'",
 ]
 
 [build-system]
