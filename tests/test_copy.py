@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import pickle
 from copy import deepcopy
@@ -5,11 +6,11 @@ from enum import Enum
 from enum import auto
 
 import pytest
-from statemachine.exceptions import TransitionNotAllowed
-from statemachine.states import States
 
 from statemachine import State
 from statemachine import StateMachine
+from statemachine.exceptions import TransitionNotAllowed
+from statemachine.states import States
 
 logger = logging.getLogger(__name__)
 DEBUG = logging.DEBUG
@@ -181,3 +182,51 @@ def test_copy_with_custom_init_and_vars(copy_method):
     assert sm2.custom == 1
     assert sm2.value == [1, 2, 3]
     assert sm2.current_state == MyStateMachine.started
+
+
+class AsyncTrafficLightMachine(StateMachine):
+    green = State(initial=True)
+    yellow = State()
+    red = State()
+
+    cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+    async def on_enter_state(self, target):
+        pass
+
+
+def test_copy_async_statemachine_before_activation(copy_method):
+    """Regression test for issue #544: async SM fails after pickle/deepcopy.
+
+    When an async SM is copied before activation, the copy must still be
+    activatable because ``__setstate__`` re-enqueues the ``__initial__`` event.
+    """
+    sm = AsyncTrafficLightMachine()
+    sm_copy = copy_method(sm)
+
+    async def verify():
+        await sm_copy.activate_initial_state()
+        assert sm_copy.current_state == AsyncTrafficLightMachine.green
+        await sm_copy.cycle()
+        assert sm_copy.current_state == AsyncTrafficLightMachine.yellow
+
+    asyncio.run(verify())
+
+
+def test_copy_async_statemachine_after_activation(copy_method):
+    """Copying an async SM that is already activated preserves its current state."""
+
+    async def setup_and_verify():
+        sm = AsyncTrafficLightMachine()
+        await sm.activate_initial_state()
+        await sm.cycle()
+        assert sm.current_state == AsyncTrafficLightMachine.yellow
+
+        sm_copy = copy_method(sm)
+
+        await sm_copy.activate_initial_state()
+        assert sm_copy.current_state == AsyncTrafficLightMachine.yellow
+        await sm_copy.cycle()
+        assert sm_copy.current_state == AsyncTrafficLightMachine.red
+
+    asyncio.run(setup_and_verify())

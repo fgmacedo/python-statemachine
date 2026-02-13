@@ -147,6 +147,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._register_callbacks([])
         self.add_listener(*listeners.keys())
         self._engine = self._get_engine(rtc)
+        self._engine.start()
 
     def _get_initial_state(self):
         initial_state_value = self.start_value if self.start_value else self.initial_state.value
