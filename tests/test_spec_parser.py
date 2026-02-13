@@ -257,8 +257,11 @@ def async_variable_hook(var_name):
         "val_20": 20,
     }
 
+    value = values.get(var_name, False)
+
     async def decorated(*args, **kwargs):
-        return values.get(var_name, False)
+        await asyncio.sleep(0)
+        return value
 
     decorated.__name__ = var_name
     return decorated
@@ -301,9 +304,11 @@ def mixed_variable_hook(var_name):
     async_values = {"async_true": True, "async_false": False, "async_20": 20}
 
     if var_name in async_values:
+        value = async_values[var_name]
 
         async def async_decorated(*args, **kwargs):
-            return async_values[var_name]
+            await asyncio.sleep(0)
+            return value
 
         async_decorated.__name__ = var_name
         return async_decorated

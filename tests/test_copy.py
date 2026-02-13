@@ -192,7 +192,7 @@ class AsyncTrafficLightMachine(StateMachine):
     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
     async def on_enter_state(self, target):
-        pass
+        """Async callback to ensure the SM uses AsyncEngine."""
 
 
 def test_copy_async_statemachine_before_activation(copy_method):

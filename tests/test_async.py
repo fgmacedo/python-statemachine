@@ -116,7 +116,7 @@ class AsyncConditionExpressionMachine(StateMachine):
         return False
 
     async def on_enter_state(self, target):
-        pass
+        """Async callback to ensure the SM uses AsyncEngine."""
 
 
 async def test_async_condition_not(recwarn):
