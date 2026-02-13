@@ -7,7 +7,7 @@ and the Event(delay=...) definition syntax.
 Theme: Beacons of Gondor — signal fires propagate with timing.
 """
 
-import time
+import asyncio
 
 import pytest
 from statemachine.event import BoundEvent
@@ -19,7 +19,7 @@ from statemachine import StateChart
 
 @pytest.mark.timeout(10)
 class TestDelayedEvents:
-    def test_delayed_event_fires_after_delay(self):
+    async def test_delayed_event_fires_after_delay(self, sm_runner):
         """Queuing a delayed event does not fire immediately; processing after delay does."""
 
         class BeaconsOfGondor(StateChart):
@@ -30,8 +30,8 @@ class TestDelayedEvents:
             light_first = dark.to(first_lit)
             light_all = first_lit.to(all_lit)
 
-        sm = BeaconsOfGondor()
-        sm.send("light_first")
+        sm = await sm_runner.start(BeaconsOfGondor)
+        await sm_runner.send(sm, "light_first")
         assert "first_lit" in sm.configuration_values
 
         # Queue the event with delay without triggering the processing loop
@@ -41,11 +41,11 @@ class TestDelayedEvents:
         # Not yet processed
         assert "first_lit" in sm.configuration_values
 
-        time.sleep(0.1)
-        sm._processing_loop()
+        await asyncio.sleep(0.1)
+        await sm_runner.processing_loop(sm)
         assert "all_lit" in sm.configuration_values
 
-    def test_cancel_delayed_event(self):
+    async def test_cancel_delayed_event(self, sm_runner):
         """Cancelled delayed events do not fire."""
 
         class BeaconsOfGondor(StateChart):
@@ -54,18 +54,18 @@ class TestDelayedEvents:
 
             light = dark.to(lit)
 
-        sm = BeaconsOfGondor()
+        sm = await sm_runner.start(BeaconsOfGondor)
         # Queue delayed event
         event = BoundEvent(id="light", name="Light", delay=500, _sm=sm)
         event.put(send_id="beacon_signal")
 
         sm.cancel_event("beacon_signal")
 
-        time.sleep(0.1)
-        sm._processing_loop()
+        await asyncio.sleep(0.1)
+        await sm_runner.processing_loop(sm)
         assert "dark" in sm.configuration_values
 
-    def test_zero_delay_fires_immediately(self):
+    async def test_zero_delay_fires_immediately(self, sm_runner):
         """delay=0 fires immediately."""
 
         class BeaconsOfGondor(StateChart):
@@ -74,11 +74,11 @@ class TestDelayedEvents:
 
             light = dark.to(lit)
 
-        sm = BeaconsOfGondor()
-        sm.send("light", delay=0)
+        sm = await sm_runner.start(BeaconsOfGondor)
+        await sm_runner.send(sm, "light", delay=0)
         assert "lit" in sm.configuration_values
 
-    def test_delayed_event_on_event_definition(self):
+    async def test_delayed_event_on_event_definition(self, sm_runner):
         """Event(transitions, delay=100) syntax queues with a delay."""
 
         class BeaconsOfGondor(StateChart):
@@ -87,7 +87,7 @@ class TestDelayedEvents:
 
             light = Event(dark.to(lit), delay=50)
 
-        sm = BeaconsOfGondor()
+        sm = await sm_runner.start(BeaconsOfGondor)
         # Queue via BoundEvent.put() to avoid blocking in processing_loop
         event = BoundEvent(id="light", name="Light", delay=50, _sm=sm)
         event.put()
@@ -95,6 +95,6 @@ class TestDelayedEvents:
         # Not yet processed
         assert "dark" in sm.configuration_values
 
-        time.sleep(0.1)
-        sm._processing_loop()
+        await asyncio.sleep(0.1)
+        await sm_runner.processing_loop(sm)
         assert "lit" in sm.configuration_values

@@ -14,7 +14,7 @@ from statemachine import StateChart
 
 @pytest.mark.timeout(5)
 class TestErrorExecutionStatechart:
-    def test_error_in_compound_child_onentry(self):
+    async def test_error_in_compound_child_onentry(self, sm_runner):
         """Error in on_enter of compound child fires error.execution."""
 
         class CompoundError(StateChart):
@@ -30,11 +30,11 @@ class TestErrorExecutionStatechart:
             error_state = State(final=True)
             error_execution = Event(realm.to(error_state), id="error.execution")
 
-        sm = CompoundError()
-        sm.send("enter_danger")
+        sm = await sm_runner.start(CompoundError)
+        await sm_runner.send(sm, "enter_danger")
         assert {"error_state"} == set(sm.configuration_values)
 
-    def test_error_in_parallel_region_isolation(self):
+    async def test_error_in_parallel_region_isolation(self, sm_runner):
         """Error in one parallel region; error.execution handles the exit."""
 
         class ParallelError(StateChart):
@@ -59,13 +59,11 @@ class TestErrorExecutionStatechart:
             error_state = State(final=True)
             error_execution = Event(fronts.to(error_state), id="error.execution")
 
-        sm = ParallelError()
-        # Error in battle_a's on_enter_victory
-        sm.send("win")
-        # Error is raised, error.execution fires from fronts -> error_state
+        sm = await sm_runner.start(ParallelError)
+        await sm_runner.send(sm, "win")
         assert {"error_state"} == set(sm.configuration_values)
 
-    def test_error_recovery_exits_compound(self):
+    async def test_error_recovery_exits_compound(self, sm_runner):
         """error.execution transition leaves compound state entirely."""
 
         class CompoundRecovery(StateChart):
@@ -81,7 +79,7 @@ class TestErrorExecutionStatechart:
             safe = State(final=True)
             error_execution = Event(dungeon.to(safe), id="error.execution")
 
-        sm = CompoundRecovery()
-        sm.send("explore")
+        sm = await sm_runner.start(CompoundRecovery)
+        await sm_runner.send(sm, "explore")
         assert {"safe"} == set(sm.configuration_values)
         assert "dungeon" not in sm.configuration_values

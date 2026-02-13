@@ -44,9 +44,9 @@ class TestParallelStates:
 
         return WarOfTheRing
 
-    def test_parallel_activates_all_regions(self, war_of_the_ring_cls):
+    async def test_parallel_activates_all_regions(self, sm_runner, war_of_the_ring_cls):
         """Entering a parallel state activates the initial child of every region."""
-        sm = war_of_the_ring_cls()
+        sm = await sm_runner.start(war_of_the_ring_cls)
         vals = set(sm.configuration_values)
         assert "war" in vals
         assert "frodos_quest" in vals
@@ -56,18 +56,18 @@ class TestParallelStates:
         assert "gandalfs_defense" in vals
         assert "rohan" in vals
 
-    def test_independent_transitions_in_regions(self, war_of_the_ring_cls):
+    async def test_independent_transitions_in_regions(self, sm_runner, war_of_the_ring_cls):
         """An event in one region does not affect others."""
-        sm = war_of_the_ring_cls()
-        sm.send("journey")
+        sm = await sm_runner.start(war_of_the_ring_cls)
+        await sm_runner.send(sm, "journey")
         vals = set(sm.configuration_values)
         assert "mordor" in vals
         assert "ranger" in vals  # unchanged
         assert "rohan" in vals  # unchanged
 
-    def test_configuration_includes_all_active_states(self, war_of_the_ring_cls):
+    async def test_configuration_includes_all_active_states(self, sm_runner, war_of_the_ring_cls):
         """Configuration set includes all active states across regions."""
-        sm = war_of_the_ring_cls()
+        sm = await sm_runner.start(war_of_the_ring_cls)
         config_ids = {s.id for s in sm.configuration}
         assert config_ids == {
             "war",
@@ -79,7 +79,7 @@ class TestParallelStates:
             "rohan",
         }
 
-    def test_exit_parallel_exits_all_regions(self):
+    async def test_exit_parallel_exits_all_regions(self, sm_runner):
         """Transition out of a parallel clears everything."""
 
         class WarWithExit(StateChart):
@@ -95,31 +95,30 @@ class TestParallelStates:
             peace = State(final=True)
             truce = war.to(peace)
 
-        sm = WarWithExit()
+        sm = await sm_runner.start(WarWithExit)
         assert "war" in sm.configuration_values
-        sm.send("truce")
+        await sm_runner.send(sm, "truce")
         assert {"peace"} == set(sm.configuration_values)
 
-    def test_event_in_one_region_no_effect_on_others(self, war_of_the_ring_cls):
+    async def test_event_in_one_region_no_effect_on_others(self, sm_runner, war_of_the_ring_cls):
         """Region isolation: events affect only the targeted region."""
-        sm = war_of_the_ring_cls()
-        sm.send("coronation")
+        sm = await sm_runner.start(war_of_the_ring_cls)
+        await sm_runner.send(sm, "coronation")
         vals = set(sm.configuration_values)
         assert "king" in vals
         assert "shire" in vals  # Frodo's region unchanged
         assert "rohan" in vals  # Gandalf's region unchanged
 
-    def test_parallel_with_compound_children(self, war_of_the_ring_cls):
+    async def test_parallel_with_compound_children(self, sm_runner, war_of_the_ring_cls):
         """Mixed hierarchy: parallel with compound regions verified."""
-        sm = war_of_the_ring_cls()
-        # Each region is compound with its own initial child
+        sm = await sm_runner.start(war_of_the_ring_cls)
         assert "shire" in sm.configuration_values
         assert "ranger" in sm.configuration_values
         assert "rohan" in sm.configuration_values
 
-    def test_current_state_value_set_comparison(self, war_of_the_ring_cls):
+    async def test_current_state_value_set_comparison(self, sm_runner, war_of_the_ring_cls):
         """configuration_values supports set comparison for parallel states."""
-        sm = war_of_the_ring_cls()
+        sm = await sm_runner.start(war_of_the_ring_cls)
         vals = set(sm.configuration_values)
         expected = {
             "war",
@@ -132,7 +131,7 @@ class TestParallelStates:
         }
         assert vals == expected
 
-    def test_parallel_done_when_all_regions_final(self):
+    async def test_parallel_done_when_all_regions_final(self, sm_runner):
         """done.state fires when ALL regions reach a final state."""
 
         class TwoTowers(StateChart):
@@ -154,16 +153,16 @@ class TestParallelStates:
             aftermath = State(final=True)
             done_state_battle = Event(battle.to(aftermath), id="done.state.battle")
 
-        sm = TwoTowers()
-        sm.send("win")
+        sm = await sm_runner.start(TwoTowers)
+        await sm_runner.send(sm, "win")
         # Only one region is final, battle continues
         assert "battle" in sm.configuration_values
 
-        sm.send("flood")
+        await sm_runner.send(sm, "flood")
         # Both regions are final -> done.state.battle fires
         assert {"aftermath"} == set(sm.configuration_values)
 
-    def test_parallel_not_done_when_one_region_final(self):
+    async def test_parallel_not_done_when_one_region_final(self, sm_runner):
         """Parallel not done when only one region reaches final."""
 
         class TwoTowers(StateChart):
@@ -185,17 +184,19 @@ class TestParallelStates:
             aftermath = State(final=True)
             done_state_battle = Event(battle.to(aftermath), id="done.state.battle")
 
-        sm = TwoTowers()
-        sm.send("win")
+        sm = await sm_runner.start(TwoTowers)
+        await sm_runner.send(sm, "win")
         assert "battle" in sm.configuration_values
         assert "victory" in sm.configuration_values
         assert "besieging" in sm.configuration_values
 
-    def test_transition_within_compound_inside_parallel(self, war_of_the_ring_cls):
+    async def test_transition_within_compound_inside_parallel(
+        self, sm_runner, war_of_the_ring_cls
+    ):
         """Deep transition within a compound region of a parallel state."""
-        sm = war_of_the_ring_cls()
-        sm.send("journey")
-        sm.send("destroy_ring")
+        sm = await sm_runner.start(war_of_the_ring_cls)
+        await sm_runner.send(sm, "journey")
+        await sm_runner.send(sm, "destroy_ring")
         vals = set(sm.configuration_values)
         assert "mount_doom" in vals
         assert "ranger" in vals  # other regions unchanged

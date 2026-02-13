@@ -17,7 +17,7 @@ from statemachine import StateChart
 
 @pytest.mark.timeout(5)
 class TestDoneData:
-    def test_donedata_callable_returns_dict(self):
+    async def test_donedata_callable_returns_dict(self, sm_runner):
         """Handler receives donedata as kwargs."""
         received = {}
 
@@ -40,12 +40,12 @@ class TestDoneData:
                 received["ring_destroyed"] = ring_destroyed
                 received["hero"] = hero
 
-        sm = DestroyTheRing()
-        sm.send("finish")
+        sm = await sm_runner.start(DestroyTheRing)
+        await sm_runner.send(sm, "finish")
         assert received["ring_destroyed"] is True
         assert received["hero"] == "frodo"
 
-    def test_donedata_fires_done_state_with_data(self):
+    async def test_donedata_fires_done_state_with_data(self, sm_runner):
         """done.state event fires and triggers a transition."""
 
         class DestroyTheRing(StateChart):
@@ -61,11 +61,11 @@ class TestDoneData:
             celebration = State(final=True)
             done_state_quest = Event(quest.to(celebration), id="done.state.quest")
 
-        sm = DestroyTheRing()
-        sm.send("finish")
+        sm = await sm_runner.start(DestroyTheRing)
+        await sm_runner.send(sm, "finish")
         assert {"celebration"} == set(sm.configuration_values)
 
-    def test_donedata_in_nested_compound(self):
+    async def test_donedata_in_nested_compound(self, sm_runner):
         """Inner done.state propagates up through nesting."""
 
         class NestedQuestDoneData(StateChart):
@@ -86,8 +86,8 @@ class TestDoneData:
             final = State(final=True)
             done_state_outer = Event(outer.to(final), id="done.state.outer")
 
-        sm = NestedQuestDoneData()
-        sm.send("go")
+        sm = await sm_runner.start(NestedQuestDoneData)
+        await sm_runner.send(sm, "go")
         # inner finishes -> done.state.inner -> after_inner (final)
         # -> done.state.outer -> final
         assert {"final"} == set(sm.configuration_values)
@@ -102,7 +102,7 @@ class TestDoneData:
 
                 go = s1.to(s2)
 
-    def test_donedata_with_listener(self):
+    async def test_donedata_with_listener(self, sm_runner):
         """Listener captures done event kwargs."""
         captured = {}
 
@@ -124,6 +124,6 @@ class TestDoneData:
             done_state_quest = Event(quest.to(celebration), id="done.state.quest")
 
         listener = QuestListener()
-        sm = DestroyTheRing(listeners=[listener])
-        sm.send("finish")
+        sm = await sm_runner.start(DestroyTheRing, listeners=[listener])
+        await sm_runner.send(sm, "finish")
         assert {"celebration"} == set(sm.configuration_values)

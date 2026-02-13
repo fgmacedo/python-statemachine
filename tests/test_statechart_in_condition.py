@@ -15,7 +15,7 @@ from statemachine import StateChart
 
 @pytest.mark.timeout(5)
 class TestInCondition:
-    def test_in_condition_true_enables_transition(self):
+    async def test_in_condition_true_enables_transition(self, sm_runner):
         """In('state_id') when state is active -> transition fires."""
 
         class Fellowship(StateChart):
@@ -35,15 +35,13 @@ class TestInCondition:
                     # Sam follows Frodo: eventless, guarded by In('mordor_f')
                     shire_s.to(mordor_s, cond="In('mordor_f')")
 
-        sm = Fellowship()
-        # Initially both in shire
-        sm.send("journey")  # Frodo goes to mordor_f
-        # Sam's eventless transition should fire because In('mordor_f') is True
+        sm = await sm_runner.start(Fellowship)
+        await sm_runner.send(sm, "journey")
         vals = set(sm.configuration_values)
         assert "mordor_f" in vals
         assert "mordor_s" in vals
 
-    def test_in_condition_false_blocks_transition(self):
+    async def test_in_condition_false_blocks_transition(self, sm_runner):
         """In('state_id') when state is not active -> transition blocked."""
 
         class GateOfMoria(StateChart):
@@ -56,12 +54,11 @@ class TestInCondition:
             enter_gate = outside.to(inside, cond="In('at_gate')")
             speak_friend = at_gate.to(inside)
 
-        sm = GateOfMoria()
-        # Try to enter directly — In('at_gate') is False
-        sm.send("enter_gate")
+        sm = await sm_runner.start(GateOfMoria)
+        await sm_runner.send(sm, "enter_gate")
         assert "outside" in sm.configuration_values
 
-    def test_in_with_parallel_regions(self):
+    async def test_in_with_parallel_regions(self, sm_runner):
         """Cross-region In() evaluation in parallel states."""
 
         class FellowshipCoordination(StateChart):
@@ -81,19 +78,17 @@ class TestInCondition:
                     # Army marches only after scouts report
                     waiting.to(marching, cond="In('reported')")
 
-        sm = FellowshipCoordination()
-        # Army is waiting, scouts are scouting
+        sm = await sm_runner.start(FellowshipCoordination)
         vals = set(sm.configuration_values)
         assert "waiting" in vals
         assert "scouting" in vals
 
-        sm.send("report")
-        # Now scouts reported, army should march
+        await sm_runner.send(sm, "report")
         vals = set(sm.configuration_values)
         assert "reported" in vals
         assert "marching" in vals
 
-    def test_in_with_compound_descendant(self):
+    async def test_in_with_compound_descendant(self, sm_runner):
         """In('child') when child is an active descendant."""
 
         class DescendantCheck(StateChart):
@@ -108,18 +103,17 @@ class TestInCondition:
             conquer = realm.to(conquered, cond="In('castle')")
             explore = realm.to.itself(internal=True)
 
-        sm = DescendantCheck()
-        # Try to conquer from village -> In('castle') is False
-        sm.send("conquer")
+        sm = await sm_runner.start(DescendantCheck)
+        await sm_runner.send(sm, "conquer")
         assert "realm" in sm.configuration_values
 
-        sm.send("ascend")
+        await sm_runner.send(sm, "ascend")
         assert "castle" in sm.configuration_values
 
-        sm.send("conquer")
+        await sm_runner.send(sm, "conquer")
         assert {"conquered"} == set(sm.configuration_values)
 
-    def test_in_combined_with_event(self):
+    async def test_in_combined_with_event(self, sm_runner):
         """Event + In() guard together."""
 
         class CombinedGuard(StateChart):
@@ -139,18 +133,15 @@ class TestInCondition:
                     # Only attacks when scout is back
                     charge = idle.to(attacking, cond="In('back')")
 
-        sm = CombinedGuard()
-        # Try to charge before scout is back
-        sm.send("charge")
+        sm = await sm_runner.start(CombinedGuard)
+        await sm_runner.send(sm, "charge")
         assert "idle" in sm.configuration_values
 
-        # Scout returns
-        sm.send("return_scout")
-        # Now charge should work
-        sm.send("charge")
+        await sm_runner.send(sm, "return_scout")
+        await sm_runner.send(sm, "charge")
         assert "attacking" in sm.configuration_values
 
-    def test_in_with_eventless_transition(self):
+    async def test_in_with_eventless_transition(self, sm_runner):
         """Eventless + In() guard."""
 
         class EventlessIn(StateChart):
@@ -170,10 +161,10 @@ class TestInCondition:
                     # Eventless: move when leader is ready
                     waiting.to(moving, cond="In('ready')")
 
-        sm = EventlessIn()
+        sm = await sm_runner.start(EventlessIn)
         assert "waiting" in sm.configuration_values
 
-        sm.send("get_ready")
+        await sm_runner.send(sm, "get_ready")
         vals = set(sm.configuration_values)
         assert "ready" in vals
         assert "moving" in vals
