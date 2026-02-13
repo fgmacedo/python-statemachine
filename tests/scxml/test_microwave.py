@@ -69,7 +69,7 @@ class TestMicrowave:
         class MicroWave(StateChart):
             door_closed: bool = True
 
-            class oven(State.Compound, name="Microwave oven", parallel=True):
+            class oven(State.Parallel, name="Microwave oven"):
                 class engine(State.Compound):
                     off = State(initial=True)
 
