@@ -13,7 +13,7 @@ from typing import Optional
 from typing import Tuple
 
 BindCacheKey = Tuple[int, FrozenSet[str]]
-BindTemplate = Tuple[Tuple[str, ...], Optional[str]]  # noqa: UP007
+BindTemplate = Tuple[Tuple[str, ...], Optional[str], Optional[str]]  # noqa: UP007
 
 
 def _make_key(method):
@@ -89,12 +89,25 @@ class SignatureAdapter(Signature):
         kwargs: dict[str, Any],
         template: BindTemplate,
     ) -> BoundArguments:
-        param_names, kwargs_param_name = template
+        param_names, kwargs_param_name, var_positional_name = template
         arguments: dict[str, Any] = {}
+        past_var_positional = False
 
         for i, name in enumerate(param_names):
-            if i < len(args):
-                arguments[name] = args[i]
+            if name == var_positional_name:
+                # Collect all remaining positional args into a tuple
+                arguments[name] = args[i:]
+                past_var_positional = True
+            elif past_var_positional:
+                # After *args, remaining params are keyword-only
+                arguments[name] = kwargs.get(name)
+            elif i < len(args):
+                # Match _full_bind: if param is also in kwargs, kwargs wins
+                # (POSITIONAL_OR_KEYWORD params prefer kwargs over positional args)
+                if name in kwargs:
+                    arguments[name] = kwargs[name]
+                else:
+                    arguments[name] = args[i]
             else:
                 arguments[name] = kwargs.get(name)
 
@@ -124,6 +137,7 @@ class SignatureAdapter(Signature):
         parameters_ex: Any = ()
         kwargs_param = None
         kwargs_param_name: str | None = None
+        var_positional_name: str | None = None
 
         while True:
             # Let's iterate through the positional arguments and corresponding
@@ -192,6 +206,7 @@ class SignatureAdapter(Signature):
                         values.extend(arg_vals)
                         arguments[param.name] = tuple(values)
                         param_names_used.append(param.name)
+                        var_positional_name = param.name
                         break
 
                     if param.name in kwargs and param.kind != Parameter.POSITIONAL_ONLY:
@@ -236,7 +251,7 @@ class SignatureAdapter(Signature):
                 # 'ignoring we got an unexpected keyword argument'
                 pass
 
-        template: BindTemplate = (tuple(param_names_used), kwargs_param_name)
+        template: BindTemplate = (tuple(param_names_used), kwargs_param_name, var_positional_name)
         self._bind_cache[cache_key] = template
 
         return BoundArguments(self, arguments)  # type: ignore[arg-type]
