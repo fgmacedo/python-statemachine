@@ -1,6 +1,8 @@
+import asyncio
 import logging
 
 import pytest
+
 from statemachine.spec_parser import operator_mapping
 from statemachine.spec_parser import parse_boolean_expr
 
@@ -247,6 +249,96 @@ def test_simple_variable_returns_the_original_callback():
         ("height > 1 and height < 2", True, ["height"]),
     ],
 )
+def async_variable_hook(var_name):
+    """Variable hook that returns async callables, for testing issue #535."""
+    values = {
+        "cond_true": True,
+        "cond_false": False,
+        "val_10": 10,
+        "val_20": 20,
+    }
+
+    async def decorated(*args, **kwargs):
+        return values.get(var_name, False)
+
+    decorated.__name__ = var_name
+    return decorated
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("not cond_false", True),
+        ("not cond_true", False),
+        ("cond_true and cond_true", True),
+        ("cond_true and cond_false", False),
+        ("cond_false and cond_true", False),
+        ("cond_false or cond_true", True),
+        ("cond_true or cond_false", True),
+        ("cond_false or cond_false", False),
+        ("not cond_false and cond_true", True),
+        ("not (cond_true and cond_false)", True),
+        ("not (cond_false or cond_false)", True),
+        ("cond_true and not cond_false", True),
+        ("val_10 == 10", True),
+        ("val_10 != 20", True),
+        ("val_10 < val_20", True),
+        ("val_20 > val_10", True),
+        ("val_10 >= 10", True),
+        ("val_10 <= val_20", True),
+    ],
+)
+def test_async_expressions(expression, expected):
+    """Issue #535: condition expressions with async predicates must await results."""
+    parsed_expr = parse_boolean_expr(expression, async_variable_hook, operator_mapping)
+    result = parsed_expr()
+    assert asyncio.iscoroutine(result), f"Expected coroutine for async expression: {expression}"
+    assert asyncio.run(result) is expected, expression
+
+
+def mixed_variable_hook(var_name):
+    """Variable hook where some vars are sync and some are async."""
+    sync_values = {"sync_true": True, "sync_false": False, "sync_10": 10}
+    async_values = {"async_true": True, "async_false": False, "async_20": 20}
+
+    if var_name in async_values:
+
+        async def async_decorated(*args, **kwargs):
+            return async_values[var_name]
+
+        async_decorated.__name__ = var_name
+        return async_decorated
+
+    def sync_decorated(*args, **kwargs):
+        return sync_values.get(var_name, False)
+
+    sync_decorated.__name__ = var_name
+    return sync_decorated
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        # async left, sync right
+        ("async_true and sync_true", True),
+        ("async_false or sync_true", True),
+        # sync left, async right
+        ("sync_true and async_true", True),
+        ("sync_false or async_true", True),
+        ("sync_true and async_false", False),
+        ("sync_false or async_false", False),
+    ],
+)
+def test_mixed_sync_async_expressions(expression, expected):
+    """Expressions mixing sync and async predicates must handle both correctly."""
+    parsed_expr = parse_boolean_expr(expression, mixed_variable_hook, operator_mapping)
+    result = parsed_expr()
+    if asyncio.iscoroutine(result):
+        assert asyncio.run(result) is expected, expression
+    else:
+        assert result is expected, expression
+
+
 @pytest.mark.xfail(reason="TODO: Optimize so that expressios are evaluated only once")
 def test_should_evaluate_values_only_once(expression, expected, caplog, hooks_called):
     caplog.set_level(logging.DEBUG, logger="tests")
