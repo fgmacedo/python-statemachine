@@ -97,6 +97,34 @@ class AsyncEngine(BaseEngine):
 
         return result if executed else None
 
+    async def enabled_events(self, *args, **kwargs):
+        sm = self.sm
+        enabled = {}
+        for transition in sm.current_state.transitions:
+            for event in transition.events:
+                if event in enabled:
+                    continue
+                extended_kwargs = kwargs.copy()
+                extended_kwargs.update(
+                    {
+                        "machine": sm,
+                        "model": sm.model,
+                        "event": getattr(sm, event),
+                        "source": transition.source,
+                        "target": transition.target,
+                        "state": sm.current_state,
+                        "transition": transition,
+                    }
+                )
+                try:
+                    if await sm._callbacks.async_all(
+                        transition.cond.key, *args, **extended_kwargs
+                    ):
+                        enabled[event] = getattr(sm, event)
+                except Exception:
+                    enabled[event] = getattr(sm, event)
+        return list(enabled.values())
+
     async def _activate(self, trigger_data: TriggerData, transition: "Transition"):
         event_data = EventData(trigger_data=trigger_data, transition=transition)
         args, kwargs = event_data.args, event_data.extended_kwargs

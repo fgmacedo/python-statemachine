@@ -295,6 +295,24 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """List of the current allowed events."""
         return [getattr(self, event) for event in self.current_state.transitions.unique_events]
 
+    def enabled_events(self, *args, **kwargs):
+        """List of the current enabled events, considering guard conditions.
+
+        An event is **enabled** if at least one of its transitions from the current
+        state has all ``cond``/``unless`` guards satisfied.
+
+        Args:
+            *args: Positional arguments forwarded to condition callbacks.
+            **kwargs: Keyword arguments forwarded to condition callbacks.
+
+        Returns:
+            A list of enabled :ref:`Event` instances.
+        """
+        result = self._engine.enabled_events(*args, **kwargs)
+        if not isawaitable(result):
+            return result
+        return run_async_from_sync(result)
+
     def _put_nonblocking(self, trigger_data: TriggerData):
         """Put the trigger on the queue without blocking the caller."""
         self._engine.put(trigger_data)
