@@ -66,9 +66,13 @@ class NestedStateFactory(type):
         inherited_kwargs.update(kwargs)
 
         states = []
+        history = []
         callbacks = {}
         for key, value in attrs.items():
-            if isinstance(value, State):
+            if isinstance(value, HistoryState):
+                value._set_id(key)
+                history.append(value)
+            elif isinstance(value, State):
                 value._set_id(key)
                 states.append(value)
             elif isinstance(value, TransitionList):
@@ -76,7 +80,9 @@ class NestedStateFactory(type):
             elif callable(value):
                 callbacks[key] = value
 
-        return State(name=name, states=states, _callbacks=callbacks, **inherited_kwargs)
+        return State(
+            name=name, states=states, history=history, _callbacks=callbacks, **inherited_kwargs
+        )
 
     @classmethod
     def to(cls, *args: "State", **kwargs) -> "_ToState":  # pragma: no cover
