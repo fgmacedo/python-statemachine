@@ -8,7 +8,7 @@
 [![GitHub commits since last release (main)](https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/main/develop)](https://github.com/fgmacedo/python-statemachine/compare/main...develop)
 
 
-Python [finite-state machines](https://en.wikipedia.org/wiki/Finite-state_machine) made easy.
+Python [finite-state machines](https://en.wikipedia.org/wiki/Finite-state_machine) and [statecharts](https://statecharts.dev/) made easy.
 
 <div align="center">
 
@@ -17,55 +17,17 @@ Python [finite-state machines](https://en.wikipedia.org/wiki/Finite-state_machin
 </div>
 
 Welcome to python-statemachine, an intuitive and powerful state machine library designed for a
-great developer experience. We provide a _pythonic_ and expressive API for implementing state
-machines in sync or asynchonous Python codebases.
-
-## Features
-
-- ✨ **Basic components**: Easily define **States**, **Events**, and **Transitions** to model your logic.
-- ⚙️ **Actions and handlers**: Attach actions and handlers to states, events, and transitions to control behavior dynamically.
-- 🛡️ **Conditional transitions**: Implement **Guards** and **Validators** to conditionally control transitions, ensuring they only occur when specific conditions are met.
-- 🚀 **Full async support**: Enjoy full asynchronous support. Await events, and dispatch callbacks asynchronously for seamless integration with async codebases.
-- 🔄 **Full sync support**: Use the same state machine from synchronous codebases without any modifications.
-- 🎨 **Declarative and simple API**: Utilize a clean, elegant, and readable API to define your state machine, making it easy to maintain and understand.
-- 👀 **Observer pattern support**: Register external and generic objects to watch events and register callbacks.
-- 🔍 **Decoupled design**: Separate concerns with a decoupled "state machine" and "model" design, promoting cleaner architecture and easier maintenance.
-- ✅ **Correctness guarantees**: Ensured correctness with validations at class definition time:
-   - Ensures exactly one `initial` state.
-   - Disallows transitions from `final` states.
-   - Requires ongoing transitions for all non-final states.
-   - Guarantees all non-final states have at least one path to a final state if final states are declared.
-   - Validates the state machine graph representation has a single component.
-- 📦 **Flexible event dispatching**: Dispatch events with any extra data, making it available to all callbacks, including actions and guards.
-- 🔧 **Dependency injection**: Needed parameters are injected into callbacks.
-- 📊 **Graphical representation**: Generate and output graphical representations of state machines. Create diagrams from the command line, at runtime, or even in Jupyter notebooks.
-- 🌍 **Internationalization support**: Provides error messages in different languages, making the library accessible to a global audience.
-- 🛡️ **Robust testing**: Ensured reliability with a codebase that is 100% covered by automated tests, including all docs examples. Releases follow semantic versioning for predictable releases.
-- 🏛️ **Domain model integration**: Seamlessly integrate with domain models using Mixins.
-- 🔧 **Django integration**: Automatically discover state machines in Django applications.
+great developer experience. Define flat state machines or full statecharts with compound states,
+parallel regions, and history — all with a clean, _pythonic_, declarative API that works in both
+sync and async Python codebases.
 
 
-
-## Installing
-
-To install Python State Machine, run this command in your terminal:
-
-    pip install python-statemachine
-
-To generate diagrams from your machines, you'll also need `pydot` and `Graphviz`. You can
-install this library already with `pydot` dependency using the `extras` install option. See
-our docs for more details.
-
-    pip install python-statemachine[diagrams]
-
-## First example
-
-Define your state machine:
+## Quick start
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class TrafficLightMachine(StateMachine):
+>>> class TrafficLightMachine(StateChart):
 ...     "A traffic light machine"
 ...     green = State(initial=True)
 ...     yellow = State()
@@ -77,9 +39,8 @@ Define your state machine:
 ...         | red.to(green)
 ...     )
 ...
-...     def before_cycle(self, event: str, source: State, target: State, message: str = ""):
-...         message = ". " + message if message else ""
-...         return f"Running {event} from {source.id} to {target.id}{message}"
+...     def before_cycle(self, event: str, source: State, target: State):
+...         return f"Running {event} from {source.id} to {target.id}"
 ...
 ...     def on_enter_red(self):
 ...         print("Don't move.")
@@ -89,14 +50,35 @@ Define your state machine:
 
 ```
 
-You can now create an instance:
+Create an instance and send events:
 
 ```py
 >>> sm = TrafficLightMachine()
+>>> sm.send("cycle")
+'Running cycle from green to yellow'
+
+>>> sm.send("cycle")
+Don't move.
+'Running cycle from yellow to red'
+
+>>> sm.send("cycle")
+Go ahead!
+'Running cycle from red to green'
 
 ```
 
-This state machine can be represented graphically as follows:
+Check which states are active:
+
+```py
+>>> sm.configuration
+OrderedSet([State('Green', id='green', value='green', initial=True, final=False, parallel=False)])
+
+>>> sm.green.is_active
+True
+
+```
+
+Generate a diagram:
 
 ```py
 >>> # This example will only run on automated tests if dot is present
@@ -108,13 +90,8 @@ This state machine can be represented graphically as follows:
 
 ![](https://raw.githubusercontent.com/fgmacedo/python-statemachine/develop/docs/images/readme_trafficlightmachine.png)
 
-
-Where on the `TrafficLightMachine`, we've defined `green`, `yellow`, and `red` as states, and
-one event called `cycle`, which is bound to the transitions from `green` to `yellow`, `yellow` to `red`,
-and `red` to `green`. We also have defined three callbacks by name convention, `before_cycle`, `on_enter_red`, and `on_exit_red`.
-
-
-Then start sending events to your new state machine:
+Parameters are injected into callbacks automatically — the library inspects the
+signature and provides only the arguments each callback needs:
 
 ```py
 >>> sm.send("cycle")
@@ -122,268 +99,277 @@ Then start sending events to your new state machine:
 
 ```
 
-**That's it.** This is all an external object needs to know about your state machine: How to send events.
-Ideally, all states, transitions, and actions should be kept internally and not checked externally to avoid unnecessary coupling.
 
-But if your use case needs, you can inspect state machine properties, like the current state:
+## Guards and conditional transitions
 
-```py
->>> sm.current_state.id
-'yellow'
-
-```
-
-Or get a complete state representation for debugging purposes:
+Use `cond=` and `unless=` to add guards. When multiple transitions share the same
+event, declaration order determines priority:
 
 ```py
->>> sm.current_state
-State('Yellow', id='yellow', value='yellow', initial=False, final=False, parallel=False)
+>>> from statemachine import StateChart, State
 
-```
+>>> class ApprovalWorkflow(StateChart):
+...     pending = State(initial=True)
+...     approved = State(final=True)
+...     rejected = State(final=True)
+...
+...     review = (
+...         pending.to(approved, cond="is_valid")
+...         | pending.to(rejected)
+...     )
+...
+...     def is_valid(self, score: int = 0):
+...         return score >= 70
 
-The `State` instance can also be checked by equality:
-
-```py
->>> sm.current_state == TrafficLightMachine.yellow
+>>> sm = ApprovalWorkflow()
+>>> sm.send("review", score=50)
+>>> sm.rejected.is_active
 True
 
->>> sm.current_state == sm.yellow
-True
-
-```
-
-Or you can check if a state is active at any time:
-
-```py
->>> sm.green.is_active
-False
-
->>> sm.yellow.is_active
-True
-
->>> sm.red.is_active
-False
-
-```
-
-Easily iterate over all states:
-
-```py
->>> [s.id for s in sm.states]
-['green', 'yellow', 'red']
-
-```
-
-Or over events:
-
-```py
->>> [t.id for t in sm.events]
-['cycle']
-
-```
-
-Call an event by its id:
-
-```py
->>> sm.cycle()
-Don't move.
-'Running cycle from yellow to red'
-
-```
-Or send an event with the event id:
-
-```py
->>> sm.send('cycle')
-Go ahead!
-'Running cycle from red to green'
-
->>> sm.green.is_active
+>>> sm = ApprovalWorkflow()
+>>> sm.send("review", score=85)
+>>> sm.approved.is_active
 True
 
 ```
 
-You can pass arbitrary positional or keyword arguments to the event, and
-they will be propagated to all actions and callbacks using something similar to dependency injection. In other words, the library will only inject the parameters declared on the
-callback method.
+The first transition whose guard passes wins. When `score < 70`, `is_valid` returns
+`False` so the second transition (no guard — always matches) fires instead.
 
-Note how `before_cycle` was declared:
 
-```py
-def before_cycle(self, event: str, source: State, target: State, message: str = ""):
-    message = ". " + message if message else ""
-    return f"Running {event} from {source.id} to {target.id}{message}"
-```
+## Compound states — hierarchy
 
-The params `event`, `source`, `target` (and others) are available built-in to be used on any action.
-The param `message` is user-defined, in our example we made it default empty so we can call `cycle` with
-or without a `message` parameter.
-
-If we pass a `message` parameter, it will be used on the `before_cycle` action:
+Break complex behavior into hierarchical levels with `State.Compound`. Entering a
+compound activates both the parent and its `initial` child. Exiting removes the
+parent and all descendants:
 
 ```py
->>> sm.send("cycle", message="Please, now slowdown.")
-'Running cycle from green to yellow. Please, now slowdown.'
+>>> from statemachine import StateChart, State
 
-```
+>>> class DocumentWorkflow(StateChart):
+...     class editing(State.Compound):
+...         draft = State(initial=True)
+...         review = State()
+...         submit = draft.to(review)
+...         revise = review.to(draft)
+...
+...     published = State(final=True)
+...     approve = editing.to(published)
 
+>>> sm = DocumentWorkflow()
+>>> set(sm.configuration_values) == {"editing", "draft"}
+True
 
-By default, events with transitions that cannot run from the current state or unknown events
-raise a `TransitionNotAllowed` exception:
+>>> sm.send("submit")
+>>> "review" in sm.configuration_values
+True
 
-```py
->>> sm.send("go")
-Traceback (most recent call last):
-statemachine.exceptions.TransitionNotAllowed: Can't go when in Yellow.
-
-```
-
-Keeping the same state as expected:
-
-```py
->>> sm.yellow.is_active
+>>> sm.send("approve")
+>>> set(sm.configuration_values) == {"published"}
 True
 
 ```
 
-A human-readable name is automatically derived from the `State.id`, which is used on the messages
-and in diagrams:
+
+## Parallel states — concurrency
+
+`State.Parallel` activates all child regions simultaneously. Events in one
+region don't affect others. A `done.state` event fires only when **all**
+regions reach a final state:
 
 ```py
->>> sm.current_state.name
-'Yellow'
+>>> from statemachine import StateChart, State
+
+>>> class DeployPipeline(StateChart):
+...     validate_disconnected_states = False
+...     class deploy(State.Parallel):
+...         class build(State.Compound):
+...             compiling = State(initial=True)
+...             compiled = State(final=True)
+...             finish_build = compiling.to(compiled)
+...         class tests(State.Compound):
+...             running = State(initial=True)
+...             passed = State(final=True)
+...             finish_tests = running.to(passed)
+...     released = State(final=True)
+...     done_state_deploy = deploy.to(released)
+
+>>> sm = DeployPipeline()
+>>> "compiling" in sm.configuration_values and "running" in sm.configuration_values
+True
+
+>>> sm.send("finish_build")
+>>> "compiled" in sm.configuration_values and "running" in sm.configuration_values
+True
+
+>>> sm.send("finish_tests")
+>>> set(sm.configuration_values) == {"released"}
+True
 
 ```
+
+
+## History states
+
+`HistoryState()` records which child was active when a compound is exited.
+Re-entering via the history pseudo-state restores the previous child instead
+of starting from the initial one:
+
+```py
+>>> from statemachine import HistoryState, StateChart, State
+
+>>> class EditorWithHistory(StateChart):
+...     validate_disconnected_states = False
+...     class editor(State.Compound):
+...         source = State(initial=True)
+...         visual = State()
+...         h = HistoryState()
+...         toggle = source.to(visual) | visual.to(source)
+...     settings = State()
+...     open_settings = editor.to(settings)
+...     back = settings.to(editor.h)
+
+>>> sm = EditorWithHistory()
+>>> sm.send("toggle")
+>>> "visual" in sm.configuration_values
+True
+
+>>> sm.send("open_settings")
+>>> sm.send("back")
+>>> "visual" in sm.configuration_values
+True
+
+```
+
+Use `HistoryState(deep=True)` for deep history that remembers the exact leaf
+state across nested compounds.
+
+
+## Eventless transitions
+
+Transitions without an event trigger fire automatically. With a guard, they
+fire after any event processing when the condition is met:
+
+```py
+>>> from statemachine import StateChart, State
+
+>>> class AutoCounter(StateChart):
+...     counting = State(initial=True)
+...     done = State(final=True)
+...
+...     counting.to(done, cond="limit_reached")
+...     increment = counting.to.itself(internal=True, on="do_increment")
+...
+...     count = 0
+...
+...     def do_increment(self):
+...         self.count += 1
+...     def limit_reached(self):
+...         return self.count >= 3
+
+>>> sm = AutoCounter()
+>>> sm.send("increment")
+>>> sm.send("increment")
+>>> "counting" in sm.configuration_values
+True
+
+>>> sm.send("increment")
+>>> "done" in sm.configuration_values
+True
+
+```
+
+
+## Error handling
+
+When using `StateChart`, runtime exceptions in callbacks are caught and
+turned into `error.execution` events. Define a transition for that event
+to handle errors within the state machine itself:
+
+```py
+>>> from statemachine import StateChart, State
+
+>>> class ResilientService(StateChart):
+...     running = State(initial=True)
+...     failed = State(final=True)
+...
+...     process = running.to(running, on="do_work")
+...     error_execution = running.to(failed)
+...
+...     def do_work(self):
+...         raise RuntimeError("something broke")
+
+>>> sm = ResilientService()
+>>> sm.send("process")
+>>> sm.failed.is_active
+True
+
+```
+
 
 ## Async support
 
-We support native coroutine using `asyncio`, enabling seamless integration with asynchronous code.
-There's no change on the public API of the library to work on async codebases.
-
+Async callbacks just work — same API, no changes needed. The engine
+detects async callbacks and switches to the async engine automatically:
 
 ```py
->>> class AsyncStateMachine(StateMachine):
-...     initial = State('Initial', initial=True)
-...     final = State('Final', final=True)
+>>> import asyncio
+>>> from statemachine import StateChart, State
+
+>>> class AsyncWorkflow(StateChart):
+...     idle = State(initial=True)
+...     done = State(final=True)
 ...
-...     advance = initial.to(final)
+...     finish = idle.to(done)
 ...
-...     async def on_advance(self):
+...     async def on_finish(self):
 ...         return 42
 
->>> async def run_sm():
-...     sm = AsyncStateMachine()
-...     result = await sm.advance()
-...     print(f"Result is {result}")
-...     print(sm.current_state)
+>>> async def run():
+...     sm = AsyncWorkflow()
+...     result = await sm.finish()
+...     print(f"Result: {result}")
+...     print(sm.done.is_active)
 
->>> asyncio.run(run_sm())
-Result is 42
-Final
-
-```
-
-## A more useful example
-
-A simple didactic state machine for controlling an `Order`:
-
-```py
->>> class OrderControl(StateMachine):
-...     waiting_for_payment = State(initial=True)
-...     processing = State()
-...     shipping = State()
-...     completed = State(final=True)
-...
-...     add_to_order = waiting_for_payment.to(waiting_for_payment)
-...     receive_payment = (
-...         waiting_for_payment.to(processing, cond="payments_enough")
-...         | waiting_for_payment.to(waiting_for_payment, unless="payments_enough")
-...     )
-...     process_order = processing.to(shipping, cond="payment_received")
-...     ship_order = shipping.to(completed)
-...
-...     def __init__(self):
-...         self.order_total = 0
-...         self.payments = []
-...         self.payment_received = False
-...         super(OrderControl, self).__init__()
-...
-...     def payments_enough(self, amount):
-...         return sum(self.payments) + amount >= self.order_total
-...
-...     def before_add_to_order(self, amount):
-...         self.order_total += amount
-...         return self.order_total
-...
-...     def before_receive_payment(self, amount):
-...         self.payments.append(amount)
-...         return self.payments
-...
-...     def after_receive_payment(self):
-...         self.payment_received = True
-...
-...     def on_enter_waiting_for_payment(self):
-...         self.payment_received = False
-
-```
-
-You can use this machine as follows.
-
-```py
->>> control = OrderControl()
-
->>> control.add_to_order(3)
-3
-
->>> control.add_to_order(7)
-10
-
->>> control.receive_payment(4)
-[4]
-
->>> control.current_state.id
-'waiting_for_payment'
-
->>> control.current_state.name
-'Waiting for payment'
-
->>> control.process_order()
-Traceback (most recent call last):
-...
-statemachine.exceptions.TransitionNotAllowed: Can't process_order when in Waiting for payment.
-
->>> control.receive_payment(6)
-[4, 6]
-
->>> control.current_state.id
-'processing'
-
->>> control.process_order()
-
->>> control.ship_order()
-
->>> control.payment_received
-True
-
->>> control.order_total
-10
-
->>> control.payments
-[4, 6]
-
->>> control.completed.is_active
+>>> asyncio.run(run())
+Result: 42
 True
 
 ```
 
-There's a lot more to cover, please take a look at our docs:
-https://python-statemachine.readthedocs.io.
+
+## More features
+
+There's a lot more to explore:
+
+- **DoneData** on final states — pass structured data to `done.state` handlers
+- **Delayed events** — schedule events with `sm.send("event", delay=500)`
+- **`In(state)` conditions** — cross-region guards in parallel states
+- **`prepare_event`** callback — inject custom data into all callbacks
+- **Observer pattern** — register external listeners to watch events and state changes
+- **Django integration** — auto-discover state machines in Django apps with `MachineMixin`
+- **Diagram generation** — from the CLI, at runtime, or in Jupyter notebooks
+- **Dictionary-based definitions** — create state machines from data structures
+- **Internationalization** — error messages in multiple languages
+
+Full documentation: https://python-statemachine.readthedocs.io
+
+
+## Installing
+
+```
+pip install python-statemachine
+```
+
+To generate diagrams, install with the `diagrams` extra (requires
+[Graphviz](https://graphviz.org/)):
+
+```
+pip install python-statemachine[diagrams]
+```
 
 
 ## Contributing
-
-* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine" data-icon="octicon-star" aria-label="Star fgmacedo/python-statemachine on GitHub">Star this project</a>
-* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/issues" data-icon="octicon-issue-opened" aria-label="Issue fgmacedo/python-statemachine on GitHub">Open an Issue</a>
-* <a class="github-button" href="https://github.com/fgmacedo/python-statemachine/fork" data-icon="octicon-repo-forked" aria-label="Fork fgmacedo/python-statemachine on GitHub">Fork</a>
 
 - If you found this project helpful, please consider giving it a star on GitHub.
 
@@ -393,7 +379,7 @@ request. For more information on how to contribute, please see our [contributing
 - **Report bugs**: If you find any bugs, please report them by opening an issue
   on our GitHub issue tracker.
 
-- **Suggest features**: If you have an idea for a new feature, of feels something being harder than it should be,
+- **Suggest features**: If you have an idea for a new feature, or feel something is harder than it should be,
   please let us know by opening an issue on our GitHub issue tracker.
 
 - **Documentation**: Help improve documentation by submitting pull requests.
