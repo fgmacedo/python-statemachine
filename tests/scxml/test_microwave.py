@@ -36,12 +36,9 @@ MICROWAVE_SCXML = """
 
 @pytest.mark.scxml()
 def test_microwave_scxml():
-    # from statemachine.contrib.diagram import DotGraphMachine
-
     processor = SCXMLProcessor()
     processor.parse_scxml("microwave", MICROWAVE_SCXML)
     sm = processor.start()
-    # DotGraphMachine(sm).get_graph().write_png("microwave.png")
 
     assert sm.current_state.id == "unplugged"
     sm.send("plug-in")

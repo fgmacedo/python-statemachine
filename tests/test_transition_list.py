@@ -89,8 +89,7 @@ def test_transition_list_call_with_callable():
     s2 = State("s2", final=True)
     tl = s1.to(s2)
 
-    def my_callback():
-        pass
+    def my_callback(): ...  # No-op: used only to test callback registration
 
     result = tl(my_callback)
     assert result is my_callback

@@ -126,11 +126,11 @@ class Functions:
         return register
 
     @classmethod
-    def get(cls, id):
-        id = id.lower()
-        if id not in cls.registry:
-            raise ValueError(f"Unsupported function: {id}")
-        return cls.registry[id]
+    def get(cls, func_id):
+        func_id = func_id.lower()
+        if func_id not in cls.registry:
+            raise ValueError(f"Unsupported function: {func_id}")
+        return cls.registry[func_id]
 
 
 class InState:

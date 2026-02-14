@@ -409,8 +409,9 @@ async def test_async_engine_start_noop_when_already_initialized():
 
         go = s1.to(s2)
 
-        async def on_go(self):
-            pass
+        async def on_go(
+            self,
+        ): ...  # No-op: presence of async callback triggers AsyncEngine selection
 
     sm = SM()
     await sm.activate_initial_state()

@@ -31,7 +31,7 @@ def strip_namespaces(tree: ET.Element):
         if "}" in el.tag:
             el.tag = el.tag.split("}", 1)[1]
         attrib = el.attrib
-        for name in list(attrib.keys()):
+        for name in list(attrib.keys()):  # list() needed: loop mutates attrib
             if "}" in name:
                 new_name = name.split("}", 1)[1]
                 attrib[new_name] = attrib.pop(name)
@@ -78,7 +78,6 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     # If no initial state was specified, pick the first state
     if not all_initial_states and definition.states:
         first_state = next(iter(definition.states.keys()))
-        all_initial_states = {first_state}
         definition.initial_states = [first_state]
         definition.states[first_state].initial = True
 

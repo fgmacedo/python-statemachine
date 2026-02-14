@@ -64,8 +64,9 @@ class DebugListener:
 class AsyncListener:
     """No-op async listener to trigger AsyncEngine selection."""
 
-    async def on_enter_state(self, **kwargs):
-        pass
+    async def on_enter_state(
+        self, **kwargs
+    ): ...  # No-op: presence of async callback triggers AsyncEngine selection
 
 
 @dataclass

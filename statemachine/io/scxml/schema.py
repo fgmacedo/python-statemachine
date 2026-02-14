@@ -7,8 +7,6 @@ from urllib.parse import ParseResult
 
 @dataclass
 class Action:
-    pass
-
     def __str__(self):
         return f"{self.__class__.__name__}"
 

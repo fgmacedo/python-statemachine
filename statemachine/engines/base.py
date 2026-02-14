@@ -70,6 +70,9 @@ class EventQueue:
             ]
 
 
+_ERROR_EXECUTION = "error.execution"
+
+
 class BaseEngine:
     def __init__(self, sm: "StateChart"):
         self._sm: ReferenceType["StateChart"] = ref(sm)
@@ -138,7 +141,7 @@ class BaseEngine:
             # new error.execution is a separate event that may trigger a different
             # transition (see W3C test 152).  The infinite-loop guard lives at the
             # *microstep* level (in ``_send_error_execution``), not here.
-            self.sm.send("error.execution", error=error, internal=True)
+            self.sm.send(_ERROR_EXECUTION, error=error, internal=True)
 
         return handler
 
@@ -159,10 +162,10 @@ class BaseEngine:
         If already processing an error.execution event, ignore to avoid infinite loops.
         """
         logger.debug("Error %s captured while executing event=%s", error, trigger_data.event)
-        if trigger_data.event and str(trigger_data.event) == "error.execution":
+        if trigger_data.event and str(trigger_data.event) == _ERROR_EXECUTION:
             logger.warning("Error while processing error.execution, ignoring: %s", error)
             return
-        self.sm.send("error.execution", error=error, internal=True)
+        self.sm.send(_ERROR_EXECUTION, error=error, internal=True)
 
     def start(self):
         if self.sm.current_state_value is not None:
@@ -755,9 +758,9 @@ class BaseEngine:
 
         # Add the state to the entry set
         if (
-            not self.sm.enable_self_transition_entries
-            and info.transition.internal
-            and (
+            self.sm.enable_self_transition_entries
+            or not info.transition.internal
+            or not (
                 info.transition.is_self
                 or (
                     info.transition.target
@@ -765,8 +768,6 @@ class BaseEngine:
                 )
             )
         ):
-            pass
-        else:
             states_to_enter.add(info)
         state = info.state
 

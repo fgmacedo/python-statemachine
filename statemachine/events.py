@@ -34,7 +34,7 @@ class Events:
 
         return self
 
-    def match(self, event: str):
+    def match(self, event: "str | None"):
         if event is None and self.is_empty:
             return True
         return any(e.match(event) for e in self)

@@ -145,7 +145,7 @@ def _parse_states(
 
 def create_machine_class_from_definition(
     name: str, states: Mapping[str, "StateKwargs | StateDefinition"], **definition
-) -> StateChart:  # noqa: C901
+) -> "type[StateChart]":  # noqa: C901
     """Create a StateChart class dynamically from a dictionary definition.
 
     Args:

@@ -202,7 +202,7 @@ class DotGraphMachine:
 
     def get_graph(self):
         graph = self._get_graph(self.machine)
-        self._graph_states(self.machine, graph, is_root=True)
+        self._graph_states(self.machine, graph)
         return graph
 
     def _add_transitions(self, graph, state):
@@ -212,7 +212,7 @@ class DotGraphMachine:
             for edge in self._transition_as_edges(transition):
                 graph.add_edge(edge)
 
-    def _graph_states(self, state, graph, is_root=False):
+    def _graph_states(self, state, graph):
         initial_node = self._initial_node(state)
         initial_subgraph = pydot.Subgraph(
             graph_name=f"{initial_node.get_name()}_initial",

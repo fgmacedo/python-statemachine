@@ -368,7 +368,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
     if action.content:
         try:
             content = (eval(action.content, {}, {}),)
-        except (NameError, IndentationError, SyntaxError, TypeError):
+        except (NameError, SyntaxError, TypeError):
             content = (action.content,)
 
     def send_action(*args, **kwargs):

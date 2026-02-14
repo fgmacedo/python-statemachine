@@ -111,7 +111,7 @@ class SCXMLProcessor:
         machine = kwargs["machine"]
         session_data = self._get_session(machine)
 
-        if not session_data.first_event_raised and event and not event == "__initial__":
+        if not session_data.first_event_raised and event and event != "__initial__":
             session_data.first_event_raised = True
 
         _event: "EventDataWrapper | None" = None
