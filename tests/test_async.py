@@ -478,6 +478,28 @@ class TestAsyncEnabledEvents:
         await sm.activate_initial_state()
         assert [e.id for e in await sm.enabled_events()] == ["go"]
 
+    async def test_duplicate_event_across_transitions_deduplicated(self):
+        """Same event on multiple passing transitions appears only once."""
+
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State()
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_a") | s0.to(s2, cond="cond_b")
+
+            async def cond_a(self):
+                return True
+
+            async def cond_b(self):
+                return True
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        ids = [e.id for e in await sm.enabled_events()]
+        assert ids == ["go"]
+        assert len(ids) == 1
+
     async def test_mixed_enabled_and_disabled_async(self):
         class MyMachine(StateMachine):
             s0 = State(initial=True)

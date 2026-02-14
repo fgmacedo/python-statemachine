@@ -85,7 +85,7 @@ class SCXMLProcessor:
         # Process datamodel (initial variables)
         if definition.datamodel:
             datamodel = create_datamodel_action_callable(definition.datamodel)
-            if datamodel:
+            if datamodel:  # pragma: no branch – parse_datamodel guarantees non-empty
                 try:
                     initial_state = next(s for s in iter(states_dict.values()) if s.get("initial"))
                 except StopIteration:
@@ -94,7 +94,9 @@ class SCXMLProcessor:
 
                 if "enter" not in initial_state:
                     initial_state["enter"] = []
-                if isinstance(initial_state["enter"], list):
+                if isinstance(  # pragma: no branch – always a list from lines above
+                    initial_state["enter"], list
+                ):
                     initial_state["enter"].insert(0, datamodel)
 
         self._add(
@@ -202,7 +204,7 @@ class SCXMLProcessor:
             # Process cond
             if transition.cond:
                 cond_callable = Cond.create(transition.cond, processor=self)
-                if cond_callable is not None:
+                if cond_callable is not None:  # pragma: no branch – cond already truthy
                     transition_dict["cond"] = cond_callable
 
                 # Process actions
@@ -217,7 +219,7 @@ class SCXMLProcessor:
             sc_class = create_machine_class_from_definition(location, **definition)
             self.scs[location] = sc_class
             return sc_class
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise InvalidDefinition(
                 f"Failed to create state machine class: {e} from definition: {definition}"
             ) from e

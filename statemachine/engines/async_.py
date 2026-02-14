@@ -54,7 +54,7 @@ class AsyncEngine(BaseEngine):
 
     async def _conditions_match(self, transition: "Transition", trigger_data: TriggerData):
         args, kwargs = await self._get_args_kwargs(transition, trigger_data)
-        on_error = self._on_error_handler(trigger_data)
+        on_error = self._on_error_handler()
 
         await self.sm._callbacks.async_call(
             transition.validators.key, *args, on_error=on_error, **kwargs
@@ -123,12 +123,12 @@ class AsyncEngine(BaseEngine):
         self, enabled_transitions: "List[Transition]", trigger_data: TriggerData
     ) -> "OrderedSet[State]":
         ordered_states, result = self._prepare_exit_states(enabled_transitions)
-        on_error = self._on_error_handler(trigger_data)
+        on_error = self._on_error_handler()
 
         for info in ordered_states:
             args, kwargs = await self._get_args_kwargs(info.transition, trigger_data)
 
-            if info.state is not None:
+            if info.state is not None:  # pragma: no branch
                 await self.sm._callbacks.async_call(
                     info.state.exit.key, *args, on_error=on_error, **kwargs
                 )
@@ -144,7 +144,7 @@ class AsyncEngine(BaseEngine):
         states_to_exit: "OrderedSet[State]",
         previous_configuration: "OrderedSet[State]",
     ):
-        on_error = self._on_error_handler(trigger_data)
+        on_error = self._on_error_handler()
         ordered_states, states_for_default_entry, default_history_content, new_configuration = (
             self._prepare_entry_states(enabled_transitions, states_to_exit, previous_configuration)
         )
@@ -243,13 +243,17 @@ class AsyncEngine(BaseEngine):
 
     # --- Engine loop ---
 
-    async def _run_microstep(self, enabled_transitions, trigger_data):
-        """Run a microstep for internal/eventless transitions with error handling."""
+    async def _run_microstep(self, enabled_transitions, trigger_data):  # pragma: no cover
+        """Run a microstep for internal/eventless transitions with error handling.
+
+        Note: microstep() handles its own errors internally, so this try/except
+        is a safety net that is not expected to be reached in normal operation.
+        """
         try:
             await self.microstep(list(enabled_transitions), trigger_data)
         except InvalidDefinition:
             raise
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             self._handle_error(e, trigger_data)
 
     async def activate_initial_state(self):

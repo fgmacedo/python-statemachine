@@ -663,6 +663,27 @@ class TestEnabledEvents:
         sm = MyMachine()
         assert [e.id for e in sm.enabled_events()] == ["go"]
 
+    def test_duplicate_event_across_transitions_deduplicated(self):
+        """Same event on multiple passing transitions appears only once."""
+
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State()
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_a") | s0.to(s2, cond="cond_b")
+
+            def cond_a(self):
+                return True
+
+            def cond_b(self):
+                return True
+
+        sm = MyMachine()
+        ids = [e.id for e in sm.enabled_events()]
+        assert ids == ["go"]
+        assert len(ids) == 1
+
     def test_final_state_returns_empty(self, campaign_machine):
         sm = campaign_machine()
         sm.produce()

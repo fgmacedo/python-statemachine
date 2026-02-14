@@ -531,7 +531,7 @@ class DoneDataCallable(CallableAction):
         for param in self.donedata.params:
             if param.expr is not None:
                 result[param.name] = _eval(param.expr, **kwargs)
-            elif param.location is not None:
+            elif param.location is not None:  # pragma: no branch
                 location = param.location.strip()
                 try:
                     result[param.name] = _eval(location, **kwargs)

@@ -232,7 +232,7 @@ class DotGraphMachine:
 
         if state.states and not getattr(state, "parallel", False):
             initial = next((s for s in state.states if s.initial), None)
-            if initial:
+            if initial:  # pragma: no branch
                 graph.add_edge(self._initial_edge(initial_node, initial))
 
         for substate in state.states:

@@ -323,3 +323,33 @@ class TestSCXMLSendWithParamNoExpr:
         processor.parse_scxml("test_send_param", scxml)
         sm = processor.start()
         assert sm.configuration == {sm.states_map["s2"]}
+
+
+class TestSCXMLHistoryWithoutTransitions:
+    """SCXML history state without default transitions."""
+
+    def test_history_without_transitions(self):
+        """History state without transitions is processed correctly."""
+        from statemachine.io.scxml.processor import SCXMLProcessor
+
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <state id="s1" initial="a">
+            <history id="h1" type="shallow"/>
+            <state id="a">
+              <transition event="go" target="b"/>
+            </state>
+            <state id="b">
+              <transition event="back" target="h1"/>
+            </state>
+            <transition event="out" target="s2"/>
+          </state>
+          <state id="s2">
+            <transition event="ret" target="h1"/>
+          </state>
+        </scxml>
+        """
+        processor = SCXMLProcessor()
+        processor.parse_scxml("test_history_no_trans", scxml)
+        sm = processor.start()
+        assert sm.states_map["a"] in sm.configuration

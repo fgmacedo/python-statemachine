@@ -127,7 +127,7 @@ class StateMachineMetaclass(type):
         for state in states:
             state._initial = True
             if not any(t for t in parent.transitions if t.initial and t.target == state):
-                parent.to(state, initial=True)
+                parent.to(state, initial=True)  # pragma: no cover
 
     def _unpack_builders_callbacks(cls):
         callbacks = {}

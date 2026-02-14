@@ -312,7 +312,7 @@ class CallbacksExecutor:
 
         results = []
         for callback in self:
-            if callback.condition(*args, **kwargs):
+            if callback.condition(*args, **kwargs):  # pragma: no branch
                 try:
                     results.append(await callback(*args, **kwargs))
                 except Exception as e:
@@ -343,7 +343,7 @@ class CallbacksExecutor:
 
         results = []
         for callback in self:
-            if callback.condition(*args, **kwargs):
+            if callback.condition(*args, **kwargs):  # pragma: no branch
                 try:
                     results.append(callback.call(*args, **kwargs))
                 except Exception as e:

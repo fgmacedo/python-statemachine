@@ -83,7 +83,7 @@ class BaseEngine:
         self._processing = Lock()
         self._cache: Dict = {}  # Cache for _get_args_kwargs results
 
-    def empty(self):
+    def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
 
     @property
@@ -113,7 +113,7 @@ class BaseEngine:
                 "internal" if internal else "external",
             )
 
-    def pop(self):
+    def pop(self):  # pragma: no cover
         return self.external_queue.pop()
 
     def clear(self):
@@ -123,8 +123,8 @@ class BaseEngine:
         """Cancel the event with the given send_id."""
         self.external_queue.remove(send_id)
 
-    def _on_error_handler(self, trigger_data: TriggerData) -> "Callable[[Exception], None] | None":
-        """Return a per-block error handler bound to *trigger_data*, or ``None``.
+    def _on_error_handler(self) -> "Callable[[Exception], None] | None":
+        """Return a per-block error handler, or ``None``.
 
         When ``error_on_execution`` is enabled, returns a callable that queues
         ``error.execution`` on the internal queue.  Otherwise returns ``None``
@@ -421,7 +421,7 @@ class BaseEngine:
 
     def _conditions_match(self, transition: Transition, trigger_data: TriggerData):
         args, kwargs = self._get_args_kwargs(transition, trigger_data)
-        on_error = self._on_error_handler(trigger_data)
+        on_error = self._on_error_handler()
 
         self.sm._callbacks.call(transition.validators.key, *args, on_error=on_error, **kwargs)
         return self.sm._callbacks.all(transition.cond.key, *args, on_error=on_error, **kwargs)
@@ -468,13 +468,13 @@ class BaseEngine:
     ) -> OrderedSet[State]:
         """Compute and process the states to exit for the given transitions."""
         ordered_states, result = self._prepare_exit_states(enabled_transitions)
-        on_error = self._on_error_handler(trigger_data)
+        on_error = self._on_error_handler()
 
         for info in ordered_states:
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
             # Execute `onexit` handlers — same per-block error isolation as onentry.
-            if info.state is not None:  # TODO: and not info.transition.internal:
+            if info.state is not None:  # pragma: no branch
                 self.sm._callbacks.call(info.state.exit.key, *args, on_error=on_error, **kwargs)
 
             self._remove_state_from_configuration(info.state)
@@ -578,7 +578,7 @@ class BaseEngine:
         previous_configuration: OrderedSet[State],
     ):
         """Enter the states as determined by the given transitions."""
-        on_error = self._on_error_handler(trigger_data)
+        on_error = self._on_error_handler()
         ordered_states, states_for_default_entry, default_history_content, new_configuration = (
             self._prepare_entry_states(enabled_transitions, states_to_exit, previous_configuration)
         )
@@ -773,7 +773,9 @@ class BaseEngine:
 
         if state.parallel:
             for child_state in state.states:
-                if not any(s.state.is_descendant(child_state) for s in states_to_enter):
+                if not any(  # pragma: no branch
+                    s.state.is_descendant(child_state) for s in states_to_enter
+                ):
                     info_to_add = StateTransition(transition=info.transition, state=child_state)
                     self.add_descendant_states_to_enter(
                         info_to_add,

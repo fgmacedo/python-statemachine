@@ -103,13 +103,6 @@ class Transition:
         """Primary target state (first target for multi-target transitions)."""
         return self._targets[0] if self._targets else None
 
-    @target.setter
-    def target(self, value: "State | None"):
-        if value is None:
-            self._targets = []
-        else:
-            self._targets = [value]
-
     @property
     def targets(self) -> "List[State]":
         """All target states. For single-target transitions, returns a one-element list."""

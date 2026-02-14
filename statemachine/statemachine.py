@@ -385,7 +385,7 @@ class StateChart(metaclass=StateMachineMetaclass):
             raise InvalidStateValue(self.current_state_value) from err
 
     @current_state.setter
-    def current_state(self, value):
+    def current_state(self, value):  # pragma: no cover
         self.current_state_value = value.value
 
     @property

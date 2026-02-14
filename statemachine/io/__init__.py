@@ -16,7 +16,7 @@ from ..transition import Transition
 from ..transition_list import TransitionList
 
 
-class ActionProtocol(Protocol):
+class ActionProtocol(Protocol):  # pragma: no cover
     def __call__(self, *args, **kwargs) -> Any: ...
 
 

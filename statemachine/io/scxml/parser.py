@@ -211,7 +211,7 @@ def parse_donedata(element: ET.Element) -> DoneData:
             expr = child.attrib.get("expr")
             location = child.attrib.get("location")
             params.append(Param(name=name, expr=expr, location=location))
-        elif child.tag == "content":
+        elif child.tag == "content":  # pragma: no branch
             content_expr = child.attrib.get("expr")
             if content_expr is None and child.text:
                 content_expr = re.sub(r"\s+", " ", child.text).strip()
@@ -242,7 +242,7 @@ def parse_executable_content(element: ET.Element) -> ExecutableContent:
     actions = []
     for child in element:
         action = parse_element(child)
-        if action:
+        if action:  # pragma: no branch
             actions.append(action)
     return ExecutableContent(actions=actions)
 
@@ -355,7 +355,7 @@ def parse_send(element: ET.Element) -> SendAction:
                     location=location,
                 )
             )
-        elif child.tag == "content":
+        elif child.tag == "content":  # pragma: no branch
             content = re.sub(r"\s+", " ", child.text).strip() if child.text else None
 
     return SendAction(

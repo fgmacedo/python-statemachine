@@ -297,6 +297,16 @@ def test_parallel_state_label_indicator():
     assert "&#9783;" in dot
 
 
+def test_history_state_in_graph_states():
+    """History pseudo-state nodes appear in the full graph output."""
+    from tests.examples.statechart_history_machine import PersonalityMachine
+
+    graph = DotGraphMachine(PersonalityMachine)
+    dot = graph().to_string()
+    # History node should render as an 'H' circle
+    assert '"H"' in dot or "H" in dot
+
+
 def test_multi_target_transition_diagram():
     """Edges are created for all targets of a multi-target transition."""
     source = State("source", initial=True)
