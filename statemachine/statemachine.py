@@ -102,13 +102,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
         return SyncEngine(self, rtc=rtc)
 
-    def activate_initial_state(self):
+    def activate_initial_state(self) -> Any:
         result = self._engine.activate_initial_state()
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
 
-    def _processing_loop(self):
+    def _processing_loop(self) -> Any:
         return self._engine.processing_loop()
 
     def __init_subclass__(cls, strict_states: bool = False):
@@ -317,7 +317,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         """Put the trigger on the queue without blocking the caller."""
         self._engine.put(trigger_data)
 
-    def send(self, event: str, *args, **kwargs):
+    def send(self, event: str, *args, **kwargs) -> Any:
         """Send an :ref:`Event` to the state machine.
 
         .. seealso::

@@ -1,5 +1,6 @@
 from inspect import isawaitable
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import List
 from uuid import uuid4
 
@@ -108,7 +109,7 @@ class Event(AddCallbacksMixin, str):
             return self
         return BoundEvent(id=self.id, name=self.name, _sm=instance)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Any:
         """Send this event to the current state machine.
 
         Triggering an event on a state machine means invoking or sending a signal, initiating the

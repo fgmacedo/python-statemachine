@@ -1,5 +1,6 @@
 import asyncio
 import threading
+from typing import Any
 
 _cached_loop = threading.local()
 """Loop that will be used when the SM is running in a synchronous context. One loop per thread."""
@@ -25,7 +26,7 @@ def ensure_iterable(obj):
         return [obj]
 
 
-def run_async_from_sync(coroutine):
+def run_async_from_sync(coroutine: Any) -> Any:
     """
     Compatibility layer to run an async coroutine from a synchronous context.
     """
