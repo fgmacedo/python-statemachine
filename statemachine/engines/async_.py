@@ -350,3 +350,32 @@ class AsyncEngine(BaseEngine):
         finally:
             self._processing.release()
         return first_result if first_result is not self._sentinel else None
+
+    async def enabled_events(self, *args, **kwargs):
+        sm = self.sm
+        enabled = {}
+        for state in sm.configuration:
+            for transition in state.transitions:
+                for event in transition.events:
+                    if event in enabled:
+                        continue
+                    extended_kwargs = kwargs.copy()
+                    extended_kwargs.update(
+                        {
+                            "machine": sm,
+                            "model": sm.model,
+                            "event": getattr(sm, event),
+                            "source": transition.source,
+                            "target": transition.target,
+                            "state": state,
+                            "transition": transition,
+                        }
+                    )
+                    try:
+                        if await sm._callbacks.async_all(
+                            transition.cond.key, *args, **extended_kwargs
+                        ):
+                            enabled[event] = getattr(sm, event)
+                    except Exception:
+                        enabled[event] = getattr(sm, event)
+        return list(enabled.values())

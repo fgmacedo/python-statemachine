@@ -97,10 +97,10 @@ def test_transition_list_call_with_callable():
 
 
 def test_transition_list_call_with_non_callable_raises():
-    """Calling a TransitionList with a non-callable raises ValueError."""
+    """Calling a TransitionList with a non-callable raises TypeError."""
     s1 = State("s1", initial=True)
     s2 = State("s2", final=True)
     tl = s1.to(s2)
 
-    with pytest.raises(ValueError, match="Unsupported call signature"):
+    with pytest.raises(TypeError, match="only supports the decorator syntax"):
         tl("not_a_callable", "extra_arg")

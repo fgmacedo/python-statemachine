@@ -180,6 +180,7 @@ class StateChart(metaclass=StateMachineMetaclass):
         self._register_callbacks([])
         self.add_listener(*listeners.values())
         self._engine = self._get_engine()
+        self._engine.start()
 
     def _get_initial_configuration(self):
         initial_state_values = (
@@ -399,6 +400,24 @@ class StateChart(metaclass=StateMachineMetaclass):
             for state in self.configuration
             for event in state.transitions.unique_events
         ]
+
+    def enabled_events(self, *args, **kwargs):
+        """List of the current enabled events, considering guard conditions.
+
+        An event is **enabled** if at least one of its transitions from the current
+        state has all ``cond``/``unless`` guards satisfied.
+
+        Args:
+            *args: Positional arguments forwarded to condition callbacks.
+            **kwargs: Keyword arguments forwarded to condition callbacks.
+
+        Returns:
+            A list of enabled :ref:`Event` instances.
+        """
+        result = self._engine.enabled_events(*args, **kwargs)
+        if not isawaitable(result):
+            return result
+        return run_async_from_sync(result)
 
     def _put_nonblocking(self, trigger_data: TriggerData, internal: bool = False):
         """Put the trigger on the queue without blocking the caller."""

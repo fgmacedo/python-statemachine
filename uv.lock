@@ -1079,7 +1079,7 @@ wheels = [
 
 [[package]]
 name = "python-statemachine"
-version = "2.5.0"
+version = "2.6.0"
 source = { editable = "." }
 
 [package.optional-dependencies]
@@ -1089,6 +1089,7 @@ diagrams = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "babel" },
     { name = "django", marker = "python_full_version >= '3.10'" },
     { name = "furo" },
     { name = "mypy", version = "1.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -1121,12 +1122,13 @@ requires-dist = [{ name = "pydot", marker = "extra == 'diagrams'", specifier = "
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "babel", marker = "python_full_version >= '3.8'", specifier = ">=2.16.0" },
     { name = "django", marker = "python_full_version >= '3.10'", specifier = ">=5.2.11" },
-    { name = "furo", specifier = ">=2024.5.6" },
+    { name = "furo", marker = "python_full_version >= '3.9'", specifier = ">=2024.5.6" },
     { name = "mypy" },
-    { name = "myst-parser" },
-    { name = "pdbr", specifier = ">=0.8.9" },
-    { name = "pillow" },
+    { name = "myst-parser", marker = "python_full_version >= '3.9'" },
+    { name = "pdbr", marker = "python_full_version >= '3.9'", specifier = ">=0.8.9" },
+    { name = "pillow", marker = "python_full_version >= '3.9'" },
     { name = "pre-commit" },
     { name = "pydot" },
     { name = "pytest" },
@@ -1134,16 +1136,16 @@ dev = [
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", marker = "python_full_version < '3.9'" },
     { name = "pytest-cov", marker = "python_full_version >= '3.9'", specifier = ">=6.0.0" },
-    { name = "pytest-django", specifier = ">=4.8.0" },
+    { name = "pytest-django", marker = "python_full_version >= '3.9'", specifier = ">=4.8.0" },
     { name = "pytest-mock", specifier = ">=3.10.0" },
     { name = "pytest-sugar", specifier = ">=1.0.0" },
     { name = "pytest-timeout", specifier = ">=2.3.1" },
     { name = "pytest-xdist", specifier = ">=3.6.1" },
     { name = "ruff", specifier = ">=0.15.0" },
-    { name = "sphinx" },
-    { name = "sphinx-autobuild" },
-    { name = "sphinx-copybutton", specifier = ">=0.5.2" },
-    { name = "sphinx-gallery" },
+    { name = "sphinx", marker = "python_full_version >= '3.9'" },
+    { name = "sphinx-autobuild", marker = "python_full_version >= '3.9'" },
+    { name = "sphinx-copybutton", marker = "python_full_version >= '3.9'", specifier = ">=0.5.2" },
+    { name = "sphinx-gallery", marker = "python_full_version >= '3.9'" },
 ]
 
 [[package]]

@@ -13,11 +13,11 @@ class AddCallbacksMixin:
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs) -> Any:
-        if len(args) == 1 and callable(args[0]):
+        if len(args) == 1 and callable(args[0]) and not kwargs:
             return self._add_callback(args[0], CallbackGroup.ON, is_event=True)
-        raise ValueError(
-            _("Unsupported call signature. Call %s only to register callbacks").format(
-                self.__class__.__name__
+        raise TypeError(
+            _("{} only supports the decorator syntax to register callbacks.").format(
+                type(self).__name__
             )
         )
 

@@ -22,6 +22,8 @@ class MachineMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.state_machine_name:
+            if self._is_django_historical_model():
+                return
             raise ValueError(
                 _("{!r} is not a valid state machine name.").format(self.state_machine_name)
             )
@@ -34,3 +36,12 @@ class MachineMixin:
         )
         if self.bind_events_as_methods:
             sm.bind_events_to(self)
+
+    @classmethod
+    def _is_django_historical_model(cls) -> bool:
+        """Detect Django historical models created by ``apps.get_model()`` in migrations.
+
+        Django sets ``__module__ = '__fake__'`` on these dynamically-created classes,
+        which lack the user-defined class attributes like ``state_machine_name``.
+        """
+        return getattr(cls, "__module__", None) == "__fake__"
