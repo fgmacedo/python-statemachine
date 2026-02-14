@@ -49,6 +49,7 @@ class CallbackGroup(IntEnum):
     ON = auto()
     AFTER = auto()
     COND = auto()
+    FINALIZE = auto()
 
     def build_key(self, specs: "CallbackSpecList") -> str:
         return f"{self.name}@{id(specs)}"
