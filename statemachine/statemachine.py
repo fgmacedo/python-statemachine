@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import MutableSet
+
+from statemachine.orderedset import OrderedSet
 
 from .callbacks import SPECS_ALL
 from .callbacks import SPECS_SAFE
@@ -29,7 +32,7 @@ if TYPE_CHECKING:
     from .state import State
 
 
-class StateMachine(metaclass=StateMachineMetaclass):
+class StateChart(metaclass=StateMachineMetaclass):
     """
 
     Args:
@@ -41,22 +44,13 @@ class StateMachine(metaclass=StateMachineMetaclass):
         start_value: An optional start state value if there's no current state assigned
             on the :ref:`domain models`. Default: ``None``.
 
-        rtc (bool): Controls the :ref:`processing model`. Defaults to ``True``
-            that corresponds to a **run-to-completion** (RTC) model.
-
-        allow_event_without_transition: If ``False`` when an event does not result in a transition,
-            an exception ``TransitionNotAllowed`` will be raised.
-            If ``True`` the state machine allows triggering events that may not lead to a state
-            :ref:`transition`, including tolerance to unknown :ref:`event` triggers.
-            Default: ``False``.
-
         listeners: An optional list of objects that provies attributes to be used as callbacks.
             See :ref:`listeners` for more details.
 
     """
 
     TransitionNotAllowed = TransitionNotAllowed
-    """Shortcut for easy exception handling.
+    """Shortcut alias for easy exception handling.
 
     Example::
 
@@ -66,23 +60,61 @@ class StateMachine(metaclass=StateMachineMetaclass):
             pass
     """
 
+    _loop_sleep_in_ms = 0.001
+
+    allow_event_without_transition: bool = True
+    """If ``False`` when an event does not result in a transition, an exception
+    ``TransitionNotAllowed`` will be raised. If ``True`` the state machine allows triggering
+    events that may not lead to a state :ref:`transition`, including tolerance to unknown
+    :ref:`event` triggers. Default: ``True``."""
+
+    enable_self_transition_entries: bool = True
+    """If `False` (default), when a self-transition is selected,
+    the state entry/exit actions will not be executed. If `True`, the state entry actions
+    will be executed, which is conformant with the SCXML spec.
+    """
+
+    atomic_configuration_update: bool = False
+    """If `False` (default), the state machine will follow the SCXML
+    specification, that means in a microstep, it will first exit and execute exit callbacks
+    for all the states in the exit set in reversed document order, then execute the
+    transition content (on callbaks), then enter all the states in the enter set in
+    document order.
+
+    If `True`, the state machine will execute the exit callbacks, the on transition
+    callbacks, then atomically update the configuration of exited and entered states, then
+    execute the enter callbacks.
+    """
+
+    error_on_execution: bool = True
+    """If ``True`` (default), runtime exceptions in callbacks (guards, actions, entry/exit)
+    produce an ``error.execution`` internal event instead of propagating, as mandated by the
+    SCXML specification. If ``False``, exceptions propagate normally."""
+
+    start_configuration_values: List[Any] = []
+    """Default state values to be entered when the state machine starts.
+
+    If empty (default), the root ``initial`` state will be used.
+    """
+
     def __init__(
         self,
         model: Any = None,
         state_field: str = "state",
         start_value: Any = None,
-        rtc: bool = True,
-        allow_event_without_transition: bool = False,
         listeners: "List[object] | None" = None,
     ):
         self.model = model if model is not None else Model()
+        self.history_values: Dict[
+            str, List[State]
+        ] = {}  # Mapping of compound states to last active state(s).
         self.state_field = state_field
-        self.start_value = start_value
-        self.allow_event_without_transition = allow_event_without_transition
+        self.start_configuration_values = (
+            [start_value] if start_value is not None else list(self.start_configuration_values)
+        )
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
-
-        self._listeners: Dict[Any, Any] = {}
+        self._listeners: Dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
 
         if self._abstract:
@@ -93,14 +125,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         # Activate the initial state, this only works if the outer scope is sync code.
         # for async code, the user should manually call `await sm.activate_initial_state()`
         # after state machine creation.
-        self._engine = self._get_engine(rtc)
+        self._engine = self._get_engine()
         self._engine.start()
 
-    def _get_engine(self, rtc: bool):
+    def _get_engine(self):
         if self._callbacks.has_async_callbacks:
-            return AsyncEngine(self, rtc=rtc)
+            return AsyncEngine(self)
 
-        return SyncEngine(self, rtc=rtc)
+        return SyncEngine(self)
 
     def activate_initial_state(self):
         result = self._engine.activate_initial_state()
@@ -109,7 +141,10 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return run_async_from_sync(result)
 
     def _processing_loop(self):
-        return self._engine.processing_loop()
+        result = self._engine.processing_loop()
+        if not isawaitable(result):
+            return result
+        return run_async_from_sync(result)
 
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
@@ -121,15 +156,14 @@ class StateMachine(metaclass=StateMachineMetaclass):
         def __getattr__(self, attribute: str) -> Any: ...
 
     def __repr__(self):
-        current_state_id = self.current_state.id if self.current_state_value else None
+        configuration_ids = [s.id for s in self.configuration]
         return (
             f"{type(self).__name__}(model={self.model!r}, state_field={self.state_field!r}, "
-            f"current_state={current_state_id!r})"
+            f"configuration={configuration_ids!r})"
         )
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state["_rtc"] = self._engine._rtc
         del state["_callbacks"]
         del state["_states_for_instance"]
         del state["_engine"]
@@ -137,7 +171,6 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def __setstate__(self, state):
         listeners = state.pop("_listeners")
-        rtc = state.pop("_rtc")
         self.__dict__.update(state)
         self._callbacks = CallbacksRegistry()
         self._states_for_instance: Dict[State, State] = {}
@@ -145,16 +178,20 @@ class StateMachine(metaclass=StateMachineMetaclass):
         self._listeners: Dict[Any, Any] = {}
 
         self._register_callbacks([])
-        self.add_listener(*listeners.keys())
-        self._engine = self._get_engine(rtc)
+        self.add_listener(*listeners.values())
+        self._engine = self._get_engine()
         self._engine.start()
 
-    def _get_initial_state(self):
-        initial_state_value = self.start_value if self.start_value else self.initial_state.value
+    def _get_initial_configuration(self):
+        initial_state_values = (
+            self.start_configuration_values
+            if self.start_configuration_values
+            else [self.initial_state.value]
+        )
         try:
-            return self.states_map[initial_state_value]
+            return [self.states_map[value] for value in initial_state_values]
         except KeyError as err:
-            raise InvalidStateValue(initial_state_value) from err
+            raise InvalidStateValue(initial_state_values) from err
 
     def bind_events_to(self, *targets):
         """Bind the state machine events to the target objects."""
@@ -173,6 +210,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     def _add_listener(self, listeners: "Listeners", allowed_references: SpecReference = SPECS_ALL):
         registry = self._callbacks
+        listeners.resolve(self._specs, registry=registry, allowed_references=allowed_references)
         for visited in iterate_states_and_transitions(self.states):
             listeners.resolve(
                 visited._specs,
@@ -183,7 +221,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return self
 
     def _register_callbacks(self, listeners: List[object]):
-        self._listeners.update(dict.fromkeys(listeners))
+        self._listeners.update({id(listener): listener for listener in listeners})
         self._add_listener(
             Listeners.from_listeners(
                 (
@@ -224,9 +262,9 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
             :ref:`listeners`.
         """
-        self._listeners.update(dict.fromkeys(listeners))
+        self._listeners.update({id(listener): listener for listener in listeners})
         return self._add_listener(
-            Listeners.from_listeners(Listener.from_obj(o) for o in listeners),
+            Listeners.from_listeners(Listener.from_obj(listener) for listener in listeners),
             allowed_references=SPECS_SAFE,
         )
 
@@ -242,6 +280,49 @@ class StateMachine(metaclass=StateMachineMetaclass):
         return DotGraphMachine(self).get_graph()
 
     @property
+    def configuration_values(self) -> OrderedSet[Any]:
+        """The state configuration values is the set of currently active states's values
+        (or ids if no custom value is defined)."""
+        if isinstance(self.current_state_value, OrderedSet):
+            return self.current_state_value
+        return OrderedSet([self.current_state_value])
+
+    @property
+    def configuration(self) -> OrderedSet["State"]:
+        """The set of currently active states."""
+        if self.current_state_value is None:
+            return OrderedSet()
+
+        if not isinstance(self.current_state_value, MutableSet):
+            return OrderedSet(
+                [
+                    self.states_map[self.current_state_value].for_instance(
+                        machine=self,
+                        cache=self._states_for_instance,
+                    )
+                ]
+            )
+
+        return OrderedSet(
+            [
+                self.states_map[value].for_instance(
+                    machine=self,
+                    cache=self._states_for_instance,
+                )
+                for value in self.current_state_value
+            ]
+        )
+
+    @configuration.setter
+    def configuration(self, new_configuration: OrderedSet["State"]):
+        if len(new_configuration) == 0:
+            self.current_state_value = None
+        elif len(new_configuration) == 1:
+            self.current_state_value = new_configuration.pop().value
+        else:
+            self.current_state_value = OrderedSet(s.value for s in new_configuration)
+
+    @property
     def current_state_value(self):
         """Get/Set the current :ref:`state` value.
 
@@ -252,20 +333,41 @@ class StateMachine(metaclass=StateMachineMetaclass):
 
     @current_state_value.setter
     def current_state_value(self, value):
-        if value not in self.states_map:
+        if (
+            value is not None
+            and not isinstance(value, MutableSet)
+            and value not in self.states_map
+        ):
             raise InvalidStateValue(value)
         setattr(self.model, self.state_field, value)
 
     @property
-    def current_state(self) -> "State":
+    def current_state(self) -> "State | MutableSet[State]":
         """Get/Set the current :ref:`state`.
 
         This is a low level API, that can be to assign any valid state
         completely bypassing all the hooks and validations.
         """
+        warnings.warn(
+            """Property `current_state` is deprecated in favor of `configuration`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        current_value = self.current_state_value
 
         try:
-            state: State = self.states_map[self.current_state_value].for_instance(
+            if isinstance(current_value, list):
+                return OrderedSet(
+                    [
+                        self.states_map[value].for_instance(
+                            machine=self,
+                            cache=self._states_for_instance,
+                        )
+                        for value in current_value
+                    ]
+                )
+
+            state: State = self.states_map[current_value].for_instance(
                 machine=self,
                 cache=self._states_for_instance,
             )
@@ -283,7 +385,7 @@ class StateMachine(metaclass=StateMachineMetaclass):
             raise InvalidStateValue(self.current_state_value) from err
 
     @current_state.setter
-    def current_state(self, value):
+    def current_state(self, value):  # pragma: no cover
         self.current_state_value = value.value
 
     @property
@@ -293,7 +395,11 @@ class StateMachine(metaclass=StateMachineMetaclass):
     @property
     def allowed_events(self) -> "List[Event]":
         """List of the current allowed events."""
-        return [getattr(self, event) for event in self.current_state.transitions.unique_events]
+        return [
+            getattr(self, event)
+            for state in self.configuration
+            for event in state.transitions.unique_events
+        ]
 
     def enabled_events(self, *args, **kwargs):
         """List of the current enabled events, considering guard conditions.
@@ -313,22 +419,66 @@ class StateMachine(metaclass=StateMachineMetaclass):
             return result
         return run_async_from_sync(result)
 
-    def _put_nonblocking(self, trigger_data: TriggerData):
+    def _put_nonblocking(self, trigger_data: TriggerData, internal: bool = False):
         """Put the trigger on the queue without blocking the caller."""
-        self._engine.put(trigger_data)
+        self._engine.put(trigger_data, internal=internal)
 
-    def send(self, event: str, *args, **kwargs):
+    def send(
+        self,
+        event: str,
+        *args,
+        delay: float = 0,
+        event_id: "str | None" = None,
+        internal: bool = False,
+        **kwargs,
+    ):
         """Send an :ref:`Event` to the state machine.
+
+        :param event: The trigger for the state machine, specified as an event id string.
+        :param args: Additional positional arguments to pass to the event.
+        :param delay: A time delay in milliseconds to process the event. Default is 0.
+        :param kwargs: Additional keyword arguments to pass to the event.
 
         .. seealso::
 
             See: :ref:`triggering events`.
-
         """
-        event_instance: BoundEvent = getattr(
-            self, event, BoundEvent(id=event, name=event, _sm=self)
+        know_event = getattr(self, event, None)
+        event_name = know_event.name if know_event else event
+        delay = (
+            delay if delay else know_event and know_event.delay or 0
+        )  # first the param, then the event, or 0
+        event_instance = BoundEvent(
+            id=event, name=event_name, delay=delay, internal=internal, _sm=self
         )
-        result = event_instance(*args, **kwargs)
+        result = event_instance(*args, event_id=event_id, **kwargs)
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
+
+    def raise_(self, event: str, *args, delay: float = 0, event_id: "str | None" = None, **kwargs):
+        """Send an :ref:`Event` to the state machine in the internal event queue.
+
+        Events on the internal queue are processed immediately on the current step of the
+        interpreter.
+
+        .. seealso::
+
+            See: :ref:`triggering events`.
+        """
+        return self.send(event, *args, delay=delay, event_id=event_id, internal=True, **kwargs)
+
+    def cancel_event(self, send_id: str):
+        """Cancel all the delayed events with the given ``send_id``."""
+        self._engine.cancel_event(send_id)
+
+    @property
+    def is_terminated(self):
+        return not self._engine.running
+
+
+class StateMachine(StateChart):
+    allow_event_without_transition: bool = False
+    enable_self_transition_entries: bool = False
+    atomic_configuration_update: bool = True
+    error_on_execution: bool = False

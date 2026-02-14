@@ -42,7 +42,7 @@ Graphviz. For example, on Debian-based systems (such as Ubuntu), you can use the
 >>> dot = graph()
 
 >>> dot.to_string()  # doctest: +ELLIPSIS
-'digraph list {...
+'digraph OrderControl {...
 
 ```
 

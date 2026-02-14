@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- test that a history state never ends up part of the configuration -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  version="1.0" initial="p1" datamodel="python">
+  <datamodel>
+    <data id="Var1" expr="0" />
+  </datamodel>
+  <parallel id="p1">
+    <onentry>
+      <send delay="2s" event="timeout" />
+    </onentry>
+    <state id="s0">
+      <transition cond="In('sh1')" target="fail" />
+      <transition event="timeout" target="fail" />
+    </state>
+    <state id="s1">
+      <initial>
+        <transition target="sh1" />
+      </initial>
+      <history id="sh1">
+        <transition target="s11" />
+      </history>
+      <state id="s11">
+        <transition cond="In('sh1')" target="fail" />
+        <transition target="s12" />
+      </state>
+      <state id="s12" />
+      <transition cond="In('sh1')" target="fail" />
+      <transition cond="Var1==0" target="sh1" />
+      <transition cond="Var1==1" target="pass" />
+      <onexit>
+        <assign location="Var1" expr="Var1 + 1" />
+      </onexit>
+    </state>
+  </parallel>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

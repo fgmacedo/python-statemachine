@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest552" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+	that src content can be used
+	to assign a value to a var. Edit test552.txt to have a value that's legal
+	for the datamodel in question-->
+	<datamodel>
+		<data id="Var1" src="file:test552.txt" />
+	</datamodel>
+	<state id="s0">
+		<transition cond="Var1 is not None" target="pass" />
+		<transition target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

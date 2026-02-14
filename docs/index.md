@@ -18,6 +18,7 @@ mixins
 integrations
 diagram
 processing_model
+statecharts
 api
 auto_examples/index
 contributing

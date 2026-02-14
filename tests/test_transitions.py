@@ -11,10 +11,8 @@ from .models import MyModel
 def test_transition_representation(campaign_machine):
     s = repr([t for t in campaign_machine.draft.transitions if t.event == "produce"][0])
     assert s == (
-        "Transition("
-        "State('Draft', id='draft', value='draft', initial=True, final=False), "
-        "State('Being produced', id='producing', value='producing', "
-        "initial=False, final=False), event='produce', internal=False)"
+        "Transition('Draft', 'Being produced', event=["
+        "Event('produce', delay=0, internal=False)], internal=False, initial=False)"
     )
 
 
@@ -266,8 +264,8 @@ class TestInternalTransition:
 
             loop = initial.to.itself(internal=internal)
 
-            def _get_engine(self, rtc: bool):
-                return engine(self, rtc)
+            def _get_engine(self):
+                return engine(self)
 
             def on_exit_initial(self):
                 calls.append("on_exit_initial")
@@ -284,7 +282,7 @@ class TestInternalTransition:
 
     def test_should_not_allow_internal_transitions_from_distinct_states(self):
         with pytest.raises(
-            InvalidDefinition, match="Internal transitions should be self-transitions."
+            InvalidDefinition, match="Not a valid internal transition from source."
         ):
 
             class TestStateMachine(StateMachine):
@@ -295,16 +293,18 @@ class TestInternalTransition:
 
 
 class TestAllowEventWithoutTransition:
-    def test_send_unknown_event(self, classic_traffic_light_machine):
-        sm = classic_traffic_light_machine(allow_event_without_transition=True)
+    def test_send_unknown_event(self, classic_traffic_light_machine_allow_event):
+        sm = classic_traffic_light_machine_allow_event()
         sm.activate_initial_state()  # no-op on sync engine
 
         assert sm.green.is_active
         sm.send("unknow_event")
         assert sm.green.is_active
 
-    def test_send_not_valid_for_the_current_state_event(self, classic_traffic_light_machine):
-        sm = classic_traffic_light_machine(allow_event_without_transition=True)
+    def test_send_not_valid_for_the_current_state_event(
+        self, classic_traffic_light_machine_allow_event
+    ):
+        sm = classic_traffic_light_machine_allow_event()
         sm.activate_initial_state()  # no-op on sync engine
 
         assert sm.green.is_active
@@ -385,3 +385,19 @@ class TestTransitionFromAny:
         sm.close_account()
         assert sm.closed.is_active
         assert sm.flag_for_debug is True
+
+
+def test_initial_transition_with_cond_raises():
+    """Initial transitions cannot have conditions."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2")
+    with pytest.raises(InvalidDefinition, match="Initial transitions"):
+        Transition(s1, s2, initial=True, cond="some_cond")
+
+
+def test_initial_transition_with_event_raises():
+    """Initial transitions cannot have events."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2")
+    with pytest.raises(InvalidDefinition, match="Initial transitions"):
+        Transition(s1, s2, initial=True, event="some_event")

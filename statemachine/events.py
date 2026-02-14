@@ -8,9 +8,12 @@ class Events:
     def __init__(self):
         self._items: list[Event] = []
 
-    def __repr__(self):
+    def __str__(self):
         sep = " " if len(self._items) > 1 else ""
         return sep.join(item for item in self._items)
+
+    def __repr__(self):
+        return f"{self._items!r}"
 
     def __iter__(self):
         return iter(self._items)
@@ -31,9 +34,15 @@ class Events:
 
         return self
 
-    def match(self, event: str):
-        return any(e == event for e in self)
+    def match(self, event: "str | None"):
+        if event is None and self.is_empty:
+            return True
+        return any(e.match(event) for e in self)
 
     def _replace(self, old, new):
         self._items.remove(old)
         self._items.append(new)
+
+    @property
+    def is_empty(self):
+        return len(self._items) == 0

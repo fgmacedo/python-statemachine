@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" name="ScxmlTest525" version="1.0" xmlns="http://www.w3.org/2005/07/scxml"
+	xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+	that <foreach> does a shallow copy, so that modifying the array does not change
+the iteration behavior.-->
+	<datamodel>
+		<data id="Var1">[1, 2, 3]</data>
+		<data expr="0" id="Var2" /><!--counts
+		the number of iterations-->
+	</datamodel>
+	<state id="s0">
+		<onentry>
+			<foreach array="Var1" item="Var3">
+				<assign expr="Var1 + ['4']" location="Var1" />
+				<assign expr="Var2 + 1" location="Var2" />
+			</foreach>
+		</onentry>
+		<transition cond="Var2==3" target="pass" />
+		<transition target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

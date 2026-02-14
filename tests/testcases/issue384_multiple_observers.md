@@ -40,13 +40,13 @@ Running:
 >>> obs = MyObs()
 >>> obs2 = MyObs2()
 >>> car.add_listener(obs)
-Car(model=Model(state=stopped), state_field='state', current_state='stopped')
+Car(model=Model(state=stopped), state_field='state', configuration=['stopped'])
 
 >>> car.add_listener(obs2)
-Car(model=Model(state=stopped), state_field='state', current_state='stopped')
+Car(model=Model(state=stopped), state_field='state', configuration=['stopped'])
 
 >>> car.add_listener(obs2)  # test to not register duplicated observer callbacks
-Car(model=Model(state=stopped), state_field='state', current_state='stopped')
+Car(model=Model(state=stopped), state_field='state', configuration=['stopped'])
 
 >>> car.move_car()
 I'm moving

@@ -306,5 +306,27 @@ class TestExplicitEvent:
             created.to(started, event=Event("launch_rocket"))
 
         event = next(iter(StartMachine.events))
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AssertionError):
             event()
+
+
+def test_event_match_trailing_dot():
+    """Event descriptor ending with '.' matches the prefix."""
+    event = Event("error.")
+    assert event.match("error") is True
+    assert event.match("error.execution") is True
+
+
+def test_event_build_trigger_with_none_machine():
+    """build_trigger raises when machine is None."""
+    event = Event("go")
+    with pytest.raises(RuntimeError, match="cannot be called without"):
+        event.build_trigger(machine=None)
+
+
+def test_events_match_none_with_empty():
+    """Empty Events collection matches None event."""
+    from statemachine.events import Events
+
+    events = Events()
+    assert events.match(None) is True

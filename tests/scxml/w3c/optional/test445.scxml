@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" name="ScxmlTest445" version="1.0" xmlns="http://www.w3.org/2005/07/scxml"
+  xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+  that python objects defined by <data> have value None if <data> does not assign a value-->
+  <datamodel>
+    <data id="var1" />
+  </datamodel>
+  <state id="s0">
+    <transition cond="var1==None" target="pass" />
+    <transition target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log expr="'pass'" label="Outcome" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log expr="'fail'" label="Outcome" />
+    </onentry>
+  </final>
+</scxml>

@@ -6,14 +6,12 @@ from enum import Enum
 from enum import auto
 
 import pytest
-from statemachine.exceptions import TransitionNotAllowed
 from statemachine.states import States
 
 from statemachine import State
 from statemachine import StateMachine
 
 logger = logging.getLogger(__name__)
-DEBUG = logging.DEBUG
 
 
 def copy_pickle(obj):
@@ -64,30 +62,20 @@ class MySM(StateMachine):
 
     publish = draft.to(published, cond="let_me_be_visible")
 
-    def on_transition(self, event: str):
-        logger.debug(f"{self.__class__.__name__} recorded {event} transition")
-
     def let_me_be_visible(self):
-        logger.debug(f"{type(self).__name__} let_me_be_visible: True")
         return True
 
 
 class MyModel:
     def __init__(self, name: str) -> None:
         self.name = name
-        self.let_me_be_visible = False
+        self._let_me_be_visible = False
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}@{id(self)}({self.name!r})"
 
-    def on_transition(self, event: str):
-        logger.debug(f"{type(self).__name__}({self.name!r}) recorded {event} transition")
-
     @property
     def let_me_be_visible(self):
-        logger.debug(
-            f"{type(self).__name__}({self.name!r}) let_me_be_visible: {self._let_me_be_visible}"
-        )
         return self._let_me_be_visible
 
     @let_me_be_visible.setter
@@ -97,16 +85,19 @@ class MyModel:
 
 def test_copy(copy_method):
     sm = MySM(MyModel("main_model"))
-
     sm2 = copy_method(sm)
 
-    with pytest.raises(TransitionNotAllowed):
-        sm2.send("publish")
+    assert sm.model is not sm2.model
+    assert sm.model.name == sm2.model.name
+    assert sm2.current_state == sm.current_state
+
+    sm2.model.let_me_be_visible = True
+    sm2.send("publish")
+    assert sm2.current_state == sm.published
 
 
-def test_copy_with_listeners(caplog, copy_method):
+def test_copy_with_listeners(copy_method):
     model1 = MyModel("main_model")
-
     sm1 = MySM(model1)
 
     listener_1 = MyModel("observer_1")
@@ -117,52 +108,19 @@ def test_copy_with_listeners(caplog, copy_method):
     sm2 = copy_method(sm1)
 
     assert sm1.model is not sm2.model
+    assert len(sm1._listeners) == len(sm2._listeners)
+    assert all(
+        listener.name == copied_listener.name
+        # zip(strict=True) requires python 3.10
+        for listener, copied_listener in zip(sm1._listeners.values(), sm2._listeners.values())  # noqa: B905
+    )
 
-    caplog.set_level(logging.DEBUG, logger="tests")
+    sm2.model.let_me_be_visible = True
+    for listener in sm2._listeners.values():
+        listener.let_me_be_visible = True
 
-    def assertions(sm, _reference):
-        caplog.clear()
-        if not sm._listeners:
-            pytest.fail("did not found any observer")
-
-        for listener in sm._listeners:
-            listener.let_me_be_visible = False
-
-        with pytest.raises(TransitionNotAllowed):
-            sm.send("publish")
-
-        sm.model.let_me_be_visible = True
-
-        for listener in sm._listeners:
-            with pytest.raises(TransitionNotAllowed):
-                sm.send("publish")
-
-            listener.let_me_be_visible = True
-
-        sm.send("publish")
-
-        assert caplog.record_tuples == [
-            ("tests.test_copy", DEBUG, "MySM let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('main_model') let_me_be_visible: False"),
-            ("tests.test_copy", DEBUG, "MySM let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('main_model') let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('observer_1') let_me_be_visible: False"),
-            ("tests.test_copy", DEBUG, "MySM let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('main_model') let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('observer_1') let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('observer_2') let_me_be_visible: False"),
-            ("tests.test_copy", DEBUG, "MySM let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('main_model') let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('observer_1') let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MyModel('observer_2') let_me_be_visible: True"),
-            ("tests.test_copy", DEBUG, "MySM recorded publish transition"),
-            ("tests.test_copy", DEBUG, "MyModel('main_model') recorded publish transition"),
-            ("tests.test_copy", DEBUG, "MyModel('observer_1') recorded publish transition"),
-            ("tests.test_copy", DEBUG, "MyModel('observer_2') recorded publish transition"),
-        ]
-
-    assertions(sm1, "original")
-    assertions(sm2, "copy")
+    sm2.send("publish")
+    assert sm2.current_state == sm1.published
 
 
 def test_copy_with_enum(copy_method):

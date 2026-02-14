@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from typing import MutableSet
 
 from .i18n import _
 
@@ -30,10 +31,13 @@ class AttrNotFound(InvalidDefinition):
 
 
 class TransitionNotAllowed(StateMachineError):
-    "Raised when there's no transition that can run from the current :ref:`state`."
+    "Raised when there's no transition that can run from the current :ref:`configuration`."
 
-    def __init__(self, event: "Event", state: "State"):
+    def __init__(self, event: "Event | None", configuration: MutableSet["State"]):
         self.event = event
-        self.state = state
-        msg = _("Can't {} when in {}.").format(self.event.name, self.state.name)
+        self.configuration = configuration
+        name = ", ".join([s.name for s in configuration])
+        msg = _("Can't {} when in {}.").format(
+            self.event and self.event.name or "transition", name
+        )
         super().__init__(msg)

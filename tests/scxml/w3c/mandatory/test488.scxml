@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest488" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+	that illegal expr in <param> produces error.execution and empty event.data--><!--if
+	we get here, we received the error event. Now check that the done
+ event has empty event.data-->
+	<state id="s0" initial="s01"><!--we
+		should get the error before the done event-->
+		<transition event="error.execution" target="s1" />
+		<transition event="done.state.s0" target="fail" />
+		<state id="s01">
+			<transition target="s02" />
+		</state>
+		<final id="s02">
+			<donedata>
+				<param expr="return" name="someParam" />
+			</donedata>
+		</final>
+	</state>
+	<state id="s1">
+		<transition cond="_event.data is None" event="done.state.s0" target="pass" />
+		<transition event="*" target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

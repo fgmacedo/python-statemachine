@@ -1,14 +1,18 @@
+from typing import Any
 from typing import Callable
+from typing import TypeVar
 
 from .callbacks import CallbackGroup
 from .i18n import _
 
+T = TypeVar("T", bound=Callable)
+
 
 class AddCallbacksMixin:
-    def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
+    def _add_callback(self, callback: T, grouper: CallbackGroup, is_event=False, **kwargs) -> T:
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Any:
         if len(args) == 1 and callable(args[0]) and not kwargs:
             return self._add_callback(args[0], CallbackGroup.ON, is_event=True)
         raise TypeError(

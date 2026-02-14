@@ -1,11 +1,13 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
+from typing import List
 
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .events import Events
 from .exceptions import InvalidDefinition
+from .i18n import _
 
 if TYPE_CHECKING:
     from .statemachine import State
@@ -16,7 +18,9 @@ class Transition:
 
     Args:
         source (State): The origin state of the transition.
-        target (State): The target state of the transition.
+        target: The target state(s) of the transition. Can be a single ``State``, a list of
+            states (for multi-target transitions, e.g. SCXML parallel region entry), or ``None``
+            (targetless transition).
         event (Optional[Union[str, List[str]]]): List of designators of events that trigger this
             transition. Can be either a list of strings, or a space-separated string list of event
             descriptors.
@@ -39,9 +43,10 @@ class Transition:
     def __init__(
         self,
         source: "State",
-        target: "State",
+        target: "State | List[State] | None" = None,
         event=None,
         internal=False,
+        initial=False,
         validators=None,
         cond=None,
         unless=None,
@@ -50,11 +55,30 @@ class Transition:
         after=None,
     ):
         self.source = source
-        self.target = target
+        if isinstance(target, list):
+            self._targets: "List[State]" = target
+        elif target is not None:
+            self._targets = [target]
+        else:
+            self._targets = []
         self.internal = internal
+        self.initial = initial
+        first_target = self._targets[0] if self._targets else None
+        self.is_self = first_target is source
+        """Is the target state the same as the source state?"""
 
-        if internal and source is not target:
-            raise InvalidDefinition("Internal transitions should be self-transitions.")
+        if internal and not (
+            self.is_self or (first_target and first_target.is_descendant(source))
+        ):
+            raise InvalidDefinition(
+                _(
+                    "Not a valid internal transition from source {source!r}, "
+                    "target {target!r} should be self or a descendant."
+                ).format(source=source, target=first_target)
+            )
+
+        if initial and any([cond, unless, event]):
+            raise InvalidDefinition("Initial transitions should not have conditions or events.")
 
         self._events = Events().add(event)
         self._specs = CallbackSpecList()
@@ -74,10 +98,20 @@ class Transition:
             .add(unless, priority=CallbackPriority.INLINE, expected_value=False)
         )
 
+    @property
+    def target(self) -> "State | None":
+        """Primary target state (first target for multi-target transitions)."""
+        return self._targets[0] if self._targets else None
+
+    @property
+    def targets(self) -> "List[State]":
+        """All target states. For single-target transitions, returns a one-element list."""
+        return self._targets
+
     def __repr__(self):
         return (
-            f"{type(self).__name__}({self.source!r}, {self.target!r}, event={self.event!r}, "
-            f"internal={self.internal!r})"
+            f"{type(self).__name__}({self.source.name!r}, {self.target and self.target.name!r}, "
+            f"event={self._events!r}, internal={self.internal!r}, initial={self.initial!r})"
         )
 
     def __str__(self):
@@ -134,7 +168,7 @@ class Transition:
 
     def _copy_with_args(self, **kwargs):
         source = kwargs.pop("source", self.source)
-        target = kwargs.pop("target", self.target)
+        target = kwargs.pop("target", list(self._targets) if self._targets else None)
         event = kwargs.pop("event", self.event)
         internal = kwargs.pop("internal", self.internal)
         new_transition = Transition(
@@ -145,3 +179,7 @@ class Transition:
             new_transition._specs.add(new_spec, new_spec.group)
 
         return new_transition
+
+    @property
+    def is_eventless(self):
+        return self._events.is_empty

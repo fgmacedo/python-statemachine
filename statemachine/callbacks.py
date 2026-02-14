@@ -5,6 +5,7 @@ from collections import deque
 from enum import IntEnum
 from enum import IntFlag
 from enum import auto
+from functools import partial
 from inspect import isawaitable
 from typing import TYPE_CHECKING
 from typing import Callable
@@ -42,6 +43,7 @@ SPECS_SAFE = SpecReference.NAME
 
 
 class CallbackGroup(IntEnum):
+    PREPARE = auto()
     ENTER = auto()
     EXIT = auto()
     VALIDATOR = auto()
@@ -89,10 +91,10 @@ class CallbackSpec:
             self.attr_name: str = func and func.fget and func.fget.__name__ or ""
         elif callable(func):
             self.reference = SpecReference.CALLABLE
-            self.is_bounded = hasattr(func, "__self__")
-            self.attr_name = (
-                func.__name__ if not self.is_event or self.is_bounded else f"_{func.__name__}_"
-            )
+            is_partial = isinstance(func, partial)
+            self.is_bounded = is_partial or hasattr(func, "__self__")
+            name = func.func.__name__ if is_partial else func.__name__
+            self.attr_name = name if not self.is_event or self.is_bounded else f"_{name}_"
             if not self.is_bounded:
                 func.attr_name = self.attr_name
                 func.is_event = is_event
@@ -110,7 +112,7 @@ class CallbackSpec:
         return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"
 
     def __str__(self):
-        name = getattr(self.func, "__name__", self.func)
+        name = self.attr_name
         if self.expected_value is False:
             name = f"!{name}"
         return name
@@ -296,33 +298,68 @@ class CallbacksExecutor:
 
         insort(self.items, wrapper)
 
-    async def async_call(self, *args, **kwargs):
-        return await asyncio.gather(
-            *(
-                callback(*args, **kwargs)
-                for callback in self
-                if callback.condition(*args, **kwargs)
+    async def async_call(
+        self, *args, on_error: "Callable[[Exception], None] | None" = None, **kwargs
+    ):
+        if on_error is None:
+            return await asyncio.gather(
+                *(
+                    callback(*args, **kwargs)
+                    for callback in self
+                    if callback.condition(*args, **kwargs)
+                )
             )
-        )
 
-    async def async_all(self, *args, **kwargs):
-        coros = [condition(*args, **kwargs) for condition in self]
-        for coro in asyncio.as_completed(coros):
-            if not await coro:
-                return False
+        results = []
+        for callback in self:
+            if callback.condition(*args, **kwargs):  # pragma: no branch
+                try:
+                    results.append(await callback(*args, **kwargs))
+                except Exception as e:
+                    on_error(e)
+        return results
+
+    async def async_all(
+        self, *args, on_error: "Callable[[Exception], None] | None" = None, **kwargs
+    ):
+        for callback in self:
+            try:
+                if not await callback(*args, **kwargs):
+                    return False
+            except Exception as e:
+                if on_error is not None:
+                    on_error(e)
+                    return False
+                raise
         return True
 
-    def call(self, *args, **kwargs):
-        return [
-            callback.call(*args, **kwargs)
-            for callback in self
-            if callback.condition(*args, **kwargs)
-        ]
+    def call(self, *args, on_error: "Callable[[Exception], None] | None" = None, **kwargs):
+        if on_error is None:
+            return [
+                callback.call(*args, **kwargs)
+                for callback in self
+                if callback.condition(*args, **kwargs)
+            ]
 
-    def all(self, *args, **kwargs):
+        results = []
+        for callback in self:
+            if callback.condition(*args, **kwargs):  # pragma: no branch
+                try:
+                    results.append(callback.call(*args, **kwargs))
+                except Exception as e:
+                    on_error(e)
+        return results
+
+    def all(self, *args, on_error: "Callable[[Exception], None] | None" = None, **kwargs):
         for condition in self:
-            if not condition.call(*args, **kwargs):
-                return False
+            try:
+                if not condition.call(*args, **kwargs):
+                    return False
+            except Exception as e:
+                if on_error is not None:
+                    on_error(e)
+                    return False
+                raise
         return True
 
 
@@ -359,21 +396,49 @@ class CallbacksRegistry:
             callback._iscoro for executor in self._registry.values() for callback in executor
         )
 
-    def call(self, key: str, *args, **kwargs):
+    def call(
+        self,
+        key: str,
+        *args,
+        on_error: "Callable[[Exception], None] | None" = None,
+        **kwargs,
+    ):
         if key not in self._registry:
             return []
-        return self._registry[key].call(*args, **kwargs)
+        return self._registry[key].call(*args, on_error=on_error, **kwargs)
 
-    def async_call(self, key: str, *args, **kwargs):
-        return self._registry[key].async_call(*args, **kwargs)
+    async def async_call(
+        self,
+        key: str,
+        *args,
+        on_error: "Callable[[Exception], None] | None" = None,
+        **kwargs,
+    ):
+        if key not in self._registry:
+            return []
+        return await self._registry[key].async_call(*args, on_error=on_error, **kwargs)
 
-    def all(self, key: str, *args, **kwargs):
+    def all(
+        self,
+        key: str,
+        *args,
+        on_error: "Callable[[Exception], None] | None" = None,
+        **kwargs,
+    ):
         if key not in self._registry:
             return True
-        return self._registry[key].all(*args, **kwargs)
+        return self._registry[key].all(*args, on_error=on_error, **kwargs)
 
-    def async_all(self, key: str, *args, **kwargs):
-        return self._registry[key].async_all(*args, **kwargs)
+    async def async_all(
+        self,
+        key: str,
+        *args,
+        on_error: "Callable[[Exception], None] | None" = None,
+        **kwargs,
+    ):
+        if key not in self._registry:
+            return True
+        return await self._registry[key].async_all(*args, on_error=on_error, **kwargs)
 
     def str(self, key: str) -> str:
         if key not in self._registry:

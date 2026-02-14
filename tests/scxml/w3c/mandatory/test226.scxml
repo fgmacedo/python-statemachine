@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- this is basically just a test that invoke works correctly and
+that you can pass data
+to the invoked process.  If the invoked session finds aParam==1, it exits, signalling
+success.  otherwise it will hang and the timeout in this doc signifies failure.   -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+
+
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="3s" />
+    </onentry>
+
+
+    <invoke type="http://www.w3.org/TR/scxml/">
+      <param name="Var1" expr="1" />
+      <content>
+        <!-- when invoked, if var1 has a value notify parent. Then terminate.   -->
+        <scxml initial="sub0" version="1.0" datamodel="python">
+          <datamodel>
+            <data id="Var1" />
+          </datamodel>
+
+          <state id="sub0">
+            <transition cond="Var1" target="subFinal">
+              <send target="#_parent" event="varBound" />
+            </transition>
+            <transition target="subFinal" />
+          </state>
+          <final id="subFinal" />
+        </scxml>
+      </content>
+    </invoke>
+
+    <transition event="varBound" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

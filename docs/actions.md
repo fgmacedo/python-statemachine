@@ -16,6 +16,8 @@ StateMachine in execution.
 There are callbacks that you can specify that are generic and will be called
 when something changes, and are not bound to a specific state or event:
 
+- `prepare_event()`
+
 - `before_transition()`
 
 - `on_exit_state()`
@@ -297,6 +299,32 @@ In addition to {ref}`actions`, you can specify {ref}`validators and guards` that
 See {ref}`conditions` and {ref}`validators`.
 ```
 
+### Preparing events
+
+You can use the `prepare_event` method to add custom information
+that will be included in `**kwargs` to all other callbacks.
+
+A not so usefull example:
+
+```py
+>>> class ExampleStateMachine(StateMachine):
+...     initial = State(initial=True)
+...
+...     loop = initial.to.itself()
+...
+...     def prepare_event(self):
+...         return {"foo": "bar"}
+...
+...     def on_loop(self, foo):
+...         return f"On loop: {foo}"
+...
+
+>>> sm = ExampleStateMachine()
+
+>>> sm.loop()
+'On loop: bar'
+
+```
 
 ## Ordering
 
@@ -314,6 +342,10 @@ Actions registered on the same group don't have order guaranties and are execute
     - Action
     - Current state
     - Description
+*   - Preparation
+    - `prepare_event()`
+    - `source`
+    - Add custom event metadata.
 *   - Validators
     - `validators()`
     - `source`

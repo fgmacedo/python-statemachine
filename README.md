@@ -137,7 +137,7 @@ Or get a complete state representation for debugging purposes:
 
 ```py
 >>> sm.current_state
-State('Yellow', id='yellow', value='yellow', initial=False, final=False)
+State('Yellow', id='yellow', value='yellow', initial=False, final=False, parallel=False)
 
 ```
 

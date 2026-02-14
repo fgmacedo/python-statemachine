@@ -1,14 +1,21 @@
-import sys
 from datetime import datetime
-from typing import List
 
 import pytest
 
-collect_ignore_glob: List[str] = []
 
-# We support Python 3.8+ positional only syntax
-if sys.version_info[:2] < (3, 8):  # noqa: UP036
-    collect_ignore_glob.append("*_positional_only.py")
+def pytest_addoption(parser):
+    parser.addoption(
+        "--upd-fail",
+        action="store_true",
+        default=False,
+        help="Update marks for failing tests",
+    )
+    parser.addoption(
+        "--gen-diagram",
+        action="store_true",
+        default=False,
+        help="Generate a diagram of the SCXML machine",
+    )
 
 
 @pytest.fixture()
@@ -135,10 +142,18 @@ def classic_traffic_light_machine(engine):
         stop = yellow.to(red)
         go = red.to(green)
 
-        def _get_engine(self, rtc: bool):
-            return engine(self, rtc)
+        def _get_engine(self):
+            return engine(self)
 
     return TrafficLightMachine
+
+
+@pytest.fixture()
+def classic_traffic_light_machine_allow_event(classic_traffic_light_machine):
+    class TrafficLightMachineAllowingEventWithoutTransition(classic_traffic_light_machine):
+        allow_event_without_transition = True
+
+    return TrafficLightMachineAllowingEventWithoutTransition
 
 
 @pytest.fixture()
@@ -211,3 +226,65 @@ def engine(request):
         return SyncEngine
     else:
         return AsyncEngine
+
+
+class _AsyncListener:
+    """No-op async listener that triggers AsyncEngine selection."""
+
+    async def on_enter_state(
+        self, **kwargs
+    ): ...  # No-op: presence of async callback triggers AsyncEngine selection
+
+
+class SMRunner:
+    """Helper for running state machine tests on both sync and async engines.
+
+    Usage in tests::
+
+        async def test_something(self, sm_runner):
+            sm = await sm_runner.start(MyStateChart)
+            await sm_runner.send(sm, "some_event")
+            assert "expected_state" in sm.configuration_values
+    """
+
+    def __init__(self, is_async: bool):
+        self.is_async = is_async
+
+    async def start(self, cls, **kwargs):
+        """Create and activate a state machine instance."""
+        from inspect import isawaitable
+
+        if self.is_async:
+            listeners = list(kwargs.pop("listeners", []))
+            listeners.append(_AsyncListener())
+            sm = cls(listeners=listeners, **kwargs)
+            result = sm.activate_initial_state()
+            if isawaitable(result):
+                await result
+        else:
+            sm = cls(**kwargs)
+        return sm
+
+    async def send(self, sm, event, **kwargs):
+        """Send an event to the state machine."""
+        from inspect import isawaitable
+
+        result = sm.send(event, **kwargs)
+        if isawaitable(result):
+            return await result
+        return result
+
+    async def processing_loop(self, sm):
+        """Run the processing loop (for delayed event tests)."""
+        from inspect import isawaitable
+
+        result = sm._processing_loop()
+        if isawaitable(result):
+            return await result
+        return result
+
+
+@pytest.fixture(params=["sync", "async"])
+def sm_runner(request):
+    """Fixture that runs tests on both sync and async engines."""
+    return SMRunner(is_async=request.param == "async")

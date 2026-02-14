@@ -51,8 +51,15 @@ uv run pytest tests/test_signature.py::TestSignatureAdapter::test_wrap_fn_single
 uv run pytest -m "not slow"
 ```
 
-Tests include doctests from both source modules (`--doctest-modules`) and markdown docs
-(`--doctest-glob=*.md`). Coverage is enabled by default.
+When trying to run all tests, prefer to use xdist (`-n`) as some SCXML tests uses timeout of 30s to verify fallback mechanism.
+Don't specify the directory `tests/`, because this will exclude doctests from both source modules (`--doctest-modules`) and markdown docs
+(`--doctest-glob=*.md`) (enabled by default):
+
+```bash
+uv run pytest -n auto
+```
+
+Coverage is enabled by default.
 
 ## Linting and formatting
 

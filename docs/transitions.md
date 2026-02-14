@@ -84,7 +84,7 @@ Syntax:
 >>> draft = State("Draft")
 
 >>> draft.to.itself()
-TransitionList([Transition(State('Draft', ...
+TransitionList([Transition('Draft', 'Draft', event=[], internal=False, initial=False)])
 
 ```
 
@@ -101,7 +101,7 @@ Syntax:
 >>> draft = State("Draft")
 
 >>> draft.to.itself(internal=True)
-TransitionList([Transition(State('Draft', ...
+TransitionList([Transition('Draft', 'Draft', event=[], internal=True, initial=False)])
 
 ```
 
@@ -376,3 +376,157 @@ You can raise an exception at this point to stop a transition from completing.
 'green'
 
 ```
+
+(eventless)=
+
+### Eventless (automatic) transitions
+
+```{versionadded} 3.0.0
+```
+
+Eventless transitions have no event trigger — they fire automatically when their guard
+condition evaluates to `True`. If no guard is specified, they fire immediately
+(unconditional). This is useful for modeling automatic state progressions.
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class RingCorruption(StateChart):
+...     resisting = State(initial=True)
+...     corrupted = State(final=True)
+...     resisting.to(corrupted, cond="is_corrupted")
+...     bear_ring = resisting.to.itself(internal=True, on="increase_power")
+...     ring_power = 0
+...     def is_corrupted(self):
+...         return self.ring_power > 5
+...     def increase_power(self):
+...         self.ring_power += 2
+
+>>> sm = RingCorruption()
+>>> sm.send("bear_ring")
+>>> sm.send("bear_ring")
+>>> "resisting" in sm.configuration_values
+True
+
+>>> sm.send("bear_ring")
+>>> "corrupted" in sm.configuration_values
+True
+
+```
+
+The eventless transition from `resisting` to `corrupted` fires automatically after
+the third `bear_ring` event pushes `ring_power` past the threshold.
+
+```{seealso}
+See {ref}`eventless-transitions` for chains, compound interactions, and `In()` guards.
+```
+
+(cross-boundary-transitions)=
+
+### Cross-boundary transitions
+
+```{versionadded} 3.0.0
+```
+
+In statecharts, transitions can cross compound state boundaries — going from a
+state inside one compound to a state outside, or into a different compound. The
+engine automatically determines which states to exit and enter by computing the
+**transition domain**: the smallest compound ancestor that contains both the
+source and all target states.
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class MiddleEarthJourney(StateChart):
+...     validate_disconnected_states = False
+...     class rivendell(State.Compound):
+...         council = State(initial=True)
+...         preparing = State()
+...         get_ready = council.to(preparing)
+...     class moria(State.Compound):
+...         gates = State(initial=True)
+...         bridge = State(final=True)
+...         cross = gates.to(bridge)
+...     march = rivendell.to(moria)
+
+>>> sm = MiddleEarthJourney()
+>>> set(sm.configuration_values) == {"rivendell", "council"}
+True
+
+>>> sm.send("march")
+>>> set(sm.configuration_values) == {"moria", "gates"}
+True
+
+```
+
+When `march` fires, the engine:
+1. Computes the transition domain (the root, since `rivendell` and `moria` are siblings)
+2. Exits `council` and `rivendell` (running their exit actions)
+3. Enters `moria` and its initial child `gates` (running their entry actions)
+
+A transition can also go from a deeply nested child to an outer state:
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class MoriaEscape(StateChart):
+...     class moria(State.Compound):
+...         class halls(State.Compound):
+...             entrance = State(initial=True)
+...             bridge = State(final=True)
+...             cross = entrance.to(bridge)
+...         assert isinstance(halls, State)
+...         depths = State(final=True)
+...         descend = halls.to(depths)
+...     daylight = State(final=True)
+...     escape = moria.to(daylight)
+
+>>> sm = MoriaEscape()
+>>> set(sm.configuration_values) == {"moria", "halls", "entrance"}
+True
+
+>>> sm.send("escape")
+>>> set(sm.configuration_values) == {"daylight"}
+True
+
+```
+
+(transition-priority)=
+
+### Transition priority in compound states
+
+```{versionadded} 3.0.0
+```
+
+When an event could match transitions at multiple levels of the state hierarchy,
+transitions from **descendant states take priority** over transitions from
+ancestor states. This follows the SCXML specification: the most specific
+(deepest) matching transition wins.
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class PriorityExample(StateChart):
+...     log = []
+...     class outer(State.Compound):
+...         class inner(State.Compound):
+...             s1 = State(initial=True)
+...             s2 = State(final=True)
+...             go = s1.to(s2, on="log_inner")
+...         assert isinstance(inner, State)
+...         after_inner = State(final=True)
+...         done_state_inner = inner.to(after_inner)
+...     after_outer = State(final=True)
+...     done_state_outer = outer.to(after_outer)
+...     def log_inner(self):
+...         self.log.append("inner won")
+
+>>> sm = PriorityExample()
+>>> sm.send("go")
+>>> sm.log
+['inner won']
+
+```
+
+If two transitions at the same level would exit overlapping states (a conflict),
+the one selected first in document order wins.

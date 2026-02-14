@@ -1,9 +1,11 @@
 import re
 
 import pytest
+from statemachine.exceptions import InvalidDefinition
 from statemachine.exceptions import InvalidStateValue
 
 from statemachine import State
+from statemachine import StateChart
 from statemachine import StateMachine
 
 
@@ -201,6 +203,223 @@ async def test_async_state_should_be_initialized(async_order_control_machine):
     assert sm.current_state == sm.waiting_for_payment
 
 
+@pytest.mark.timeout(5)
+async def test_async_error_on_execution_in_condition():
+    """Async engine catches errors in conditions with error_on_execution."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+        error_state = State(final=True)
+
+        go = s1.to(s2, cond="bad_cond")
+        error_execution = s1.to(error_state)
+
+        def bad_cond(self, **kwargs):
+            raise RuntimeError("Condition boom")
+
+    sm = SM()
+    sm.send("go")
+    assert sm.configuration == {sm.error_state}
+
+
+@pytest.mark.timeout(5)
+async def test_async_error_on_execution_in_transition():
+    """Async engine catches errors in transition callbacks with error_on_execution."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+        error_state = State(final=True)
+
+        go = s1.to(s2, on="bad_action")
+        error_execution = s1.to(error_state)
+
+        def bad_action(self, **kwargs):
+            raise RuntimeError("Transition boom")
+
+    sm = SM()
+    sm.send("go")
+    assert sm.configuration == {sm.error_state}
+
+
+@pytest.mark.timeout(5)
+async def test_async_error_on_execution_in_after():
+    """Async engine catches errors in after callbacks with error_on_execution."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+        error_state = State(final=True)
+
+        go = s1.to(s2)
+        error_execution = s2.to(error_state)
+
+        def after_go(self, **kwargs):
+            raise RuntimeError("After boom")
+
+    sm = SM()
+    sm.send("go")
+    assert sm.configuration == {sm.error_state}
+
+
+@pytest.mark.timeout(5)
+async def test_async_invalid_definition_in_transition_propagates():
+    """InvalidDefinition in async transition propagates."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+
+        go = s1.to(s2, on="bad_action")
+
+        def bad_action(self, **kwargs):
+            raise InvalidDefinition("Bad async")
+
+    sm = SM()
+    with pytest.raises(InvalidDefinition, match="Bad async"):
+        sm.send("go")
+
+
+@pytest.mark.timeout(5)
+async def test_async_invalid_definition_in_after_propagates():
+    """InvalidDefinition in async after callback propagates."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+        def after_go(self, **kwargs):
+            raise InvalidDefinition("Bad async after")
+
+    sm = SM()
+    with pytest.raises(InvalidDefinition, match="Bad async after"):
+        sm.send("go")
+
+
+@pytest.mark.timeout(5)
+async def test_async_runtime_error_in_after_without_error_on_execution():
+    """RuntimeError in async after callback without error_on_execution propagates."""
+
+    class SM(StateMachine):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+        def after_go(self, **kwargs):
+            raise RuntimeError("Async after boom")
+
+    sm = SM()
+    with pytest.raises(RuntimeError, match="Async after boom"):
+        sm.send("go")
+
+
+# --- Actual async engine tests (async callbacks trigger AsyncEngine) ---
+# Note: async engine error_on_execution with async callbacks has a known limitation:
+# _send_error_execution calls sm.send() which returns an unawaited coroutine.
+# The tests below cover the paths that DO work in the async engine.
+
+
+@pytest.mark.timeout(5)
+async def test_async_engine_invalid_definition_in_condition_propagates():
+    """AsyncEngine: InvalidDefinition in async condition always propagates."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+
+        go = s1.to(s2, cond="bad_cond")
+
+        async def bad_cond(self, **kwargs):
+            raise InvalidDefinition("Async bad definition")
+
+    sm = SM()
+    await sm.activate_initial_state()
+    with pytest.raises(InvalidDefinition, match="Async bad definition"):
+        await sm.send("go")
+
+
+@pytest.mark.timeout(5)
+async def test_async_engine_invalid_definition_in_transition_propagates():
+    """AsyncEngine: InvalidDefinition in async transition execution always propagates."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State()
+
+        go = s1.to(s2, on="bad_action")
+
+        async def bad_action(self, **kwargs):
+            raise InvalidDefinition("Async bad transition")
+
+    sm = SM()
+    await sm.activate_initial_state()
+    with pytest.raises(InvalidDefinition, match="Async bad transition"):
+        await sm.send("go")
+
+
+@pytest.mark.timeout(5)
+async def test_async_engine_invalid_definition_in_after_propagates():
+    """AsyncEngine: InvalidDefinition in async after callback propagates."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+        async def after_go(self, **kwargs):
+            raise InvalidDefinition("Async bad after")
+
+    sm = SM()
+    await sm.activate_initial_state()
+    with pytest.raises(InvalidDefinition, match="Async bad after"):
+        await sm.send("go")
+
+
+@pytest.mark.timeout(5)
+async def test_async_engine_runtime_error_in_after_without_error_on_execution_propagates():
+    """AsyncEngine: RuntimeError in async after callback without error_on_execution raises."""
+
+    class SM(StateMachine):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+        async def after_go(self, **kwargs):
+            raise RuntimeError("Async after boom no catch")
+
+    sm = SM()
+    await sm.activate_initial_state()
+    with pytest.raises(RuntimeError, match="Async after boom no catch"):
+        await sm.send("go")
+
+
+@pytest.mark.timeout(5)
+async def test_async_engine_start_noop_when_already_initialized():
+    """BaseEngine.start() is a no-op when state machine is already initialized."""
+
+    class SM(StateMachine):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+        async def on_go(
+            self,
+        ): ...  # No-op: presence of async callback triggers AsyncEngine selection
+
+    sm = SM()
+    await sm.activate_initial_state()
+    assert sm.current_state_value is not None
+    sm._engine.start()  # Should return early
+    assert sm.s1.is_active
+
+
 class TestAsyncEnabledEvents:
     async def test_passing_async_condition(self):
         class MyMachine(StateMachine):
@@ -258,6 +477,28 @@ class TestAsyncEnabledEvents:
         sm = MyMachine()
         await sm.activate_initial_state()
         assert [e.id for e in await sm.enabled_events()] == ["go"]
+
+    async def test_duplicate_event_across_transitions_deduplicated(self):
+        """Same event on multiple passing transitions appears only once."""
+
+        class MyMachine(StateMachine):
+            s0 = State(initial=True)
+            s1 = State()
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_a") | s0.to(s2, cond="cond_b")
+
+            async def cond_a(self):
+                return True
+
+            async def cond_b(self):
+                return True
+
+        sm = MyMachine()
+        await sm.activate_initial_state()
+        ids = [e.id for e in await sm.enabled_events()]
+        assert ids == ["go"]
+        assert len(ids) == 1
 
     async def test_mixed_enabled_and_disabled_async(self):
         class MyMachine(StateMachine):
