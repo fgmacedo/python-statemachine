@@ -1,7 +1,7 @@
 
 # Mixins
 
-Your {ref}`domain models` can be inherited from a custom mixin to auto-instantiate a {ref}`statemachine`.
+Your {ref}`domain models` can be inherited from a custom mixin to auto-instantiate a {ref}`StateChart`.
 
 ## MachineMixin
 
@@ -17,11 +17,11 @@ Your {ref}`domain models` can be inherited from a custom mixin to auto-instantia
 Given a state machine definition:
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
 >>> from statemachine.mixins import MachineMixin
 
->>> class CampaignMachineWithKeys(StateMachine):
+>>> class CampaignMachineWithKeys(StateChart):
 ...     "A workflow machine"
 ...     draft = State('Draft', initial=True, value=1)
 ...     producing = State('Being produced', value=2)
@@ -51,8 +51,8 @@ class.
 
 ```
 
-When an instance of `Workflow` is created, it receives an instance of `CampaignMachineWithKeys``
-assigned using the `state_machine_attr` name. Also, the `current_state` is stored using the `state_field_name`, in this case, `workflow_step`.
+When an instance of `Workflow` is created, it receives an instance of `CampaignMachineWithKeys`
+assigned using the `state_machine_attr` name. Also, the state value is stored using the `state_field_name`, in this case, `workflow_step`.
 
 ``` py
 >>> model = Workflow()
@@ -63,7 +63,7 @@ True
 >>> model.workflow_step
 1
 
->>> model.sm.current_state == model.sm.draft
+>>> model.sm.draft in model.sm.configuration
 True
 
 >>> model.produce()  # `bind_events_as_methods = True` adds triggers to events in the mixin instance
@@ -75,7 +75,7 @@ True
 >>> model.workflow_step
 4
 
->>> model.sm.current_state == model.sm.cancelled
+>>> model.sm.cancelled in model.sm.configuration
 True
 
 ```

@@ -4,7 +4,7 @@
 Support for async code was added!
 ```
 
-The {ref}`StateMachine` fully supports asynchronous code. You can write async {ref}`actions`, {ref}`guards`, and {ref}`events` triggers, while maintaining the same external API for both synchronous and asynchronous codebases.
+The {ref}`StateChart` fully supports asynchronous code. You can write async {ref}`actions`, {ref}`guards`, and {ref}`events` triggers, while maintaining the same external API for both synchronous and asynchronous codebases.
 
 This is achieved through a new concept called **engine**, an internal strategy pattern abstraction that manages transitions and callbacks.
 
@@ -89,7 +89,7 @@ async code with a state machine.
 
 
 ```py
->>> class AsyncStateMachine(StateMachine):
+>>> class AsyncStateMachine(StateChart):
 ...     initial = State('Initial', initial=True)
 ...     final = State('Final', final=True)
 ...
@@ -103,11 +103,11 @@ async code with a state machine.
 ...     sm = AsyncStateMachine()
 ...     result = await sm.advance()
 ...     print(f"Result is {result}")
-...     print(sm.current_state)
+...     print(list(sm.configuration_values))
 
 >>> asyncio.run(run_sm())
 Result is 42
-Final
+['final']
 
 ```
 
@@ -124,8 +124,8 @@ If needed, the state machine will create a loop using `asyncio.new_event_loop()`
 >>> result = sm.advance()
 >>> print(f"Result is {result}")
 Result is 42
->>> print(sm.current_state)
-Final
+>>> print(list(sm.configuration_values))
+['final']
 
 ```
 
@@ -134,26 +134,24 @@ Final
 ## Initial State Activation for Async Code
 
 
-If **on async code** you perform checks against the `current_state`, like a loop `while sm.current_state.is_final:`, then you must manually
-await for the  [activate initial state](statemachine.StateMachine.activate_initial_state) to be able to check the current state.
+If **on async code** you perform checks against the `configuration`, like a loop `while not sm.is_terminated:`, then you must manually
+await for the  [activate initial state](statemachine.StateChart.activate_initial_state) to be able to check the configuration.
 
 ```{hint}
 This manual initial state activation on async is because Python don't allow awaiting at class initalization time and the initial state activation may contain async callbacks that must be awaited.
 ```
 
-If you don't do any check for current state externally, just ignore this as the initial state is activated automatically before the first event trigger is handled.
+If you don't do any check for configuration externally, just ignore this as the initial state is activated automatically before the first event trigger is handled.
 
-You get an error checking the current state before the initial state activation:
+You get an error checking the configuration before the initial state activation:
 
 ```py
 >>> async def initialize_sm():
 ...     sm = AsyncStateMachine()
-...     print(sm.current_state)
+...     print(list(sm.configuration_values))
 
 >>> asyncio.run(initialize_sm())
-Traceback (most recent call last):
-...
-InvalidStateValue: There's no current state set. In async code, did you activate the initial state? (e.g., `await sm.activate_initial_state()`)
+[None]
 
 ```
 
@@ -164,10 +162,10 @@ You can activate the initial state explicitly:
 >>> async def initialize_sm():
 ...     sm = AsyncStateMachine()
 ...     await sm.activate_initial_state()
-...     print(sm.current_state)
+...     print(list(sm.configuration_values))
 
 >>> asyncio.run(initialize_sm())
-Initial
+['initial']
 
 ```
 
@@ -178,10 +176,10 @@ before the event is handled:
 >>> async def initialize_sm():
 ...     sm = AsyncStateMachine()
 ...     await sm.keep()  # first event activates the initial state before the event is handled
-...     print(sm.current_state)
+...     print(list(sm.configuration_values))
 
 >>> asyncio.run(initialize_sm())
-Initial
+['initial']
 
 ```
 
@@ -205,7 +203,7 @@ async def run():
 ### Async-specific limitations
 
 - **Initial state activation**: In async code, you must `await sm.activate_initial_state()`
-  before inspecting `sm.configuration` or `sm.current_state`. In sync code this happens
+  before inspecting `sm.configuration`. In sync code this happens
   automatically at instantiation time.
 - **Delayed events**: Both sync and async engines support `delay=` on `send()`. The async
   engine uses `asyncio.sleep()` internally, so it integrates naturally with event loops.

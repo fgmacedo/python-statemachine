@@ -1,6 +1,6 @@
 # Diagrams
 
-You can generate diagrams from your {ref}`StateMachine`.
+You can generate diagrams from your {ref}`StateChart`.
 
 ```{note}
 This functionality depends on [pydot](https://github.com/pydot/pydot), it means that you need to
@@ -116,7 +116,7 @@ usage: diagram.py [OPTION] <classpath> <out>
 Generate diagrams for StateMachine classes.
 
 positional arguments:
-  classpath   A fully-qualified dotted path to the StateMachine class.
+  classpath   A fully-qualified dotted path to the StateChart class.
   out         File to generate the image using extension as the output format.
 
 optional arguments:

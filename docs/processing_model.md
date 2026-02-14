@@ -16,9 +16,9 @@ queue before processing.
 Consider this state machine:
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ServerConnection(StateMachine):
+>>> class ServerConnection(StateChart):
 ...     disconnected = State(initial=True)
 ...     connecting = State()
 ...     connected = State(final=True)

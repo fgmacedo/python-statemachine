@@ -114,7 +114,7 @@ that will be merged into `**kwargs` for all subsequent callbacks (guards, action
 entry/exit handlers) during that event's processing:
 
 ```python
-class MyMachine(StateMachine):
+class MyMachine(StateChart):
     initial = State(initial=True)
     loop = initial.to.itself()
 

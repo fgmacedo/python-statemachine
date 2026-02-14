@@ -88,7 +88,7 @@ Paulista Avenue after: red--(cycle)-->green
 
 
 ```{hint}
-The `StateMachine` itself is registered as a listener, so by using `listeners` an
+The `StateChart` itself is registered as a listener, so by using `listeners` an
 external object can have the same level of functionalities provided to the built-in class.
 ```
 

@@ -22,7 +22,7 @@ A conditional transition occurs only if specific conditions or criteria are met.
 
 When a transition is conditional, it includes a condition (also known as a _guard_) that must be satisfied for the transition to take place. If the condition is not met, the transition does not occur, and the state machine remains in its current state or follows an alternative path.
 
-This feature allows for multiple transitions on the same {ref}`event`, with each {ref}`transition` checked in **declaration order** — that is, the order in which the transitions themselves were created using `state.to()`. A condition acts like a predicate (a function that evaluates to true/false) and is checked when a {ref}`statemachine` handles an {ref}`event` with a transition from the current state bound to this event. The first transition that meets the conditions (if any) is executed. If none of the transitions meet the conditions, the state machine either raises an exception or does nothing (see the `allow_event_without_transition` parameter of {ref}`StateMachine`).
+This feature allows for multiple transitions on the same {ref}`event`, with each {ref}`transition` checked in **declaration order** — that is, the order in which the transitions themselves were created using `state.to()`. A condition acts like a predicate (a function that evaluates to true/false) and is checked when a {ref}`statemachine` handles an {ref}`event` with a transition from the current state bound to this event. The first transition that meets the conditions (if any) is executed. If none of the transitions meet the conditions, the state machine either raises an exception or does nothing (see the `allow_event_without_transition` attribute of {ref}`StateChart`).
 
 ````{important}
 **Evaluation order is based on declaration order, not composition order.**
@@ -161,18 +161,18 @@ So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an emp
 
 ### Checking enabled events
 
-The {ref}`StateMachine.allowed_events` property returns events reachable from the current state,
+The {ref}`StateChart.allowed_events` property returns events reachable from the current state,
 but it does **not** evaluate `cond`/`unless` guards. To check which events actually have their
-conditions satisfied, use {ref}`StateMachine.enabled_events`.
+conditions satisfied, use {ref}`StateChart.enabled_events`.
 
 ```{testsetup}
 
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
 ```
 
 ```py
->>> class ApprovalMachine(StateMachine):
+>>> class ApprovalMachine(StateChart):
 ...     pending = State(initial=True)
 ...     approved = State(final=True)
 ...     rejected = State(final=True)
@@ -202,7 +202,7 @@ arguments. Any `*args`/`**kwargs` passed to `enabled_events()` are forwarded to 
 condition callbacks, just like when triggering an event:
 
 ```py
->>> class TaskMachine(StateMachine):
+>>> class TaskMachine(StateChart):
 ...     idle = State(initial=True)
 ...     running = State(final=True)
 ...

@@ -1,6 +1,6 @@
 # Actions
 
-Action is the way a {ref}`StateMachine` can cause things to happen in the
+Action is the way a {ref}`StateChart` can cause things to happen in the
 outside world, and indeed they are the main reason why they exist at all.
 
 The main point of introducing a state machine is for the
@@ -11,7 +11,7 @@ Actions are most commonly performed on entry or exit of a state, although
 it is possible to add them before/after a transition.
 
 There are several action callbacks that you can define to interact with a
-StateMachine in execution.
+StateChart in execution.
 
 There are callbacks that you can specify that are generic and will be called
 when something changes, and are not bound to a specific state or event:
@@ -31,9 +31,9 @@ when something changes, and are not bound to a specific state or event:
 The following example offers an overview of the "generic" callbacks available:
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...     final = State(final=True)
 ...
@@ -91,7 +91,7 @@ For each defined {ref}`state`, you can declare `enter` and `exit` callbacks.
 
 ### Bind state actions by naming convention
 
-Callbacks by naming convention will be searched on the StateMachine and on the
+Callbacks by naming convention will be searched on the StateChart and on the
 model, using the patterns:
 
 - `on_enter_<state.id>()`
@@ -100,9 +100,9 @@ model, using the patterns:
 
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
@@ -120,9 +120,9 @@ model, using the patterns:
 Use the `enter` or `exit` params available on the `State` constructor.
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True, enter="entering_initial", exit="leaving_initial")
 ...
 ...     loop = initial.to.itself()
@@ -143,9 +143,9 @@ It's also possible to use an event name as action.
 
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
@@ -179,9 +179,9 @@ using the patterns:
 
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
@@ -201,9 +201,9 @@ using the patterns:
 ### Bind transition actions using params
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself(before="just_before", on="its_happening", after="loop_completed")
@@ -229,9 +229,9 @@ The action will be registered for every {ref}`transition` in the list associated
 
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
@@ -263,9 +263,9 @@ The action will be registered for every {ref}`transition` in the list associated
 You can also declare an event while also adding a callback:
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     @initial.to.itself()
@@ -277,7 +277,7 @@ You can also declare an event while also adding a callback:
 
 Note that with this syntax, the resulting `loop` that is present on the `ExampleStateMachine.loop`
 namespace is not a simple method, but an {ref}`event` trigger. So it only executes if the
-StateMachine is in the right state.
+StateChart is in the right state.
 
 So, you can use the event-oriented approach:
 
@@ -307,7 +307,7 @@ that will be included in `**kwargs` to all other callbacks.
 A not so usefull example:
 
 ```py
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
@@ -399,7 +399,7 @@ Note that `None` will be used if the action callback does not return anything, b
 defined explicitly. The following provides an example:
 
 ```py
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...
 ...     loop = initial.to.itself()
@@ -421,15 +421,15 @@ defined explicitly. The following provides an example:
 
 ```
 
-For {ref}`RTC model`, only the main event will get its value list, while the chained ones simply get
-`None` returned. For {ref}`Non-RTC model`, results for every event will always be collected and returned.
+Only the main event will get its value list, while the chained ones simply get
+`None` returned.
 
 
 (dynamic-dispatch)=
 (dynamic dispatch)=
 ## Dependency injection
 
-{ref}`statemachine` implements a dependency injection mechanism on all available {ref}`Actions` and
+{ref}`StateChart` implements a dependency injection mechanism on all available {ref}`Actions` and
 {ref}`Conditions` that automatically inspects and matches the expected callback params with those available by the library in conjunction with any values informed when calling an event using `*args` and `**kwargs`.
 
 The library ensures that your method signatures match the expected arguments.

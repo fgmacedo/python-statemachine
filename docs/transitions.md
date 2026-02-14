@@ -2,7 +2,7 @@
 
 ```{testsetup}
 
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
 >>> from tests.examples.traffic_light_machine import TrafficLightMachine
 
@@ -14,7 +14,7 @@ A state machine is typically composed of a set of {ref}`state`, {ref}`transition
 and {ref}`actions`. A state is a representation of the system's current condition or behavior.
 A transition represents the change in the system's state in response to an event or condition.
 An event is a trigger that causes the system to transition from one state to another, and action
-is any side-effect, which is the way a StateMachine can cause things to happen in the
+is any side-effect, which is the way a StateChart can cause things to happen in the
 outside world.
 
 
@@ -108,7 +108,8 @@ TransitionList([Transition('Draft', 'Draft', event=[], internal=True, initial=Fa
 Example:
 
 ```py
->>> class TestStateMachine(StateMachine):
+>>> class TestStateMachine(StateChart):
+...     enable_self_transition_entries = False
 ...     initial = State(initial=True)
 ...
 ...     external_loop = initial.to.itself(on="do_something")
@@ -182,7 +183,7 @@ State machine class level. The name will be converted to an {ref}`Event`:
 ```py
 >>> from statemachine import Event
 
->>> class SimpleSM(StateMachine):
+>>> class SimpleSM(StateChart):
 ...     initial = State(initial=True)
 ...     final = State()
 ...
@@ -204,7 +205,7 @@ To declare an explicit event you must also import the {ref}`Event`:
 ```py
 >>> from statemachine import Event
 
->>> class SimpleSM(StateMachine):
+>>> class SimpleSM(StateChart):
 ...     initial = State(initial=True)
 ...     final = State()
 ...
@@ -224,9 +225,9 @@ To declare an explicit event you must also import the {ref}`Event`:
 An {ref}`Event` instance or an event id string can also be used as the `event` parameter of a {ref}`transition`. So you can mix these options as you need.
 
 ```py
->>> from statemachine import State, StateMachine, Event
+>>> from statemachine import State, StateChart, Event
 
->>> class TrafficLightMachine(StateMachine):
+>>> class TrafficLightMachine(StateChart):
 ...     "A traffic light machine"
 ...
 ...     green = State(initial=True)
@@ -346,8 +347,8 @@ You can invoke the event in an imperative syntax:
 >>> machine.cycle()
 'Running Loop from green to yellow'
 
->>> machine.current_state.id
-'yellow'
+>>> [s.id for s in machine.configuration]
+['yellow']
 
 ```
 
@@ -357,8 +358,8 @@ Or in an event-oriented style, events are `send`:
 >>> machine.send("cycle")
 'Running Loop from yellow to red'
 
->>> machine.current_state.id
-'red'
+>>> [s.id for s in machine.configuration]
+['red']
 
 ```
 
@@ -366,14 +367,14 @@ This action is executed before the transition associated with `cycle` event is a
 You can raise an exception at this point to stop a transition from completing.
 
 ```py
->>> machine.current_state.id
-'red'
+>>> [s.id for s in machine.configuration]
+['red']
 
 >>> machine.cycle()
 'Running Loop from red to green'
 
->>> machine.current_state.id
-'green'
+>>> [s.id for s in machine.configuration]
+['green']
 
 ```
 
