@@ -115,6 +115,21 @@ class DoneData:
 
 
 @dataclass
+class InvokeDefinition:
+    type: "str | None" = None
+    typeexpr: "str | None" = None
+    src: "str | None" = None
+    srcexpr: "str | None" = None
+    id: "str | None" = None
+    idlocation: "str | None" = None
+    autoforward: bool = False
+    namelist: "str | None" = None
+    params: List[Param] = field(default_factory=list)
+    content: "str | None" = None
+    finalize: "ExecutableContent | None" = None
+
+
+@dataclass
 class State:
     id: str
     initial: bool = False
@@ -126,6 +141,7 @@ class State:
     states: Dict[str, "State"] = field(default_factory=dict)
     history: Dict[str, "HistoryState"] = field(default_factory=dict)
     donedata: "DoneData | None" = None
+    invocations: "List[InvokeDefinition]" = field(default_factory=list)
 
 
 @dataclass

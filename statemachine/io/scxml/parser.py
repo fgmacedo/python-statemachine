@@ -15,6 +15,7 @@ from .schema import ForeachAction
 from .schema import HistoryState
 from .schema import IfAction
 from .schema import IfBranch
+from .schema import InvokeDefinition
 from .schema import LogAction
 from .schema import Param
 from .schema import RaiseAction
@@ -192,6 +193,11 @@ def parse_state(  # noqa: C901
         child_history_state = parse_history(child_state_elem)
         state.history[child_history_state.id] = child_history_state
 
+    # Parse invoke elements
+    for invoke_elem in state_elem.findall("invoke"):
+        invoke_def = parse_invoke(invoke_elem)
+        state.invocations.append(invoke_def)
+
     # Parse donedata (only valid on final states)
     if is_final:
         donedata_elem = state_elem.find("donedata")
@@ -216,6 +222,53 @@ def parse_donedata(element: ET.Element) -> DoneData:
             if content_expr is None and child.text:
                 content_expr = re.sub(r"\s+", " ", child.text).strip()
     return DoneData(params=params, content_expr=content_expr)
+
+
+def parse_invoke(element: ET.Element) -> InvokeDefinition:
+    """Parse an <invoke> element into an InvokeDefinition."""
+    type_attr = element.attrib.get("type")
+    typeexpr = element.attrib.get("typeexpr")
+    src = element.attrib.get("src")
+    srcexpr = element.attrib.get("srcexpr")
+    id_attr = element.attrib.get("id")
+    idlocation = element.attrib.get("idlocation")
+    autoforward = element.attrib.get("autoforward", "false").lower() == "true"
+    namelist = element.attrib.get("namelist")
+
+    params = []
+    content = None
+    finalize = None
+    for child in element:
+        if child.tag == "param":
+            name = child.attrib["name"]
+            expr = child.attrib.get("expr")
+            location = child.attrib.get("location")
+            params.append(Param(name=name, expr=expr, location=location))
+        elif child.tag == "content":
+            # Inline SCXML content: serialize the child <scxml> element back to string
+            scxml_child = child.find("{http://www.w3.org/2005/07/scxml}scxml")
+            if scxml_child is None:
+                scxml_child = child.find("scxml")
+            if scxml_child is not None:
+                content = ET.tostring(scxml_child, encoding="unicode")
+            elif child.text:
+                content = re.sub(r"\s+", " ", child.text).strip()
+        elif child.tag == "finalize":
+            finalize = parse_executable_content(child)
+
+    return InvokeDefinition(
+        type=type_attr,
+        typeexpr=typeexpr,
+        src=src,
+        srcexpr=srcexpr,
+        id=id_attr,
+        idlocation=idlocation,
+        autoforward=autoforward,
+        namelist=namelist,
+        params=params,
+        content=content,
+        finalize=finalize,
+    )
 
 
 def parse_transition(trans_elem: ET.Element, initial: bool = False) -> Transition:
