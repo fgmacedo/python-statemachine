@@ -4,7 +4,6 @@ from statemachine.exceptions import InvalidDefinition
 from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
-from statemachine import StateMachine
 
 
 class ErrorInGuardSC(StateChart):
@@ -54,8 +53,10 @@ class ErrorInAfterSC(StateChart):
         raise RuntimeError("after failed")
 
 
-class ErrorInGuardSM(StateMachine):
-    """StateMachine subclass: exceptions should propagate."""
+class ErrorInGuardSM(StateChart):
+    """StateChart subclass with error_on_execution=False: exceptions should propagate."""
+
+    error_on_execution = False
 
     initial = State("initial", initial=True)
 
@@ -65,10 +66,8 @@ class ErrorInGuardSM(StateMachine):
         raise RuntimeError("guard failed")
 
 
-class ErrorInActionSMWithFlag(StateMachine):
-    """StateMachine subclass with error_on_execution = True."""
-
-    error_on_execution = True
+class ErrorInActionSMWithFlag(StateChart):
+    """StateChart subclass (error_on_execution = True by default)."""
 
     s1 = State("s1", initial=True)
     s2 = State("s2")
@@ -144,7 +143,7 @@ def test_exception_in_after_sends_error_execution_no_rollback():
 
 
 def test_statemachine_exception_propagates():
-    """StateMachine (error_on_execution=False) should propagate exceptions normally."""
+    """StateChart with error_on_execution=False should propagate exceptions normally."""
     sm = ErrorInGuardSM()
     assert sm.configuration == {sm.initial}
 
@@ -184,7 +183,7 @@ def test_error_in_error_handler_no_infinite_loop():
 
 
 def test_statemachine_with_error_on_execution_true():
-    """Custom StateMachine subclass with error_on_execution=True should catch errors."""
+    """StateChart (error_on_execution=True by default) should catch errors."""
     sm = ErrorInActionSMWithFlag()
     assert sm.configuration == {sm.s1}
 
@@ -496,11 +495,9 @@ class TestErrorConventionLOTR:
         assert sm.configuration == {sm.betrayed}
 
     def test_statemachine_with_convention_and_flag(self):
-        """StateMachine with error_on_execution=True uses the error_ convention."""
+        """StateChart (error_on_execution=True by default) uses the error_ convention."""
 
-        class SarumanBetrayal(StateMachine):
-            error_on_execution = True
-
+        class SarumanBetrayal(StateChart):
             white_council = State("white_council", initial=True)
             orthanc = State("orthanc", final=True)
 
@@ -515,9 +512,11 @@ class TestErrorConventionLOTR:
         assert sm.configuration == {sm.orthanc}
 
     def test_statemachine_without_flag_propagates(self):
-        """StateMachine without error_on_execution=True propagates errors even with convention."""
+        """StateChart with error_on_execution=False propagates errors even with convention."""
 
-        class AragornSword(StateMachine):
+        class AragornSword(StateChart):
+            error_on_execution = False
+
             broken = State("broken", initial=True)
 
             reforge = broken.to(broken, on="attempt_reforge")
@@ -955,7 +954,9 @@ class TestEngineErrorPropagation:
     def test_runtime_error_in_after_without_error_on_execution_propagates(self):
         """RuntimeError in after callback without error_on_execution raises."""
 
-        class SM(StateMachine):
+        class SM(StateChart):
+            error_on_execution = False
+
             s1 = State(initial=True)
             s2 = State(final=True)
 
@@ -989,7 +990,9 @@ class TestEngineErrorPropagation:
     def test_runtime_error_in_microstep_without_error_on_execution(self):
         """RuntimeError in microstep without error_on_execution raises."""
 
-        class SM(StateMachine):
+        class SM(StateChart):
+            error_on_execution = False
+
             s1 = State(initial=True)
             s2 = State()
 
@@ -1007,7 +1010,9 @@ class TestEngineErrorPropagation:
 def test_internal_queue_processes_raised_events():
     """Internal events raised during processing are handled."""
 
-    class SM(StateMachine):
+    class SM(StateChart):
+        error_on_execution = False
+
         s1 = State(initial=True)
         s2 = State()
         s3 = State(final=True)
@@ -1027,7 +1032,9 @@ def test_internal_queue_processes_raised_events():
 def test_engine_start_when_already_started():
     """start() is a no-op when state machine is already initialized."""
 
-    class SM(StateMachine):
+    class SM(StateChart):
+        error_on_execution = False
+
         s1 = State(initial=True)
         s2 = State(final=True)
 
@@ -1092,7 +1099,9 @@ def test_invalid_definition_in_internal_event_propagates():
 def test_runtime_error_in_internal_event_propagates_without_error_on_execution():
     """RuntimeError in internal event propagates when error_on_execution is False."""
 
-    class SM(StateMachine):
+    class SM(StateChart):
+        error_on_execution = False
+
         s1 = State(initial=True)
         s2 = State()
         s3 = State()

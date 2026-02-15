@@ -9,7 +9,7 @@ This works also as a regression test.
 
 ```py
 >>> from statemachine import State
->>> from statemachine import StateMachine
+>>> from statemachine import StateChart
 
 >>> class MyObs:
 ...     def on_move_car(self):
@@ -21,7 +21,7 @@ This works also as a regression test.
 ...
 
 
->>> class Car(StateMachine):
+>>> class Car(StateChart):
 ...     stopped = State(initial=True)
 ...     moving = State()
 ...

@@ -9,7 +9,7 @@ from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.exceptions import InvalidDefinition
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 @pytest.fixture()
@@ -166,7 +166,7 @@ class TestCallbacksAsDecorator:
         assert race_uppercase("Hobbit") == "HOBBIT"
 
     def test_decorate_unbounded_machine_methods(self):
-        class MiniHeroJourneyMachine(StateMachine, strict_states=False):
+        class MiniHeroJourneyMachine(StateChart, strict_states=False):
             ordinary_world = State(initial=True)
             call_to_adventure = State(final=True)
             refusal_of_call = State(final=True)
@@ -222,7 +222,7 @@ class TestIssue406:
     def test_issue_406(self, mocker):
         mock = mocker.Mock()
 
-        class ExampleStateMachine(StateMachine, strict_states=False):
+        class ExampleStateMachine(StateChart, strict_states=False):
             created = State(initial=True)
             inited = State(final=True)
 
@@ -277,7 +277,10 @@ class TestIssue417:
 
     @pytest.fixture()
     def sm_class(self, model_class, mock_calls):
-        class ExampleStateMachine(StateMachine):
+        class ExampleStateMachine(StateChart):
+            allow_event_without_transition = False
+            error_on_execution = False
+
             created = State(initial=True)
             started = State(final=True)
 
@@ -336,7 +339,9 @@ class TestIssue417:
             def this_cannot_resolve(self) -> bool:
                 return True
 
-        class ExampleStateMachine(StateMachine):
+        class ExampleStateMachine(StateChart):
+            error_on_execution = False
+
             created = State(initial=True)
             started = State(final=True)
             start = created.to(started, cond=[StrangeObject.this_cannot_resolve])

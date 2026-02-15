@@ -7,9 +7,9 @@ A StateMachine that exercises the example given on issue
 
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class ExampleStateMachine(StateMachine):
+>>> class ExampleStateMachine(StateChart):
 ...     initial = State(initial=True)
 ...     second = State()
 ...     third = State()
@@ -40,8 +40,8 @@ Exercise:
 >>> example = ExampleStateMachine()
 Entering state initial. Event: __initial__
 
->>> print(example.current_state)
-Initial
+>>> print(list(example.configuration_values))
+['initial']
 
 >>> example.send("initial_to_second") # this will call second_to_third and third_to_fourth
 Entering state second. Event: initial_to_second
@@ -49,7 +49,7 @@ Entering state third. Event: second_to_third
 Entering state fourth. Event: third_to_fourth
 third_to_fourth on on_enter_state worked
 
->>> print("My current state is", example.current_state)
-My current state is Fourth
+>>> print("My current state is", list(example.configuration_values))
+My current state is ['fourth']
 
 ```

@@ -12,13 +12,13 @@ class States:
     """
     A class representing a collection of :ref:`State` objects.
 
-    Helps creating :ref:`StateMachine`'s :ref:`state` definitions from other
+    Helps creating :ref:`StateChart`'s :ref:`state` definitions from other
     sources, like an ``Enum`` class, using :meth:`States.from_enum`.
 
     >>> states_def = [('open', {'initial': True}), ('closed', {'final': True})]
 
-    >>> from statemachine import StateMachine
-    >>> class SM(StateMachine):
+    >>> from statemachine import StateChart
+    >>> class SM(StateChart):
     ...
     ...     states = States({
     ...         name: State(**params) for name, params in states_def
@@ -30,8 +30,8 @@ class States:
 
     >>> sm = SM()
     >>> sm.send("close")
-    >>> sm.current_state.id
-    'closed'
+    >>> sm.closed.is_active
+    True
 
     """
 
@@ -83,7 +83,7 @@ class States:
         return self._states.items()
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, initial, final=None, use_enum_instance: bool = False):
+    def from_enum(cls, enum_type: EnumType, initial, final=None, use_enum_instance: bool = True):
         """
         Creates a new instance of the ``States`` class from an enumeration.
 
@@ -93,10 +93,10 @@ class States:
         ...     pending = 1
         ...     completed = 2
 
-        A :ref:`StateMachine` that uses this enum can be declared as follows:
+        A :ref:`StateChart` that uses this enum can be declared as follows:
 
-        >>> from statemachine import StateMachine
-        >>> class ApprovalMachine(StateMachine):
+        >>> from statemachine import StateChart
+        >>> class ApprovalMachine(StateChart):
         ...
         ...     _ = States.from_enum(Status, initial=Status.pending, final=Status.completed)
         ...
@@ -107,7 +107,7 @@ class States:
 
         .. tip::
             When you assign the result of ``States.from_enum`` to a class-level variable in your
-            :ref:`StateMachine`, you're all set. You can use any name for this variable. In this
+            :ref:`StateChart`, you're all set. You can use any name for this variable. In this
             example, we used ``_`` to show that the name doesn't matter. The metaclass will inspect
             the variable of type :ref:`States (class)` and automatically assign the inner
             :ref:`State` instances to the state machine.
@@ -128,25 +128,25 @@ class States:
         True
 
         >>> sm.current_state_value
-        2
-
-        If you need to use the enum instance as the state value, you can set the
-        ``use_enum_instance=True``:
-
-        >>> states = States.from_enum(Status, initial=Status.pending, use_enum_instance=True)
-        >>> states.completed.value
         <Status.completed: 2>
 
-        .. deprecated:: 2.3.3
+        If you need to use the raw enum value instead of the enum instance, you can set
+        ``use_enum_instance=False``:
 
-            On the next major release, ``use_enum_instance=True`` will be the default.
+        >>> states = States.from_enum(Status, initial=Status.pending, use_enum_instance=False)
+        >>> states.completed.value
+        2
+
+        .. versionchanged:: 3.0.0
+
+            The default changed from ``False`` to ``True``.
 
         Args:
             enum_type: An enumeration containing the states of the machine.
             initial: The initial state of the machine.
             final: A set of final states of the machine.
             use_enum_instance: If ``True``, the value of the state will be the enum item instance,
-                otherwise the enum item value. Defaults to ``False``.
+                otherwise the enum item value. Defaults to ``True``.
 
         Returns:
             A new instance of the :ref:`States (class)`.

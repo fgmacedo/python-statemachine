@@ -40,7 +40,7 @@ def test_microwave_scxml():
     processor.parse_scxml("microwave", MICROWAVE_SCXML)
     sm = processor.start()
 
-    assert sm.current_state.id == "unplugged"
+    assert "unplugged" in sm.current_state_value
     sm.send("plug-in")
 
     assert "idle" in sm.current_state_value

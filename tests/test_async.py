@@ -6,12 +6,13 @@ from statemachine.exceptions import InvalidStateValue
 
 from statemachine import State
 from statemachine import StateChart
-from statemachine import StateMachine
 
 
 @pytest.fixture()
 def async_order_control_machine():  # noqa: C901
-    class OrderControl(StateMachine):
+    class OrderControl(StateChart):
+        allow_event_without_transition = False
+
         waiting_for_payment = State(initial=True)
         processing = State()
         shipping = State()
@@ -98,8 +99,10 @@ def test_async_state_from_sync_context(async_order_control_machine):
     assert sm.completed.is_active
 
 
-class AsyncConditionExpressionMachine(StateMachine):
+class AsyncConditionExpressionMachine(StateChart):
     """Regression test for issue #535: async conditions in boolean expressions."""
+
+    allow_event_without_transition = False
 
     s1 = State(initial=True)
 
@@ -190,17 +193,21 @@ async def test_async_state_should_be_initialized(async_order_control_machine):
     """
 
     sm = async_order_control_machine()
-    with pytest.raises(
-        InvalidStateValue,
-        match=re.escape(
-            r"There's no current state set. In async code, "
-            r"did you activate the initial state? (e.g., `await sm.activate_initial_state()`)"
-        ),
-    ):
-        assert sm.current_state == sm.waiting_for_payment
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with pytest.raises(
+            InvalidStateValue,
+            match=re.escape(
+                r"There's no current state set. In async code, "
+                r"did you activate the initial state? (e.g., `await sm.activate_initial_state()`)"
+            ),
+        ):
+            sm.current_state  # noqa: B018
 
     await sm.activate_initial_state()
-    assert sm.current_state == sm.waiting_for_payment
+    assert sm.waiting_for_payment.is_active
 
 
 @pytest.mark.timeout(5)
@@ -303,7 +310,9 @@ async def test_async_invalid_definition_in_after_propagates():
 async def test_async_runtime_error_in_after_without_error_on_execution():
     """RuntimeError in async after callback without error_on_execution propagates."""
 
-    class SM(StateMachine):
+    class SM(StateChart):
+        error_on_execution = False
+
         s1 = State(initial=True)
         s2 = State(final=True)
 
@@ -384,7 +393,9 @@ async def test_async_engine_invalid_definition_in_after_propagates():
 async def test_async_engine_runtime_error_in_after_without_error_on_execution_propagates():
     """AsyncEngine: RuntimeError in async after callback without error_on_execution raises."""
 
-    class SM(StateMachine):
+    class SM(StateChart):
+        error_on_execution = False
+
         s1 = State(initial=True)
         s2 = State(final=True)
 
@@ -403,7 +414,7 @@ async def test_async_engine_runtime_error_in_after_without_error_on_execution_pr
 async def test_async_engine_start_noop_when_already_initialized():
     """BaseEngine.start() is a no-op when state machine is already initialized."""
 
-    class SM(StateMachine):
+    class SM(StateChart):
         s1 = State(initial=True)
         s2 = State(final=True)
 
@@ -422,7 +433,7 @@ async def test_async_engine_start_noop_when_already_initialized():
 
 class TestAsyncEnabledEvents:
     async def test_passing_async_condition(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -436,7 +447,7 @@ class TestAsyncEnabledEvents:
         assert [e.id for e in await sm.enabled_events()] == ["go"]
 
     async def test_failing_async_condition(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -450,7 +461,7 @@ class TestAsyncEnabledEvents:
         assert await sm.enabled_events() == []
 
     async def test_kwargs_forwarded_to_async_conditions(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -465,7 +476,7 @@ class TestAsyncEnabledEvents:
         assert [e.id for e in await sm.enabled_events(value=20)] == ["go"]
 
     async def test_async_condition_exception_treated_as_enabled(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -481,7 +492,7 @@ class TestAsyncEnabledEvents:
     async def test_duplicate_event_across_transitions_deduplicated(self):
         """Same event on multiple passing transitions appears only once."""
 
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State()
             s2 = State(final=True)
@@ -501,7 +512,7 @@ class TestAsyncEnabledEvents:
         assert len(ids) == 1
 
     async def test_mixed_enabled_and_disabled_async(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State()
             s2 = State(final=True)

@@ -17,6 +17,8 @@ defaults. Review this guide to understand what changed and adopt the new APIs at
 5. Replace `sm.add_observer(...)` with `sm.add_listener(...)`.
 6. Update code that catches `TransitionNotAllowed` and accesses `.state` → use `.configuration`.
 7. Review `on` callbacks that query `is_active` or `current_state` during transitions.
+8. If using `States.from_enum`, note that `use_enum_instance` now defaults to `True`.
+9. If using `get_machine_cls()` with short names, switch to fully-qualified names.
 
 ---
 
@@ -159,8 +161,7 @@ while not sm.is_terminated:
 
 ## Replace `add_observer()` with `add_listener()`
 
-The method `add_observer` has been renamed to `add_listener`. The old name still works but emits
-a `DeprecationWarning`.
+The method `add_observer` has been removed in v3.0. Use `add_listener` instead.
 
 **Before (2.x):**
 
@@ -172,6 +173,51 @@ sm.add_observer(my_listener)
 
 ```python
 sm.add_listener(my_listener)
+```
+
+
+## `States.from_enum` default changed to `use_enum_instance=True`
+
+In 2.x, `States.from_enum` defaulted to `use_enum_instance=False`, meaning state values were the
+raw enum values (e.g., integers). In 3.0, the default is `True`, so state values are the enum
+instances themselves.
+
+**Before (2.x):**
+
+```python
+states = States.from_enum(MyEnum, initial=MyEnum.start)
+# states.start.value == 1  (raw value)
+```
+
+**After (3.0):**
+
+```python
+states = States.from_enum(MyEnum, initial=MyEnum.start)
+# states.start.value == MyEnum.start  (enum instance)
+```
+
+If your code relies on raw enum values, pass `use_enum_instance=False` explicitly.
+
+
+## Short registry names removed
+
+In 2.x, state machine classes were registered both by their fully-qualified name and their short
+class name. The short-name lookup was deprecated since v0.8 and has been removed in 3.0.
+
+**Before (2.x):**
+
+```python
+from statemachine.registry import get_machine_cls
+
+cls = get_machine_cls("MyMachine")  # short name — worked with warning
+```
+
+**After (3.0):**
+
+```python
+from statemachine.registry import get_machine_cls
+
+cls = get_machine_cls("myapp.machines.MyMachine")  # fully-qualified name
 ```
 
 

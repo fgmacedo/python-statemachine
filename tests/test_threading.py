@@ -2,7 +2,7 @@ import threading
 import time
 
 from statemachine.state import State
-from statemachine.statemachine import StateMachine
+from statemachine.statemachine import StateChart
 
 
 def test_machine_should_allow_multi_thread_event_changes():
@@ -10,7 +10,7 @@ def test_machine_should_allow_multi_thread_event_changes():
     Test for https://github.com/fgmacedo/python-statemachine/issues/443
     """
 
-    class CampaignMachine(StateMachine):
+    class CampaignMachine(StateChart):
         "A workflow machine"
 
         draft = State(initial=True)
@@ -27,7 +27,7 @@ def test_machine_should_allow_multi_thread_event_changes():
     thread = threading.Thread(target=off_thread_change_state)
     thread.start()
     thread.join()
-    assert machine.current_state.id == "producing"
+    assert machine.current_state_value == "producing"
 
 
 def test_regression_443():
@@ -38,7 +38,7 @@ def test_regression_443():
     time_to_send = 0.125
     time_sampling_current_state = 0.05
 
-    class TrafficLightMachine(StateMachine):
+    class TrafficLightMachine(StateChart):
         "A traffic light machine"
 
         green = State(initial=True)
@@ -65,7 +65,7 @@ def test_regression_443():
                     sent = True
 
                 waiting_time += time_sampling_current_state
-                self.statuses_history.append(self.fsm.current_state.id)
+                self.statuses_history.append(self.fsm.current_state_value)
                 time.sleep(time_sampling_current_state)
 
     c1 = Controller()
@@ -83,7 +83,7 @@ def test_regression_443_with_modifications():
     time_to_send = 0.125
     time_sampling_current_state = 0.05
 
-    class TrafficLightMachine(StateMachine):
+    class TrafficLightMachine(StateChart):
         "A traffic light machine"
 
         green = State(initial=True)
@@ -105,7 +105,7 @@ def test_regression_443_with_modifications():
                     self.cycle()
                     sent = True
 
-                self.statuses_history.append(f"{self.name}.{self.current_state.id}")
+                self.statuses_history.append(f"{self.name}.{self.current_state_value}")
 
                 time.sleep(time_sampling_current_state)
                 waiting_time += time_sampling_current_state
@@ -135,7 +135,7 @@ async def test_regression_443_with_modifications_for_async_engine():  # noqa: C9
     time_to_send = 0.125
     time_sampling_current_state = 0.05
 
-    class TrafficLightMachine(StateMachine):
+    class TrafficLightMachine(StateChart):
         "A traffic light machine"
 
         green = State(initial=True)
@@ -160,7 +160,7 @@ async def test_regression_443_with_modifications_for_async_engine():  # noqa: C9
                     self.cycle()
                     sent = True
 
-                self.statuses_history.append(f"{self.name}.{self.current_state.id}")
+                self.statuses_history.append(f"{self.name}.{self.current_state_value}")
 
                 time.sleep(time_sampling_current_state)
                 waiting_time += time_sampling_current_state

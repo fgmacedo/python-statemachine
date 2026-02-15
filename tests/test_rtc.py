@@ -4,12 +4,12 @@ from unittest import mock
 import pytest
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 @pytest.fixture()
 def chained_after_sm_class():  # noqa: C901
-    class ChainedSM(StateMachine):
+    class ChainedSM(StateChart):
         a = State(initial=True)
         b = State()
         c = State(final=True)
@@ -45,7 +45,7 @@ def chained_after_sm_class():  # noqa: C901
 
 @pytest.fixture()
 def chained_on_sm_class():  # noqa: C901
-    class ChainedSM(StateMachine):
+    class ChainedSM(StateChart):
         s1 = State(initial=True)
         s2 = State()
         s3 = State()
@@ -174,7 +174,7 @@ class TestAsyncEngineRTC:
         ],
     )
     def test_should_preserve_event_order(self, expected):  # noqa: C901
-        class ChainedSM(StateMachine):
+        class ChainedSM(StateChart):
             s1 = State(initial=True)
             s2 = State()
             s3 = State()
