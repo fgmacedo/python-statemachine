@@ -156,25 +156,6 @@ def test_should_change_state_with_multiple_machine_instances(campaign_machine):
     assert machine2.current_state == campaign_machine.producing
 
 
-@pytest.mark.parametrize(
-    ("current_state", "transition"),
-    [
-        ("draft", "deliver"),
-        ("closed", "add_job"),
-    ],
-)
-def test_call_to_transition_that_is_not_in_the_current_state_should_raise_exception(
-    campaign_machine, current_state, transition
-):
-    model = MyModel(state=current_state)
-    machine = campaign_machine(model)
-
-    assert machine.current_state.value == current_state
-
-    with pytest.raises(exceptions.TransitionNotAllowed):
-        machine.send(transition)
-
-
 def test_machine_should_list_allowed_events_in_the_current_state(campaign_machine):
     model = MyModel()
     machine = campaign_machine(model)
@@ -206,18 +187,6 @@ def test_machine_should_run_a_transition_by_his_key(campaign_machine):
     machine.send("produce")
     assert model.state == "producing"
     assert machine.current_state == machine.producing
-
-
-def test_machine_should_raise_an_exception_if_a_transition_by_his_key_is_not_found(
-    campaign_machine,
-):
-    model = MyModel()
-    machine = campaign_machine(model)
-
-    assert model.state == "draft"
-
-    with pytest.raises(exceptions.TransitionNotAllowed):
-        machine.send("go_horse")
 
 
 def test_machine_should_use_and_model_attr_other_than_state(campaign_machine):

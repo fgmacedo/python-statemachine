@@ -27,9 +27,9 @@ def current_time():
 def campaign_machine():
     "Define a new class for each test"
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class CampaignMachine(StateMachine):
+    class CampaignMachine(StateChart):
         "A workflow machine"
 
         draft = State(initial=True)
@@ -47,10 +47,12 @@ def campaign_machine():
 def campaign_machine_with_validator():
     "Define a new class for each test"
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class CampaignMachine(StateMachine):
+    class CampaignMachine(StateChart):
         "A workflow machine"
+
+        error_on_execution = False
 
         draft = State(initial=True)
         producing = State("Being produced")
@@ -71,9 +73,9 @@ def campaign_machine_with_validator():
 def campaign_machine_with_final_state():
     "Define a new class for each test"
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class CampaignMachine(StateMachine):
+    class CampaignMachine(StateChart):
         "A workflow machine"
 
         draft = State(initial=True)
@@ -91,9 +93,9 @@ def campaign_machine_with_final_state():
 def campaign_machine_with_values():
     "Define a new class for each test"
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class CampaignMachineWithKeys(StateMachine):
+    class CampaignMachineWithKeys(StateChart):
         "A workflow machine"
 
         draft = State(initial=True, value=1)
@@ -131,9 +133,9 @@ def AllActionsMachine():
 @pytest.fixture()
 def classic_traffic_light_machine(engine):
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class TrafficLightMachine(StateMachine):
+    class TrafficLightMachine(StateChart):
         green = State(initial=True)
         yellow = State()
         red = State()
@@ -150,18 +152,16 @@ def classic_traffic_light_machine(engine):
 
 @pytest.fixture()
 def classic_traffic_light_machine_allow_event(classic_traffic_light_machine):
-    class TrafficLightMachineAllowingEventWithoutTransition(classic_traffic_light_machine):
-        allow_event_without_transition = True
-
-    return TrafficLightMachineAllowingEventWithoutTransition
+    """Already allow_event_without_transition=True (StateChart default)."""
+    return classic_traffic_light_machine
 
 
 @pytest.fixture()
 def reverse_traffic_light_machine():
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class ReverseTrafficLightMachine(StateMachine):
+    class ReverseTrafficLightMachine(StateChart):
         "A traffic light machine"
 
         green = State(initial=True)
@@ -177,9 +177,9 @@ def reverse_traffic_light_machine():
 @pytest.fixture()
 def approval_machine(current_time):  # noqa: C901
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class ApprovalMachine(StateMachine):
+    class ApprovalMachine(StateChart):
         "A workflow machine"
 
         requested = State(initial=True)
