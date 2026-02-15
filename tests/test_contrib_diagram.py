@@ -66,6 +66,16 @@ class TestDiagramCmdLine:
             '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg'
         )
 
+    def test_generate_image_from_module_path(self, tmp_path):
+        """Accept a module path without the class name and auto-discover the SM class."""
+        out = tmp_path / "sm.svg"
+
+        main(["tests.examples.traffic_light_machine", str(out)])
+
+        assert out.read_text().startswith(
+            '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg'
+        )
+
     def test_generate_complain_about_bad_sm_path(self, capsys, tmp_path):
         out = tmp_path / "sm.svg"
 
@@ -77,6 +87,13 @@ class TestDiagramCmdLine:
                     str(out),
                 ]
             )
+
+    def test_generate_complain_about_module_without_sm(self, tmp_path):
+        out = tmp_path / "sm.svg"
+
+        expected_error = "No StateMachine subclass found in module"
+        with pytest.raises(ValueError, match=expected_error):
+            main(["tests.examples", str(out)])
 
 
 class TestQuickChart:

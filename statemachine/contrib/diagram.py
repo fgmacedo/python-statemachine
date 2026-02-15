@@ -296,12 +296,37 @@ def quickchart_write_svg(sm: StateChart, path: str):
         f.write(data)
 
 
+def _find_sm_class(module):
+    """Find the first StateChart subclass defined in a module."""
+    import inspect
+
+    for _name, obj in inspect.getmembers(module, inspect.isclass):
+        if (
+            issubclass(obj, StateChart)
+            and obj is not StateChart
+            and obj.__module__ == module.__name__
+        ):
+            return obj
+    return None
+
+
 def import_sm(qualname):
     module_name, class_name = qualname.rsplit(".", 1)
     module = importlib.import_module(module_name)
     smclass = getattr(module, class_name, None)
-    if not smclass or not issubclass(smclass, StateChart):
-        raise ValueError(f"{class_name} is not a subclass of StateMachine")
+    if smclass is not None and isinstance(smclass, type) and issubclass(smclass, StateChart):
+        return smclass
+
+    # qualname may be a module path without a class name — try importing
+    # the whole path as a module and find the first StateChart subclass.
+    try:
+        module = importlib.import_module(qualname)
+    except ImportError as err:
+        raise ValueError(f"{class_name} is not a subclass of StateMachine") from err
+
+    smclass = _find_sm_class(module)
+    if smclass is None:
+        raise ValueError(f"No StateMachine subclass found in module {qualname!r}")
 
     return smclass
 
