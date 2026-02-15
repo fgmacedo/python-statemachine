@@ -1,4 +1,3 @@
-import pytest
 from statemachine.state import State
 from statemachine.statemachine import StateMachine
 
@@ -56,30 +55,6 @@ class TestObserver:
 
         captured = capsys.readouterr()
         assert captured.out == EXPECTED_LOG_CREATION
-
-    def test_deprecated_api(self, campaign_machine, capsys):
-        class LogObserver:
-            def __init__(self, name):
-                self.name = name
-
-            def on_transition(self, event, state, target):
-                print(f"{self.name} on: {state.id}--({event})-->{target.id}")
-
-            def on_enter_state(self, target, event):
-                print(f"{self.name} enter: {target.id} from {event}")
-
-        sm = campaign_machine()
-
-        with pytest.warns(
-            DeprecationWarning, match="Method `add_observer` has been renamed to `add_listener`."
-        ):
-            sm.add_observer(LogObserver("Frodo"))
-
-        sm.add_job()
-        sm.produce()
-
-        captured = capsys.readouterr()
-        assert captured.out == EXPECTED_LOG_ADD
 
 
 def test_regression_456():

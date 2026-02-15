@@ -243,15 +243,6 @@ class StateChart(metaclass=StateMachineMetaclass):
 
         self._callbacks.async_or_sync()
 
-    def add_observer(self, *observers):
-        """Add a listener."""
-        warnings.warn(
-            """Method `add_observer` has been renamed to `add_listener`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.add_listener(*observers)
-
     def add_listener(self, *listeners):
         """Add a listener.
 

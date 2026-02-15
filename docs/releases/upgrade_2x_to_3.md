@@ -159,8 +159,7 @@ while not sm.is_terminated:
 
 ## Replace `add_observer()` with `add_listener()`
 
-The method `add_observer` has been renamed to `add_listener`. The old name still works but emits
-a `DeprecationWarning`.
+The method `add_observer` has been removed in v3.0. Use `add_listener` instead.
 
 **Before (2.x):**
 

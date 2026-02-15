@@ -25,11 +25,8 @@ def test_should_register_a_state_machine(caplog, django_autodiscover_modules):
         add_job = draft.to(draft) | producing.to(producing)
         produce = draft.to(producing)
 
-    assert "CampaignMachine" in registry._REGISTRY
     assert registry.get_machine_cls("tests.test_registry.CampaignMachine") == CampaignMachine
-
-    with pytest.warns(DeprecationWarning, match="fully qualified names"):
-        assert registry.get_machine_cls("CampaignMachine") == CampaignMachine
+    assert "CampaignMachine" not in registry._REGISTRY
 
 
 def test_load_modules_should_call_autodiscover_modules(django_autodiscover_modules):
