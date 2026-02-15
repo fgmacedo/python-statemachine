@@ -132,7 +132,9 @@ class SyncEngine(BaseEngine):
                     if external_event.execution_time > current_time:
                         self.put(external_event, _delayed=True)
                         sleep(self.sm._loop_sleep_in_ms)
-                        continue
+                        # Break to Phase 1 so internal events and eventless
+                        # transitions can be processed while we wait.
+                        break
 
                     logger.debug("External event: %s", external_event.event)
                     # # TODO: Handle cancel event

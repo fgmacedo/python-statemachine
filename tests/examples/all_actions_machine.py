@@ -2,17 +2,17 @@
 All actions machine
 ===================
 
-A StateMachine that exercises all possible :ref:`Actions` and :ref:`Guards`.
+A StateChart that exercises all possible :ref:`Actions` and :ref:`Guards`.
 
 """
 
 from unittest import mock
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class AllActionsMachine(StateMachine):
+class AllActionsMachine(StateChart):
     initial = State(initial=True)
     final = State(final=True)
 

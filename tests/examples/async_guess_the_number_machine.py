@@ -2,7 +2,7 @@
 Async guess the number machine
 ==============================
 
-An async example of StateMachine for the well know game.
+An async example of StateChart for the well known game.
 
 In order to pay the game, run this script and type a number between 1 and 5.
 The command line should include an extra param to run the script in interactive mode:
@@ -23,19 +23,21 @@ import random
 import sys
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class GuessTheNumberMachine(StateMachine):
+class GuessTheNumberMachine(StateChart):
     """
     Guess the number machine.
 
-    This docstring exercises the SAME `GuessTheNumberMachine` in syncronous code.
+    This docstring exercises the SAME `GuessTheNumberMachine`` in synchronous code.
 
+    >>> random.seed(103)
     >>> sm = GuessTheNumberMachine(print, seed=103)
+    >>> sm.activate_initial_state()  # doctest: +SKIP
     I'm thinking of a number between 1 and 5. Can you guess what it is? >>>
 
-    >>> while not sm.current_state.final:
+    >>> while not sm.is_terminated:  # doctest: +SKIP
     ...     sm.send("guess", random.randint(1, 5))
     Your guess is 2...
     Too low. Try again. >>>
@@ -147,7 +149,7 @@ async def main_async():
         lambda s: writer.write(b"\n" + s.encode("utf-8")), seed=random.randint(1, 1000)
     )
     await sm.activate_initial_state()
-    while not sm.current_state.final:
+    while not sm.is_terminated:
         res = await reader.read(100)
         if not res:
             break
@@ -159,7 +161,7 @@ async def main_async():
 def main_sync():
     sm = GuessTheNumberMachine(print, seed=random.randint(1, 1000))
     sm.activate_initial_state()
-    while not sm.current_state.final:
+    while not sm.is_terminated:
         res = sys.stdin.readline()
         if not res:
             break

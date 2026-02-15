@@ -149,6 +149,29 @@ False
 
 ```
 
+### Checking if the machine has terminated
+
+Use the `is_terminated` property to check whether the state machine has reached a final state
+and the engine is no longer running. This is the recommended way to check for completion,
+especially with compound and parallel states where multiple states can be active at once.
+
+```py
+>>> machine.send("produce")
+>>> machine.is_terminated
+False
+
+>>> machine.send("deliver")
+>>> machine.is_terminated
+True
+
+```
+
+```{tip}
+Prefer `sm.is_terminated` over patterns like `sm.current_state.final` or
+`any(s.final for s in sm.configuration)`. It works correctly for all state machine
+topologies -- flat, compound, and parallel.
+```
+
 ## States from Enum types
 
 {ref}`States` can also be declared from standard `Enum` classes.

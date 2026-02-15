@@ -9,10 +9,11 @@ Example that demonstrates the use of Boolean algebra in conditions.
 from statemachine.exceptions import TransitionNotAllowed
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class LordOfTheRingsQuestStateMachine(StateMachine):
+class LordOfTheRingsQuestStateMachine(StateChart):
+    allow_event_without_transition = False
     # Define the states
     shire = State("In the Shire", initial=True)
     bree = State("In Bree")

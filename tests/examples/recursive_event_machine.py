@@ -9,10 +9,11 @@ in the queue is processed.
 """
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class MyStateMachine(StateMachine):
+class MyStateMachine(StateChart):
+    error_on_execution = False
     startup = State(initial=True)
     test = State()
 

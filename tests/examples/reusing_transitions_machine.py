@@ -23,10 +23,10 @@ TrafficLightIsolatedTransitions
 """
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class TrafficLightMachine(StateMachine):
+class TrafficLightMachine(StateChart):
     "A traffic light machine"
 
     green = State(initial=True)
@@ -63,7 +63,7 @@ sm.send("cycle")
 # %%
 
 
-class TrafficLightIsolatedTransitions(StateMachine):
+class TrafficLightIsolatedTransitions(StateChart):
     "A traffic light machine"
 
     green = State(initial=True)

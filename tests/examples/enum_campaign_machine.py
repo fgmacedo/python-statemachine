@@ -2,7 +2,7 @@
 Enum campaign machine
 =====================
 
-A :ref:`StateMachine` that demonstrates declaring :ref:`States from Enum types` as source for
+A :ref:`StateChart` that demonstrates declaring :ref:`States from Enum types` as source for
 ``States`` definition.
 
 """
@@ -11,7 +11,7 @@ from enum import Enum
 
 from statemachine.states import States
 
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 class CampaignStatus(Enum):
@@ -20,7 +20,7 @@ class CampaignStatus(Enum):
     CLOSED = 3
 
 
-class CampaignMachine(StateMachine):
+class CampaignMachine(StateChart):
     "A workflow machine"
 
     states = States.from_enum(
@@ -57,5 +57,5 @@ res = sm.send("produce")
 assert sm.DRAFT.is_active is False
 assert sm.PRODUCING.is_active is True
 assert sm.CLOSED.is_active is False
-assert sm.current_state == sm.PRODUCING
-assert sm.current_state_value == CampaignStatus.PRODUCING
+assert sm.PRODUCING in sm.configuration
+assert CampaignStatus.PRODUCING in sm.configuration_values

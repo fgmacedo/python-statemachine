@@ -2,7 +2,7 @@
 Guess the number machine
 ========================
 
-An StateMachine for the well know game.
+A StateChart for the well known game.
 
 Well leave the machine imagine a number and also play the game. Why not?
 
@@ -11,10 +11,11 @@ Well leave the machine imagine a number and also play the game. Why not?
 import random
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class GuessTheNumberMachine(StateMachine):
+class GuessTheNumberMachine(StateChart):
+    allow_event_without_transition = False
     start = State(initial=True)
     low = State()
     high = State()

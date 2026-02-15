@@ -428,7 +428,7 @@ class StateChart(metaclass=StateMachineMetaclass):
         event: str,
         *args,
         delay: float = 0,
-        event_id: "str | None" = None,
+        send_id: "str | None" = None,
         internal: bool = False,
         **kwargs,
     ):
@@ -437,6 +437,8 @@ class StateChart(metaclass=StateMachineMetaclass):
         :param event: The trigger for the state machine, specified as an event id string.
         :param args: Additional positional arguments to pass to the event.
         :param delay: A time delay in milliseconds to process the event. Default is 0.
+        :param send_id: An identifier for the event, used with ``cancel_event()`` to cancel
+            delayed events.
         :param kwargs: Additional keyword arguments to pass to the event.
 
         .. seealso::
@@ -451,12 +453,12 @@ class StateChart(metaclass=StateMachineMetaclass):
         event_instance = BoundEvent(
             id=event, name=event_name, delay=delay, internal=internal, _sm=self
         )
-        result = event_instance(*args, event_id=event_id, **kwargs)
+        result = event_instance(*args, send_id=send_id, **kwargs)
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
 
-    def raise_(self, event: str, *args, delay: float = 0, event_id: "str | None" = None, **kwargs):
+    def raise_(self, event: str, *args, delay: float = 0, send_id: "str | None" = None, **kwargs):
         """Send an :ref:`Event` to the state machine in the internal event queue.
 
         Events on the internal queue are processed immediately on the current step of the
@@ -466,7 +468,7 @@ class StateChart(metaclass=StateMachineMetaclass):
 
             See: :ref:`triggering events`.
         """
-        return self.send(event, *args, delay=delay, event_id=event_id, internal=True, **kwargs)
+        return self.send(event, *args, delay=delay, send_id=send_id, internal=True, **kwargs)
 
     def cancel_event(self, send_id: str):
         """Cancel all the delayed events with the given ``send_id``."""
@@ -474,6 +476,12 @@ class StateChart(metaclass=StateMachineMetaclass):
 
     @property
     def is_terminated(self):
+        """Whether the state machine has reached a final state.
+
+        Returns ``True`` when a top-level final state has been entered and the
+        engine is no longer running.  This is the recommended way to check for
+        completion -- it works for flat, compound, and parallel topologies.
+        """
         return not self._engine.running
 
 

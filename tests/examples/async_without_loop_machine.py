@@ -8,10 +8,10 @@ is synchronous.
 """
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class AsyncStateMachine(StateMachine):
+class AsyncStateMachine(StateChart):
     initial = State("Initial", initial=True)
     processing = State()
     final = State("Final", final=True)
@@ -37,8 +37,8 @@ def sync_main():
     print(f"Start result is {result}")
     result = sm.send("finish")
     print(f"Finish result is {result}")
-    print(sm.current_state)
-    assert sm.current_state == sm.final
+    print(list(sm.configuration))
+    assert sm.final in sm.configuration
 
 
 if __name__ == "__main__":

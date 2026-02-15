@@ -645,10 +645,10 @@ light = Event(dark.to(lit), delay=100)
 ```
 
 Delayed events remain in the queue until their execution time arrives. They can be
-cancelled before firing by providing an `event_id` and calling `cancel_event()`:
+cancelled before firing by providing a `send_id` and calling `cancel_event()`:
 
 ```python
-sm.send("light_beacons", delay=5000, event_id="beacon_signal")
+sm.send("light_beacons", delay=5000, send_id="beacon_signal")
 sm.cancel_event("beacon_signal")  # removed from queue
 ```
 

@@ -2,15 +2,17 @@
 Order control machine
 ---------------------
 
-An StateMachine that demonstrates :ref:`Guards` being used to control the state flow.
+A StateChart that demonstrates :ref:`Guards` being used to control the state flow.
 
 """
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class OrderControl(StateMachine):
+class OrderControl(StateChart):
+    allow_event_without_transition = False
+    enable_self_transition_entries = False
     waiting_for_payment = State(initial=True)
     processing = State()
     shipping = State()

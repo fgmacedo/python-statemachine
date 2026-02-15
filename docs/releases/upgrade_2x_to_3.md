@@ -130,6 +130,33 @@ single value and works as before. But we strongly recommend using `configuration
 ```
 
 
+## Replace `current_state.final` with `is_terminated`
+
+If you checked whether the machine had reached a final state via `current_state.final`, use the
+new `is_terminated` property instead. It works correctly for all topologies (flat, compound, and
+parallel).
+
+**Before (2.x):**
+
+```python
+if sm.current_state.final:
+    print("done")
+
+while not sm.current_state.final:
+    sm.send("next")
+```
+
+**After (3.0):**
+
+```python
+if sm.is_terminated:
+    print("done")
+
+while not sm.is_terminated:
+    sm.send("next")
+```
+
+
 ## Replace `add_observer()` with `add_listener()`
 
 The method `add_observer` has been renamed to `add_listener`. The old name still works but emits
@@ -256,11 +283,11 @@ The `send()` method has new optional parameters for delayed events and internal 
 sm.send("event_name", *args, **kwargs)
 
 # 3.0 signature (fully backward compatible)
-sm.send("event_name", *args, delay=0, event_id=None, internal=False, **kwargs)
+sm.send("event_name", *args, delay=0, send_id=None, internal=False, **kwargs)
 ```
 
 - `delay`: Time in milliseconds before the event is processed.
-- `event_id`: Identifier for the event, used to cancel delayed events with `sm.cancel_event(event_id)`.
+- `send_id`: Identifier for the event, used to cancel delayed events with `sm.cancel_event(send_id)`.
 - `internal`: If `True`, the event is placed in the internal queue (processed in the current macrostep).
 
 Existing code calling `sm.send("event")` works unchanged.

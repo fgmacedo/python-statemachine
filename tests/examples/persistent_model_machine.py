@@ -22,10 +22,10 @@ from abc import ABC
 from abc import abstractmethod
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class ResourceManagement(StateMachine):
+class ResourceManagement(StateChart):
     power_off = State(initial=True)
     power_on = State()
 

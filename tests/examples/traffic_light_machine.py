@@ -4,7 +4,7 @@
 Traffic light machine
 ---------------------
 
-This example demonstrates how to create a traffic light machine using the `statemachine` library.
+This example demonstrates how to create a traffic light machine using the ``StateChart`` class.
 
 The state machine will run in a dedicated thread and will cycle through the states.
 
@@ -15,10 +15,10 @@ from threading import Event as ThreadingEvent
 from threading import Thread
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class TrafficLightMachine(StateMachine):
+class TrafficLightMachine(StateChart):
     "A traffic light machine"
 
     green = State(initial=True)
@@ -36,7 +36,7 @@ class TrafficLightMachine(StateMachine):
 
 
 class Supervisor:
-    def __init__(self, sm: StateMachine, sm_event: str):
+    def __init__(self, sm: StateChart, sm_event: str):
         self.sm = sm
         self.sm_event = sm_event
         self.stop_event = ThreadingEvent()
