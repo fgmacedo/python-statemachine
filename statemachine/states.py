@@ -12,13 +12,13 @@ class States:
     """
     A class representing a collection of :ref:`State` objects.
 
-    Helps creating :ref:`StateMachine`'s :ref:`state` definitions from other
+    Helps creating :ref:`StateChart`'s :ref:`state` definitions from other
     sources, like an ``Enum`` class, using :meth:`States.from_enum`.
 
     >>> states_def = [('open', {'initial': True}), ('closed', {'final': True})]
 
-    >>> from statemachine import StateMachine
-    >>> class SM(StateMachine):
+    >>> from statemachine import StateChart
+    >>> class SM(StateChart):
     ...
     ...     states = States({
     ...         name: State(**params) for name, params in states_def
@@ -30,8 +30,8 @@ class States:
 
     >>> sm = SM()
     >>> sm.send("close")
-    >>> sm.current_state.id
-    'closed'
+    >>> sm.closed.is_active
+    True
 
     """
 
