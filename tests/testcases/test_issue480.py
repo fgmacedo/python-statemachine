@@ -12,10 +12,10 @@ from unittest.mock import MagicMock
 from unittest.mock import call
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class MyStateMachine(StateMachine):
+class MyStateMachine(StateChart):
     state_1 = State(initial=True)
     state_2 = State(final=True)
 
@@ -53,4 +53,4 @@ def test_initial_state_activation_handler():
     ]
 
     assert sm.mock.mock_calls == expected_calls
-    assert sm.current_state == sm.state_2
+    assert sm.state_2.is_active

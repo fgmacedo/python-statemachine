@@ -3,7 +3,7 @@ from time import sleep
 import pytest
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 class Model:
@@ -11,7 +11,9 @@ class Model:
         self.data = data
 
 
-class DataCheckerMachine(StateMachine):
+class DataCheckerMachine(StateChart):
+    error_on_execution = False
+
     check_data = State(initial=True)
     data_good = State(final=True)
     data_bad = State(final=True)
@@ -50,11 +52,11 @@ def test_max_cycle_without_success(data_checker_machine):
     sm = data_checker_machine
     cycle_rate = 0.1
 
-    while not sm.current_state.final:
+    while not sm.is_terminated:
         sm.cycle()
         sleep(cycle_rate)
 
-    assert sm.current_state == sm.data_bad
+    assert sm.data_bad.is_active
     assert sm.cycle_count == 12
 
 
@@ -62,12 +64,12 @@ def test_data_turns_good_mid_cycle(initial_data):
     sm = DataCheckerMachine(Model(initial_data))
     cycle_rate = 0.1
 
-    while not sm.current_state.final:
+    while not sm.is_terminated:
         sm.cycle()
         if sm.cycle_count == 5:
             print("Now data looks good!")
             sm.model.data["value"] = 20
         sleep(cycle_rate)
 
-    assert sm.current_state == sm.data_good
+    assert sm.data_good.is_active
     assert sm.cycle_count == 6  # Transition occurs at the 6th cycle
