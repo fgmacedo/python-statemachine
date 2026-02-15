@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import logging
 from itertools import chain
 from time import time
@@ -21,12 +22,62 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# ContextVar to distinguish reentrant calls (from within callbacks) from
+# concurrent external calls. asyncio propagates context to child tasks
+# (e.g., those created by asyncio.gather in the callback system), so a
+# ContextVar set in the processing loop is visible in all callbacks.
+# Independent external coroutines have their own context where this is False.
+_in_processing_loop: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_in_processing_loop", default=False
+)
+
+
 class AsyncEngine(BaseEngine):
     """Async engine with full StateChart support.
 
     Mirrors :class:`SyncEngine` algorithm but uses ``async``/``await`` for callback dispatch.
     All pure-computation helpers are inherited from :class:`BaseEngine`.
     """
+
+    def put(self, trigger_data: TriggerData, internal: bool = False, _delayed: bool = False):
+        """Override to attach an asyncio.Future for external events.
+
+        Futures are only created when:
+        - The event is external (not internal)
+        - No future is already attached
+        - There is a running asyncio loop
+        - The call is NOT from within the processing loop (reentrant calls
+          from callbacks must not get futures, as that would deadlock)
+        """
+        if not internal and trigger_data.future is None and not _in_processing_loop.get():
+            try:
+                loop = asyncio.get_running_loop()
+                trigger_data.future = loop.create_future()
+            except RuntimeError:
+                pass  # No running loop — sync caller
+        super().put(trigger_data, internal=internal, _delayed=_delayed)
+
+    @staticmethod
+    def _resolve_future(future: "asyncio.Future[object] | None", result):
+        """Resolve a future with the given result, if present and not yet done."""
+        if future is not None and not future.done():
+            future.set_result(result)
+
+    @staticmethod
+    def _reject_future(future: "asyncio.Future[object] | None", exc: Exception):
+        """Reject a future with the given exception, if present and not yet done."""
+        if future is not None and not future.done():
+            future.set_exception(exc)
+
+    def _reject_pending_futures(self, exc: Exception):
+        """Reject all unresolved futures in the external queue.
+
+        Called when the processing loop exits abnormally so that coroutines
+        awaiting their futures don't hang forever.
+        """
+        with self.external_queue.queue.mutex:
+            for trigger_data in self.external_queue.queue.queue:
+                self._reject_future(trigger_data.future, exc)
 
     # --- Callback dispatch overrides (async versions of BaseEngine methods) ---
 
@@ -265,16 +316,27 @@ class AsyncEngine(BaseEngine):
         """
         return await self.processing_loop()
 
-    async def processing_loop(self):  # noqa: C901
+    async def processing_loop(  # noqa: C901
+        self, caller_future: "asyncio.Future[object] | None" = None
+    ):
         """Process event triggers with the 3-phase macrostep architecture.
 
         Phase 1: Eventless transitions + internal queue until quiescence.
         Phase 2: Remaining internal events (safety net for invoke-generated events).
         Phase 3: External events.
+
+        When ``caller_future`` is provided, the caller can ``await`` it to
+        receive its own event's result — even if another coroutine holds the
+        processing lock.
         """
         if not self._processing.acquire(blocking=False):
+            # Another coroutine holds the lock and will process our event.
+            # Await the caller's future so we get our own result back.
+            if caller_future is not None:
+                return await caller_future
             return None
 
+        _ctx_token = _in_processing_loop.set(True)
         logger.debug("Processing loop started: %s", self.sm.current_state_value)
         first_result = self._sentinel
         try:
@@ -336,26 +398,53 @@ class AsyncEngine(BaseEngine):
                         )
                         break
 
-                    enabled_transitions = await self.select_transitions(external_event)
-                    logger.debug("Enabled transitions: %s", enabled_transitions)
-                    if enabled_transitions:
-                        try:
+                    event_future = external_event.future
+                    try:
+                        enabled_transitions = await self.select_transitions(external_event)
+                        logger.debug("Enabled transitions: %s", enabled_transitions)
+                        if enabled_transitions:
                             result = await self.microstep(
                                 list(enabled_transitions), external_event
                             )
+                            self._resolve_future(event_future, result)
                             if first_result is self._sentinel:
                                 first_result = result
-                        except Exception:
-                            self.clear()
-                            raise
+                        else:
+                            if not self.sm.allow_event_without_transition:
+                                tna = TransitionNotAllowed(
+                                    external_event.event, self.sm.configuration
+                                )
+                                self._reject_future(event_future, tna)
+                                self._reject_pending_futures(tna)
+                                raise tna
+                            # Event allowed but no transition — resolve with None
+                            self._resolve_future(event_future, None)
+                    except Exception as exc:
+                        self._reject_future(event_future, exc)
+                        self._reject_pending_futures(exc)
+                        self.clear()
+                        raise
 
-                    else:
-                        if not self.sm.allow_event_without_transition:
-                            raise TransitionNotAllowed(external_event.event, self.sm.configuration)
-
+        except Exception as exc:
+            if caller_future is not None:
+                # Route the exception to the caller's future if still pending.
+                # If already resolved (caller's own event succeeded before a
+                # later event failed), suppress the exception — the caller will
+                # get their successful result via ``await future`` below, and
+                # the failing event's exception was already routed to *its*
+                # caller's future by ``_reject_future(event_future, ...)``.
+                self._reject_future(caller_future, exc)
+            else:
+                raise
         finally:
+            _in_processing_loop.reset(_ctx_token)
             self._processing.release()
-        return first_result if first_result is not self._sentinel else None
+
+        result = first_result if first_result is not self._sentinel else None
+        # If the caller has a future, await it (already resolved by now).
+        if caller_future is not None:
+            return await caller_future
+        return result
 
     async def enabled_events(self, *args, **kwargs):
         sm = self.sm

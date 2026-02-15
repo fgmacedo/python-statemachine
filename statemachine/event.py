@@ -156,8 +156,8 @@ class Event(AddCallbacksMixin, str):
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
-        self.put(*args, **kwargs)
-        return self._sm._processing_loop()  # type: ignore[union-attr]
+        trigger_data = self.put(*args, **kwargs)
+        return self._sm._processing_loop(trigger_data.future)  # type: ignore[union-attr]
 
     def split(  # type: ignore[override]
         self, sep: "str | None" = None, maxsplit: int = -1

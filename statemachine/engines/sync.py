@@ -57,7 +57,7 @@ class SyncEngine(BaseEngine):
                 self._processing.release()
         return self.processing_loop()
 
-    def processing_loop(self):  # noqa: C901
+    def processing_loop(self, caller_future=None):  # noqa: C901
         """Process event triggers.
 
         The event is put on a queue, and only the first event will have the result collected.

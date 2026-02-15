@@ -146,6 +146,15 @@ uv run mypy statemachine/ tests/
 
 ## Design principles
 
+- **Follow SOLID principles.** In particular:
+  - **Law of Demeter:** Methods should depend only on the data they need, not on the
+    objects that contain it. Pass the specific value (e.g., a `Future`) rather than the
+    parent object (e.g., `TriggerData`) — this reduces coupling and removes the need for
+    null-checks on intermediate accessors.
+  - **Single Responsibility:** Each module, class, and function should have one clear reason
+    to change.
+  - **Interface Segregation:** Depend on narrow interfaces. If a helper only needs one field
+    from a dataclass, accept that field directly.
 - **Decouple infrastructure from domain:** Modules like `signature.py` and `dispatcher.py` are
   general-purpose (signature adaptation, listener/observer pattern) and intentionally not coupled
   to the state machine domain. Prefer this separation even for modules that are only used
@@ -162,6 +171,13 @@ uv run sphinx-build docs docs/_build/html
 # Live reload for development
 uv run sphinx-autobuild docs docs/_build/html --re-ignore "auto_examples/.*"
 ```
+
+### Documentation code examples
+
+All code examples in `docs/*.md` **must** be testable doctests (using ```` ```py ```` with
+`>>>` prompts), not plain ```` ```python ```` blocks. The test suite collects them via
+`--doctest-glob=*.md`. If an example cannot be expressed as a doctest (e.g., it requires
+real concurrency), write it as a unit test in `tests/` and reference it from the docs instead.
 
 ## Git workflow
 
