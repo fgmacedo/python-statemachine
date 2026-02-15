@@ -322,6 +322,8 @@ Starting from version 2.4.0, use `Event.id` to check for event identifiers inste
 ```
 
 
+(triggering-events)=
+
 ### Triggering events
 
 Triggering an event on a state machine means invoking or sending a signal, initiating the
@@ -376,6 +378,51 @@ You can raise an exception at this point to stop a transition from completing.
 >>> [s.id for s in machine.configuration]
 ['green']
 
+```
+
+#### External vs internal events
+
+{func}`send() <StateMachine.send>` places events on the **external queue**. External events
+are only processed after the current macrostep completes (i.e., after all eventless and
+internal events have been handled).
+
+{func}`raise_() <StateMachine.raise_>` places events on the **internal queue**. Internal
+events are processed **immediately** within the current macrostep, before any pending external
+events. This is equivalent to calling `send(..., internal=True)`.
+
+Use `raise_()` inside callbacks when you want the event to be handled as part of the current
+processing cycle — for example, to trigger auto-recovery after an error or to chain
+transitions atomically:
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class TwoStepChart(StateChart):
+...     idle = State("Idle", initial=True)
+...     step1 = State("Step 1")
+...     step2 = State("Step 2")
+...
+...     start = idle.to(step1)
+...     advance = step1.to(step2)
+...     reset = step2.to(idle)
+...
+...     def on_enter_step1(self):
+...         self.raise_("advance")  # processed before the macrostep ends
+...
+...     def on_enter_step2(self):
+...         self.raise_("reset")
+
+>>> sm = TwoStepChart()
+>>> sm.send("start")
+>>> [s.id for s in sm.configuration]
+['idle']
+
+```
+
+All three transitions (`start → advance → reset`) are processed within a single macrostep.
+
+```{seealso}
+See {ref}`error-execution` for using `raise_()` in error recovery patterns.
 ```
 
 (eventless)=

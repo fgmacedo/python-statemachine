@@ -213,6 +213,21 @@ If an error occurs while processing the `error.execution` event itself, the engi
 ignores the second error (logging a warning) to prevent infinite loops. The state machine
 remains in the configuration it was in before the failed error handler.
 
+### Cleanup / finalize pattern
+
+A common need is to run cleanup code after a transition **regardless of success or failure**
+— for example, releasing a lock or closing a resource.
+
+Because `StateChart` catches errors at the **block level** (not the microstep level),
+`after_<event>()` callbacks still run even when an action raises an exception. This makes
+`after_<event>()` a natural **finalize** hook — no need to duplicate cleanup logic in
+an error handler.
+
+For error-specific handling (logging, recovery), define an `error.execution` transition
+and use {func}`raise_() <StateMachine.raise_>` to auto-recover within the same macrostep.
+
+See the full working example in {ref}`sphx_glr_auto_examples_statechart_cleanup_machine.py`.
+
 (compound-states)=
 ## Compound states
 

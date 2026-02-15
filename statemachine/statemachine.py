@@ -461,12 +461,13 @@ class StateChart(metaclass=StateMachineMetaclass):
     def raise_(self, event: str, *args, delay: float = 0, send_id: "str | None" = None, **kwargs):
         """Send an :ref:`Event` to the state machine in the internal event queue.
 
-        Events on the internal queue are processed immediately on the current step of the
-        interpreter.
+        Events on the internal queue are processed immediately within the current
+        macrostep, before any pending external events. This is equivalent to calling
+        ``send(..., internal=True)``.
 
         .. seealso::
 
-            See: :ref:`triggering events`.
+            See: :ref:`triggering-events`.
         """
         return self.send(event, *args, delay=delay, send_id=send_id, internal=True, **kwargs)
 

@@ -13,18 +13,60 @@ Django integration, diagram generation, and a flexible callback/listener system.
 
 ## Architecture
 
-- `statemachine.py` — Core `StateMachine` class
+- `statemachine.py` — Core `StateMachine` and `StateChart` classes
 - `factory.py` — `StateMachineMetaclass` handles class construction, state/transition validation
 - `state.py` / `event.py` — Descriptor-based `State` and `Event` definitions
 - `transition.py` / `transition_list.py` — Transition logic and composition (`|` operator)
 - `callbacks.py` — Priority-based callback registry (`CallbackPriority`, `CallbackGroup`)
 - `dispatcher.py` — Listener/observer pattern, `callable_method` wraps callables with signature adaptation
 - `signature.py` — `SignatureAdapter` for dependency injection into callbacks
-- `engines/sync.py`, `engines/async_.py` — Sync and async run-to-completion engines
+- `engines/base.py` — Shared engine logic (microstep, transition selection, error handling)
+- `engines/sync.py`, `engines/async_.py` — Sync and async processing loops
 - `registry.py` — Global state machine registry (used by `MachineMixin`)
 - `mixins.py` — `MachineMixin` for domain model integration (e.g., Django models)
 - `spec_parser.py` — Boolean expression parser for condition guards
 - `contrib/diagram.py` — Diagram generation via pydot/Graphviz
+
+## Processing model
+
+The engine follows the SCXML run-to-completion (RTC) model with two processing levels:
+
+- **Microstep**: atomic execution of one transition set (before → exit → on → enter → after).
+- **Macrostep**: complete processing cycle for one external event; repeats microsteps until
+  the machine reaches a **stable configuration** (no eventless transitions enabled, internal
+  queue empty).
+
+### Event queues
+
+- `send()` → **external queue** (processed after current macrostep ends).
+- `raise_()` → **internal queue** (processed within the current macrostep, before external events).
+
+### Error handling (`error_on_execution`)
+
+- `StateChart` has `error_on_execution=True` by default; `StateMachine` has `False`.
+- Errors are caught at the **block level** (per onentry/onexit block), not per microstep.
+- This means `after` callbacks still run even when an action raises — making `after_<event>()`
+  a natural **finalize** hook (runs on both success and failure paths).
+- `error.execution` is dispatched as an internal event; define transitions for it to handle
+  errors within the statechart.
+- Error during `error.execution` handling → ignored to prevent infinite loops.
+
+### Eventless transitions
+
+- Bare transition statements (not assigned to a variable) are **eventless** — they fire
+  automatically when their guard condition is met.
+- Assigned transitions (e.g., `go = s1.to(s2)`) create **named events**.
+- `error_` prefix naming convention: `error_X` auto-registers both `error_X` and `error.X`
+  event names (explicit `id=` takes precedence).
+
+### Callback conventions
+
+- Generic callbacks (always available): `prepare_event()`, `before_transition()`,
+  `on_transition()`, `on_exit_state()`, `on_enter_state()`, `after_transition()`.
+- Event-specific: `before_<event>()`, `on_<event>()`, `after_<event>()`.
+- State-specific: `on_enter_<state>()`, `on_exit_<state>()`.
+- `on_error_execution()` works via naming convention but **only** when a transition for
+  `error.execution` is declared — it is NOT a generic callback.
 
 ## Environment setup
 
