@@ -193,12 +193,73 @@ compound states, parallel states, history pseudo-states, eventless transitions,
 and `done.state` events — are fully supported in async code. The same
 `activate_initial_state()` pattern applies:
 
-```python
-async def run():
-    sm = MyStateChart()
-    await sm.activate_initial_state()
-    await sm.send("event")
+```py
+>>> async def run():
+...     sm = AsyncStateMachine()
+...     await sm.activate_initial_state()
+...     result = await sm.send("advance")
+...     return result
+
+>>> asyncio.run(run())
+42
+
 ```
+
+### Concurrent event sending
+
+```{versionadded} 3.0.0
+```
+
+When multiple coroutines send events concurrently (e.g., via `asyncio.gather`),
+each caller receives its own event's result — even though only one coroutine
+actually runs the processing loop at a time.
+
+```py
+>>> class ConcurrentSC(StateChart):
+...     s1 = State(initial=True)
+...     s2 = State()
+...     s3 = State(final=True)
+...
+...     step1 = s1.to(s2)
+...     step2 = s2.to(s3)
+...
+...     async def on_step1(self):
+...         return "result_1"
+...
+...     async def on_step2(self):
+...         return "result_2"
+
+>>> async def run_concurrent():
+...     import asyncio as _asyncio
+...     sm = ConcurrentSC()
+...     await sm.activate_initial_state()
+...     r1, r2 = await _asyncio.gather(
+...         sm.send("step1"),
+...         sm.send("step2"),
+...     )
+...     return r1, r2
+
+>>> asyncio.run(run_concurrent())
+('result_1', 'result_2')
+
+```
+
+Under the hood, the async engine attaches an `asyncio.Future` to each
+externally enqueued event. The coroutine that acquires the processing lock
+resolves each event's future as it processes the queue. Callers that couldn't
+acquire the lock simply `await` their future.
+
+```{note}
+Futures are only created for **external** events sent from outside the
+processing loop. Events triggered from within callbacks (reentrant calls)
+follow the existing run-to-completion (RTC) model — they are enqueued and
+processed within the current macrostep, and the callback receives ``None``.
+```
+
+If an exception occurs during processing (with `error_on_execution=False`),
+the exception is routed to the caller whose event caused it. Other callers
+whose events were still pending will also receive the exception, since the
+processing loop clears the queue on failure.
 
 ### Async-specific limitations
 

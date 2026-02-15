@@ -36,6 +36,13 @@ class TriggerData:
     kwargs: dict = field(default_factory=dict, compare=False)
     """All keyword arguments provided on the :ref:`Event`."""
 
+    future: Any = field(default=None, compare=False, repr=False, init=False)
+    """An optional :class:`asyncio.Future` for async result routing.
+
+    When set, the processing loop will resolve this future with the microstep
+    result (or exception), allowing the caller to ``await`` it.
+    """
+
     def __post_init__(self):
         self.model = self.machine.model
         delay = self.event.delay if self.event and self.event.delay else 0

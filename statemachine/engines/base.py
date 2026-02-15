@@ -59,6 +59,18 @@ class EventQueue:
         with self.queue.mutex:
             self.queue.queue.clear()
 
+    def reject_futures(self, exc: Exception):
+        """Reject all unresolved futures in the queue.
+
+        Called when the processing loop exits abnormally so that coroutines
+        awaiting their futures don't hang forever.
+        """
+        with self.queue.mutex:
+            for trigger_data in self.queue.queue:
+                future = trigger_data.future
+                if future is not None and not future.done():
+                    future.set_exception(exc)
+
     def remove(self, send_id: str):
         # We use the internal `queue` to make thins faster as the mutex
         # is protecting the block below

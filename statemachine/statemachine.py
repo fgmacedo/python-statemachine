@@ -175,8 +175,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             return result
         return run_async_from_sync(result)
 
-    def _processing_loop(self) -> Any:
-        result = self._engine.processing_loop()
+    def _processing_loop(self, caller_future: "Any | None" = None) -> Any:
+        result = self._engine.processing_loop(caller_future)
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
