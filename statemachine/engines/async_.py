@@ -70,14 +70,8 @@ class AsyncEngine(BaseEngine):
             future.set_exception(exc)
 
     def _reject_pending_futures(self, exc: Exception):
-        """Reject all unresolved futures in the external queue.
-
-        Called when the processing loop exits abnormally so that coroutines
-        awaiting their futures don't hang forever.
-        """
-        with self.external_queue.queue.mutex:
-            for trigger_data in self.external_queue.queue.queue:
-                self._reject_future(trigger_data.future, exc)
+        """Reject all unresolved futures in the external queue."""
+        self.external_queue.reject_futures(exc)
 
     # --- Callback dispatch overrides (async versions of BaseEngine methods) ---
 

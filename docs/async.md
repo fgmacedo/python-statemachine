@@ -193,11 +193,16 @@ compound states, parallel states, history pseudo-states, eventless transitions,
 and `done.state` events — are fully supported in async code. The same
 `activate_initial_state()` pattern applies:
 
-```python
-async def run():
-    sm = MyStateChart()
-    await sm.activate_initial_state()
-    await sm.send("event")
+```py
+>>> async def run():
+...     sm = AsyncStateMachine()
+...     await sm.activate_initial_state()
+...     result = await sm.send("advance")
+...     return result
+
+>>> asyncio.run(run())
+42
+
 ```
 
 ### Concurrent event sending

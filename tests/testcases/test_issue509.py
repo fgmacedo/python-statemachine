@@ -31,7 +31,7 @@ class Issue509SC(StateChart):
     )
 
     async def do_nothing(self, name):
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.01)
         return f"Did nothing via {name}"
 
     def raise_exception(self):
