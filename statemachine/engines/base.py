@@ -20,6 +20,7 @@ from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
+from ..invoke import InvokeManager
 from ..orderedset import OrderedSet
 from ..state import HistoryState
 from ..state import State
@@ -94,6 +95,8 @@ class BaseEngine:
         self.running = True
         self._processing = Lock()
         self._cache: Dict = {}  # Cache for _get_args_kwargs results
+        self.invoke_manager = InvokeManager(self)
+        self.states_to_invoke: "OrderedSet[State]" = OrderedSet()
 
     def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
@@ -485,6 +488,13 @@ class BaseEngine:
         for info in ordered_states:
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
+            # Cancel invocations for states being exited
+            if info.state is not None and getattr(info.state, "invocations", None):
+                self.invoke_manager.cancel_for_state(info.state)
+
+            # Remove from states_to_invoke if we exit before invoking
+            self.states_to_invoke.discard(info.state)
+
             # Execute `onexit` handlers — same per-block error isolation as onentry.
             if info.state is not None:  # pragma: no branch
                 self.sm._callbacks.call(info.state.exit.key, *args, on_error=on_error, **kwargs)
@@ -556,6 +566,7 @@ class BaseEngine:
         """Handle final state entry: queue done events. No direct callback dispatch."""
         if target.parent is None:
             self.running = False
+            self.invoke_manager.cancel_all()
         else:
             parent = target.parent
             grandparent = parent.parent
@@ -644,6 +655,10 @@ class BaseEngine:
                     previous_configuration=previous_configuration,
                     new_configuration=new_configuration,
                 )
+
+            # Track states with invocations for post-macrostep spawning
+            if getattr(target, "invocations", None):
+                self.states_to_invoke.add(target)
 
             # Handle final states
             if target.final:

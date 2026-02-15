@@ -24,6 +24,9 @@ class TriggerData:
     Allow revoking a delayed :ref:`TriggerData` instance.
     """
 
+    invokeid: "str | None" = field(compare=False, default=None)
+    """The invoke id of the child session that generated this event, if any."""
+
     execution_time: float = field(default=0.0)
     """The time at which the :ref:`Event` should run."""
 

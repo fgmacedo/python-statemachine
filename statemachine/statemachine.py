@@ -450,6 +450,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         *args,
         delay: float = 0,
         send_id: "str | None" = None,
+        invokeid: "str | None" = None,
         internal: bool = False,
         **kwargs,
     ) -> Any:
@@ -460,6 +461,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         :param delay: A time delay in milliseconds to process the event. Default is 0.
         :param send_id: An identifier for the event, used with ``cancel_event()`` to cancel
             delayed events.
+        :param invokeid: The invoke id of the child session that generated this event, if any.
         :param kwargs: Additional keyword arguments to pass to the event.
 
         .. seealso::
@@ -474,7 +476,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         event_instance = BoundEvent(
             id=event, name=event_name, delay=delay, internal=internal, _sm=self
         )
-        result = event_instance(*args, send_id=send_id, **kwargs)
+        result = event_instance(*args, send_id=send_id, invokeid=invokeid, **kwargs)
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)

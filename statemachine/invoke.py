@@ -168,7 +168,11 @@ class InvokeManager:
         invocation: Invocation,
         trigger_data: Any,
     ) -> "StateChart | None":
-        """Create and return a child StateChart instance."""
+        """Create and return a child StateChart instance.
+
+        Sets ``_parent_sm`` and ``_invokeid`` on the child class before
+        instantiation so that ``#_parent`` sends work during initial entry.
+        """
         from .io.scxml.processor import SCXMLProcessor
 
         bridge = ParentBridge(self.sm, invokeid, invocation)
@@ -177,10 +181,21 @@ class InvokeManager:
         child_sm: "StateChart | None" = None
 
         if child_class is not None:
-            child_sm = child_class(listeners=[bridge])
+            # For user-provided classes, set parent refs on the class temporarily
+            child_class._parent_sm = self.sm  # type: ignore[attr-defined]
+            child_class._invokeid = invokeid  # type: ignore[attr-defined]
+            try:
+                child_sm = child_class(listeners=[bridge])
+            finally:
+                # Clean up class-level attrs (they're now on the instance)
+                del child_class._parent_sm  # type: ignore[attr-defined]
+                del child_class._invokeid  # type: ignore[attr-defined]
         elif config.content:
             processor = SCXMLProcessor()
             processor.parse_scxml(f"invoke_{invokeid}", config.content)
+            child_cls = next(iter(processor.scs.values()))
+            child_cls._parent_sm = self.sm  # type: ignore[attr-defined]
+            child_cls._invokeid = invokeid  # type: ignore[attr-defined]
             child_sm = processor.start(listeners=[bridge])
         elif config.src:
             from pathlib import Path
@@ -191,13 +206,16 @@ class InvokeManager:
                 path = Path(parsed.path) if parsed.scheme == "file" else Path(config.src)
                 processor = SCXMLProcessor()
                 processor.parse_scxml_file(path)
+                child_cls = next(iter(processor.scs.values()))
+                child_cls._parent_sm = self.sm  # type: ignore[attr-defined]
+                child_cls._invokeid = invokeid  # type: ignore[attr-defined]
                 child_sm = processor.start(listeners=[bridge])
 
         if child_sm is None:
             logger.warning("Could not create child for invoke %s", invokeid)
             return None
 
-        # Set parent references on child
+        # Ensure instance-level parent references are set
         child_sm._parent_sm = self.sm  # type: ignore[attr-defined]
         child_sm._invokeid = invokeid  # type: ignore[attr-defined]
 

@@ -206,6 +206,7 @@ class State:
         enter: Any = None,
         exit: Any = None,
         donedata: Any = None,
+        invoke: "Any | None" = None,
         _callbacks: Any = None,
     ):
         self.name = name
@@ -220,6 +221,7 @@ class State:
         self._id: str = ""
         self._callbacks = _callbacks
         self.parent: "State | None" = None
+        self.invocations: list = self._normalize_invoke(invoke)
         self.transitions = TransitionList()
         self._specs = CallbackSpecList()
         self.enter = self._specs.grouper(CallbackGroup.ENTER).add(
@@ -234,6 +236,15 @@ class State:
             self.enter.add(donedata, priority=CallbackPriority.INLINE)
         self.document_order = 0
         self._init_states()
+
+    @staticmethod
+    def _normalize_invoke(invoke: Any) -> list:
+        """Normalize the invoke parameter into a list of InvokeConfig."""
+        if invoke is None:
+            return []
+        if isinstance(invoke, list):
+            return invoke
+        return [invoke]
 
     def _init_states(self):
         for state in self.states:
@@ -436,6 +447,10 @@ class InstanceState(State):
     @property
     def is_compound(self):
         return self._ref().is_compound
+
+    @property
+    def invocations(self):
+        return self._ref().invocations
 
     @property
     def document_order(self):

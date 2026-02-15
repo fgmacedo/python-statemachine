@@ -46,6 +46,7 @@ class BaseStateKwargs(TypedDict, total=False):
     enter: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
     exit: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
     donedata: "ActionProtocol | None"
+    invoke: "Any"
 
 
 class StateKwargs(BaseStateKwargs, total=False):

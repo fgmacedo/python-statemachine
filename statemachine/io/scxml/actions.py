@@ -112,6 +112,7 @@ class EventDataWrapper:
     def __init__(self, event_data):
         self.event_data = event_data
         self.sendid = event_data.trigger_data.send_id
+        self.invokeid = event_data.trigger_data.invokeid or ""
         if event_data.trigger_data.event is None or event_data.trigger_data.event.internal:
             if "error.execution" == event_data.trigger_data.event:
                 self.type = "platform"
@@ -364,9 +365,60 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
     return raise_action
 
 
+def _send_to_parent(machine: "StateChart", event: str, content: Any, params_values: dict):
+    """Route an event to the parent session via #_parent."""
+    parent_sm = getattr(machine, "_parent_sm", None)
+    if parent_sm is not None:
+        child_invokeid = getattr(machine, "_invokeid", None)
+        parent_sm.send(event, *content, invokeid=child_invokeid, **params_values)
+    else:
+        machine.send("error.communication", internal=True)
+
+
+def _send_to_child(machine: "StateChart", event: str, params_values: dict):
+    """Route an event to the first active child via #_child."""
+    if hasattr(machine, "_engine") and hasattr(machine._engine, "invoke_manager"):
+        machine._engine.invoke_manager.send_to_child(event, **params_values)
+    else:
+        machine.send("error.communication", internal=True)
+
+
+def _send_to_invokeid(
+    machine: "StateChart", target: str, event: str, action: SendAction, **kwargs
+):
+    """Route an event to a specific child by #_<invokeid>."""
+    invokeid = target[2:]
+    if hasattr(machine, "_engine") and hasattr(machine._engine, "invoke_manager"):
+        params_values = {}
+        for param in action.params:
+            if param.expr:
+                params_values[param.name] = _eval(param.expr, **kwargs)
+        machine._engine.invoke_manager.send_to_invokeid(invokeid, event, **params_values)
+    elif target.startswith("#_scxml_"):
+        machine.send("error.communication", internal=True)
+    else:
+        raise ValueError(f"Invalid target: {target}")
+
+
+def _eval_send_params(action: SendAction, **kwargs) -> dict:
+    """Evaluate namelist and <param> into a dict of keyword arguments."""
+    machine: "StateChart" = kwargs["machine"]
+    names = []
+    for name in (action.namelist or "").strip().split():
+        if not hasattr(machine.model, name):
+            raise NameError(f"Namelist variable '{name}' not found on model")
+        names.append(Param(name=name, expr=name))
+    params_values = {}
+    for param in chain(names, action.params):
+        if param.expr is None:
+            continue
+        params_values[param.name] = _eval(param.expr, **kwargs)
+    return params_values
+
+
 def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
     content: Any = ()
-    _valid_targets = (None, "#_internal", "internal", "#_parent", "parent")
+    _valid_targets = (None, "#_internal", "internal", "#_parent", "parent", "#_child")
     if action.content:
         try:
             content = (eval(action.content, {}, {}),)
@@ -379,22 +431,35 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
         target = action.target if action.target else None
 
         if action.type and action.type != "http://www.w3.org/TR/scxml/#SCXMLEventProcessor":
-            # Per SCXML spec 6.2.3, unsupported type raises error.execution
             raise ValueError(
                 f"Unsupported send type: {action.type}. "
                 "Only 'http://www.w3.org/TR/scxml/#SCXMLEventProcessor' is supported"
             )
+
         if target not in _valid_targets:
             if target and target.startswith("#_scxml_"):
-                # Valid SCXML session reference but undispatchable → error.communication
+                # Valid SCXML session reference but undispatchable -> error.communication
                 machine.send("error.communication", internal=True)
+                return
+            elif target and target.startswith("#_"):
+                # Handle #_invokeid target (send to specific child by invoke id)
+                _send_to_invokeid(machine, target, event, action, **kwargs)
+                return
             else:
-                # Invalid target expression → error.execution (raised as exception)
                 raise ValueError(f"Invalid target: {target}. Must be one of {_valid_targets}")
             return
 
-        internal = target in ("#_internal", "internal")
+        params_values = _eval_send_params(action, **kwargs)
 
+        # Handle cross-session targets
+        if target in ("#_parent", "parent"):
+            _send_to_parent(machine, event, content, params_values)
+            return
+        if target == "#_child":
+            _send_to_child(machine, event, params_values)
+            return
+
+        internal = target in ("#_internal", "internal")
         send_id = None
         if action.id:
             send_id = action.id
@@ -403,20 +468,6 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
             setattr(machine.model, action.idlocation, send_id)
 
         delay = ParseTime.parse_delay(action.delay, action.delayexpr, **kwargs)
-
-        # Per SCXML spec, if namelist evaluation causes an error (e.g., variable not found),
-        # the send MUST NOT be dispatched and error.execution is raised.
-        names = []
-        for name in (action.namelist or "").strip().split():
-            if not hasattr(machine.model, name):
-                raise NameError(f"Namelist variable '{name}' not found on model")
-            names.append(Param(name=name, expr=name))
-        params_values = {}
-        for param in chain(names, action.params):
-            if param.expr is None:
-                continue
-            params_values[param.name] = _eval(param.expr, **kwargs)
-
         Event(id=event, name=event, delay=delay, internal=internal, _sm=machine).put(
             *content,
             send_id=send_id,

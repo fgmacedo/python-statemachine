@@ -8,6 +8,7 @@ from typing import List
 
 from ...event import Event
 from ...exceptions import InvalidDefinition
+from ...invoke import InvokeConfig
 from ...statemachine import StateChart
 from .. import HistoryDefinition
 from .. import StateDefinition
@@ -21,6 +22,7 @@ from .actions import ExecuteBlock
 from .actions import create_datamodel_action_callable
 from .parser import parse_scxml
 from .schema import HistoryState
+from .schema import InvokeDefinition
 from .schema import State
 from .schema import Transition
 
@@ -155,7 +157,7 @@ class SCXMLProcessor:
             states_dict[state_id] = self._process_state(state)
         return states_dict
 
-    def _process_state(self, state: State) -> StateDefinition:
+    def _process_state(self, state: State) -> StateDefinition:  # noqa: C901
         state_dict = StateDefinition()
         if state.initial:
             state_dict["initial"] = True
@@ -188,7 +190,32 @@ class SCXMLProcessor:
         if state.history:
             state_dict["history"] = self._process_history(state.history)
 
+        # Process invocations
+        if state.invocations:
+            state_dict["invoke"] = [  # type: ignore[typeddict-unknown-key]
+                self._process_invocation(inv) for inv in state.invocations
+            ]
+
         return state_dict
+
+    def _process_invocation(self, invoke_def: InvokeDefinition) -> InvokeConfig:
+        """Convert a parsed InvokeDefinition into a runtime InvokeConfig."""
+        finalize = None
+        if invoke_def.finalize and not invoke_def.finalize.is_empty:
+            finalize = ExecuteBlock(invoke_def.finalize)
+
+        return InvokeConfig(
+            invoke_type=invoke_def.type,
+            src=invoke_def.src,
+            srcexpr=invoke_def.srcexpr,
+            id=invoke_def.id,
+            idlocation=invoke_def.idlocation,
+            autoforward=invoke_def.autoforward,
+            namelist=invoke_def.namelist,
+            params=invoke_def.params,
+            content=invoke_def.content,
+            finalize=finalize,
+        )
 
     def _process_transitions(self, transitions: List[Transition]):
         result: TransitionsList = []

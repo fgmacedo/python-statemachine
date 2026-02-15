@@ -121,17 +121,26 @@ class Event(AddCallbacksMixin, str):
             return self
         return BoundEvent(id=self.id, name=self.name, delay=self.delay, _sm=instance)
 
-    def put(self, *args, send_id: "str | None" = None, **kwargs):
+    def put(self, *args, send_id: "str | None" = None, invokeid: "str | None" = None, **kwargs):
         # The `__call__` is declared here to help IDEs knowing that an `Event`
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
         assert self._sm is not None
-        trigger_data = self.build_trigger(*args, machine=self._sm, send_id=send_id, **kwargs)
+        trigger_data = self.build_trigger(
+            *args, machine=self._sm, send_id=send_id, invokeid=invokeid, **kwargs
+        )
         self._sm._put_nonblocking(trigger_data, internal=self.internal)
         return trigger_data
 
-    def build_trigger(self, *args, machine: "StateChart", send_id: "str | None" = None, **kwargs):
+    def build_trigger(
+        self,
+        *args,
+        machine: "StateChart",
+        send_id: "str | None" = None,
+        invokeid: "str | None" = None,
+        **kwargs,
+    ):
         if machine is None:
             raise RuntimeError(_("Event {} cannot be called without a SM instance").format(self))
 
@@ -140,6 +149,7 @@ class Event(AddCallbacksMixin, str):
             machine=machine,
             event=self,
             send_id=send_id,
+            invokeid=invokeid,
             args=args,
             kwargs=kwargs,
         )
