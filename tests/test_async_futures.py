@@ -10,6 +10,8 @@ See: https://github.com/fgmacedo/python-statemachine/issues/509
 import asyncio
 
 import pytest
+from statemachine.engines.base import EventQueue
+from statemachine.event_data import TriggerData
 
 from statemachine import State
 from statemachine import StateChart
@@ -320,3 +322,20 @@ class TestFutureEdgeCases:
         assert results["fn1"] == "noop ok"
         assert "fn2" in errors
         assert str(errors["fn2"]) == "noop2 is not allowed"
+
+
+class TestEventQueueRejectFutures:
+    """Unit tests for EventQueue.reject_futures."""
+
+    def test_reject_futures_skips_items_without_future(self):
+        """Items with future=None are silently skipped."""
+        sm = TrafficLight()
+
+        queue = EventQueue()
+        td = TriggerData(machine=sm, event=None)
+        assert td.future is None
+        queue.put(td)
+
+        queue.reject_futures(RuntimeError("boom"))
+        # No exception raised, item still in queue
+        assert not queue.is_empty()
