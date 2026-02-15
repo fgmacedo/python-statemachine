@@ -360,78 +360,86 @@ class InstanceState(State):
         self._machine = ref(machine)
         self._init_states()
 
+    def _ref(self) -> State:
+        """Dereference the weakref, raising if the referent has been collected."""
+        state = self._state()
+        assert state is not None
+        return state
+
     @property
     def name(self):
-        return self._state().name
+        return self._ref().name
 
     @property
     def value(self):
-        return self._state().value
+        return self._ref().value
 
     @property
     def transitions(self):
-        return self._state().transitions
+        return self._ref().transitions
 
     @property
     def enter(self):
-        return self._state().enter
+        return self._ref().enter
 
     @property
     def exit(self):
-        return self._state().exit
+        return self._ref().exit
 
     def __eq__(self, other):
-        return self._state() == other
+        return self._ref() == other
 
     def __hash__(self):
-        return hash(repr(self._state()))
+        return hash(repr(self._ref()))
 
     def __repr__(self):
-        return repr(self._state())
+        return repr(self._ref())
 
     @property
     def initial(self):
-        return self._state()._initial
+        return self._ref()._initial
 
     @property
     def final(self):
-        return self._state()._final
+        return self._ref()._final
 
     @property
     def id(self) -> str:
-        return (self._state() or self)._id
+        return (self._state() or self)._id  # type: ignore[union-attr]
 
     @property
     def is_active(self):
-        return self.value in self._machine().configuration_values
+        machine = self._machine()
+        assert machine is not None
+        return self.value in machine.configuration_values
 
     @property
     def is_atomic(self):
-        return self._state().is_atomic
+        return self._ref().is_atomic
 
     @property
     def parent(self):
-        return self._state().parent
+        return self._ref().parent
 
     @property
     def states(self):
-        return self._state().states
+        return self._ref().states
 
     @property
     def history(self):
-        return self._state().history
+        return self._ref().history
 
     @property
     def parallel(self):
-        return self._state().parallel
+        return self._ref().parallel
 
     @property
     def is_compound(self):
-        return self._state().is_compound
+        return self._ref().is_compound
 
     @property
     def document_order(self):
-        return self._state().document_order
+        return self._ref().document_order
 
 
 class AnyState(State):

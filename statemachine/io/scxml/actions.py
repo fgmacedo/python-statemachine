@@ -159,6 +159,8 @@ def _eval(expr: str, **kwargs) -> Any:
 
 
 class CallableAction:
+    action: Any
+
     def __init__(self):
         self.__qualname__ = f"{self.__class__.__module__}.{self.__class__.__name__}"
 
@@ -373,7 +375,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
 
     def send_action(*args, **kwargs):
         machine: StateChart = kwargs["machine"]
-        event = action.event or _eval(action.eventexpr, **kwargs)
+        event = action.event or _eval(action.eventexpr, **kwargs)  # type: ignore[arg-type]
         target = action.target if action.target else None
 
         if action.type and action.type != "http://www.w3.org/TR/scxml/#SCXMLEventProcessor":

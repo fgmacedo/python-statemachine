@@ -194,7 +194,7 @@ def callable_method(a_callable) -> Callable:
 
     if sig.is_coroutine:
 
-        async def signature_adapter(*args: Any, **kwargs: Any) -> Any:
+        async def signature_adapter(*args: Any, **kwargs: Any) -> Any:  # pyright: ignore[reportRedeclaration]
             ba = sig_bind_expected(*args, **kwargs)
             return await a_callable(*ba.args, **ba.kwargs)
     else:

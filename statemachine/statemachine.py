@@ -3,14 +3,18 @@ from inspect import isawaitable
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Generic
 from typing import List
 from typing import MutableSet
+from typing import TypeVar
 
 from statemachine.orderedset import OrderedSet
 
 from .callbacks import SPECS_ALL
 from .callbacks import SPECS_SAFE
+from .callbacks import CallbackSpecList
 from .callbacks import CallbacksRegistry
+from .callbacks import SpecListGrouper
 from .callbacks import SpecReference
 from .dispatcher import Listener
 from .dispatcher import Listeners
@@ -30,9 +34,12 @@ from .utils import run_async_from_sync
 if TYPE_CHECKING:
     from .event import Event
     from .state import State
+    from .states import States
+
+TModel = TypeVar("TModel")
 
 
-class StateChart(metaclass=StateMachineMetaclass):
+class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     """
 
     Args:
@@ -97,14 +104,42 @@ class StateChart(metaclass=StateMachineMetaclass):
     If empty (default), the root ``initial`` state will be used.
     """
 
+    # -- Attributes set by StateMachineMetaclass during class construction --
+
+    name: str
+    """The class name of the state machine (e.g. ``"TrafficLightMachine"``)."""
+
+    id: str
+    """Lowercase version of :attr:`name` (e.g. ``"trafficlightmachine"``)."""
+
+    states: "States"
+    """Collection of top-level :ref:`State` objects declared on this class."""
+
+    states_map: Dict[Any, "State"]
+    """Mapping from each state's ``value`` to the corresponding :ref:`State` instance.
+    Includes states at all nesting levels (compound children, parallel regions, etc.)."""
+
+    initial_state: "State | None"
+    """The single top-level initial :ref:`State`, or ``None`` for abstract classes."""
+
+    final_states: "List[State]"
+    """List of top-level :ref:`State` objects marked as ``final``."""
+
+    _abstract: bool
+    _strict_states: bool
+    _events: "Dict[Event, None]"
+    _protected_attrs: set
+    _specs: CallbackSpecList
+    prepare: SpecListGrouper
+
     def __init__(
         self,
-        model: Any = None,
+        model: "TModel | None" = None,
         state_field: str = "state",
         start_value: Any = None,
         listeners: "List[object] | None" = None,
     ):
-        self.model = model if model is not None else Model()
+        self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
         self.history_values: Dict[
             str, List[State]
         ] = {}  # Mapping of compound states to last active state(s).
@@ -134,13 +169,13 @@ class StateChart(metaclass=StateMachineMetaclass):
 
         return SyncEngine(self)
 
-    def activate_initial_state(self):
+    def activate_initial_state(self) -> Any:
         result = self._engine.activate_initial_state()
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
 
-    def _processing_loop(self):
+    def _processing_loop(self) -> Any:
         result = self._engine.processing_loop()
         if not isawaitable(result):
             return result
@@ -149,11 +184,6 @@ class StateChart(metaclass=StateMachineMetaclass):
     def __init_subclass__(cls, strict_states: bool = False):
         cls._strict_states = strict_states
         super().__init_subclass__()
-
-    if TYPE_CHECKING:
-        """Makes mypy happy with dynamic created attributes"""
-
-        def __getattr__(self, attribute: str) -> Any: ...
 
     def __repr__(self):
         configuration_ids = [s.id for s in self.configuration]
@@ -169,13 +199,13 @@ class StateChart(metaclass=StateMachineMetaclass):
         del state["_engine"]
         return state
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Dict[str, Any]) -> None:
         listeners = state.pop("_listeners")
-        self.__dict__.update(state)
+        self.__dict__.update(state)  # type: ignore[attr-defined]
         self._callbacks = CallbacksRegistry()
-        self._states_for_instance: Dict[State, State] = {}
+        self._states_for_instance = {}
 
-        self._listeners: Dict[Any, Any] = {}
+        self._listeners = {}
 
         self._register_callbacks([])
         self.add_listener(*listeners.values())
@@ -186,7 +216,7 @@ class StateChart(metaclass=StateMachineMetaclass):
         initial_state_values = (
             self.start_configuration_values
             if self.start_configuration_values
-            else [self.initial_state.value]
+            else [self.initial_state.value]  # type: ignore[union-attr]
         )
         try:
             return [self.states_map[value] for value in initial_state_values]
@@ -263,7 +293,7 @@ class StateChart(metaclass=StateMachineMetaclass):
         return f'<div class="statemachine">{self._repr_svg_()}</div>'
 
     def _repr_svg_(self):
-        return self._graph().create_svg().decode()
+        return self._graph().create_svg().decode()  # type: ignore[attr-defined]
 
     def _graph(self):
         from .contrib.diagram import DotGraphMachine
@@ -392,7 +422,7 @@ class StateChart(metaclass=StateMachineMetaclass):
             for event in state.transitions.unique_events
         ]
 
-    def enabled_events(self, *args, **kwargs):
+    def enabled_events(self, *args, **kwargs) -> Any:
         """List of the current enabled events, considering guard conditions.
 
         An event is **enabled** if at least one of its transitions from the current
@@ -422,7 +452,7 @@ class StateChart(metaclass=StateMachineMetaclass):
         send_id: "str | None" = None,
         internal: bool = False,
         **kwargs,
-    ):
+    ) -> Any:
         """Send an :ref:`Event` to the state machine.
 
         :param event: The trigger for the state machine, specified as an event id string.
@@ -449,7 +479,9 @@ class StateChart(metaclass=StateMachineMetaclass):
             return result
         return run_async_from_sync(result)
 
-    def raise_(self, event: str, *args, delay: float = 0, send_id: "str | None" = None, **kwargs):
+    def raise_(
+        self, event: str, *args, delay: float = 0, send_id: "str | None" = None, **kwargs
+    ) -> Any:
         """Send an :ref:`Event` to the state machine in the internal event queue.
 
         Events on the internal queue are processed immediately within the current

@@ -37,14 +37,14 @@ class CampaignMachine(StateChart):
 # %%
 # Asserting campaign machine declaration
 
-assert CampaignMachine.DRAFT.initial
-assert not CampaignMachine.DRAFT.final
+assert CampaignMachine.states.DRAFT.initial
+assert not CampaignMachine.states.DRAFT.final
 
-assert not CampaignMachine.PRODUCING.initial
-assert not CampaignMachine.PRODUCING.final
+assert not CampaignMachine.states.PRODUCING.initial
+assert not CampaignMachine.states.PRODUCING.final
 
-assert not CampaignMachine.CLOSED.initial
-assert CampaignMachine.CLOSED.final
+assert not CampaignMachine.states.CLOSED.initial
+assert CampaignMachine.states.CLOSED.final
 
 
 # %%
@@ -53,8 +53,7 @@ assert CampaignMachine.CLOSED.final
 sm = CampaignMachine()
 res = sm.send("produce")
 
-assert sm.DRAFT.is_active is False
-assert sm.PRODUCING.is_active is True
-assert sm.CLOSED.is_active is False
-assert sm.PRODUCING in sm.configuration
+assert CampaignStatus.DRAFT not in sm.configuration_values
+assert CampaignStatus.PRODUCING in sm.configuration_values
+assert CampaignStatus.CLOSED not in sm.configuration_values
 assert CampaignStatus.PRODUCING in sm.configuration_values

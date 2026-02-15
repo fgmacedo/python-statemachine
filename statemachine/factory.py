@@ -1,8 +1,8 @@
 import warnings
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Tuple
 
 from . import registry
@@ -49,7 +49,7 @@ class StateMachineMetaclass(type):
         cls._strict_states = strict_states
         cls._events: Dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
-        cls._events_to_update: Dict[Event, Event | None] = {}
+        cls._events_to_update: Dict[Event, Optional[Event]] = {}
         cls._specs = CallbackSpecList()
         cls.prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
             "prepare_event", priority=CallbackPriority.GENERIC, is_convention=True
@@ -85,11 +85,6 @@ class StateMachineMetaclass(type):
 
         cls._check()
         cls._setup()
-
-    if TYPE_CHECKING:
-        """Makes mypy happy with dynamic created attributes"""
-
-        def __getattr__(self, attribute: str) -> Any: ...
 
     def _initials_by_document_order(  # noqa: C901
         cls, states: List[State], parent: "State | None" = None, order: int = 1

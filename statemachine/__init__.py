@@ -3,9 +3,10 @@ from .state import HistoryState
 from .state import State
 from .statemachine import StateChart
 from .statemachine import StateMachine
+from .statemachine import TModel
 
 __author__ = """Fernando Macedo"""
 __email__ = "fgmacedo@gmail.com"
 __version__ = "2.6.0"
 
-__all__ = ["StateChart", "StateMachine", "State", "HistoryState", "Event"]
+__all__ = ["StateChart", "StateMachine", "State", "HistoryState", "Event", "TModel"]

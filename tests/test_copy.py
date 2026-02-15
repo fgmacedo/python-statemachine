@@ -126,10 +126,10 @@ def test_copy_with_listeners(copy_method):
 def test_copy_with_enum(copy_method):
     sm = GameStateMachine()
     sm.play()
-    assert sm.GAME_PLAYING.is_active
+    assert GameStates.GAME_PLAYING in sm.configuration_values
 
     sm2 = copy_method(sm)
-    assert sm2.GAME_PLAYING.is_active
+    assert GameStates.GAME_PLAYING in sm2.configuration_values
 
 
 def test_copy_with_custom_init_and_vars(copy_method):
