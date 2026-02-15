@@ -17,6 +17,7 @@ async
 mixins
 integrations
 diagram
+weighted_transitions
 processing_model
 statecharts
 api
