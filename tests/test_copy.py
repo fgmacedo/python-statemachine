@@ -9,7 +9,7 @@ import pytest
 from statemachine.states import States
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class GameStates(str, Enum):
     GAME_END = auto()
 
 
-class GameStateMachine(StateMachine):
+class GameStateMachine(StateChart):
     s = States.from_enum(GameStates, initial=GameStates.GAME_START)
 
     play = s.GAME_START.to(s.GAME_PLAYING)
@@ -44,7 +44,7 @@ class GameStateMachine(StateMachine):
     advance_round = end_game | s.TURN_END.to(s.GAME_END)
 
 
-class MyStateMachine(StateMachine):
+class MyStateMachine(StateChart):
     created = State(initial=True)
     started = State()
 
@@ -56,7 +56,7 @@ class MyStateMachine(StateMachine):
         self.value = [1, 2, 3]
 
 
-class MySM(StateMachine):
+class MySM(StateChart):
     draft = State("Draft", initial=True, value="draft")
     published = State("Published", value="published", final=True)
 
@@ -89,11 +89,11 @@ def test_copy(copy_method):
 
     assert sm.model is not sm2.model
     assert sm.model.name == sm2.model.name
-    assert sm2.current_state == sm.current_state
+    assert sm2.draft.is_active
 
     sm2.model.let_me_be_visible = True
     sm2.send("publish")
-    assert sm2.current_state == sm.published
+    assert sm2.published.is_active
 
 
 def test_copy_with_listeners(copy_method):
@@ -120,16 +120,16 @@ def test_copy_with_listeners(copy_method):
         listener.let_me_be_visible = True
 
     sm2.send("publish")
-    assert sm2.current_state == sm1.published
+    assert sm2.published.is_active
 
 
 def test_copy_with_enum(copy_method):
     sm = GameStateMachine()
     sm.play()
-    assert sm.current_state == GameStateMachine.GAME_PLAYING
+    assert sm.GAME_PLAYING.is_active
 
     sm2 = copy_method(sm)
-    assert sm2.current_state == GameStateMachine.GAME_PLAYING
+    assert sm2.GAME_PLAYING.is_active
 
 
 def test_copy_with_custom_init_and_vars(copy_method):
@@ -139,10 +139,10 @@ def test_copy_with_custom_init_and_vars(copy_method):
     sm2 = copy_method(sm)
     assert sm2.custom == 1
     assert sm2.value == [1, 2, 3]
-    assert sm2.current_state == MyStateMachine.started
+    assert sm2.started.is_active
 
 
-class AsyncTrafficLightMachine(StateMachine):
+class AsyncTrafficLightMachine(StateChart):
     green = State(initial=True)
     yellow = State()
     red = State()
@@ -164,9 +164,9 @@ def test_copy_async_statemachine_before_activation(copy_method):
 
     async def verify():
         await sm_copy.activate_initial_state()
-        assert sm_copy.current_state == AsyncTrafficLightMachine.green
+        assert sm_copy.green.is_active
         await sm_copy.cycle()
-        assert sm_copy.current_state == AsyncTrafficLightMachine.yellow
+        assert sm_copy.yellow.is_active
 
     asyncio.run(verify())
 
@@ -178,13 +178,13 @@ def test_copy_async_statemachine_after_activation(copy_method):
         sm = AsyncTrafficLightMachine()
         await sm.activate_initial_state()
         await sm.cycle()
-        assert sm.current_state == AsyncTrafficLightMachine.yellow
+        assert sm.yellow.is_active
 
         sm_copy = copy_method(sm)
 
         await sm_copy.activate_initial_state()
-        assert sm_copy.current_state == AsyncTrafficLightMachine.yellow
+        assert sm_copy.yellow.is_active
         await sm_copy.cycle()
-        assert sm_copy.current_state == AsyncTrafficLightMachine.red
+        assert sm_copy.red.is_active
 
     asyncio.run(setup_and_verify())
