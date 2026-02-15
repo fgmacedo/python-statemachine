@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 from .models import MyModel
 
@@ -15,7 +15,7 @@ def event_mock():
 
 @pytest.fixture()
 def state_machine(event_mock):
-    class CampaignMachine(StateMachine):
+    class CampaignMachine(StateChart):
         draft = State(initial=True)
         producing = State()
         closed = State(final=True)

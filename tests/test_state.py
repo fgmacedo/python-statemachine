@@ -2,12 +2,12 @@ import pytest
 from statemachine.orderedset import OrderedSet
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 @pytest.fixture()
 def sm_class():
-    class SM(StateMachine):
+    class SM(StateChart):
         pending = State(initial=True)
         waiting_approval = State()
         approved = State(final=True)

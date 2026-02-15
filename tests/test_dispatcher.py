@@ -6,7 +6,7 @@ from statemachine.dispatcher import Listeners
 from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.exceptions import InvalidDefinition
 from statemachine.state import State
-from statemachine.statemachine import StateMachine
+from statemachine.statemachine import StateChart
 
 
 def _take_first_callable(iterable):
@@ -150,7 +150,9 @@ class TestSearchProperty:
             def can_change_to_start(self):
                 return False
 
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
+            error_on_execution = False
+
             created = State(initial=True)
             started = State(final=True)
 

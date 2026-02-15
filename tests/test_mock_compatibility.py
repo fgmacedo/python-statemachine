@@ -1,5 +1,5 @@
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 def test_minimal(mocker):
@@ -9,7 +9,7 @@ def test_minimal(mocker):
     obs = Observer()
     on_enter_state = mocker.spy(obs, "on_enter_state")
 
-    class Machine(StateMachine):
+    class Machine(StateChart):
         a = State("Init", initial=True)
         b = State("Fin")
 

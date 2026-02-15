@@ -3,10 +3,13 @@ import weakref
 import pytest
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class OrderControl(StateMachine):
+class OrderControl(StateChart):
+    allow_event_without_transition = False
+    error_on_execution = False
+
     waiting_for_payment = State(initial=True)
     processing = State()
     shipping = State()

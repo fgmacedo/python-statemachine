@@ -1,5 +1,5 @@
 from statemachine.state import State
-from statemachine.statemachine import StateMachine
+from statemachine.statemachine import StateChart
 
 EXPECTED_LOG_ADD = """Frodo on: draft--(add_job)-->draft
 Frodo enter: draft from add_job
@@ -62,7 +62,7 @@ def test_regression_456():
         def __init__(self):
             pass
 
-    class MyMachine(StateMachine):
+    class MyMachine(StateChart):
         first = State("FIRST", initial=True)
 
         second = State("SECOND")

@@ -6,9 +6,9 @@ from statemachine import exceptions
 @pytest.fixture()
 def BaseMachine():
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class BaseMachine(StateMachine, strict_states=False):
+    class BaseMachine(StateChart, strict_states=False):
         state_1 = State(initial=True)
         state_2 = State()
         trans_1_2 = state_1.to(state_2)

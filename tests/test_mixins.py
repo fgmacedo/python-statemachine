@@ -12,7 +12,7 @@ def test_mixin_should_instantiate_a_machine(campaign_machine):
     model = MyMixedModel(state="draft")
     assert isinstance(model.statemachine, campaign_machine)
     assert model.state == "draft"
-    assert model.statemachine.current_state == model.statemachine.draft
+    assert model.statemachine.draft.is_active
 
 
 def test_mixin_should_raise_exception_if_machine_class_does_not_exist():

@@ -3,11 +3,11 @@ from statemachine.event import Event
 from statemachine.exceptions import InvalidDefinition
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 def test_assign_events_on_transitions():
-    class TrafficLightMachine(StateMachine):
+    class TrafficLightMachine(StateChart):
         "A traffic light machine"
 
         green = State(initial=True)
@@ -34,7 +34,7 @@ def test_assign_events_on_transitions():
 
 class TestExplicitEvent:
     def test_accept_event_instance(self):
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
             created = State(initial=True)
             started = State(final=True)
 
@@ -46,10 +46,10 @@ class TestExplicitEvent:
 
         sm = StartMachine()
         sm.send("start")
-        assert sm.current_state == sm.started
+        assert sm.started.is_active
 
     def test_accept_event_name(self):
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
             created = State(initial=True)
             started = State(final=True)
 
@@ -60,7 +60,7 @@ class TestExplicitEvent:
         assert StartMachine.start.name == "Start the machine"
 
     def test_derive_name_from_id(self):
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
             created = State(initial=True)
             started = State(final=True)
 
@@ -74,7 +74,7 @@ class TestExplicitEvent:
         assert StartMachine.launch_the_machine == StartMachine.launch_the_machine.id
 
     def test_not_derive_name_from_id_if_not_event_class(self):
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
             created = State(initial=True)
             started = State(final=True)
 
@@ -90,7 +90,7 @@ class TestExplicitEvent:
     def test_raise_invalid_definition_if_event_name_cannot_be_derived(self):
         with pytest.raises(InvalidDefinition, match="has no id"):
 
-            class StartMachine(StateMachine):
+            class StartMachine(StateChart):
                 created = State(initial=True)
                 started = State()
 
@@ -99,7 +99,7 @@ class TestExplicitEvent:
                 started.to.itself(event=Event())  # event id not defined
 
     def test_derive_from_id(self):
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
             created = State(initial=True)
             started = State()
 
@@ -108,7 +108,7 @@ class TestExplicitEvent:
         assert StartMachine.launch_rocket.name == "Launch rocket"
 
     def test_of_passing_event_as_parameters(self):
-        class TrafficLightMachine(StateMachine):
+        class TrafficLightMachine(StateChart):
             "A traffic light machine"
 
             green = State(initial=True)
@@ -142,7 +142,7 @@ class TestExplicitEvent:
         assert sm.go.name == "Go! Go! Go!"
 
     def test_mixing_event_and_parameters(self):
-        class TrafficLightMachine(StateMachine):
+        class TrafficLightMachine(StateChart):
             "A traffic light machine"
 
             green = State(initial=True)
@@ -174,7 +174,7 @@ class TestExplicitEvent:
         assert sm.go.name == "Go! Go! Go!"
 
     def test_name_derived_from_identifier(self):
-        class TrafficLightMachine(StateMachine):
+        class TrafficLightMachine(StateChart):
             "A traffic light machine"
 
             green = State(initial=True)
@@ -205,7 +205,7 @@ class TestExplicitEvent:
         assert sm.go.name == "go"
 
     def test_multiple_ids_from_the_same_event_will_be_converted_to_multiple_events(self):
-        class TrafficLightMachine(StateMachine):
+        class TrafficLightMachine(StateChart):
             "A traffic light machine"
 
             green = State(initial=True)
@@ -234,7 +234,7 @@ class TestExplicitEvent:
         assert sm.send("cycle") == "Running cycle from red to green"
 
     def test_allow_registering_callbacks_using_decorator(self):
-        class TrafficLightMachine(StateMachine):
+        class TrafficLightMachine(StateChart):
             "A traffic light machine"
 
             green = State(initial=True)
@@ -263,7 +263,7 @@ class TestExplicitEvent:
     def test_raise_registering_callbacks_using_decorator_if_no_transitions(self):
         with pytest.raises(InvalidDefinition, match="event with no transitions"):
 
-            class TrafficLightMachine(StateMachine):
+            class TrafficLightMachine(StateChart):
                 "A traffic light machine"
 
                 green = State(initial=True)
@@ -285,7 +285,7 @@ class TestExplicitEvent:
                     )
 
     def test_allow_using_events_as_commands(self):
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
             created = State(initial=True)
             started = State()
 
@@ -299,7 +299,7 @@ class TestExplicitEvent:
         assert sm.started.is_active
 
     def test_event_commands_fail_when_unbound_to_instance(self):
-        class StartMachine(StateMachine):
+        class StartMachine(StateChart):
             created = State(initial=True)
             started = State()
 

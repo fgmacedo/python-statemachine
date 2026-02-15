@@ -78,16 +78,16 @@ assert "safe" in sm.configuration_values
 
 
 # %%
-# Comparison with StateMachine (error propagation)
-# --------------------------------------------------
+# Comparison with error_on_execution=False (error propagation)
+# --------------------------------------------------------------
 #
-# With ``StateMachine`` (where ``error_on_execution=False``), the same error
+# With ``error_on_execution=False``, the same error
 # would propagate as an exception instead of being caught.
 
-from statemachine import StateMachine  # noqa: E402
 
+class QuestNoCatch(StateChart):
+    error_on_execution = False
 
-class QuestNoCatch(StateMachine):
     safe = State("Safe", initial=True)
     danger_zone = State("Danger Zone")
 

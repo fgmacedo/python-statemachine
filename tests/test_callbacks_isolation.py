@@ -1,12 +1,12 @@
 import pytest
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 @pytest.fixture()
 def simple_sm_cls():
-    class TestStateMachine(StateMachine):
+    class TestStateMachine(StateChart):
         allow_event_without_transition = True
 
         # States

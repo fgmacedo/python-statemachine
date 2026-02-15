@@ -11,9 +11,9 @@ def event_mock():
 @pytest.fixture()
 def traffic_light_machine(event_mock):  # noqa: C901
     from statemachine import State
-    from statemachine import StateMachine
+    from statemachine import StateChart
 
-    class TrafficLightMachineStateEvents(StateMachine):
+    class TrafficLightMachineStateEvents(StateChart):
         "A traffic light machine"
 
         green = State(initial=True)
