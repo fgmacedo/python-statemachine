@@ -103,6 +103,21 @@ uv run pytest -n auto
 
 Coverage is enabled by default.
 
+### Testing both sync and async engines
+
+Use the `sm_runner` fixture (from `tests/conftest.py`) when you need to test the same
+statechart on both sync and async engines. It is parametrized with `["sync", "async"]`
+and provides `start()` / `send()` helpers that handle engine selection automatically:
+
+```python
+async def test_something(self, sm_runner):
+    sm = await sm_runner.start(MyStateChart)
+    await sm_runner.send(sm, "some_event")
+    assert "expected_state" in sm.configuration_values
+```
+
+Do **not** manually add async no-op listeners or duplicate test classes — prefer `sm_runner`.
+
 ## Linting and formatting
 
 ```bash
