@@ -27,7 +27,6 @@ class CampaignMachine(StateChart):
         CampaignStatus,
         initial=CampaignStatus.DRAFT,
         final=CampaignStatus.CLOSED,
-        use_enum_instance=True,
     )
 
     add_job = states.DRAFT.to(states.DRAFT) | states.PRODUCING.to(states.PRODUCING)
