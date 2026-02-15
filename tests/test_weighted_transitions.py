@@ -446,3 +446,13 @@ class TestWeightedCondRepr:
         group = _WeightedGroup([1, 2])
         cond = _make_weighted_cond(0, group, 1.0, 3.0)
         assert cond.__name__ == "weight=1.0 (33%)"
+
+    def test_non_zero_index_cond_rolls_dice_if_not_yet_selected(self):
+        """When a non-zero index cond is evaluated before index 0, it rolls the dice."""
+        group = _WeightedGroup([50, 50], seed=42)
+        cond_1 = _make_weighted_cond(1, group, 50.0, 100.0)
+
+        assert group.selected is None
+        result = cond_1()
+        assert group.selected is not None  # dice was rolled
+        assert result == (group.selected == 1)
