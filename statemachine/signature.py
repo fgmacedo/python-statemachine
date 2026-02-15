@@ -18,7 +18,7 @@ BindTemplate = Tuple[Tuple[str, ...], Optional[str], Optional[str]]  # noqa: UP0
 
 def _make_key(method):
     method = method.func if isinstance(method, partial) else method
-    if isinstance(method, property):
+    if isinstance(method, property):  # pragma: no cover
         assert method.fget is not None
         method = method.fget
     if isinstance(method, MethodType):
