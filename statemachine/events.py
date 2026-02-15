@@ -35,8 +35,8 @@ class Events:
         return self
 
     def match(self, event: "str | None"):
-        if event is None and self.is_empty:
-            return True
+        if event is None:
+            return self.is_empty
         return any(e.match(event) for e in self)
 
     def _replace(self, old, new):

@@ -69,7 +69,7 @@ class DotGraphMachine:
             width=0.2,
             height=0.2,
         )
-        node.set_fillcolor("black")
+        node.set_fillcolor("black")  # type: ignore[attr-defined]
         return node
 
     def _initial_edge(self, initial_node, state):
@@ -89,7 +89,7 @@ class DotGraphMachine:
     def _actions_getter(self):
         if isinstance(self.machine, StateChart):
 
-            def getter(grouper):
+            def getter(grouper):  # pyright: ignore[reportRedeclaration]
                 return self.machine._callbacks.str(grouper.key)
         else:
 
@@ -162,10 +162,10 @@ class DotGraphMachine:
             isinstance(self.machine, StateChart)
             and state.value in self.machine.configuration_values
         ):
-            node.set_penwidth(self.state_active_penwidth)
-            node.set_fillcolor(self.state_active_fillcolor)
+            node.set_penwidth(self.state_active_penwidth)  # type: ignore[attr-defined]
+            node.set_fillcolor(self.state_active_fillcolor)  # type: ignore[attr-defined]
         else:
-            node.set_fillcolor("white")
+            node.set_fillcolor("white")  # type: ignore[attr-defined]
         return node
 
     def _transition_as_edges(self, transition):

@@ -53,7 +53,7 @@ class States:
     def __eq__(self, other):
         return list(self) == list(other)
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> "State":
         if name in self._states:
             return self._states[name]
         raise AttributeError(f"{name} not found in {self.__class__.__name__}")

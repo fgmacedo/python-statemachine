@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import List
 from typing import cast
 from uuid import uuid4
@@ -11,6 +12,7 @@ from .transition_mixin import AddCallbacksMixin
 
 if TYPE_CHECKING:
     from .statemachine import StateChart
+    from .transition import Transition
     from .transition_list import TransitionList
 
 
@@ -57,7 +59,7 @@ class Event(AddCallbacksMixin, str):
 
     def __new__(
         cls,
-        transitions: "str | TransitionList | None" = None,
+        transitions: "str | Transition | TransitionList | None" = None,
         id: "str | None" = None,
         name: "str | None" = None,
         delay: float = 0,
@@ -82,7 +84,7 @@ class Event(AddCallbacksMixin, str):
         else:
             instance.name = ""
         if transitions:
-            instance._transitions = transitions
+            instance._transitions = transitions  # type: ignore[assignment]
         instance._has_real_id = _has_real_id
         instance._sm = _sm
         return instance
@@ -144,7 +146,7 @@ class Event(AddCallbacksMixin, str):
 
         return trigger_data
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Any:
         """Send this event to the current state machine.
 
         Triggering an event on a state machine means invoking or sending a signal, initiating the
@@ -155,7 +157,7 @@ class Event(AddCallbacksMixin, str):
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
         self.put(*args, **kwargs)
-        return self._sm._processing_loop()  # type: ignore
+        return self._sm._processing_loop()  # type: ignore[union-attr]
 
     def split(  # type: ignore[override]
         self, sep: "str | None" = None, maxsplit: int = -1

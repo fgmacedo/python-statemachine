@@ -56,6 +56,7 @@ dev = [
     "babel >=2.16.0; python_version >='3.8'",
     "pytest-xdist>=3.6.1",
     "pytest-timeout>=2.3.1",
+    "pyright>=1.1.400",
 ]
 
 [build-system]
@@ -201,3 +202,6 @@ fixture-parentheses = true
 mark-parentheses = true
 
 [tool.pyright]
+pythonVersion = "3.9"
+typeCheckingMode = "basic"
+include = ["statemachine"]

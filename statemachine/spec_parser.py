@@ -201,6 +201,7 @@ def build_expression(node, variable_hook, operator_mapping):  # noqa: C901
         return reduce(custom_and, expressions)
     elif isinstance(node, ast.Call):
         # Handle function calls
+        assert isinstance(node.func, ast.Name)
         constructor = Functions.get(node.func.id)
         params = [arg.value for arg in node.args if isinstance(arg, ast.Constant)]
         return constructor(*params)

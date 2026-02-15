@@ -96,8 +96,8 @@ class CallbackSpec:
             name = func.func.__name__ if is_partial else func.__name__
             self.attr_name = name if not self.is_event or self.is_bounded else f"_{name}_"
             if not self.is_bounded:
-                func.attr_name = self.attr_name
-                func.is_event = is_event
+                func.attr_name = self.attr_name  # type: ignore[union-attr]
+                func.is_event = is_event  # type: ignore[union-attr]
         else:
             self.reference = SpecReference.NAME
             self.attr_name = func
@@ -270,7 +270,7 @@ class CallbacksExecutor:
     """A list of callbacks that can be executed in order."""
 
     def __init__(self):
-        self.items: List[CallbackWrapper] = deque()
+        self.items: "deque[CallbackWrapper]" = deque()
         self.items_already_seen = set()
 
     def __iter__(self):

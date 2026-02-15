@@ -97,7 +97,7 @@ class SCXMLProcessor:
                 if isinstance(  # pragma: no branch – always a list from lines above
                     initial_state["enter"], list
                 ):
-                    initial_state["enter"].insert(0, datamodel)
+                    initial_state["enter"].insert(0, datamodel)  # type: ignore[arg-type]
 
         self._add(
             location,
