@@ -562,11 +562,43 @@ class BaseEngine:
         if not self.sm.atomic_configuration_update:
             self.sm.configuration |= {target}
 
+    def _terminate_machine(self):
+        """SCXML termination: exit all active states in exit order, firing onexit handlers.
+
+        Per SCXML spec, when a top-level final state is reached, the machine
+        terminates. All active states have their ``onexit`` handlers fired
+        (in reverse document order), but the final configuration is preserved
+        so that observers can see which final state was reached.
+        """
+        on_error = self._on_error_handler()
+        # Sort active states by document_order (reverse) for exit order
+        active_states = sorted(
+            self.sm.configuration,
+            key=lambda s: s.document_order,
+            reverse=True,
+        )
+        trigger_data = TriggerData(self.sm, event=None)
+        event_data = EventData(trigger_data=trigger_data, transition=None)
+        args, kwargs = event_data.args, event_data.extended_kwargs
+        for state in active_states:
+            if getattr(state, "invocations", None):
+                self.invoke_manager.cancel_for_state(state)
+            self.sm._callbacks.call(state.exit.key, *args, on_error=on_error, **kwargs)
+        # Note: we intentionally do NOT clear configuration — the final state
+        # must remain visible for assertions and done.invoke reporting.
+        self.invoke_manager.cancel_all()
+        self.running = False
+
     def _handle_final_state(self, target: State, on_entry_result: list):
         """Handle final state entry: queue done events. No direct callback dispatch."""
         if target.parent is None:
-            self.running = False
-            self.invoke_manager.cancel_all()
+            if getattr(self.sm, "_parent_sm", None) is not None:
+                # Child session: fire onexit on all active states before terminating
+                # so that #_parent sends in <onexit> of final states are delivered
+                self._terminate_machine()
+            else:
+                self.running = False
+                self.invoke_manager.cancel_all()
         else:
             parent = target.parent
             grandparent = parent.parent

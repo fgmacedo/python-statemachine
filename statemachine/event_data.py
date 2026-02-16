@@ -70,9 +70,14 @@ class EventData:
     """The destination :ref:`State` of the :ref:`transition`."""
 
     def __post_init__(self):
-        self.state = self.transition.source
-        self.source = self.transition.source
-        self.target = self.transition.target
+        if self.transition is not None:
+            self.state = self.transition.source
+            self.source = self.transition.source
+            self.target = self.transition.target
+        else:
+            self.state = None  # type: ignore[assignment]
+            self.source = None  # type: ignore[assignment]
+            self.target = None  # type: ignore[assignment]
         self.machine = self.trigger_data.machine
 
     @property
