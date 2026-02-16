@@ -383,10 +383,9 @@ def _send_to_child(machine: "StateChart", event: str, params_values: dict):
         machine.send("error.communication", internal=True)
 
 
-def _send_to_invokeid(
-    machine: "StateChart", target: str, event: str, action: SendAction, **kwargs
-):
+def _send_to_invokeid(target: str, event: str, action: SendAction, **kwargs):
     """Route an event to a specific child by #_<invokeid>."""
+    machine: "StateChart" = kwargs["machine"]
     invokeid = target[2:]
     if hasattr(machine, "_engine") and hasattr(machine._engine, "invoke_manager"):
         params_values = {}
@@ -443,7 +442,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
                 return
             elif target and target.startswith("#_"):
                 # Handle #_invokeid target (send to specific child by invoke id)
-                _send_to_invokeid(machine, target, event, action, **kwargs)
+                _send_to_invokeid(target, event, action, **kwargs)
                 return
             else:
                 raise ValueError(f"Invalid target: {target}. Must be one of {_valid_targets}")
