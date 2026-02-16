@@ -24,11 +24,24 @@ def processor(testcase_path: Path):
     return processor
 
 
-def compute_testcase_marks(testcase_path: Path) -> list[pytest.MarkDecorator]:
+def compute_testcase_marks(
+    testcase_path: Path, variant: str = "",
+) -> list[pytest.MarkDecorator]:
     marks = [pytest.mark.scxml]
-    if testcase_path.with_name(f"{testcase_path.stem}.fail.md").exists():
+
+    # Check variant-specific fail/skip first (e.g., test191.async.fail.md),
+    # then fall back to the generic one (e.g., test191.fail.md).
+    stem = testcase_path.stem
+    parent = testcase_path.parent
+
+    def _has_mark(suffix: str) -> bool:
+        if variant and (parent / f"{stem}.{variant}.{suffix}").exists():
+            return True
+        return (parent / f"{stem}.{suffix}").exists()
+
+    if _has_mark("fail.md"):
         marks.append(pytest.mark.xfail)
-    if testcase_path.with_name(f"{testcase_path.stem}.skip.md").exists():
+    if _has_mark("skip.md"):
         marks.append(pytest.mark.skip)
     return marks
 
@@ -37,13 +50,22 @@ def pytest_generate_tests(metafunc):
     if "testcase_path" not in metafunc.fixturenames:
         return
 
+    # Determine variant from the test function name
+    func_name = metafunc.function.__name__
+    if func_name.endswith("_async"):
+        variant = "async"
+    elif func_name.endswith("_sync"):
+        variant = "sync"
+    else:
+        variant = ""
+
     metafunc.parametrize(
         "testcase_path",
         [
             pytest.param(
                 testcase_path,
                 id=str(testcase_path.relative_to(TESTCASES_DIR)),
-                marks=compute_testcase_marks(testcase_path),
+                marks=compute_testcase_marks(testcase_path, variant),
             )
             for testcase_path in TESTCASES_DIR.glob("**/*.scxml")
             if "sub" not in testcase_path.name

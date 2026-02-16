@@ -1,4 +1,4 @@
-# Testcase: test239
+# Testcase: test242
 
 FileNotFoundError: File not found.
 
@@ -8,11 +8,10 @@ Final configuration: `No configuration`
 
 ## Logs
 ```py
-DEBUG    statemachine.engines.base:base.py:556 States to enter: {S0, S01}
+DEBUG    statemachine.engines.base:base.py:556 States to enter: {S0}
 DEBUG    statemachine.engines.base:base.py:629 Entering state: S0
-DEBUG    statemachine.engines.base:base.py:125 New event 'timeout' put on the 'external' queue
-DEBUG    statemachine.engines.base:base.py:629 Entering state: S01
-DEBUG    statemachine.engines.sync:sync.py:78 Processing loop started: {s0, s01}
+DEBUG    statemachine.engines.base:base.py:125 New event 'timeout1' put on the 'external' queue
+DEBUG    statemachine.engines.sync:sync.py:78 Processing loop started: s0
 DEBUG    statemachine.engines.sync:sync.py:92 Macrostep: eventless/internal queue
 
 ```
@@ -20,8 +19,6 @@ DEBUG    statemachine.engines.sync:sync.py:92 Macrostep: eventless/internal queu
 ## "On transition" events
 ```py
 OnEnterState(state='s0', event='__initial__', data='{}')
-OnTransition(source='', event='__initial__', data='{}', target='s0')
-OnEnterState(state='s01', event='__initial__', data='{}')
 ```
 
 ## Traceback
@@ -60,6 +57,6 @@ Traceback (most recent call last):
   File "/Users/fernando.macedo/.local/share/uv/python/cpython-3.13.1-macos-aarch64-none/lib/python3.13/pathlib/_local.py", line 537, in open
     return io.open(self, mode, buffering, encoding, errors, newline)
            ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: 'test239sub1.scxml'
+FileNotFoundError: [Errno 2] No such file or directory: 'test242sub1.scxml'
 
 ```

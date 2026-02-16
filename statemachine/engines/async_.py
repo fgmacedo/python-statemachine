@@ -249,6 +249,10 @@ class AsyncEngine(BaseEngine):
                     new_configuration=new_configuration,
                 )
 
+            # Track states with invocations for post-macrostep spawning
+            if getattr(target, "invocations", None):
+                self.states_to_invoke.add(target)
+
             # Handle final states
             if target.final:
                 self._handle_final_state(target, on_entry_result)

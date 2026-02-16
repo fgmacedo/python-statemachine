@@ -27,7 +27,7 @@ OnEnterState(state='s01', event='__initial__', data='{}')
 ## Traceback
 ```py
 Traceback (most recent call last):
-  File "/Users/fernando.macedo/projects/python-statemachine-invoke/tests/scxml/test_scxml_cases.py", line 162, in _run_scxml_testcase
+  File "/Users/fernando.macedo/projects/python-statemachine-invoke/tests/scxml/test_scxml_cases.py", line 164, in _run_scxml_testcase
     sm = processor.start(listeners=listeners)
   File "/Users/fernando.macedo/projects/python-statemachine-invoke/statemachine/io/scxml/processor.py", line 256, in start
     self.root = self.root_cls(**kwargs)

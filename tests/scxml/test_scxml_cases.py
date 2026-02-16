@@ -83,8 +83,9 @@ class FailedMark:
         header_end_index = report.find("---")
         return report[:header_end_index]
 
-    def write_fail_markdown(self, testcase_path: Path):
-        fail_file_path = testcase_path.with_suffix(".fail.md")
+    def write_fail_markdown(self, testcase_path: Path, variant: str = ""):
+        suffix = f".{variant}.fail.md" if variant else ".fail.md"
+        fail_file_path = testcase_path.with_name(f"{testcase_path.stem}{suffix}")
         if not self.is_assertion_error:
             exception_traceback = "".join(
                 traceback.format_exception(
@@ -142,6 +143,7 @@ def _run_scxml_testcase(
     caplog,
     *,
     async_mode: bool = False,
+    variant: str = "",
 ) -> StateChart:
     """Shared logic for sync and async SCXML test variants.
 
@@ -178,7 +180,7 @@ def _run_scxml_testcase(
                 logs=caplog.text,
                 configuration=[s.id for s in sm.configuration] if sm else [],
             )
-            fail_mark.write_fail_markdown(testcase_path)
+            fail_mark.write_fail_markdown(testcase_path, variant=variant)
         raise
 
 
@@ -196,6 +198,7 @@ def test_scxml_usecase_sync(
         should_generate_debug_diagram,
         caplog,
         async_mode=False,
+        variant="sync",
     )
     _assert_passed(sm)
 
@@ -210,6 +213,7 @@ async def test_scxml_usecase_async(
         should_generate_debug_diagram,
         caplog,
         async_mode=True,
+        variant="async",
     )
     # In async context, the engine only queued __initial__ during __init__.
     # Activate now within the running event loop.
