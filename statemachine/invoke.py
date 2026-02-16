@@ -148,14 +148,18 @@ class InvokeManager:
 
         async def run_child():
             try:
-                await child_sm.activate_initial_state()
+                result = child_sm.activate_initial_state()
+                if result is not None:
+                    await result
 
                 while not child_sm.is_terminated and not invocation.cancelled:
                     await asyncio.sleep(0.01)
 
                 if not invocation.cancelled:
                     logger.debug("Child %s terminated, sending done.invoke.%s", invokeid, invokeid)
-                    self.sm.send(f"done.invoke.{invokeid}", invokeid=invokeid)
+                    result = self.sm.send(f"done.invoke.{invokeid}", invokeid=invokeid)
+                    if result is not None:
+                        await result
             except Exception:
                 logger.exception("Error in child session %s", invokeid)
 

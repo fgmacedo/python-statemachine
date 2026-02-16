@@ -239,12 +239,30 @@ class State:
 
     @staticmethod
     def _normalize_invoke(invoke: Any) -> list:
-        """Normalize the invoke parameter into a list of InvokeConfig."""
+        """Normalize the invoke parameter into a list of InvokeConfig.
+
+        Accepts:
+            - None → []
+            - A StateChart subclass → [InvokeConfig(child_class=...)]
+            - An InvokeConfig → [config]
+            - A list of the above → [InvokeConfig(...), ...]
+        """
+        from .invoke import InvokeConfig
+
         if invoke is None:
             return []
-        if isinstance(invoke, list):
-            return invoke
-        return [invoke]
+
+        items = invoke if isinstance(invoke, list) else [invoke]
+        result = []
+        for item in items:
+            if isinstance(item, InvokeConfig):
+                result.append(item)
+            elif isinstance(item, type):
+                # Assume it's a StateChart subclass
+                result.append(InvokeConfig(child_class=item))
+            else:
+                result.append(item)
+        return result
 
     def _init_states(self):
         for state in self.states:

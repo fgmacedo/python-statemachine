@@ -251,6 +251,9 @@ class StateMachineMetaclass(type):
                 elif key.startswith("done_state_"):
                     suffix = key[len("done_state_") :]
                     event_id = f"{key} done.state.{suffix}"
+                elif key.startswith("done_invoke_"):
+                    suffix = key[len("done_invoke_") :]
+                    event_id = f"{key} done.invoke.{suffix}"
                 cls.add_event(event=Event(transitions=value, id=event_id, name=key))
             elif isinstance(value, (Event,)):
                 if value._has_real_id:
@@ -260,6 +263,9 @@ class StateMachineMetaclass(type):
                 elif key.startswith("done_state_"):
                     suffix = key[len("done_state_") :]
                     event_id = f"{key} done.state.{suffix}"
+                elif key.startswith("done_invoke_"):
+                    suffix = key[len("done_invoke_") :]
+                    event_id = f"{key} done.invoke.{suffix}"
                 else:
                     event_id = key
                 new_event = Event(
