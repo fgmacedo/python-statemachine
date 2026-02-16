@@ -142,8 +142,8 @@ def _run_scxml_testcase(
     should_generate_debug_diagram,
     caplog,
     *,
+    variant: str,
     async_mode: bool = False,
-    variant: str = "",
 ) -> StateChart:
     """Shared logic for sync and async SCXML test variants.
 

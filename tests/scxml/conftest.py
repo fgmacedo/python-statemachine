@@ -25,23 +25,18 @@ def processor(testcase_path: Path):
 
 
 def compute_testcase_marks(
-    testcase_path: Path, variant: str = "",
+    testcase_path: Path, variant: str,
 ) -> list[pytest.MarkDecorator]:
     marks = [pytest.mark.scxml]
 
-    # Check variant-specific fail/skip first (e.g., test191.async.fail.md),
-    # then fall back to the generic one (e.g., test191.fail.md).
+    # Only variant-specific marks are recognized (e.g., test191.sync.fail.md).
+    # No generic fallback — each variant is tracked independently.
     stem = testcase_path.stem
     parent = testcase_path.parent
 
-    def _has_mark(suffix: str) -> bool:
-        if variant and (parent / f"{stem}.{variant}.{suffix}").exists():
-            return True
-        return (parent / f"{stem}.{suffix}").exists()
-
-    if _has_mark("fail.md"):
+    if (parent / f"{stem}.{variant}.fail.md").exists():
         marks.append(pytest.mark.xfail)
-    if _has_mark("skip.md"):
+    if (parent / f"{stem}.{variant}.skip.md").exists():
         marks.append(pytest.mark.skip)
     return marks
 
@@ -57,7 +52,7 @@ def pytest_generate_tests(metafunc):
     elif func_name.endswith("_sync"):
         variant = "sync"
     else:
-        variant = ""
+        raise ValueError(f"Cannot determine variant from test function name: {func_name}")
 
     metafunc.parametrize(
         "testcase_path",

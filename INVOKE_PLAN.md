@@ -11,127 +11,99 @@ sessions when entering a state, with automatic cancellation on exit.
 
 ---
 
-## Steps
+## Rules
 
-### 1. Create worktree and branch
-- [x] Create git worktree and branch `feat/invoke`
+### SCXML Test Fail Marks
+- Only variant-specific marks exist: `testXXX.sync.fail.md` / `testXXX.async.fail.md`
+- No generic `.fail.md` — each variant is tracked independently
+- Marks are ephemeral: delete all and regenerate with `--upd-fail`
+- During development, let tests fail — don't manage marks manually
 
-### 2. Schema + Parser SCXML
-- [x] Add `InvokeDefinition` dataclass to `schema.py`
-- [x] Add `invocations` field to `schema.State`
-- [x] Add `parse_invoke()` to `parser.py`
-- [x] Call from `parse_state()` for `<invoke>` elements
-- [x] **Commit:** `feat: parse SCXML <invoke> elements` (fe19eca → rebased to 6d8067d)
-
-### 3. InvokeConfig and InvokeManager
-- [x] Create `statemachine/invoke.py` with:
-  - `InvokeConfig` — static configuration
-  - `Invocation` — runtime state
-  - `ParentBridge` — listener on child for `#_parent` sends
-  - `InvokeManager` — spawn/cancel/finalize lifecycle
-- [x] **Commit:** `feat: add InvokeManager for child session lifecycle` (76b9627 → rebased to 2b94c34)
-
-### 4. Engine integration — spawn and cancel
-- [x] Add `invoke_manager` and `states_to_invoke` to `BaseEngine.__init__`
-- [x] Track states with invocations in `_enter_states()`
-- [x] Cancel invocations in `_exit_states()` and `_handle_final_state()`
-- [x] Replace TODO in `sync.py` with actual invoke spawn code
-- [x] Replace TODO in `sync.py` with finalize + autoforward
-- [x] Mirror changes in `async_.py`
-- [ ] **Commit** (pending — code written, needs final test pass)
-
-### 5. Event routing (#_parent, invokeid, done.invoke)
-- [x] Add `invokeid` field to `TriggerData` in `event_data.py`
-- [x] Update `Event.put()` and `Event.build_trigger()` to accept `invokeid`
-- [x] Update `StateChart.send()` to accept `invokeid`
-- [x] Update `EventDataWrapper.__init__` to read `invokeid` from trigger_data
-- [x] Implement `#_parent` target in `create_send_action_callable()`
-- [x] Implement `#_child` target
-- [x] Implement `#_<invokeid>` target
-- [x] Fix `_eval_send_params` duplicate `machine` kwarg bug
-- [x] Fix `#_scxml_` vs `#_invokeid` target ordering (test496/521 regression)
-- [ ] **Commit** (pending — code written, needs final test pass)
-
-### 6. done_invoke_ naming convention and State(invoke=...) API
-- [x] Add `invoke` parameter to `State.__init__()`
-- [x] Add `_normalize_invoke()` static method
-- [x] Add `invocations` property to `InstanceState`
-- [x] Add `invoke` to `BaseStateKwargs` in `io/__init__.py`
-- [ ] Add `done_invoke_` handler in `factory.py` (not yet implemented)
-- [ ] **Commit**
-
-### 7. SCXML advanced invoke features
-- [x] `src` — load SCXML from external file
-- [x] `namelist` / `<param>` — pass initial data to child
-- [x] `autoforward` — forward all external events to child
-- [x] `<finalize>` — execute before processing child event
-- [ ] `typeexpr` — evaluate expression for type (not yet)
-- [ ] `srcexpr` — evaluate expression for src (not yet)
-- [ ] **Commit**
-
-### 8. Run W3C invoke tests and fix failures
-- [ ] Remove `.fail.md` for passing tests
-- [ ] Group failures by root cause and fix
-- [ ] Current status (post-rebase, post-bug-fixes):
-  - Tests that now xpass (need .fail.md removed): test191, test207, test220, test223, test228,
-    test232, test233, test235, test237, test241, test242, test245, test247, test338, test347,
-    test422, test554
-  - Tests still expected to fail: test187, test192, test216, test226, test229, test234, test236,
-    test240, test243, test244, test276, test530
-- [ ] **Commits per group**
-
-### 9. Unit tests for Python invoke API
-- [ ] Create `tests/test_invoke.py`
-- [ ] Test basic: `State(invoke=ChildMachine)`, child terminates, parent gets `done.invoke`
-- [ ] Test cancellation: parent exits state, child is cancelled
-- [ ] Test cross-engine: sync parent + async child, async parent + sync child
-- [ ] Test `done_invoke_` naming convention
-- [ ] Test autoforward
-- [ ] Test multiple invocations
-- [ ] Use `sm_runner` fixture for sync/async coverage
-- [ ] **Commit**
-
-### 10. Documentation and release notes
-- [ ] Create `docs/invoke.md` (concept, Python API, SCXML, examples)
-- [ ] Add to `docs/index.md` toctree
-- [ ] Add section in `docs/releases/3.0.0.md`
-- [ ] Reference from `docs/statecharts.md`
-- [ ] **Commit**
-
-### 11. Final cleanup and verification
-- [ ] `uv run ruff check .` — all clean
-- [ ] `uv run ruff format .` — all clean
-- [ ] `uv run mypy statemachine/` — no errors
-- [ ] `uv run pytest -n auto` — full suite passes
-- [ ] Verify W3C invoke tests pass (`.fail.md` removed for passing tests)
-- [ ] Fix any regressions
+### Investigation Methodology
+- SCXML W3C tests are black-box integration tests
+- To investigate failures, write **unit tests** that verify specific hypotheses
+- Only modify code after hypotheses are confirmed by failing unit tests
 
 ---
 
-## Key Files
+## Steps
 
-| File | Status |
-|------|--------|
-| `statemachine/invoke.py` | Committed + uncommitted changes |
-| `statemachine/engines/base.py` | Uncommitted changes |
-| `statemachine/engines/sync.py` | Uncommitted changes |
-| `statemachine/engines/async_.py` | Uncommitted changes |
-| `statemachine/event.py` | Uncommitted changes |
-| `statemachine/event_data.py` | Uncommitted changes |
-| `statemachine/state.py` | Uncommitted changes |
-| `statemachine/statemachine.py` | Uncommitted changes |
-| `statemachine/io/__init__.py` | Uncommitted changes |
-| `statemachine/io/scxml/actions.py` | Uncommitted changes |
-| `statemachine/io/scxml/processor.py` | Uncommitted changes |
-| `statemachine/io/scxml/schema.py` | Committed |
-| `statemachine/io/scxml/parser.py` | Committed |
+### 1. Create worktree and branch
+- [x] Done
+
+### 2. Schema + Parser SCXML
+- [x] `InvokeDefinition` dataclass, `parse_invoke()`, `invocations` field
+- [x] **Commit:** 6d8067d
+
+### 3. InvokeConfig and InvokeManager
+- [x] `InvokeConfig`, `Invocation`, `ParentBridge`, `InvokeManager`
+- [x] **Commit:** 2b94c34
+
+### 4. Engine integration — spawn and cancel
+- [x] `invoke_manager` + `states_to_invoke` in BaseEngine
+- [x] Track invocations in `_enter_states()`, cancel in `_exit_states()`
+- [x] Spawn in sync (daemon thread) and async (asyncio task) engines
+- [x] Finalize and autoforward in processing loops
+- [x] Fix async `_enter_states` missing `states_to_invoke`
+- [x] **Commit:** 0780e4f, 33edf3b
+
+### 5. Event routing (#_parent, invokeid, done.invoke)
+- [x] `invokeid` field on `TriggerData`
+- [x] `#_parent`, `#_child`, `#_<invokeid>` send targets
+- [x] Fix `_eval_send_params` kwarg conflict
+- [x] Fix `#_scxml_` vs `#_invokeid` target ordering
+- [x] **Commit:** 0780e4f
+
+### 6. done_invoke_ naming convention and State(invoke=...) API
+- [x] `State(invoke=...)` parameter + `_normalize_invoke()` + `InstanceState.invocations`
+- [ ] `done_invoke_` handler in `factory.py`
+- [ ] Unit tests for Python API
+- [ ] **Commit**
+
+### 7. SCXML advanced invoke features
+- [x] `src` — load SCXML from file
+- [x] `namelist` / `<param>` — pass data to child
+- [x] `autoforward` / `<finalize>`
+- [ ] `srcexpr` / `typeexpr`
+- [ ] Fix relative `src` path resolution (test239 failure)
+- [ ] **Commit**
+
+### 8. Fix W3C invoke test failures
+- [ ] Write unit tests to reproduce specific failure modes
+- [ ] Fix root causes identified by unit tests
+- [ ] Regenerate fail marks with `--upd-fail`
+- Known failure categories:
+  - **Async timing**: child events not reaching parent before timeout
+  - **Relative src paths**: `src="file:test239sub1.scxml"` not resolved
+  - **Cross-session event routing**: `#_parent` send from child thread
+  - **Session termination**: child onexit not firing on cancel
+
+### 9. Unit tests for Python invoke API
+- [ ] `tests/test_invoke.py`
+- [ ] Basic: `State(invoke=ChildMachine)`, child terminates, `done.invoke`
+- [ ] Cancellation: parent exits state, child cancelled
+- [ ] `done_invoke_` naming convention
+- [ ] Autoforward, multiple invocations
+- [ ] Use `sm_runner` fixture
+
+### 10. Documentation and release notes
+- [ ] `docs/invoke.md`
+- [ ] `docs/index.md` toctree
+- [ ] `docs/releases/3.0.0.md`
+
+### 11. Final cleanup
+- [ ] Linting, mypy, full test suite
+- [ ] Regenerate fail marks with `--upd-fail`
+
+---
 
 ## Bugs Fixed
 
-1. **`_eval_send_params` duplicate `machine` kwarg** — function took `machine` as positional
-   AND received it via `**kwargs`. Fixed by taking only `**kwargs` and extracting `machine` from it.
-2. **`#_scxml_` vs `#_invokeid` target ordering** — `#_scxml_foo` targets were caught by the
-   generic `#_` invoke handler before reaching the `#_scxml_` → `error.communication` handler.
-   Fixed by checking `#_scxml_` first.
-3. **Child `_parent_sm` not set during initial entry** — fixed by setting `_parent_sm` and
-   `_invokeid` on the child CLASS before instantiation.
+1. **`_eval_send_params` duplicate `machine` kwarg** — took `machine` as positional AND via
+   `**kwargs`. Fixed by taking only `**kwargs`.
+2. **`#_scxml_` vs `#_invokeid` target ordering** — `#_scxml_foo` caught by generic `#_`
+   handler. Fixed by checking `#_scxml_` first.
+3. **Child `_parent_sm` not set during initial entry** — fixed by setting on child CLASS
+   before instantiation.
+4. **Async `_enter_states` missing `states_to_invoke`** — async override didn't track states
+   with invocations. Fixed by adding the tracking.
