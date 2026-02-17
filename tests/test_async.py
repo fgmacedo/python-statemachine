@@ -216,7 +216,7 @@ async def test_async_error_on_execution_in_condition():
 
     class SM(StateChart):
         s1 = State(initial=True)
-        s2 = State()
+        s2 = State(final=True)
         error_state = State(final=True)
 
         go = s1.to(s2, cond="bad_cond")
@@ -236,7 +236,7 @@ async def test_async_error_on_execution_in_transition():
 
     class SM(StateChart):
         s1 = State(initial=True)
-        s2 = State()
+        s2 = State(final=True)
         error_state = State(final=True)
 
         go = s1.to(s2, on="bad_action")
@@ -276,7 +276,7 @@ async def test_async_invalid_definition_in_transition_propagates():
 
     class SM(StateChart):
         s1 = State(initial=True)
-        s2 = State()
+        s2 = State(final=True)
 
         go = s1.to(s2, on="bad_action")
 
@@ -338,7 +338,7 @@ async def test_async_engine_invalid_definition_in_condition_propagates():
 
     class SM(StateChart):
         s1 = State(initial=True)
-        s2 = State()
+        s2 = State(final=True)
 
         go = s1.to(s2, cond="bad_cond")
 
@@ -357,7 +357,7 @@ async def test_async_engine_invalid_definition_in_transition_propagates():
 
     class SM(StateChart):
         s1 = State(initial=True)
-        s2 = State()
+        s2 = State(final=True)
 
         go = s1.to(s2, on="bad_action")
 
@@ -494,7 +494,7 @@ class TestAsyncEnabledEvents:
 
         class MyMachine(StateChart):
             s0 = State(initial=True)
-            s1 = State()
+            s1 = State(final=True)
             s2 = State(final=True)
 
             go = s0.to(s1, cond="cond_a") | s0.to(s2, cond="cond_b")
@@ -514,7 +514,7 @@ class TestAsyncEnabledEvents:
     async def test_mixed_enabled_and_disabled_async(self):
         class MyMachine(StateChart):
             s0 = State(initial=True)
-            s1 = State()
+            s1 = State(final=True)
             s2 = State(final=True)
 
             go = s0.to(s1, cond="cond_true")

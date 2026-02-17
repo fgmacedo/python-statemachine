@@ -325,7 +325,6 @@ def test_should_not_create_instance_of_machine_without_states():
         OnlyTransitionMachine()
 
 
-@pytest.mark.xfail(reason="TODO: Revise validation of SM without transitions")
 def test_should_not_create_instance_of_machine_without_transitions():
     with pytest.raises(exceptions.InvalidDefinition):
 
@@ -378,7 +377,7 @@ def test_state_value_is_correct():
     STATE_NEW = 0
     STATE_DRAFT = 1
 
-    class ValueTestModel(StateChart, strict_states=False):
+    class ValueTestModel(StateChart):
         new = State(STATE_NEW, value=STATE_NEW, initial=True)
         draft = State(STATE_DRAFT, value=STATE_DRAFT, final=True)
 
@@ -433,9 +432,9 @@ class TestWarnings:
         model.deliver()
         assert sm.current_state_value == "closed"
 
-    def test_should_warn_if_thereis_a_trap_state(self, capsys):
-        with pytest.warns(
-            UserWarning,
+    def test_should_raise_if_thereis_a_trap_state(self):
+        with pytest.raises(
+            exceptions.InvalidDefinition,
             match=r"have no outgoing transition: \['state_without_outgoing_transition'\]",
         ):
 
@@ -445,9 +444,9 @@ class TestWarnings:
 
                 t = initial.to(state_without_outgoing_transition)
 
-    def test_should_warn_if_no_path_to_a_final_state(self, capsys):
-        with pytest.warns(
-            UserWarning,
+    def test_should_raise_if_no_path_to_a_final_state(self):
+        with pytest.raises(
+            exceptions.InvalidDefinition,
             match=r"have no path to a final state: \['producing'\]",
         ):
 
@@ -597,7 +596,7 @@ class TestEnabledEvents:
 
         class MyMachine(StateChart):
             s0 = State(initial=True)
-            s1 = State()
+            s1 = State(final=True)
             s2 = State(final=True)
 
             go = s0.to(s1, cond="cond_false") | s0.to(s2, cond="cond_true")
@@ -616,7 +615,7 @@ class TestEnabledEvents:
 
         class MyMachine(StateChart):
             s0 = State(initial=True)
-            s1 = State()
+            s1 = State(final=True)
             s2 = State(final=True)
 
             go = s0.to(s1, cond="cond_a") | s0.to(s2, cond="cond_b")
@@ -670,7 +669,7 @@ class TestEnabledEvents:
     def test_mixed_enabled_and_disabled(self):
         class MyMachine(StateChart):
             s0 = State(initial=True)
-            s1 = State()
+            s1 = State(final=True)
             s2 = State(final=True)
 
             go = s0.to(s1, cond="cond_true")

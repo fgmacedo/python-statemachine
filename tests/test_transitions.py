@@ -149,7 +149,7 @@ def test_can_detect_stuck_states():
         match="All non-final states should have at least one outgoing transition.",
     ):
 
-        class CampaignMachine(StateChart, strict_states=True):
+        class CampaignMachine(StateChart):
             "A workflow machine"
 
             draft = State(initial=True)
@@ -162,13 +162,29 @@ def test_can_detect_stuck_states():
             pause = producing.to(paused)
 
 
+def test_can_opt_out_of_stuck_states_check():
+    class CampaignMachine(StateChart):
+        "A workflow machine"
+
+        validate_trap_states = False
+
+        draft = State(initial=True)
+        producing = State()
+        paused = State()
+        closed = State()
+
+        abort = draft.to(closed) | producing.to(closed) | closed.to(closed)
+        produce = draft.to(producing)
+        pause = producing.to(paused)
+
+
 def test_can_detect_unreachable_final_states():
     with pytest.raises(
         InvalidDefinition,
         match="All non-final states should have at least one path to a final state.",
     ):
 
-        class CampaignMachine(StateChart, strict_states=True):
+        class CampaignMachine(StateChart):
             "A workflow machine"
 
             draft = State(initial=True)
@@ -179,6 +195,22 @@ def test_can_detect_unreachable_final_states():
             abort = closed.from_(draft, producing)
             produce = draft.to(producing)
             pause = producing.to(paused) | paused.to.itself()
+
+
+def test_can_opt_out_of_unreachable_final_states_check():
+    class CampaignMachine(StateChart):
+        "A workflow machine"
+
+        validate_final_reachability = False
+
+        draft = State(initial=True)
+        producing = State()
+        paused = State()
+        closed = State(final=True)
+
+        abort = closed.from_(draft, producing)
+        produce = draft.to(producing)
+        pause = producing.to(paused) | paused.to.itself()
 
 
 def test_transitions_to_the_same_estate_as_itself():

@@ -101,7 +101,7 @@ class TestExplicitEvent:
     def test_derive_from_id(self):
         class StartMachine(StateChart):
             created = State(initial=True)
-            started = State()
+            started = State(final=True)
 
             created.to(started, event=Event("launch_rocket"))
 
@@ -287,7 +287,7 @@ class TestExplicitEvent:
     def test_allow_using_events_as_commands(self):
         class StartMachine(StateChart):
             created = State(initial=True)
-            started = State()
+            started = State(final=True)
 
             created.to(started, event=Event("launch_rocket"))
 
@@ -301,7 +301,7 @@ class TestExplicitEvent:
     def test_event_commands_fail_when_unbound_to_instance(self):
         class StartMachine(StateChart):
             created = State(initial=True)
-            started = State()
+            started = State(final=True)
 
             created.to(started, event=Event("launch_rocket"))
 

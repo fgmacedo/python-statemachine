@@ -126,7 +126,6 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     """List of top-level :ref:`State` objects marked as ``final``."""
 
     _abstract: bool
-    _strict_states: bool
     _events: "Dict[Event, None]"
     _protected_attrs: set
     _specs: CallbackSpecList
@@ -181,10 +180,6 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
-
-    def __init_subclass__(cls, strict_states: bool = False):
-        cls._strict_states = strict_states
-        super().__init_subclass__()
 
     def __repr__(self):
         configuration_ids = [s.id for s in self.configuration]

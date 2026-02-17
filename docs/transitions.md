@@ -185,7 +185,7 @@ State machine class level. The name will be converted to an {ref}`Event`:
 
 >>> class SimpleSM(StateChart):
 ...     initial = State(initial=True)
-...     final = State()
+...     final = State(final=True)
 ...
 ...     start = initial.to(final)  # start is a name that will be converted to an `Event`
 
@@ -207,7 +207,7 @@ To declare an explicit event you must also import the {ref}`Event`:
 
 >>> class SimpleSM(StateChart):
 ...     initial = State(initial=True)
-...     final = State()
+...     final = State(final=True)
 ...
 ...     start = Event(
 ...         initial.to(final),

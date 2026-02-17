@@ -924,7 +924,7 @@ class TestEngineErrorPropagation:
 
         class SM(StateChart):
             s1 = State(initial=True)
-            s2 = State()
+            s2 = State(final=True)
 
             go = s1.to(s2)
 
@@ -994,7 +994,7 @@ class TestEngineErrorPropagation:
             error_on_execution = False
 
             s1 = State(initial=True)
-            s2 = State()
+            s2 = State(final=True)
 
             go = s1.to(s2)
 
@@ -1077,7 +1077,7 @@ def test_invalid_definition_in_internal_event_propagates():
     class SM(StateChart):
         s1 = State(initial=True)
         s2 = State()
-        s3 = State()
+        s3 = State(final=True)
         error_state = State(final=True)
 
         go = s1.to(s2)
@@ -1104,7 +1104,7 @@ def test_runtime_error_in_internal_event_propagates_without_error_on_execution()
 
         s1 = State(initial=True)
         s2 = State()
-        s3 = State()
+        s3 = State(final=True)
 
         go = s1.to(s2)
         step = s2.to(s3, on="bad_action")

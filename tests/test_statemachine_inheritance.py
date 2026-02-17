@@ -8,7 +8,7 @@ def BaseMachine():
     from statemachine import State
     from statemachine import StateChart
 
-    class BaseMachine(StateChart, strict_states=False):
+    class BaseMachine(StateChart):
         state_1 = State(initial=True)
         state_2 = State()
         trans_1_2 = state_1.to(state_2)
@@ -19,7 +19,7 @@ def BaseMachine():
 
 @pytest.fixture()
 def InheritedClass(BaseMachine):
-    class InheritedClass(BaseMachine, strict_states=False):
+    class InheritedClass(BaseMachine):
         pass
 
     return InheritedClass
