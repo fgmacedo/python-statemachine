@@ -71,9 +71,12 @@ class SCXMLProcessor:
             "http://www.w3.org/TR/scxml/#SCXMLEventProcessor": self,
             "scxml": self,
         }
+        self.base_dir: "Path | None" = None
 
     def parse_scxml_file(self, path: Path):
         scxml_content = path.read_text()
+        self._scxml_base_dir = path.parent
+        self.base_dir = path.parent.resolve()
         with temporary_directory(path.parent):
             return self.parse_scxml(path.stem, scxml_content)
 
@@ -200,20 +203,26 @@ class SCXMLProcessor:
 
     def _process_invocation(self, invoke_def: InvokeDefinition) -> InvokeConfig:
         """Convert a parsed InvokeDefinition into a runtime InvokeConfig."""
+        from .invoke import SCXMLInvoker
+
         finalize = None
         if invoke_def.finalize and not invoke_def.finalize.is_empty:
             finalize = ExecuteBlock(invoke_def.finalize)
 
-        return InvokeConfig(
-            invoke_type=invoke_def.type,
+        handler = SCXMLInvoker(
             src=invoke_def.src,
             srcexpr=invoke_def.srcexpr,
+            content=invoke_def.content,
+            base_dir=getattr(self, "_scxml_base_dir", None),
+        )
+
+        return InvokeConfig(
+            handler=handler,
             id=invoke_def.id,
             idlocation=invoke_def.idlocation,
             autoforward=invoke_def.autoforward,
             namelist=invoke_def.namelist,
             params=invoke_def.params,
-            content=invoke_def.content,
             finalize=finalize,
         )
 
@@ -253,5 +262,9 @@ class SCXMLProcessor:
 
     def start(self, **kwargs):
         self.root_cls = next(iter(self.scs.values()))
+        # Set base_dir on the class BEFORE instantiation so it's available
+        # during the processing loop (which runs inside __init__ for sync SMs)
+        if self.base_dir is not None:
+            self.root_cls._scxml_base_dir = self.base_dir  # type: ignore[attr-defined]
         self.root = self.root_cls(**kwargs)
         return self.root

@@ -85,10 +85,25 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     return definition
 
 
+def _find_datamodel_elements(root: ET.Element) -> "list[ET.Element]":
+    """Find all <datamodel> elements excluding those inside <content> (child SCXML docs)."""
+    results = []
+    for child in root:
+        tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+        if tag == "datamodel":
+            results.append(child)
+        elif tag == "content":
+            # Skip — content contains a separate SCXML document
+            continue
+        else:
+            results.extend(_find_datamodel_elements(child))
+    return results
+
+
 def parse_datamodel(root: ET.Element) -> "DataModel | None":
     data_model = DataModel()
 
-    for datamodel_elem in root.findall(".//datamodel"):
+    for datamodel_elem in _find_datamodel_elements(root):
         for data_elem in datamodel_elem.findall("data"):
             content = data_elem.text and re.sub(r"\s+", " ", data_elem.text).strip() or None
             src = data_elem.attrib.get("src")

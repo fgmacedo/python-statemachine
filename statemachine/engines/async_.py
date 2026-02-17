@@ -312,6 +312,19 @@ class AsyncEngine(BaseEngine):
         except Exception as e:
             self._handle_error(e, trigger_data)
 
+    async def enter_initial_configuration(self):
+        """Enter the initial state configuration without starting the processing loop.
+
+        Async override of the base method for use by invoke's two-phase activation.
+        """
+        if self.sm.current_state_value is not None:
+            return
+        from ..event import BoundEvent
+
+        trigger_data = BoundEvent("__initial__", _sm=self.sm).build_trigger(machine=self.sm)
+        transitions = self._initial_transitions(trigger_data)
+        await self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
+
     async def activate_initial_state(self):
         """Activate the initial state.
 
@@ -398,6 +411,11 @@ class AsyncEngine(BaseEngine):
                         # Break to Phase 1 so internal events and eventless
                         # transitions can be processed while we wait.
                         break
+
+                    # Forward delayed cross-session events to their target
+                    if external_event.forward_target:
+                        self._forward_to_target(external_event)
+                        continue
 
                     logger.debug("External event: %s", external_event.event)
 

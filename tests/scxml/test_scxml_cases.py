@@ -1,3 +1,4 @@
+import asyncio
 import traceback
 from dataclasses import dataclass
 from dataclasses import field
@@ -136,7 +137,7 @@ Final configuration: `{configuration}`
             fail_file.write(report)
 
 
-def _run_scxml_testcase(
+async def _run_scxml_testcase(
     testcase_path: Path,
     update_fail_mark,
     should_generate_debug_diagram,
@@ -144,17 +145,17 @@ def _run_scxml_testcase(
     *,
     variant: str,
     async_mode: bool = False,
-) -> StateChart:
+):
     """Shared logic for sync and async SCXML test variants.
 
     Parses the SCXML file, starts the state machine, and asserts the final
-    configuration contains ``pass``.  Returns the SM instance.
+    configuration contains ``pass``.
     """
     from statemachine.contrib.diagram import DotGraphMachine
 
     sm: "StateChart | None" = None
+    debug = DebugListener()
     try:
-        debug = DebugListener()
         listeners: list = [debug]
         if async_mode:
             listeners.append(AsyncListener())
@@ -167,7 +168,12 @@ def _run_scxml_testcase(
                 testcase_path.parent / f"{testcase_path.stem}.png"
             )
         assert sm is not None
-        return sm
+        assert isinstance(sm, StateChart)
+        if async_mode:
+            # In async context, the engine only queued __initial__ during __init__.
+            # Activate now within the running event loop.
+            await sm.activate_initial_state()
+        assert "pass" in {s.id for s in sm.configuration}, debug
     except Exception as e:
         if update_fail_mark:
             reason = f"{e.__class__.__name__}: {e.__class__.__doc__}"
@@ -184,30 +190,26 @@ def _run_scxml_testcase(
         raise
 
 
-def _assert_passed(sm: StateChart, debug: "DebugListener | None" = None):
-    assert isinstance(sm, StateChart)
-    assert "pass" in {s.id for s in sm.configuration}, debug
-
-
 def test_scxml_usecase_sync(
     testcase_path: Path, update_fail_mark, should_generate_debug_diagram, caplog
 ):
-    sm = _run_scxml_testcase(
-        testcase_path,
-        update_fail_mark,
-        should_generate_debug_diagram,
-        caplog,
-        async_mode=False,
-        variant="sync",
+    asyncio.run(
+        _run_scxml_testcase(
+            testcase_path,
+            update_fail_mark,
+            should_generate_debug_diagram,
+            caplog,
+            async_mode=False,
+            variant="sync",
+        )
     )
-    _assert_passed(sm)
 
 
 @pytest.mark.asyncio()
 async def test_scxml_usecase_async(
     testcase_path: Path, update_fail_mark, should_generate_debug_diagram, caplog
 ):
-    sm = _run_scxml_testcase(
+    await _run_scxml_testcase(
         testcase_path,
         update_fail_mark,
         should_generate_debug_diagram,
@@ -215,7 +217,3 @@ async def test_scxml_usecase_async(
         async_mode=True,
         variant="async",
     )
-    # In async context, the engine only queued __initial__ during __init__.
-    # Activate now within the running event loop.
-    await sm.activate_initial_state()
-    _assert_passed(sm)

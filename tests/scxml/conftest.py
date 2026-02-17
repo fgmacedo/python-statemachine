@@ -25,7 +25,8 @@ def processor(testcase_path: Path):
 
 
 def compute_testcase_marks(
-    testcase_path: Path, variant: str,
+    testcase_path: Path,
+    variant: str,
 ) -> list[pytest.MarkDecorator]:
     marks = [pytest.mark.scxml]
 

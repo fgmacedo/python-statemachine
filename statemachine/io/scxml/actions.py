@@ -383,20 +383,20 @@ def _send_to_child(machine: "StateChart", event: str, params_values: dict):
         machine.send("error.communication", internal=True)
 
 
-def _send_to_invokeid(target: str, event: str, action: SendAction, **kwargs):
+def _send_to_invokeid(send_target: str, send_event: str, action: SendAction, **kwargs):
     """Route an event to a specific child by #_<invokeid>."""
     machine: "StateChart" = kwargs["machine"]
-    invokeid = target[2:]
+    invokeid = send_target[2:]
     if hasattr(machine, "_engine") and hasattr(machine._engine, "invoke_manager"):
         params_values = {}
         for param in action.params:
             if param.expr:
                 params_values[param.name] = _eval(param.expr, **kwargs)
-        machine._engine.invoke_manager.send_to_invokeid(invokeid, event, **params_values)
-    elif target.startswith("#_scxml_"):
+        machine._engine.invoke_manager.send_to_invokeid(invokeid, send_event, **params_values)
+    elif send_target.startswith("#_scxml_"):
         machine.send("error.communication", internal=True)
     else:
-        raise ValueError(f"Invalid target: {target}")
+        raise ValueError(f"Invalid target: {send_target}")
 
 
 def _eval_send_params(action: SendAction, **kwargs) -> dict:
@@ -449,10 +449,21 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
             return
 
         params_values = _eval_send_params(action, **kwargs)
+        delay = ParseTime.parse_delay(action.delay, action.delayexpr, **kwargs)
 
         # Handle cross-session targets
         if target in ("#_parent", "parent"):
-            _send_to_parent(machine, event, content, params_values)
+            if delay:
+                # Delayed cross-session sends: place the event on the child's own
+                # queue with a delay and forward_target. When the delay expires, the
+                # processing loop forwards it to the parent. If the child terminates
+                # first, the event stays in the queue unprocessed — automatic
+                # cancellation per SCXML spec.
+                Event(id=event, name=event, delay=delay, _sm=machine).put(
+                    *content, forward_target="#_parent", **params_values
+                )
+            else:
+                _send_to_parent(machine, event, content, params_values)
             return
         if target == "#_child":
             _send_to_child(machine, event, params_values)
@@ -466,7 +477,6 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
             send_id = uuid4().hex
             setattr(machine.model, action.idlocation, send_id)
 
-        delay = ParseTime.parse_delay(action.delay, action.delayexpr, **kwargs)
         Event(id=event, name=event, delay=delay, internal=internal, _sm=machine).put(
             *content,
             send_id=send_id,

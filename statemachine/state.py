@@ -18,6 +18,13 @@ if TYPE_CHECKING:
     from .statemachine import StateChart
 
 
+def _is_statechart_subclass(cls: type) -> bool:
+    """Check if cls is a StateChart subclass without importing it eagerly."""
+    from .statemachine import StateChart
+
+    return issubclass(cls, StateChart)
+
+
 class _TransitionBuilder:
     def __init__(self, state: "State"):
         self._state = state
@@ -243,11 +250,15 @@ class State:
 
         Accepts:
             - None → []
-            - A StateChart subclass → [InvokeConfig(child_class=...)]
+            - A StateChart subclass → [InvokeConfig(handler=StateChartInvoker(cls))]
+            - A callable → [InvokeConfig(handler=callable)]
+            - An Invoker instance → [InvokeConfig(handler=instance)]
             - An InvokeConfig → [config]
             - A list of the above → [InvokeConfig(...), ...]
         """
         from .invoke import InvokeConfig
+        from .invoke import Invoker
+        from .invoke import StateChartInvoker
 
         if invoke is None:
             return []
@@ -257,9 +268,10 @@ class State:
         for item in items:
             if isinstance(item, InvokeConfig):
                 result.append(item)
-            elif isinstance(item, type):
-                # Assume it's a StateChart subclass
-                result.append(InvokeConfig(child_class=item))
+            elif isinstance(item, type) and _is_statechart_subclass(item):
+                result.append(InvokeConfig(handler=StateChartInvoker(item)))
+            elif callable(item) or isinstance(item, Invoker):
+                result.append(InvokeConfig(handler=item))
             else:
                 result.append(item)
         return result

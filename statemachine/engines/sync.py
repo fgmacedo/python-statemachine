@@ -79,7 +79,7 @@ class SyncEngine(BaseEngine):
         first_result = self._sentinel
         try:
             took_events = True
-            while took_events:
+            while took_events and not self.sm.is_terminated:
                 self.clear_cache()
                 took_events = False
                 # Execute the triggers in the queue in FIFO order until the queue is empty
@@ -139,6 +139,11 @@ class SyncEngine(BaseEngine):
                         # transitions can be processed while we wait.
                         break
 
+                    # Forward delayed cross-session events to their target
+                    if external_event.forward_target:
+                        self._forward_to_target(external_event)
+                        continue
+
                     logger.debug("External event: %s", external_event.event)
 
                     # Handle invoke finalize and autoforward
@@ -165,9 +170,20 @@ class SyncEngine(BaseEngine):
                             self.clear()
                             raise
 
+                        # Per SCXML spec: process ONE external event per macrostep,
+                        # then loop back to handle eventless transitions, internal
+                        # events, and invoke spawning before the next external event.
+                        break
+
                     else:
                         if not self.sm.allow_event_without_transition:
                             raise TransitionNotAllowed(external_event.event, self.sm.configuration)
+
+                # If no events were processed but there are pending events
+                # on the external queue (e.g., delayed timeouts in SCXML tests),
+                # keep the loop alive so child sessions can send events back.
+                if not took_events and not self.external_queue.is_empty():
+                    took_events = True
 
         finally:
             self._processing.release()

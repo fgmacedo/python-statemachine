@@ -5,6 +5,8 @@ import time
 
 import pytest
 from statemachine.invoke import InvokeConfig
+from statemachine.invoke import Invoker
+from statemachine.invoke import StateChartInvoker
 
 from statemachine import State
 from statemachine import StateChart
@@ -76,23 +78,73 @@ class TestStateInvokeNormalization:
         s = State(invoke=None)
         assert s.invocations == []
 
-    def test_invoke_class_becomes_invoke_config(self):
+    def test_invoke_statechart_becomes_invoke_config_with_handler(self):
         s = State(invoke=ChildMachine)
         assert len(s.invocations) == 1
         assert isinstance(s.invocations[0], InvokeConfig)
-        assert s.invocations[0].child_class is ChildMachine
+        assert isinstance(s.invocations[0].handler, StateChartInvoker)
+        assert s.invocations[0].handler._child_class is ChildMachine
 
     def test_invoke_config_passthrough(self):
-        config = InvokeConfig(child_class=ChildMachine)
+        config = InvokeConfig(handler=StateChartInvoker(ChildMachine))
         s = State(invoke=config)
         assert len(s.invocations) == 1
         assert s.invocations[0] is config
 
+    def test_invoke_callable_becomes_invoke_config(self):
+        def my_handler(ctx):
+            return {"result": 42}
+
+        s = State(invoke=my_handler)
+        assert len(s.invocations) == 1
+        assert isinstance(s.invocations[0], InvokeConfig)
+        assert s.invocations[0].handler is my_handler
+
+    def test_invoke_invoker_class_becomes_invoke_config(self):
+        class MyInvoker:
+            def run(self, ctx):
+                return None
+
+        s = State(invoke=MyInvoker)
+        assert len(s.invocations) == 1
+        assert isinstance(s.invocations[0], InvokeConfig)
+        # MyInvoker is callable (it's a class), so it gets wrapped directly
+        assert s.invocations[0].handler is MyInvoker
+
     def test_invoke_list_of_classes(self):
         s = State(invoke=[ChildMachine, SlowChild])
         assert len(s.invocations) == 2
-        assert s.invocations[0].child_class is ChildMachine
-        assert s.invocations[1].child_class is SlowChild
+        assert isinstance(s.invocations[0].handler, StateChartInvoker)
+        assert isinstance(s.invocations[1].handler, StateChartInvoker)
+        assert s.invocations[0].handler._child_class is ChildMachine
+        assert s.invocations[1].handler._child_class is SlowChild
+
+    def test_invoke_list_mixed(self):
+        def my_handler(ctx):
+            return None
+
+        s = State(invoke=[ChildMachine, my_handler])
+        assert len(s.invocations) == 2
+        assert isinstance(s.invocations[0].handler, StateChartInvoker)
+        assert s.invocations[1].handler is my_handler
+
+
+class TestInvokerProtocol:
+    """Test that the Invoker protocol works with runtime_checkable."""
+
+    def test_class_with_run_satisfies_protocol(self):
+        class MyHandler:
+            def run(self, ctx):
+                return None
+
+        assert isinstance(MyHandler(), Invoker)
+
+    def test_plain_function_does_not_satisfy_protocol(self):
+        def handler(ctx):
+            return None
+
+        # Functions don't have a run() method
+        assert not isinstance(handler, Invoker)
 
 
 class TestDoneInvokeNamingConvention:
@@ -167,7 +219,107 @@ class TestInvokeSpawnAndCancel:
         assert len(active_before) > 0
 
         await sm_runner.send(sm, "abort")
-        assert active_before[0].cancelled, "Child was not cancelled after exiting invoke state"
+        # Check that the context was cancelled
+        inv = active_before[0]
+        assert inv.ctx is not None, "Child ctx should not be None"
+        assert inv.ctx.cancelled, "Child ctx was not cancelled after exiting invoke state"
+
+
+class TestCallableHandler:
+    """Test using a plain function as an invoke handler."""
+
+    @pytest.mark.asyncio()
+    async def test_function_handler_return_data(self, sm_runner):
+        """A function handler's return value is sent as done.invoke data."""
+        received_data = {}
+
+        def fetch_data(ctx):
+            return {"answer": 42}
+
+        class Parent(StateChart):
+            active = State(initial=True, invoke=fetch_data)
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+            def on_done_invoke_active(self, answer=None, **kwargs):
+                received_data["answer"] = answer
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert received_data.get("answer") == 42
+
+
+class TestInvokerClassHandler:
+    """Test using a class with run() method as an invoke handler."""
+
+    @pytest.mark.asyncio()
+    async def test_class_handler_with_on_cancel(self, sm_runner):
+        """A class handler's on_cancel() is called when the parent exits."""
+        cancel_called = []
+
+        class MyHandler:
+            def run(self, ctx):
+                while not ctx.cancelled:
+                    time.sleep(0.01)
+                return None
+
+            def on_cancel(self):
+                cancel_called.append(True)
+
+        class Parent(StateChart):
+            idle = State(initial=True)
+            active = State(invoke=MyHandler)
+            other = State()
+            done = State(final=True)
+
+            start = idle.to(active)
+            abort = active.to(other)
+            finish = other.to(done)
+
+        sm = await sm_runner.start(Parent)
+        await sm_runner.send(sm, "start")
+        await _sleep(sm_runner)
+        await sm_runner.send(sm, "abort")
+        await _sleep(sm_runner, 0.2)
+
+        assert len(cancel_called) > 0, "on_cancel() was not called"
+
+    @pytest.mark.asyncio()
+    async def test_class_handler_with_on_event(self, sm_runner):
+        """A class handler's on_event() receives autoforwarded events."""
+        forwarded_events = []
+
+        class MyHandler:
+            def run(self, ctx):
+                while not ctx.cancelled:
+                    time.sleep(0.01)
+                return None
+
+            def on_event(self, event, **data):
+                forwarded_events.append(event)
+
+        class Parent(StateChart):
+            idle = State(initial=True)
+            active = State(invoke=InvokeConfig(handler=MyHandler, autoforward=True))
+            other = State()
+            done = State(final=True)
+
+            start = idle.to(active)
+            abort = active.to(other)
+            finish = other.to(done)
+
+        sm = await sm_runner.start(Parent)
+        await sm_runner.send(sm, "start")
+        await _sleep(sm_runner)
+        # Send abort — should be autoforwarded to handler before transition
+        await sm_runner.send(sm, "abort")
+        await _sleep(sm_runner, 0.2)
+
+        assert "abort" in forwarded_events, (
+            f"on_event() was not called with 'abort'. Got: {forwarded_events}"
+        )
 
 
 class TestMultipleInvocations:

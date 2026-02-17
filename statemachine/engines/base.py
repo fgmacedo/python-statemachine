@@ -138,6 +138,33 @@ class BaseEngine:
         """Cancel the event with the given send_id."""
         self.external_queue.remove(send_id)
 
+    def _forward_to_target(self, trigger_data: TriggerData):
+        """Forward an event to a cross-session target instead of processing it.
+
+        Called by the processing loop when ``trigger_data.forward_target`` is set.
+        This supports delayed cross-session sends: the event sits on the child's
+        queue with a delay, and when it expires the processing loop forwards it
+        to the named target.
+        """
+        target = trigger_data.forward_target
+        event_name = str(trigger_data.event)
+        if target in ("#_parent", "parent"):
+            parent_sm = getattr(self.sm, "_parent_sm", None)
+            if parent_sm is not None:
+                child_invokeid = getattr(self.sm, "_invokeid", None)
+                parent_sm.send(
+                    event_name,
+                    *trigger_data.args,
+                    invokeid=child_invokeid,
+                    **trigger_data.kwargs,
+                )
+            else:
+                self.sm.send("error.communication", internal=True)
+        elif target == "#_child":
+            self.invoke_manager.send_to_child(event_name, **trigger_data.kwargs)
+        else:
+            logger.warning("Unknown forward_target: %s", target)
+
     def _on_error_handler(self) -> "Callable[[Exception], None] | None":
         """Return a per-block error handler, or ``None``.
 
@@ -187,6 +214,19 @@ class BaseEngine:
             return
 
         BoundEvent("__initial__", _sm=self.sm).put()
+
+    def enter_initial_configuration(self):
+        """Enter the initial state configuration without starting the processing loop.
+
+        Used by invoke to split activation into two phases: enter initial states
+        (which runs datamodel entry actions), then apply invoke params, then start
+        the processing loop.
+        """
+        if self.sm.current_state_value is not None:
+            return
+        trigger_data = BoundEvent("__initial__", _sm=self.sm).build_trigger(machine=self.sm)
+        transitions = self._initial_transitions(trigger_data)
+        self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
 
     def _initial_transitions(self, trigger_data):
         empty_state = State()

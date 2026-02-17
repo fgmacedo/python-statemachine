@@ -144,9 +144,9 @@ def _parse_states(
     return (states_instances, events_definitions)
 
 
-def create_machine_class_from_definition(
+def create_machine_class_from_definition(  # noqa: C901
     name: str, states: Mapping[str, "StateKwargs | StateDefinition"], **definition
-) -> "type[StateChart]":  # noqa: C901
+) -> "type[StateChart]":
     """Create a StateChart class dynamically from a dictionary definition.
 
     Args:
@@ -205,11 +205,20 @@ def create_machine_class_from_definition(
                 # Handle multi-target transitions (space-separated target IDs)
                 if target_state_id and isinstance(target_state_id, str) and " " in target_state_id:
                     target_ids = target_state_id.split()
-                    targets = [states_instances[tid] for tid in target_ids]
+                    try:
+                        targets = [states_instances[tid] for tid in target_ids]
+                    except KeyError:
+                        # SCXML spec: unknown target is a runtime error, not a
+                        # parse error.  Skip unreachable transitions so the
+                        # machine can still be created.
+                        continue
                     t = Transition(source, target=targets, **transition_kwargs)
                     source.transitions.add_transitions(t)
                     transition = TransitionList([t])
                 else:
+                    if target_state_id and target_state_id not in states_instances:
+                        # SCXML spec: unknown target is a runtime error.
+                        continue
                     target = states_instances[target_state_id] if target_state_id else None
                     transition = source.to(target, **transition_kwargs)
 

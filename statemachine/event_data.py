@@ -30,6 +30,16 @@ class TriggerData:
     execution_time: float = field(default=0.0)
     """The time at which the :ref:`Event` should run."""
 
+    forward_target: "str | None" = field(compare=False, default=None)
+    """When set, the processing loop forwards this event to the named target
+    (e.g. ``"#_parent"``, ``"#_child"``) instead of processing it normally.
+
+    Used for delayed cross-session sends: the event sits on the child's queue
+    with a delay, and when the delay expires it is forwarded to the target.
+    If the child terminates first, the event is never processed — automatic
+    cancellation per SCXML spec.
+    """
+
     model: Any = field(init=False, compare=False)
     """A reference to the underlying model that holds the current :ref:`State`."""
 
@@ -57,7 +67,7 @@ class EventData:
     trigger_data: TriggerData
     """The :ref:`TriggerData` of the :ref:`event`."""
 
-    transition: "Transition"
+    transition: "Transition | None"
     """The :ref:`Transition` instance that was activated by the :ref:`Event`."""
 
     state: "State" = field(init=False)

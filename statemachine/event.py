@@ -95,7 +95,22 @@ class Event(AddCallbacksMixin, str):
         )
 
     def is_same_event(self, *_args, event: "str | None" = None, **_kwargs) -> bool:
-        return self == event
+        if self == event:
+            return True
+        if event is not None:
+            event_str = str(event)
+            self_dot = str(self).replace("_", ".")
+            event_dot = event_str.replace("_", ".")
+
+            # Exact match with dot/underscore normalization
+            if self_dot == event_dot:
+                return True
+
+            # SCXML prefix matching: descriptor "done.invoke.active" matches
+            # actual event "done.invoke.active.abc123"
+            if event_dot.startswith(self_dot + "."):
+                return True
+        return False
 
     def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
         if self._transitions is None:
@@ -121,14 +136,26 @@ class Event(AddCallbacksMixin, str):
             return self
         return BoundEvent(id=self.id, name=self.name, delay=self.delay, _sm=instance)
 
-    def put(self, *args, send_id: "str | None" = None, invokeid: "str | None" = None, **kwargs):
+    def put(
+        self,
+        *args,
+        send_id: "str | None" = None,
+        invokeid: "str | None" = None,
+        forward_target: "str | None" = None,
+        **kwargs,
+    ):
         # The `__call__` is declared here to help IDEs knowing that an `Event`
         # can be called as a method. But it is not meant to be called without
         # an SM instance. Such SM instance is provided by `__get__` method when
         # used as a property descriptor.
         assert self._sm is not None
         trigger_data = self.build_trigger(
-            *args, machine=self._sm, send_id=send_id, invokeid=invokeid, **kwargs
+            *args,
+            machine=self._sm,
+            send_id=send_id,
+            invokeid=invokeid,
+            forward_target=forward_target,
+            **kwargs,
         )
         self._sm._put_nonblocking(trigger_data, internal=self.internal)
         return trigger_data
@@ -139,6 +166,7 @@ class Event(AddCallbacksMixin, str):
         machine: "StateChart",
         send_id: "str | None" = None,
         invokeid: "str | None" = None,
+        forward_target: "str | None" = None,
         **kwargs,
     ):
         if machine is None:
@@ -150,6 +178,7 @@ class Event(AddCallbacksMixin, str):
             event=self,
             send_id=send_id,
             invokeid=invokeid,
+            forward_target=forward_target,
             args=args,
             kwargs=kwargs,
         )
