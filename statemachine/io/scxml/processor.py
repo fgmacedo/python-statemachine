@@ -105,6 +105,8 @@ class SCXMLProcessor:
                 "states": states_dict,
                 "prepare_event": self._prepare_event,
                 "validate_disconnected_states": False,
+                "validate_trap_states": False,
+                "validate_final_reachability": False,
                 "start_configuration_values": list(definition.initial_states),
             },
         )

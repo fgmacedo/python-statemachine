@@ -89,7 +89,7 @@ class QuestNoCatch(StateChart):
     error_on_execution = False
 
     safe = State("Safe", initial=True)
-    danger_zone = State("Danger Zone")
+    danger_zone = State("Danger Zone", final=True)
 
     venture = safe.to(danger_zone)
 

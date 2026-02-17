@@ -166,7 +166,7 @@ class TestCallbacksAsDecorator:
         assert race_uppercase("Hobbit") == "HOBBIT"
 
     def test_decorate_unbounded_machine_methods(self):
-        class MiniHeroJourneyMachine(StateChart, strict_states=False):
+        class MiniHeroJourneyMachine(StateChart):
             ordinary_world = State(initial=True)
             call_to_adventure = State(final=True)
             refusal_of_call = State(final=True)
@@ -222,7 +222,7 @@ class TestIssue406:
     def test_issue_406(self, mocker):
         mock = mocker.Mock()
 
-        class ExampleStateMachine(StateChart, strict_states=False):
+        class ExampleStateMachine(StateChart):
             created = State(initial=True)
             inited = State(final=True)
 

@@ -44,17 +44,13 @@ Traceback (most recent call last):
 InvalidDefinition: There are unreachable states. The statemachine graph should have a single component. Disconnected states: ['hazard']
 ```
 
-`StateChart` will also check that all non-final states have an outgoing transition, and warn you if any states would result in
-the statemachine becoming trapped in a non-final state with no further transitions possible.
-
-```{note}
-This will currently issue a warning, but can be turned into an exception by setting `strict_states=True` on the class.
-```
+`StateChart` will also check that all non-final states have an outgoing transition.
+If any non-final state has no outgoing transitions, an `InvalidDefinition` exception is raised.
 
 ```py
 >>> from statemachine import StateChart, State
 
->>> class TrafficLightMachine(StateChart, strict_states=True):
+>>> class TrafficLightMachine(StateChart):
 ...     "A workflow machine"
 ...     red = State('Red', initial=True, value=1)
 ...     green = State('Green', value=2)
@@ -68,8 +64,19 @@ Traceback (most recent call last):
 InvalidDefinition: All non-final states should have at least one outgoing transition. These states have no outgoing transition: ['hazard']
 ```
 
-```{warning}
-`strict_states=True` will become the default behaviour in future versions.
+You can disable this check by setting `validate_trap_states = False` on the class:
+
+```py
+>>> class TrafficLightMachine(StateChart):
+...     validate_trap_states = False
+...     red = State('Red', initial=True, value=1)
+...     green = State('Green', value=2)
+...     orange = State('Orange', value=3)
+...     hazard = State('Hazard', value=4)
+...
+...     cycle = red.to(green) | green.to(orange) | orange.to(red)
+...     fault = red.to(hazard) | green.to(hazard) | orange.to(hazard)
+
 ```
 
 
@@ -100,12 +107,8 @@ InvalidDefinition: Cannot declare transitions from final state. Invalid state(s)
 
 If you mark any states as final, `StateChart` will check that all non-final states have a path to reach at least one final state.
 
-```{note}
-This will currently issue a warning, but can be turned into an exception by setting `strict_states=True` on the class.
-```
-
 ```py
->>> class CampaignMachine(StateChart, strict_states=True):
+>>> class CampaignMachine(StateChart):
 ...     "A workflow machine"
 ...     draft = State('Draft', initial=True, value=1)
 ...     producing = State('Being produced', value=2)
@@ -122,9 +125,7 @@ InvalidDefinition: All non-final states should have at least one path to a final
 
 ```
 
-```{warning}
-`strict_states=True` will become the default behaviour in future versions.
-```
+You can disable this check by setting `validate_final_reachability = False` on the class.
 
 You can query a list of all final states from your statemachine.
 
