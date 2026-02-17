@@ -19,6 +19,7 @@ defaults. Review this guide to understand what changed and adopt the new APIs at
 7. Review `on` callbacks that query `is_active` or `current_state` during transitions.
 8. If using `States.from_enum`, note that `use_enum_instance` now defaults to `True`.
 9. If using `get_machine_cls()` with short names, switch to fully-qualified names.
+10. Remove `strict_states=True/False` — replace with `validate_trap_states` / `validate_final_reachability`.
 
 ---
 
@@ -367,6 +368,44 @@ from statemachine import StateMachine    # unchanged
 from statemachine import State           # unchanged
 from statemachine import Event           # unchanged
 ```
+
+
+## `strict_states` removed — use `validate_trap_states` / `validate_final_reachability`
+
+The `strict_states` class parameter has been removed. The two validations it controlled are now
+always-on by default, each controlled by its own class-level attribute.
+
+**Before (2.x):**
+
+```python
+class MyMachine(StateMachine, strict_states=True):
+    # raises InvalidDefinition for trap states and unreachable final states
+    ...
+
+class MyMachine(StateMachine, strict_states=False):
+    # only warns (default in 2.x)
+    ...
+```
+
+**After (3.0) — recommended: fix the definition by marking terminal states as `final`:**
+
+```python
+class MyMachine(StateMachine):
+    s1 = State(initial=True)
+    s2 = State(final=True)        # was State() — now correctly marked as final
+    go = s1.to(s2)
+```
+
+**After (3.0) — opt out if you intentionally have non-final trap states:**
+
+```python
+class MyMachine(StateMachine):
+    validate_trap_states = False           # allow non-final states without outgoing transitions
+    validate_final_reachability = False    # allow non-final states without path to final
+    ...
+```
+
+The two flags are independent — you can disable one while keeping the other enabled.
 
 
 ## New features overview

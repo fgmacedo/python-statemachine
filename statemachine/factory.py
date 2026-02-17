@@ -1,4 +1,3 @@
-import warnings
 from typing import Any
 from typing import Dict
 from typing import List
@@ -28,12 +27,18 @@ class StateMachineMetaclass(type):
     validate_disconnected_states: bool = True
     """If `True`, the state machine will validate that there are no unreachable states."""
 
+    validate_trap_states: bool = True
+    """If ``True``, non-final states without outgoing transitions raise ``InvalidDefinition``."""
+
+    validate_final_reachability: bool = True
+    """If ``True`` and final states exist, non-final states without a path to any final
+    state raise ``InvalidDefinition``."""
+
     def __init__(
         cls,
         name: str,
         bases: Tuple[type],
         attrs: Dict[str, Any],
-        strict_states: bool = False,
     ) -> None:
         super().__init__(name, bases, attrs)
         registry.register(cls)
@@ -46,7 +51,6 @@ class StateMachineMetaclass(type):
         """Map of ``state.value`` to the corresponding :ref:`state`."""
 
         cls._abstract = True
-        cls._strict_states = strict_states
         cls._events: Dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
         cls._events_to_update: Dict[Event, Optional[Event]] = {}
@@ -173,30 +177,30 @@ class StateMachineMetaclass(type):
             )
 
     def _check_trap_states(cls):
+        if not cls.validate_trap_states:
+            return
         trap_states = [s for s in cls.states if not s.final and not s.transitions]
         if trap_states:
-            message = _(
-                "All non-final states should have at least one outgoing transition. "
-                "These states have no outgoing transition: {!r}"
-            ).format([s.id for s in trap_states])
-            if cls._strict_states:
-                raise InvalidDefinition(message)
-            else:
-                warnings.warn(message, UserWarning, stacklevel=4)
+            raise InvalidDefinition(
+                _(
+                    "All non-final states should have at least one outgoing transition. "
+                    "These states have no outgoing transition: {!r}"
+                ).format([s.id for s in trap_states])
+            )
 
     def _check_reachable_final_states(cls):
+        if not cls.validate_final_reachability:
+            return
         if not any(s.final for s in cls.states):
             return  # No need to check final reachability
         disconnected_states = list(states_without_path_to_final_states(cls.states))
         if disconnected_states:
-            message = _(
-                "All non-final states should have at least one path to a final state. "
-                "These states have no path to a final state: {!r}"
-            ).format([s.id for s in disconnected_states])
-            if cls._strict_states:
-                raise InvalidDefinition(message)
-            else:
-                warnings.warn(message, UserWarning, stacklevel=1)
+            raise InvalidDefinition(
+                _(
+                    "All non-final states should have at least one path to a final state. "
+                    "These states have no path to a final state: {!r}"
+                ).format([s.id for s in disconnected_states])
+            )
 
     def _check_disconnected_state(cls):
         if not cls.validate_disconnected_states:

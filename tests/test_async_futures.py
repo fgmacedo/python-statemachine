@@ -43,7 +43,7 @@ class TrafficLight(StateChart):
 class FailingMachine(StateChart):
     s1 = State(initial=True)
     s2 = State()
-    s3 = State()
+    s3 = State(final=True)
 
     ok = s1.to(s2)
     fail = s2.to(s3)
@@ -96,7 +96,7 @@ class TestExceptionRouting:
         class FailingSC(StateChart):
             error_on_execution = False
             s1 = State(initial=True)
-            s2 = State()
+            s2 = State(final=True)
             go = s1.to(s2)
 
             async def on_go(self):
@@ -117,7 +117,7 @@ class TestTransitionNotAllowedRouting:
         class StrictSC(StateChart):
             allow_event_without_transition = False
             s1 = State(initial=True)
-            s2 = State()
+            s2 = State(final=True)
             go = s1.to(s2)
 
             async def on_go(self):
@@ -167,7 +167,7 @@ class TestFutureEdgeCases:
         class SlowMachine(StateChart):
             s1 = State(initial=True)
             s2 = State()
-            s3 = State()
+            s3 = State(final=True)
 
             step1 = s1.to(s2)
             step2 = s2.to(s3)
@@ -205,7 +205,7 @@ class TestFutureEdgeCases:
             error_on_execution = False
             s1 = State(initial=True)
             s2 = State()
-            s3 = State()
+            s3 = State(final=True)
 
             step1 = s1.to(s2)
             step2 = s2.to(s3)

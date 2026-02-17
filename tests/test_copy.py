@@ -31,7 +31,7 @@ class GameStates(str, Enum):
 
 
 class GameStateMachine(StateChart):
-    s = States.from_enum(GameStates, initial=GameStates.GAME_START)
+    s = States.from_enum(GameStates, initial=GameStates.GAME_START, final=GameStates.GAME_END)
 
     play = s.GAME_START.to(s.GAME_PLAYING)
     stop = s.GAME_PLAYING.to(s.TURN_END)
@@ -46,7 +46,7 @@ class GameStateMachine(StateChart):
 
 class MyStateMachine(StateChart):
     created = State(initial=True)
-    started = State()
+    started = State(final=True)
 
     start = created.to(started)
 
