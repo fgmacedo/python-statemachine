@@ -60,6 +60,7 @@ class StateMachineMetaclass(type):
         )
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
+        cls._collect_class_listeners(attrs, bases)
         cls._unpack_builders_callbacks()
         cls._update_event_references()
 
@@ -232,6 +233,27 @@ class StateMachineMetaclass(type):
             "states_map",
             "send",
         } | {s.id for s in cls.states}
+
+    def _collect_class_listeners(cls, attrs: Dict[str, Any], bases: Tuple[type]):
+        """Collect class-level listener declarations from attrs and MRO.
+
+        Listeners declared on parent classes are prepended (MRO order),
+        unless the child sets ``listeners_inherit = False``.
+        """
+        class_listeners: List[Any] = []
+        if attrs.get("listeners_inherit", True):
+            for base in reversed(bases):
+                class_listeners.extend(getattr(base, "_class_listeners", []))
+        for entry in attrs.get("listeners", []):
+            if entry is None or isinstance(entry, (str, int, float, bool)):
+                raise InvalidDefinition(
+                    _(
+                        "Invalid entry in 'listeners': {!r}. "
+                        "Expected a class, callable, or listener instance."
+                    ).format(entry)
+                )
+            class_listeners.append(entry)
+        cls._class_listeners: List[Any] = class_listeners
 
     def add_inherited(cls, bases):
         for base in bases:
