@@ -7,6 +7,7 @@ from statemachine.invoke import IInvoke
 from statemachine.invoke import InvokeContext
 from statemachine.invoke import invoke_group
 
+from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
 
@@ -717,3 +718,59 @@ class TestInvokeCallableWrapperOnCancel:
         wrapper = _InvokeCallableWrapper(MyHandler)
         # _instance is None, _is_class is True → early return
         wrapper.on_cancel()  # should not raise
+
+
+class TestDoneInvokeEventFactory:
+    """done_invoke_ prefix works with both TransitionList and Event."""
+
+    async def test_done_invoke_with_event_object(self, sm_runner):
+        """Event() object with done_invoke_ prefix should match done.invoke events."""
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=lambda: "result")
+            ready = State(final=True)
+            done_invoke_loading = Event(loading.to(ready))
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+
+        assert "ready" in sm.configuration_values
+
+
+class TestVisitNoCallbacks:
+    """visit/async_visit with no registered callbacks is a no-op."""
+
+    def test_visit_missing_key(self):
+        from statemachine.callbacks import CallbacksRegistry
+
+        registry = CallbacksRegistry()
+        # Should not raise — just returns
+        registry.visit("nonexistent_key", lambda cb, **kw: None)
+
+    async def test_async_visit_missing_key(self):
+        from statemachine.callbacks import CallbacksRegistry
+
+        registry = CallbacksRegistry()
+        await registry.async_visit("nonexistent_key", lambda cb, **kw: None)
+
+
+class TestAsyncVisitAwaitable:
+    """async_visit should await the visitor_fn result when it is awaitable."""
+
+    async def test_async_visitor_fn_is_awaited(self):
+        from statemachine.callbacks import CallbackGroup
+        from statemachine.callbacks import CallbacksExecutor
+        from statemachine.callbacks import CallbackSpec
+
+        visited = []
+
+        async def async_visitor(callback, **kwargs):
+            visited.append(str(callback))
+
+        executor = CallbacksExecutor()
+        spec = CallbackSpec("dummy", group=CallbackGroup.INVOKE, is_convention=True)
+        executor.add("test_key", spec, lambda: lambda **kw: True)
+
+        await executor.async_visit(async_visitor)
+        assert visited == ["dummy"]
