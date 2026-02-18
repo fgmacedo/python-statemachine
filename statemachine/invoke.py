@@ -19,9 +19,8 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Tuple
 from typing import runtime_checkable
-
-from .orderedset import OrderedSet
 
 try:
     from typing import Protocol
@@ -150,6 +149,9 @@ class InvokeContext:
     cancelled: threading.Event = field(default_factory=threading.Event)
     """Set when the owning state is exited; handlers should check this to stop early."""
 
+    kwargs: dict = field(default_factory=dict)
+    """Keyword arguments from the event that triggered the state entry."""
+
 
 @dataclass
 class Invocation:
@@ -263,7 +265,7 @@ class InvokeManager:
     def __init__(self, engine: "BaseEngine"):
         self._engine = engine
         self._active: Dict[str, Invocation] = {}
-        self._states_to_invoke: "OrderedSet[State]" = OrderedSet()
+        self._pending: "List[Tuple[State, dict]]" = []
 
     @property
     def sm(self) -> "StateChart":
@@ -271,16 +273,24 @@ class InvokeManager:
 
     # --- Engine hooks ---
 
-    def mark_for_invoke(self, state: "State"):
-        """Called by ``_enter_states()`` after entering a state with invoke callbacks."""
-        self._states_to_invoke.add(state)
+    def mark_for_invoke(self, state: "State", event_kwargs: "dict | None" = None):
+        """Called by ``_enter_states()`` after entering a state with invoke callbacks.
+
+        Args:
+            state: The state that was entered.
+            event_kwargs: Keyword arguments from the event that triggered the
+                state entry.  These are forwarded to invoke handlers via
+                dependency injection (plain callables) and ``InvokeContext.kwargs``
+                (IInvoke handlers).
+        """
+        self._pending.append((state, event_kwargs or {}))
 
     def cancel_for_state(self, state: "State"):
         """Called by ``_exit_states()`` before exiting a state."""
         for inv_id, inv in list(self._active.items()):
             if inv.state_id == state.id and not inv.terminated:
                 self._cancel(inv_id)
-        self._states_to_invoke.discard(state)
+        self._pending = [(s, kw) for s, kw in self._pending if s is not state]
 
     def cancel_all(self):
         """Cancel all active invocations."""
@@ -291,17 +301,20 @@ class InvokeManager:
 
     def spawn_pending_sync(self):
         """Spawn invoke handlers for all states marked for invocation (sync engine)."""
-        for state in sorted(self._states_to_invoke, key=lambda s: s.document_order):
+        pending = sorted(self._pending, key=lambda p: p[0].document_order)
+        self._pending.clear()
+        for state, event_kwargs in pending:
             self.sm._callbacks.visit(
                 state.invoke.key,
                 self._spawn_one_sync,
                 state=state,
+                event_kwargs=event_kwargs,
             )
-        self._states_to_invoke.clear()
 
     def _spawn_one_sync(self, callback: "CallbackWrapper", **kwargs):
         state: "State" = kwargs["state"]
-        ctx = self._make_context(state)
+        event_kwargs: dict = kwargs.get("event_kwargs", {})
+        ctx = self._make_context(state, event_kwargs)
         invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
 
         # Use meta.func to find the original (unwrapped) handler; the callback
@@ -329,7 +342,7 @@ class InvokeManager:
             if handler is not None:
                 result = handler.run(ctx)
             else:
-                result = callback.call(ctx=ctx, machine=ctx.machine)
+                result = callback.call(ctx=ctx, machine=ctx.machine, **ctx.kwargs)
             if not ctx.cancelled.is_set():
                 self.sm.send(
                     f"done.invoke.{ctx.invokeid}",
@@ -346,17 +359,20 @@ class InvokeManager:
 
     async def spawn_pending_async(self):
         """Spawn invoke handlers for all states marked for invocation (async engine)."""
-        for state in sorted(self._states_to_invoke, key=lambda s: s.document_order):
+        pending = sorted(self._pending, key=lambda p: p[0].document_order)
+        self._pending.clear()
+        for state, event_kwargs in pending:
             await self.sm._callbacks.async_visit(
                 state.invoke.key,
                 self._spawn_one_async,
                 state=state,
+                event_kwargs=event_kwargs,
             )
-        self._states_to_invoke.clear()
 
     def _spawn_one_async(self, callback: "CallbackWrapper", **kwargs):
         state: "State" = kwargs["state"]
-        ctx = self._make_context(state)
+        event_kwargs: dict = kwargs.get("event_kwargs", {})
+        ctx = self._make_context(state, event_kwargs)
         invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
 
         handler = self._resolve_handler(callback.meta.func)
@@ -382,7 +398,7 @@ class InvokeManager:
                 result = await loop.run_in_executor(None, handler.run, ctx)
             else:
                 result = await loop.run_in_executor(
-                    None, lambda: callback.call(ctx=ctx, machine=ctx.machine)
+                    None, lambda: callback.call(ctx=ctx, machine=ctx.machine, **ctx.kwargs)
                 )
             if not ctx.cancelled.is_set():
                 self.sm.send(
@@ -418,13 +434,14 @@ class InvokeManager:
 
     # --- Helpers ---
 
-    def _make_context(self, state: "State") -> InvokeContext:
+    def _make_context(self, state: "State", event_kwargs: "dict | None" = None) -> InvokeContext:
         invokeid = f"{state.id}.{uuid.uuid4().hex[:8]}"
         return InvokeContext(
             invokeid=invokeid,
             state_id=state.id,
             send=self.sm.send,
             machine=self.sm,
+            kwargs=event_kwargs or {},
         )
 
     @staticmethod

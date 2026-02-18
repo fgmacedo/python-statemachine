@@ -248,7 +248,7 @@ class AsyncEngine(BaseEngine):
 
             # Mark state for invocation if it has invoke callbacks registered
             if target.invoke.key in self.sm._callbacks:
-                self._invoke_manager.mark_for_invoke(target)
+                self._invoke_manager.mark_for_invoke(target, trigger_data.kwargs)
 
             # Handle final states
             if target.final:

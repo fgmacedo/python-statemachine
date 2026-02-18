@@ -174,8 +174,8 @@ matching any invoke completion for that state regardless of the specific invoke 
 ## IInvoke protocol
 
 For advanced use cases, implement the `IInvoke` protocol. This gives you access to
-the `InvokeContext` — with the invoke ID, cancellation signal, and a reference to the
-parent machine:
+the `InvokeContext` — with the invoke ID, cancellation signal, event kwargs, and a
+reference to the parent machine:
 
 ```py
 >>> from statemachine.invoke import IInvoke, InvokeContext
@@ -188,6 +188,7 @@ parent machine:
 ...         # ctx.cancelled — threading.Event, set when state exits
 ...         # ctx.send — send events to parent machine
 ...         # ctx.machine — reference to parent machine
+...         # ctx.kwargs — keyword arguments from the triggering event
 ...         path = ctx.machine.file_path
 ...         return Path(path).read_text()
 ...
@@ -262,6 +263,46 @@ Events from cancelled invocations are silently ignored.
 [True]
 
 ```
+
+## Event data propagation
+
+When a state with invoke handlers is entered via an event, the keyword arguments from
+that event are forwarded to the invoke handlers. Plain callables receive them via
+{ref}`SignatureAdapter <actions>` dependency injection; `IInvoke` handlers receive them
+via `ctx.kwargs`:
+
+```py
+>>> config_file = Path(tempfile.mktemp(suffix=".json"))
+>>> _ = config_file.write_text('{"debug": true}')
+
+>>> class ConfigByName(StateChart):
+...     idle = State(initial=True)
+...     loading = State()
+...     ready = State(final=True)
+...     start = idle.to(loading)
+...     done_invoke_loading = loading.to(ready)
+...
+...     def on_invoke_loading(self, file_name=None, **kwargs):
+...         """file_name comes from send('start', file_name=...)."""
+...         return json.loads(Path(file_name).read_text())
+...
+...     def on_enter_ready(self, data=None, **kwargs):
+...         self.config = data
+
+>>> sm = ConfigByName()
+>>> sm.send("start", file_name=str(config_file))
+>>> time.sleep(0.2)
+
+>>> "ready" in sm.configuration_values
+True
+>>> sm.config
+{'debug': True}
+
+>>> config_file.unlink()
+
+```
+
+For initial states (entered automatically, not via an event), `kwargs` is empty.
 
 ## Error handling
 

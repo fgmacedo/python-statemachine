@@ -489,6 +489,76 @@ class TestInvokeGroup:
         assert all_results[1] == [2]
 
 
+class TestInvokeEventKwargs:
+    """Event kwargs from send() are forwarded to invoke handlers."""
+
+    async def test_plain_callable_receives_event_kwargs(self, sm_runner):
+        """Plain callable invoke handler receives event kwargs via SignatureAdapter."""
+        received = []
+
+        class SM(StateChart):
+            idle = State(initial=True)
+            loading = State()
+            ready = State(final=True)
+            start = idle.to(loading)
+            done_invoke_loading = loading.to(ready)
+
+            def on_invoke_loading(self, file_name=None, **kwargs):
+                received.append(file_name)
+                return f"loaded:{file_name}"
+
+            def on_enter_ready(self, data=None, **kwargs):
+                received.append(data)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.send(sm, "start", file_name="config.json")
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+
+        assert "ready" in sm.configuration_values
+        assert received == ["config.json", "loaded:config.json"]
+
+    async def test_iinvoke_handler_receives_event_kwargs_via_ctx(self, sm_runner):
+        """IInvoke handler receives event kwargs via ctx.kwargs."""
+        received = []
+
+        class FileLoader:
+            def run(self, ctx: InvokeContext):
+                received.append(ctx.kwargs.get("file_name"))
+                return f"loaded:{ctx.kwargs['file_name']}"
+
+        class SM(StateChart):
+            idle = State(initial=True)
+            loading = State(invoke=FileLoader)
+            ready = State(final=True)
+            start = idle.to(loading)
+            done_invoke_loading = loading.to(ready)
+
+            def on_enter_ready(self, data=None, **kwargs):
+                received.append(data)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.send(sm, "start", file_name="data.csv")
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+
+        assert "ready" in sm.configuration_values
+        assert received == ["data.csv", "loaded:data.csv"]
+
+    async def test_initial_state_invoke_has_empty_kwargs(self, sm_runner):
+        """Invoke on initial state gets empty kwargs (no triggering event)."""
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=lambda: 42)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+        assert "ready" in sm.configuration_values
+
+
 class TestInvokeNotTriggeredOnNonInvokeState:
     """States without invoke handlers should not be affected."""
 
