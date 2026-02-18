@@ -128,9 +128,6 @@ def _needs_wrapping(item: Any) -> bool:
         # StateChart subclass → child machine invoker
         if issubclass(item, StateChart):
             return True
-        # Class whose instances implement IInvoke (has a ``run`` method)
-        if hasattr(item, "run"):
-            return True
     return False
 
 

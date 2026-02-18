@@ -624,6 +624,7 @@ class TestNormalizeInvokeCallbacks:
         assert result[0] is wrapper
 
     def test_iinvoke_class_with_run_method(self):
+        """IInvoke-compatible class gets wrapped."""
         from statemachine.invoke import _InvokeCallableWrapper
         from statemachine.invoke import normalize_invoke_callbacks
 
@@ -631,6 +632,8 @@ class TestNormalizeInvokeCallbacks:
             def run(self, ctx):
                 return "result"
 
+        # CustomHandler satisfies IInvoke protocol (has run method)
+        assert isinstance(CustomHandler(), IInvoke)
         result = normalize_invoke_callbacks(CustomHandler)
         assert len(result) == 1
         assert isinstance(result[0], _InvokeCallableWrapper)
@@ -645,6 +648,19 @@ class TestNormalizeInvokeCallbacks:
         result = normalize_invoke_callbacks(my_func)
         assert len(result) == 1
         assert result[0] is my_func
+        assert not isinstance(result[0], _InvokeCallableWrapper)
+
+    def test_non_invoke_class_passes_through(self):
+        """A class without run() (not IInvoke, not StateChart) passes through unwrapped."""
+        from statemachine.invoke import _InvokeCallableWrapper
+        from statemachine.invoke import normalize_invoke_callbacks
+
+        class PlainClass:
+            pass
+
+        result = normalize_invoke_callbacks(PlainClass)
+        assert len(result) == 1
+        assert result[0] is PlainClass
         assert not isinstance(result[0], _InvokeCallableWrapper)
 
 
@@ -718,6 +734,26 @@ class TestInvokeCallableWrapperOnCancel:
         wrapper = _InvokeCallableWrapper(MyHandler)
         # _instance is None, _is_class is True → early return
         wrapper.on_cancel()  # should not raise
+
+    def test_callable_wrapper_call_returns_handler(self):
+        """__call__ returns the original handler (used by callback system for resolution)."""
+        from statemachine.invoke import _InvokeCallableWrapper
+
+        class MyHandler:
+            def run(self, ctx):
+                return "result"
+
+        wrapper = _InvokeCallableWrapper(MyHandler)
+        assert wrapper() is MyHandler
+
+
+class TestInvokeGroupOnCancelBeforeRun:
+    """InvokeGroup.on_cancel() before run() is a safe no-op."""
+
+    def test_on_cancel_before_run(self):
+        group = invoke_group(lambda: 1)
+        # on_cancel before run — executor is None, no futures
+        group.on_cancel()
 
 
 class TestDoneInvokeEventFactory:
