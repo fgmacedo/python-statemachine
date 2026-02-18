@@ -83,7 +83,12 @@ class _InvokeCallableWrapper:
 
     def on_cancel(self):
         """Delegate to the live instance's ``on_cancel()`` if available."""
-        target = self._instance if self._instance is not None else self._invoke_handler
+        if self._instance is not None:
+            target = self._instance
+        elif self._is_class:
+            return  # Handler hasn't been instantiated yet — nothing to cancel
+        else:
+            target = self._invoke_handler
         if hasattr(target, "on_cancel"):
             target.on_cancel()
 

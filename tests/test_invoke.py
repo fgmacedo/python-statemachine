@@ -189,12 +189,9 @@ class TestInvokeCancelOnExit:
     async def test_cancel_on_exit_with_on_cancel(self, sm_runner):
         """Test that on_cancel() is called when state is exited."""
         cancel_called = []
-        started = threading.Event()
 
         class CancelTracker:
             def run(self, ctx):
-                started.set()
-                # Poll instead of blocking to work with both sync and async engines
                 while not ctx.cancelled.is_set():
                     ctx.cancelled.wait(0.01)
 
@@ -207,10 +204,10 @@ class TestInvokeCancelOnExit:
             cancel = loading.to(cancelled_state)
 
         sm = await sm_runner.start(SM)
-        # Wait for invoke handler to start (runs in thread for sync, task for async)
-        await sm_runner.sleep(0.05)
+        # Give the invoke handler time to start in its background thread
+        await sm_runner.sleep(0.15)
         await sm_runner.send(sm, "cancel")
-        await sm_runner.sleep(0.05)
+        await sm_runner.sleep(0.15)
 
         assert cancel_called == [True]
         assert "cancelled_state" in sm.configuration_values
@@ -508,3 +505,215 @@ class TestInvokeNotTriggeredOnNonInvokeState:
         assert "active" in sm.configuration_values
         await sm_runner.send(sm, "finish")
         assert "done" in sm.configuration_values
+
+
+class TestInvokeManagerCancelAll:
+    """InvokeManager.cancel_all() cancels every active invocation."""
+
+    async def test_cancel_all(self, sm_runner):
+        class SlowHandler:
+            def run(self, ctx):
+                ctx.cancelled.wait(timeout=5.0)
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=SlowHandler)
+            stopped = State(final=True)
+            cancel = loading.to(stopped)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.15)
+        sm._engine._invoke_manager.cancel_all()
+        await sm_runner.sleep(0.15)
+
+        # All invocations should be terminated
+        for inv in sm._engine._invoke_manager._active.values():
+            assert inv.terminated
+
+
+class TestInvokeCancelAlreadyTerminated:
+    """Cancelling an already-terminated invocation is a no-op."""
+
+    async def test_cancel_terminated_invocation(self, sm_runner):
+        class SM(StateChart):
+            loading = State(initial=True, invoke=lambda: 42)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+
+        assert "ready" in sm.configuration_values
+        # All invocations should be terminated by now
+        manager = sm._engine._invoke_manager
+        for inv in manager._active.values():
+            assert inv.terminated
+        # Calling cancel on terminated invocations should be a safe no-op
+        for inv_id in list(manager._active.keys()):
+            manager._cancel(inv_id)
+
+
+class TestInvokeOnCancelException:
+    """Exception in on_cancel() is caught and logged, not propagated."""
+
+    async def test_on_cancel_exception_is_suppressed(self, sm_runner):
+        class BadCancelHandler:
+            def run(self, ctx):
+                ctx.cancelled.wait(timeout=5.0)
+
+            def on_cancel(self):
+                raise RuntimeError("on_cancel exploded")
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=BadCancelHandler)
+            stopped = State(final=True)
+            cancel = loading.to(stopped)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.15)
+        # This should NOT raise even though on_cancel() raises
+        await sm_runner.send(sm, "cancel")
+        await sm_runner.sleep(0.15)
+
+        assert "stopped" in sm.configuration_values
+
+
+class TestStateChartInvokerOnCancel:
+    """StateChartInvoker.on_cancel() cleans up the child reference."""
+
+    def test_on_cancel_clears_child(self):
+        from statemachine.invoke import StateChartInvoker
+
+        class ChildMachine(StateChart):
+            start = State(initial=True, final=True)
+
+        invoker = StateChartInvoker(ChildMachine)
+        ctx = InvokeContext(
+            invokeid="test.123",
+            state_id="test",
+            send=lambda *a, **kw: None,
+            machine=None,
+        )
+        invoker.run(ctx)
+        assert invoker._child is not None
+        invoker.on_cancel()
+        assert invoker._child is None
+
+
+class TestNormalizeInvokeCallbacks:
+    """normalize_invoke_callbacks handles edge cases."""
+
+    def test_string_passes_through(self):
+        from statemachine.invoke import normalize_invoke_callbacks
+
+        result = normalize_invoke_callbacks("some_method_name")
+        assert result == ["some_method_name"]
+
+    def test_already_wrapped_passes_through(self):
+        from statemachine.invoke import _InvokeCallableWrapper
+        from statemachine.invoke import normalize_invoke_callbacks
+
+        class MyHandler:
+            def run(self, ctx):
+                pass
+
+        wrapper = _InvokeCallableWrapper(MyHandler)
+        result = normalize_invoke_callbacks(wrapper)
+        assert len(result) == 1
+        assert result[0] is wrapper
+
+    def test_iinvoke_class_with_run_method(self):
+        from statemachine.invoke import _InvokeCallableWrapper
+        from statemachine.invoke import normalize_invoke_callbacks
+
+        class CustomHandler:
+            def run(self, ctx):
+                return "result"
+
+        result = normalize_invoke_callbacks(CustomHandler)
+        assert len(result) == 1
+        assert isinstance(result[0], _InvokeCallableWrapper)
+
+    def test_plain_callable_passes_through(self):
+        from statemachine.invoke import _InvokeCallableWrapper
+        from statemachine.invoke import normalize_invoke_callbacks
+
+        def my_func():
+            return 42
+
+        result = normalize_invoke_callbacks(my_func)
+        assert len(result) == 1
+        assert result[0] is my_func
+        assert not isinstance(result[0], _InvokeCallableWrapper)
+
+
+class TestResolveHandler:
+    """InvokeManager._resolve_handler edge cases."""
+
+    def test_bare_iinvoke_instance(self):
+        from statemachine.invoke import InvokeManager
+
+        class MyHandler:
+            def run(self, ctx):
+                return "result"
+
+        handler = MyHandler()
+        assert isinstance(handler, IInvoke)
+        resolved = InvokeManager._resolve_handler(handler)
+        assert resolved is handler
+
+    def test_bare_statechart_class(self):
+        from statemachine.invoke import InvokeManager
+        from statemachine.invoke import StateChartInvoker
+
+        class ChildMachine(StateChart):
+            start = State(initial=True, final=True)
+
+        resolved = InvokeManager._resolve_handler(ChildMachine)
+        assert isinstance(resolved, StateChartInvoker)
+
+    def test_plain_callable_returns_none(self):
+        from statemachine.invoke import InvokeManager
+
+        def my_func():
+            return 42
+
+        assert InvokeManager._resolve_handler(my_func) is None
+
+
+class TestInvokeCallableWrapperOnCancel:
+    """_InvokeCallableWrapper.on_cancel() edge cases."""
+
+    def test_on_cancel_non_class_instance_with_on_cancel(self):
+        """Non-class handler (already instantiated) delegates on_cancel."""
+        from statemachine.invoke import _InvokeCallableWrapper
+
+        cancel_called = []
+
+        class MyHandler:
+            def run(self, ctx):
+                return "result"
+
+            def on_cancel(self):
+                cancel_called.append(True)
+
+        handler = MyHandler()
+        wrapper = _InvokeCallableWrapper(handler)
+        # _instance is None, _is_class is False → falls through to _invoke_handler
+        wrapper.on_cancel()
+        assert cancel_called == [True]
+
+    def test_on_cancel_class_not_yet_instantiated(self):
+        """Class handler not yet instantiated — on_cancel is a no-op."""
+        from statemachine.invoke import _InvokeCallableWrapper
+
+        class MyHandler:
+            def run(self, ctx):
+                return "result"
+
+            def on_cancel(self):
+                raise RuntimeError("should not be called")
+
+        wrapper = _InvokeCallableWrapper(MyHandler)
+        # _instance is None, _is_class is True → early return
+        wrapper.on_cancel()  # should not raise
