@@ -157,8 +157,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
-        self._class_listener_instances = self._resolve_class_listeners(**kwargs)
-        all_listeners = self._class_listener_instances + (listeners or [])
+        class_listener_instances = self._resolve_class_listeners(**kwargs)
+        all_listeners = class_listener_instances + (listeners or [])
         self._register_callbacks(all_listeners)
 
         # Activate the initial state, this only works if the outer scope is sync code.

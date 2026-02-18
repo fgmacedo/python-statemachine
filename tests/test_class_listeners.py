@@ -47,13 +47,13 @@ class TestClassLevelListeners:
         sm1.send("go")
 
         # Each SM gets its own listener instance
-        assert len(sm1._class_listener_instances) == 1
-        assert len(sm2._class_listener_instances) == 1
-        assert sm1._class_listener_instances[0] is not sm2._class_listener_instances[0]
+        assert len(sm1.active_listeners) == 1
+        assert len(sm2.active_listeners) == 1
+        assert sm1.active_listeners[0] is not sm2.active_listeners[0]
 
         # Only sm1 should have the transition recorded
-        assert sm1._class_listener_instances[0].transitions == [("go", "s1", "s2")]
-        assert sm2._class_listener_instances[0].transitions == []
+        assert sm1.active_listeners[0].transitions == [("go", "s1", "s2")]
+        assert sm2.active_listeners[0].transitions == []
 
     def test_class_level_listener_shared_instance(self):
         shared = RecordingListener()
@@ -72,8 +72,8 @@ class TestClassLevelListeners:
         sm2.send("go")
 
         # Both SMs share the same listener instance
-        assert sm1._class_listener_instances[0] is shared
-        assert sm2._class_listener_instances[0] is shared
+        assert sm1.active_listeners[0] is shared
+        assert sm2.active_listeners[0] is shared
         assert len(shared.transitions) == 2
 
     def test_class_level_listener_partial(self):
@@ -95,7 +95,7 @@ class TestClassLevelListeners:
         sm = MyChart()
         sm.send("go")
 
-        listener = sm._class_listener_instances[0]
+        listener = sm.active_listeners[0]
         assert listener.prefix == "custom"
         assert listener.messages == ["custom: s1 -> s2"]
 
@@ -112,7 +112,7 @@ class TestClassLevelListeners:
             go = s1.to(s2)
 
         sm = MyChart()
-        assert sm._class_listener_instances[0].tag == "from_lambda"
+        assert sm.active_listeners[0].tag == "from_lambda"
 
     def test_runtime_listeners_merge_with_class_level(self):
         class MyChart(StateChart):
@@ -127,12 +127,14 @@ class TestClassLevelListeners:
 
         sm.send("go")
 
-        # Class-level listener should have recorded
-        class_listener = sm._class_listener_instances[0]
-        assert class_listener.transitions == [("go", "s1", "s2")]
+        assert len(sm.active_listeners) == 2
 
-        # Runtime listener should also have recorded
-        assert runtime_listener.transitions == [("go", "s1", "s2")]
+        # Both listeners should have recorded
+        for listener in sm.active_listeners:
+            assert listener.transitions == [("go", "s1", "s2")]
+
+        # Runtime listener is the one we passed in
+        assert runtime_listener in sm.active_listeners
 
 
 class TestClassListenerInheritance:
@@ -154,9 +156,9 @@ class TestClassListenerInheritance:
             listeners = [ChildListener]
 
         sm = Child()
-        assert len(sm._class_listener_instances) == 2
-        assert isinstance(sm._class_listener_instances[0], ParentListener)
-        assert isinstance(sm._class_listener_instances[1], ChildListener)
+        assert len(sm.active_listeners) == 2
+        assert isinstance(sm.active_listeners[0], ParentListener)
+        assert isinstance(sm.active_listeners[1], ChildListener)
 
     def test_child_replaces_parent_listeners(self):
         class ParentListener:
@@ -177,8 +179,8 @@ class TestClassListenerInheritance:
             listeners = [ChildListener]
 
         sm = Child()
-        assert len(sm._class_listener_instances) == 1
-        assert isinstance(sm._class_listener_instances[0], ChildListener)
+        assert len(sm.active_listeners) == 1
+        assert isinstance(sm.active_listeners[0], ChildListener)
 
     def test_grandchild_inherits_full_chain(self):
         class L1:
@@ -204,10 +206,10 @@ class TestClassListenerInheritance:
             listeners = [L3]
 
         sm = Leaf()
-        assert len(sm._class_listener_instances) == 3
-        assert isinstance(sm._class_listener_instances[0], L1)
-        assert isinstance(sm._class_listener_instances[1], L2)
-        assert isinstance(sm._class_listener_instances[2], L3)
+        assert len(sm.active_listeners) == 3
+        assert isinstance(sm.active_listeners[0], L1)
+        assert isinstance(sm.active_listeners[1], L2)
+        assert isinstance(sm.active_listeners[2], L3)
 
     def test_no_listeners_declared_inherits_parent(self):
         class ParentListener:
@@ -224,8 +226,8 @@ class TestClassListenerInheritance:
             pass
 
         sm = Child()
-        assert len(sm._class_listener_instances) == 1
-        assert isinstance(sm._class_listener_instances[0], ParentListener)
+        assert len(sm.active_listeners) == 1
+        assert isinstance(sm.active_listeners[0], ParentListener)
 
 
 class TestListenerSetupProtocol:
@@ -238,7 +240,7 @@ class TestListenerSetupProtocol:
             go = s1.to(s2)
 
         sm = MyChart(session="my_db_session")
-        listener = sm._class_listener_instances[0]
+        listener = sm.active_listeners[0]
         assert listener.session == "my_db_session"
 
     def test_setup_ignores_unknown_kwargs(self):
@@ -250,7 +252,7 @@ class TestListenerSetupProtocol:
             go = s1.to(s2)
 
         sm = MyChart(session="db", unknown_arg="ignored")
-        listener = sm._class_listener_instances[0]
+        listener = sm.active_listeners[0]
         assert listener.session == "db"
 
     def test_setup_not_called_on_shared_instances(self):
@@ -290,8 +292,7 @@ class TestListenerSetupProtocol:
             go = s1.to(s2)
 
         sm = MyChart(session="db_conn", redis="redis_conn")
-        db = sm._class_listener_instances[0]
-        cache = sm._class_listener_instances[1]
+        db, cache = sm.active_listeners
         assert db.session == "db_conn"
         assert cache.redis == "redis_conn"
 
@@ -311,7 +312,7 @@ class TestListenerSetupProtocol:
             go = s1.to(s2)
 
         sm = MyChart()
-        listener = sm._class_listener_instances[0]
+        listener = sm.active_listeners[0]
         assert listener.sm is sm
 
     def test_setup_optional_kwargs_default_to_none(self):
@@ -323,7 +324,7 @@ class TestListenerSetupProtocol:
             go = s1.to(s2)
 
         sm = MyChart()  # No session kwarg provided
-        listener = sm._class_listener_instances[0]
+        listener = sm.active_listeners[0]
         assert listener.session is None
 
     def test_setup_required_kwarg_missing_raises_error(self):
@@ -354,7 +355,7 @@ class TestListenerSetupProtocol:
             go = s1.to(s2)
 
         sm = MyChart(session="db_conn")
-        assert sm._class_listener_instances[0].session == "db_conn"
+        assert sm.active_listeners[0].session == "db_conn"
 
 
 class TestListenerValidation:
@@ -426,8 +427,8 @@ class TestListenerSerialization:
         sm2 = pickle.loads(data)
 
         # Class listener instances are preserved through serialization
-        assert len(sm2._class_listener_instances) == 1
-        assert sm2._class_listener_instances[0].transitions == [("go", "s1", "s2")]
+        assert len(sm2.active_listeners) == 1
+        assert sm2.active_listeners[0].transitions == [("go", "s1", "s2")]
         assert "s2" in sm2.configuration_values
 
     def test_pickle_does_not_duplicate_class_listeners(self):
@@ -462,7 +463,7 @@ class TestEmptyClassListeners:
             go = s1.to(s2)
 
         sm = MyChart()
-        assert sm._class_listener_instances == []
+        assert sm.active_listeners == []
 
     def test_empty_listeners_list(self):
         class MyChart(StateChart):
@@ -473,4 +474,4 @@ class TestEmptyClassListeners:
             go = s1.to(s2)
 
         sm = MyChart()
-        assert sm._class_listener_instances == []
+        assert sm.active_listeners == []
