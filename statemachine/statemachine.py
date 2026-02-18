@@ -29,6 +29,7 @@ from .factory import StateMachineMetaclass
 from .graph import iterate_states_and_transitions
 from .i18n import _
 from .model import Model
+from .signature import SignatureAdapter
 from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
@@ -129,6 +130,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     _events: "Dict[Event, None]"
     _protected_attrs: set
     _specs: CallbackSpecList
+    _class_listeners: List[Any]
     prepare: SpecListGrouper
 
     def __init__(
@@ -137,6 +139,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         state_field: str = "state",
         start_value: Any = None,
         listeners: "List[object] | None" = None,
+        **kwargs: Any,
     ):
         self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
         self.history_values: Dict[
@@ -154,7 +157,9 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         if self._abstract:
             raise InvalidDefinition(_("There are no states or transitions."))
 
-        self._register_callbacks(listeners or [])
+        class_listener_instances = self._resolve_class_listeners(**kwargs)
+        all_listeners = class_listener_instances + (listeners or [])
+        self._register_callbacks(all_listeners)
 
         # Activate the initial state, this only works if the outer scope is sync code.
         # for async code, the user should manually call `await sm.activate_initial_state()`
@@ -167,6 +172,26 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             return AsyncEngine(self)
 
         return SyncEngine(self)
+
+    def _resolve_class_listeners(self, **kwargs: Any) -> List[object]:
+        resolved: List[object] = []
+        for entry in self._class_listeners:
+            if callable(entry):
+                instance = entry()
+                setup = getattr(instance, "setup", None)
+                if setup is not None:
+                    sig = SignatureAdapter.from_callable(setup)
+                    ba = sig.bind_expected(self, **kwargs)
+                    try:
+                        setup(*ba.args, **ba.kwargs)
+                    except TypeError as err:
+                        raise TypeError(
+                            f"Error calling setup() on listener {type(instance).__name__}: {err}"
+                        ) from err
+            else:
+                instance = entry
+            resolved.append(instance)
+        return resolved
 
     def activate_initial_state(self) -> Any:
         result = self._engine.activate_initial_state()
@@ -199,11 +224,13 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         self.__dict__.update(state)  # type: ignore[attr-defined]
         self._callbacks = CallbacksRegistry()
         self._states_for_instance = {}
-
         self._listeners = {}
 
+        # _listeners already contained both class-level and runtime listeners
+        # when serialized, so just re-register them all.
         self._register_callbacks([])
-        self.add_listener(*listeners.values())
+        if listeners:
+            self.add_listener(*listeners.values())
         self._engine = self._get_engine()
         self._engine.start()
 
@@ -267,6 +294,15 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
                 ) from err
 
         self._callbacks.async_or_sync()
+
+    @property
+    def active_listeners(self) -> List[object]:
+        """List of all active listeners attached to this instance.
+
+        Includes class-level listeners (resolved from the ``listeners`` class attribute),
+        constructor ``listeners=`` parameter, and any added via :meth:`add_listener`.
+        """
+        return list(self._listeners.values())
 
     def add_listener(self, *listeners):
         """Add a listener.
