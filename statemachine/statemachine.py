@@ -29,6 +29,9 @@ from .factory import StateMachineMetaclass
 from .graph import iterate_states
 from .graph import iterate_states_and_transitions
 from .i18n import _
+from .invoke import AsyncCallbackInvokeAdapter
+from .invoke import CallbackInvokeAdapter
+from .invoke import InvokeConfig
 from .invoke import InvokeManager
 from .model import Model
 from .utils import run_async_from_sync
@@ -174,10 +177,33 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         return SyncEngine(self)
 
     def _setup_invoke(self):
-        """Attach an InvokeManager to the engine if any state uses invoke."""
-        has_invocations = any(
-            getattr(state, "invocations", None) for state in iterate_states(self.states)
+        """Attach an InvokeManager to the engine if any state uses invoke.
+
+        This reads the callback registry for INVOKE specs (populated by
+        ``_register_callbacks`` → ``Listeners.resolve``) and wraps each
+        resolved callback in a ``CallbackInvokeAdapter`` / ``InvokeConfig``.
+        """
+        self._callback_invocations: Dict[str, List[InvokeConfig]] = {}
+
+        for state in iterate_states(self.states):
+            invoke_specs = getattr(state, "invoke_specs", None)
+            if invoke_specs is None:
+                continue
+            executor = self._callbacks[invoke_specs.key]
+            if len(executor.items) > 0:
+                configs = []
+                for wrapper in executor:
+                    Adapter = (
+                        AsyncCallbackInvokeAdapter if wrapper._iscoro else CallbackInvokeAdapter
+                    )
+                    configs.append(InvokeConfig(handler=Adapter(wrapper)))
+                self._callback_invocations[state.id] = configs
+
+        has_invocations = (
+            any(getattr(state, "invocations", None) for state in iterate_states(self.states))
+            or self._callback_invocations
         )
+
         if has_invocations:
             self._engine._invoke = InvokeManager(self._engine)
 

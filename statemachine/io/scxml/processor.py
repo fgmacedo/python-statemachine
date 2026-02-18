@@ -216,16 +216,16 @@ class SCXMLProcessor:
             srcexpr=invoke_def.srcexpr,
             content=invoke_def.content,
             base_dir=getattr(self, "_scxml_base_dir", None),
+            autoforward=invoke_def.autoforward,
+            namelist=invoke_def.namelist,
+            params=invoke_def.params,
+            finalize=finalize,
         )
 
         return InvokeConfig(
             handler=handler,
             id=invoke_def.id,
             idlocation=invoke_def.idlocation,
-            autoforward=invoke_def.autoforward,
-            namelist=invoke_def.namelist,
-            params=invoke_def.params,
-            finalize=finalize,
         )
 
     def _process_transitions(self, transitions: List[Transition]):

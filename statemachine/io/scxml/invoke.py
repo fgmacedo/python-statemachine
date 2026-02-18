@@ -3,12 +3,16 @@
 Resolves ``src``, ``srcexpr``, and ``content`` attributes from SCXML
 ``<invoke>`` elements into a child StateChart class, then delegates to
 :class:`StateChartInvoker` for execution.
+
+Also absorbs SCXML-specific invoke concerns (autoforward, namelist/params
+evaluation, finalize blocks) that do not belong in the core invoke module.
 """
 
 import logging
 import time
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import List
 
 from ...invoke import InvokeContext
 from ...invoke import StateChartInvoker
@@ -19,6 +23,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class _TriggerDataAdapter:
+    """Adapts a TriggerData to look like EventData for EventDataWrapper."""
+
+    def __init__(self, trigger_data: Any):
+        self.trigger_data = trigger_data
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.trigger_data, name)
+
+
 class SCXMLInvoker(StateChartInvoker):
     """Resolves SCXML src/srcexpr/content to a child StateChart class.
 
@@ -26,6 +40,11 @@ class SCXMLInvoker(StateChartInvoker):
     class, this adapter defers class resolution until ``run()`` is called,
     because ``srcexpr`` may reference datamodel variables that are only
     available at runtime.
+
+    Also handles SCXML-specific concerns:
+    - ``autoforward``: forward parent events to child
+    - ``namelist``/``params``: evaluate and pass to child at spawn time
+    - ``finalize``: execute finalize block on events from child
     """
 
     def __init__(
@@ -34,6 +53,10 @@ class SCXMLInvoker(StateChartInvoker):
         srcexpr: "str | None" = None,
         content: "str | None" = None,
         base_dir: Any = None,
+        autoforward: bool = False,
+        namelist: "str | None" = None,
+        params: "List[Any] | None" = None,
+        finalize: Any = None,
     ):
         # Don't call super().__init__() — we don't have the class yet
         self._src = src
@@ -43,6 +66,12 @@ class SCXMLInvoker(StateChartInvoker):
         self._child_class: "type[StateChart] | None" = None  # type: ignore[assignment]
         self._child_sm: "StateChart | None" = None
 
+        # SCXML-specific fields
+        self.autoforward = autoforward
+        self.namelist = namelist
+        self.params = params or []
+        self.finalize = finalize
+
     def run(self, ctx: InvokeContext) -> Any:
         child_class = self._resolve_child_class(ctx)
         if child_class is None:
@@ -51,6 +80,10 @@ class SCXMLInvoker(StateChartInvoker):
                 f"(src={self._src}, srcexpr={self._srcexpr}, content={self._content})"
             )
         self._child_class = child_class
+
+        # Evaluate namelist/params and merge into ctx.params
+        resolved_params = self._evaluate_params(ctx)
+        ctx.params.update(resolved_params)
 
         # Create child with _defer_start=True (engine not started yet)
         child_sm = self._create_child(ctx)
@@ -72,6 +105,59 @@ class SCXMLInvoker(StateChartInvoker):
             time.sleep(0.01)
 
         return None
+
+    def on_event(self, event: str, **data):
+        """Forward events to child if autoforward is enabled."""
+        if self.autoforward and self._child_sm is not None:
+            self._child_sm.send(event, **data)
+
+    def on_finalize(self, trigger_data: Any):
+        """Execute SCXML finalize block."""
+        if self.finalize is None:
+            return
+        try:
+            from .actions import EventDataWrapper
+
+            _event = EventDataWrapper(_TriggerDataAdapter(trigger_data))
+            parent_sm = trigger_data.machine
+            self.finalize(
+                machine=parent_sm,
+                model=parent_sm.model,
+                event_data=trigger_data,
+                _event=_event,
+            )
+        except Exception:
+            logger.exception("Error in finalize for SCXMLInvoker")
+
+    def _evaluate_params(self, ctx: InvokeContext) -> "dict[str, Any]":
+        """Evaluate namelist and param expressions in the parent's context."""
+        params: dict[str, Any] = {}
+        parent_sm = ctx._parent_sm
+
+        if self.namelist:
+            for name in self.namelist.strip().split():
+                if not hasattr(parent_sm.model, name):
+                    raise NameError(f"Namelist variable '{name}' not found on parent model")
+                params[name] = getattr(parent_sm.model, name)
+
+        for param in self.params:
+            if param.expr is not None:
+                from .actions import _eval
+
+                try:
+                    kwargs = {"machine": parent_sm, "model": parent_sm.model}
+                    kwargs.update(
+                        {
+                            k: v
+                            for k, v in parent_sm.model.__dict__.items()
+                            if k not in {"_sessionid", "_ioprocessors", "_name", "_event"}
+                        }
+                    )
+                    params[param.name] = _eval(param.expr, **kwargs)
+                except Exception:
+                    logger.exception("Error evaluating param %s", param.name)
+
+        return params
 
     def _resolve_child_class(self, ctx: InvokeContext) -> "type[StateChart] | None":
         """Resolve src/srcexpr/content into a StateChart class."""

@@ -8,6 +8,7 @@ from weakref import ref
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .callbacks import SpecListGrouper
 from .exceptions import InvalidDefinition
 from .exceptions import StateMachineError
 from .i18n import _
@@ -228,9 +229,10 @@ class State:
         self._id: str = ""
         self._callbacks = _callbacks
         self.parent: "State | None" = None
-        self.invocations: list = self._normalize_invoke(invoke)
         self.transitions = TransitionList()
         self._specs = CallbackSpecList()
+        self.invoke_specs: SpecListGrouper = self._specs.grouper(CallbackGroup.INVOKE)
+        self.invocations: list = self._normalize_invoke(invoke, self.invoke_specs)
         self.enter = self._specs.grouper(CallbackGroup.ENTER).add(
             enter, priority=CallbackPriority.INLINE
         )
@@ -245,36 +247,38 @@ class State:
         self._init_states()
 
     @staticmethod
-    def _normalize_invoke(invoke: Any) -> list:
-        """Normalize the invoke parameter into a list of InvokeConfig.
+    def _normalize_invoke(invoke: Any, invoke_specs: SpecListGrouper) -> list:
+        """Normalize the invoke parameter into a list of InvokeConfig and/or callback specs.
 
         Accepts:
             - None → []
+            - A string → added to invoke_specs (callback-based invoke)
+            - A plain callable (not a class) → added to invoke_specs (callback-based invoke)
             - A StateChart subclass → [InvokeConfig(handler=StateChartInvoker(cls))]
-            - A callable → [InvokeConfig(handler=callable)]
             - An Invoker instance → [InvokeConfig(handler=instance)]
             - An InvokeConfig → [config]
             - A list of the above → [InvokeConfig(...), ...]
         """
         from .invoke import InvokeConfig
-        from .invoke import Invoker
         from .invoke import StateChartInvoker
 
         if invoke is None:
             return []
 
         items = invoke if isinstance(invoke, list) else [invoke]
-        result = []
+        configs: list = []
         for item in items:
             if isinstance(item, InvokeConfig):
-                result.append(item)
+                configs.append(item)
             elif isinstance(item, type) and _is_statechart_subclass(item):
-                result.append(InvokeConfig(handler=StateChartInvoker(item)))
-            elif callable(item) or isinstance(item, Invoker):
-                result.append(InvokeConfig(handler=item))
+                configs.append(InvokeConfig(handler=StateChartInvoker(item)))
+            elif isinstance(item, str):
+                invoke_specs.add(item, priority=CallbackPriority.INLINE)
+            elif callable(item) and not isinstance(item, type):
+                invoke_specs.add(item, priority=CallbackPriority.INLINE)
             else:
-                result.append(item)
-        return result
+                configs.append(InvokeConfig(handler=item))
+        return configs
 
     def _init_states(self):
         for state in self.states:
@@ -302,6 +306,9 @@ class State:
         self.enter.add(f"on_enter_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
         self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
+        self.invoke_specs.add(
+            f"on_invoke_{self.id}", priority=CallbackPriority.NAMING, is_convention=True
+        )
 
     def _on_event_defined(self, event: str, transition: Transition, states: List["State"]):
         """Called by statemachine factory when an event is defined having a transition
@@ -481,6 +488,10 @@ class InstanceState(State):
     @property
     def invocations(self):
         return self._ref().invocations
+
+    @property
+    def invoke_specs(self):
+        return self._ref().invoke_specs
 
     @property
     def document_order(self):

@@ -91,14 +91,19 @@ class TestStateInvokeNormalization:
         assert len(s.invocations) == 1
         assert s.invocations[0] is config
 
-    def test_invoke_callable_becomes_invoke_config(self):
+    def test_invoke_callable_goes_to_invoke_specs(self):
         def my_handler(ctx):
             return {"result": 42}
 
         s = State(invoke=my_handler)
-        assert len(s.invocations) == 1
-        assert isinstance(s.invocations[0], InvokeConfig)
-        assert s.invocations[0].handler is my_handler
+        # Callables (non-class) are now routed to invoke_specs (callback-based invoke)
+        assert len(s.invocations) == 0
+        assert len(list(s.invoke_specs)) > 0
+
+    def test_invoke_string_goes_to_invoke_specs(self):
+        s = State(invoke="my_method")
+        assert len(s.invocations) == 0
+        assert any(spec.func == "my_method" for spec in s.invoke_specs)
 
     def test_invoke_invoker_class_becomes_invoke_config(self):
         class MyInvoker:
@@ -108,7 +113,7 @@ class TestStateInvokeNormalization:
         s = State(invoke=MyInvoker)
         assert len(s.invocations) == 1
         assert isinstance(s.invocations[0], InvokeConfig)
-        # MyInvoker is callable (it's a class), so it gets wrapped directly
+        # MyInvoker is a class (type), so it goes to invocations
         assert s.invocations[0].handler is MyInvoker
 
     def test_invoke_list_of_classes(self):
@@ -124,9 +129,10 @@ class TestStateInvokeNormalization:
             return None
 
         s = State(invoke=[ChildMachine, my_handler])
-        assert len(s.invocations) == 2
+        # ChildMachine → invocations, my_handler (callable) → invoke_specs
+        assert len(s.invocations) == 1
         assert isinstance(s.invocations[0].handler, StateChartInvoker)
-        assert s.invocations[1].handler is my_handler
+        assert len(list(s.invoke_specs)) > 0
 
 
 class TestInvokerProtocol:
@@ -233,11 +239,12 @@ class TestCallableHandler:
         """A function handler's return value is sent as done.invoke data."""
         received_data = {}
 
-        def fetch_data(ctx):
-            return {"answer": 42}
+        class FetchHandler:
+            def run(self, ctx):
+                return {"answer": 42}
 
         class Parent(StateChart):
-            active = State(initial=True, invoke=fetch_data)
+            active = State(initial=True, invoke=FetchHandler)
             completed = State(final=True)
 
             done_invoke_active = active.to(completed)
@@ -292,6 +299,8 @@ class TestInvokerClassHandler:
         forwarded_events = []
 
         class MyHandler:
+            autoforward = True
+
             def run(self, ctx):
                 while not ctx.cancelled:
                     time.sleep(0.01)
@@ -302,7 +311,7 @@ class TestInvokerClassHandler:
 
         class Parent(StateChart):
             idle = State(initial=True)
-            active = State(invoke=InvokeConfig(handler=MyHandler, autoforward=True))
+            active = State(invoke=InvokeConfig(handler=MyHandler))
             other = State()
             done = State(final=True)
 
@@ -333,3 +342,210 @@ class TestMultipleInvocations:
             done_invoke_active = active.to(done)
 
         assert len(Parent.states_map["active"].invocations) == 2
+
+
+# --- Callback-based invoke tests ---
+
+
+class TestCallbackBasedInvoke:
+    """Test the callback-based invoke system (on_invoke_<state>, string, callable)."""
+
+    @pytest.mark.asyncio()
+    async def test_naming_convention_on_invoke_state(self, sm_runner):
+        """Defining on_invoke_<state> triggers callback-based invoke and done.invoke."""
+        invoked = []
+
+        class Parent(StateChart):
+            active = State(initial=True)
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+            def on_invoke_active(self, **kwargs):
+                invoked.append(True)
+                return {"answer": 42}
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert len(invoked) > 0, "on_invoke_active was not called"
+
+    @pytest.mark.asyncio()
+    async def test_naming_convention_return_data(self, sm_runner):
+        """Return data from on_invoke_<state> is forwarded via done.invoke event."""
+        received_data = {}
+
+        class Parent(StateChart):
+            active = State(initial=True)
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+            def on_invoke_active(self, **kwargs):
+                return {"answer": 42}
+
+            def on_done_invoke_active(self, answer=None, **kwargs):
+                received_data["answer"] = answer
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert received_data.get("answer") == 42
+
+    @pytest.mark.asyncio()
+    async def test_explicit_invoke_string(self, sm_runner):
+        """State(invoke='method_name') invokes the named method."""
+        invoked = []
+
+        class Parent(StateChart):
+            active = State(initial=True, invoke="do_work")
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+            def do_work(self, **kwargs):
+                invoked.append(True)
+                return {"result": "ok"}
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert len(invoked) > 0, "do_work was not called"
+
+    @pytest.mark.asyncio()
+    async def test_invoke_callable(self, sm_runner):
+        """State(invoke=callable) invokes the callable via callback system."""
+        invoked = []
+
+        def my_task(**kwargs):
+            invoked.append(True)
+            return {"done": True}
+
+        class Parent(StateChart):
+            active = State(initial=True, invoke=my_task)
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert len(invoked) > 0, "my_task was not called"
+
+    @pytest.mark.asyncio()
+    async def test_cancellation_via_threading_event(self, sm_runner):
+        """Callback-based invoke receives a threading.Event for cooperative cancellation."""
+        cancel_observed = []
+
+        class Parent(StateChart):
+            idle = State(initial=True)
+            active = State()
+            other = State()
+            done = State(final=True)
+
+            start = idle.to(active)
+            abort = active.to(other)
+            finish = other.to(done)
+
+            def on_invoke_active(self, cancelled=None, **kwargs):
+                # Wait for cancellation
+                if cancelled is not None:
+                    cancelled.wait(timeout=5.0)
+                    cancel_observed.append(cancelled.is_set())
+
+        sm = await sm_runner.start(Parent)
+        await sm_runner.send(sm, "start")
+        await _sleep(sm_runner, 0.1)
+        await sm_runner.send(sm, "abort")
+        await _sleep(sm_runner, 0.3)
+
+        assert len(cancel_observed) > 0, "on_invoke_active was not called or didn't complete"
+        assert cancel_observed[0] is True, "cancelled event was not set"
+
+    @pytest.mark.asyncio()
+    async def test_without_cancelled_param(self, sm_runner):
+        """Callback-based invoke works fine without accepting 'cancelled' param."""
+        invoked = []
+
+        class Parent(StateChart):
+            active = State(initial=True)
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+            def on_invoke_active(self, **kwargs):
+                invoked.append(True)
+                return {"status": "done"}
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert len(invoked) > 0
+
+    @pytest.mark.asyncio()
+    async def test_coexistence_with_child_machine(self, sm_runner):
+        """Callback invoke and child SM invoke can coexist on the same state."""
+        callback_invoked = []
+
+        class Parent(StateChart):
+            active = State(initial=True, invoke=ChildMachine)
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+            def on_invoke_active(self, **kwargs):
+                callback_invoked.append(True)
+                return None
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert len(callback_invoked) > 0, "on_invoke_active callback was not called"
+
+    @pytest.mark.asyncio()
+    async def test_error_triggers_error_execution(self, sm_runner):
+        """Error in callback-based invoke triggers error.execution."""
+        error_received = []
+
+        class Parent(StateChart):
+            active = State(initial=True)
+            error_state = State()
+            completed = State(final=True)
+
+            error_execution = active.to(error_state)
+            done = error_state.to(completed)
+
+            def on_invoke_active(self, **kwargs):
+                raise ValueError("invoke failed")
+
+            def on_enter_error_state(self, **kwargs):
+                error_received.append(True)
+
+        await sm_runner.start(Parent)
+        await _sleep(sm_runner, 0.5)
+        # Should have transitioned to error_state via error.execution
+        assert len(error_received) > 0, "error.execution was not triggered"
+
+    @pytest.mark.asyncio()
+    async def test_async_on_invoke(self, sm_runner):
+        """Async on_invoke_<state> works correctly."""
+        if not sm_runner.is_async:
+            pytest.skip("Async-only test")
+
+        invoked = []
+
+        class Parent(StateChart):
+            active = State(initial=True)
+            completed = State(final=True)
+
+            done_invoke_active = active.to(completed)
+
+            async def on_invoke_active(self, **kwargs):
+                await asyncio.sleep(0.01)
+                invoked.append(True)
+                return {"async_result": True}
+
+        sm = await sm_runner.start(Parent)
+        reached = await _wait_for(sm_runner, sm, "completed")
+        assert reached, f"Parent did not reach 'completed'. Config: {sm.configuration_values}"
+        assert len(invoked) > 0, "async on_invoke_active was not called"

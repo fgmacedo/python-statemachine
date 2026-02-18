@@ -46,6 +46,7 @@ class CallbackGroup(IntEnum):
     PREPARE = auto()
     ENTER = auto()
     EXIT = auto()
+    INVOKE = auto()
     VALIDATOR = auto()
     BEFORE = auto()
     ON = auto()

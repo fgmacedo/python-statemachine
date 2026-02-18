@@ -111,10 +111,6 @@ class InvokeConfig:
 
     id: "str | None" = None
     idlocation: "str | None" = None
-    autoforward: bool = False
-    namelist: "str | None" = None
-    params: "List[Any]" = field(default_factory=list)
-    finalize: Any = None
 
 
 @dataclass
@@ -199,6 +195,52 @@ class StateChartInvoker:
                 setattr(child_sm.model, name, value)
 
 
+# ---------------------------------------------------------------------------
+# Callback-based invoke adapters
+# ---------------------------------------------------------------------------
+
+
+class CallbackInvokeAdapter:
+    """Wraps a resolved CallbackWrapper as an Invoker for InvokeManager.
+
+    When the state machine defines ``on_invoke_<state>()`` or passes a
+    string/callable via ``State(invoke="method")``, the callback system
+    resolves it into a ``CallbackWrapper``.  This adapter bridges it to the
+    invoke lifecycle so InvokeManager can spawn, track, and cancel it uniformly.
+    """
+
+    def __init__(self, wrapper):
+        self._wrapper = wrapper
+        self._cancelled: "threading.Event | None" = None
+
+    def run(self, ctx: InvokeContext) -> Any:
+        self._cancelled = threading.Event()
+        return self._wrapper.call(
+            machine=ctx._parent_sm,
+            model=ctx._parent_sm.model,
+            cancelled=self._cancelled,
+        )
+
+    def on_cancel(self):
+        if self._cancelled is not None:
+            self._cancelled.set()
+
+
+class AsyncCallbackInvokeAdapter(CallbackInvokeAdapter):
+    """Async variant of :class:`CallbackInvokeAdapter`."""
+
+    async def run(self, ctx: InvokeContext) -> Any:
+        self._cancelled = threading.Event()
+        result = self._wrapper._callback(
+            machine=ctx._parent_sm,
+            model=ctx._parent_sm.model,
+            cancelled=self._cancelled,
+        )
+        if inspect.isawaitable(result):
+            result = await result
+        return result
+
+
 class _ParentBridge:
     """Listener attached to a child SM. Placeholder for future extensions."""
 
@@ -209,16 +251,6 @@ class _ParentBridge:
 # ---------------------------------------------------------------------------
 # InvokeManager
 # ---------------------------------------------------------------------------
-
-
-class _TriggerDataAdapter:
-    """Adapts a TriggerData to look like EventData for EventDataWrapper."""
-
-    def __init__(self, trigger_data: Any):
-        self.trigger_data = trigger_data
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self.trigger_data, name)
 
 
 class InvokeManager:
@@ -238,30 +270,42 @@ class InvokeManager:
     def sm(self) -> "StateChart":
         return self._engine.sm
 
+    # --- Config resolution ---
+
+    def _get_all_configs(self, state: "State") -> "List[InvokeConfig]":
+        """Combine InvokeConfig sources: static ``state.invocations`` and callback-based."""
+        configs = list(getattr(state, "invocations", None) or [])
+        callback_configs = getattr(self.sm, "_callback_invocations", {})
+        configs.extend(callback_configs.get(state.id, []))
+        return configs
+
+    def _has_invocations(self, state: "State") -> bool:
+        return bool(self._get_all_configs(state))
+
     # --- Engine hooks ---
 
     def on_state_entered(self, state: "State") -> None:
         """Track a state with invocations for post-macrostep spawning."""
-        if getattr(state, "invocations", None):
+        if self._has_invocations(state):
             self._states_to_invoke.add(state)
 
     def on_state_exiting(self, state: "State") -> None:
         """Cancel invocations and remove from pending spawn set."""
-        if getattr(state, "invocations", None):
+        if self._has_invocations(state):
             self.cancel_for_state(state)
         self._states_to_invoke.discard(state)
 
     def spawn_pending_sync(self, trigger_data: Any) -> None:
         """Spawn invocations for states entered during this macrostep (sync)."""
         for state in sorted(self._states_to_invoke, key=lambda s: s.document_order):
-            for config in state.invocations:
+            for config in self._get_all_configs(state):
                 self.spawn_sync(state, config, trigger_data)
         self._states_to_invoke.clear()
 
     async def spawn_pending_async(self, trigger_data: Any) -> None:
         """Spawn invocations for states entered during this macrostep (async)."""
         for state in sorted(self._states_to_invoke, key=lambda s: s.document_order):
-            for config in state.invocations:
+            for config in self._get_all_configs(state):
                 await self.spawn_async(state, config, trigger_data)
         self._states_to_invoke.clear()
 
@@ -269,7 +313,8 @@ class InvokeManager:
         """Process invoke-related aspects of an external event.
 
         Handles forward_target (returns ``True`` if the event was consumed),
-        and applies finalize/autoforward as side-effects.
+        and delegates finalize/autoforward to the invoker via optional
+        protocol methods (``on_finalize``, ``on_event``).
 
         Returns:
             ``True`` if the event was forwarded to another session and should
@@ -280,13 +325,23 @@ class InvokeManager:
             self._forward_to_target(trigger_data)
             return True
 
-        # Handle invoke finalize and autoforward
+        # Delegate to invokers
         for state in self.sm.configuration:
             for inv in self.active_for_state(state):
+                handler = inv.handler
+
+                # Finalize: invoker handles it
                 if trigger_data.invokeid and inv.invokeid == trigger_data.invokeid:
-                    self.apply_finalize(inv, trigger_data)
-                if inv.config.autoforward and trigger_data.event:
-                    self.forward_event(inv, str(trigger_data.event), trigger_data)
+                    if hasattr(handler, "on_finalize"):
+                        handler.on_finalize(trigger_data)
+
+                # Autoforward: invoker handles it
+                if hasattr(handler, "on_event") and trigger_data.event:
+                    if getattr(handler, "autoforward", False):
+                        try:
+                            handler.on_event(str(trigger_data.event), **trigger_data.kwargs)
+                        except Exception:
+                            logger.exception("Error forwarding event to %s", inv.invokeid)
 
         return False
 
@@ -330,37 +385,6 @@ class InvokeManager:
         if config.idlocation:
             setattr(self.sm.model, config.idlocation, invokeid)
 
-    # --- Param evaluation ---
-
-    def _evaluate_params(self, config: InvokeConfig, trigger_data: Any) -> "dict[str, Any]":
-        """Evaluate namelist and param expressions in the parent's context."""
-        params: dict[str, Any] = {}
-
-        if config.namelist:
-            for name in config.namelist.strip().split():
-                if not hasattr(self.sm.model, name):
-                    raise NameError(f"Namelist variable '{name}' not found on parent model")
-                params[name] = getattr(self.sm.model, name)
-
-        for param in config.params:
-            if param.expr is not None:
-                from .io.scxml.actions import _eval
-
-                try:
-                    kwargs = {"machine": self.sm, "model": self.sm.model}
-                    kwargs.update(
-                        {
-                            k: v
-                            for k, v in self.sm.model.__dict__.items()
-                            if k not in {"_sessionid", "_ioprocessors", "_name", "_event"}
-                        }
-                    )
-                    params[param.name] = _eval(param.expr, **kwargs)
-                except Exception:
-                    logger.exception("Error evaluating param %s", param.name)
-
-        return params
-
     # --- Handler resolution ---
 
     def _resolve_handler(self, handler: Any) -> Any:
@@ -385,16 +409,9 @@ class InvokeManager:
         invokeid = self._generate_invokeid(state, config)
         self._set_idlocation(config, invokeid)
 
-        try:
-            params = self._evaluate_params(config, trigger_data)
-        except Exception as e:
-            # SCXML spec: error in arg evaluation cancels the invocation
-            logger.debug("Error evaluating invoke params for %s: %s", invokeid, e)
-            self.sm.send("error.execution", error=e, internal=True)
-            return
         ctx = InvokeContext(
             invokeid=invokeid,
-            params=params,
+            params={},
             send=self._make_parent_send(invokeid),
             _parent_sm=self.sm,
         )
@@ -470,15 +487,9 @@ class InvokeManager:
         invokeid = self._generate_invokeid(state, config)
         self._set_idlocation(config, invokeid)
 
-        try:
-            params = self._evaluate_params(config, trigger_data)
-        except Exception as e:
-            logger.debug("Error evaluating invoke params for %s: %s", invokeid, e)
-            self.sm.send("error.execution", error=e, internal=True)
-            return
         ctx = InvokeContext(
             invokeid=invokeid,
-            params=params,
+            params={},
             send=self._make_parent_send(invokeid),
             _parent_sm=self.sm,
         )
@@ -623,36 +634,6 @@ class InvokeManager:
             if inv.child_sm is child_sm:
                 return inv
         return None
-
-    # --- Finalize & Autoforward ---
-
-    def apply_finalize(self, invocation: Invocation, trigger_data: Any):
-        """Execute the finalize block for an invocation before the event is processed."""
-        config = invocation.config
-        if config.finalize is None:
-            return
-        try:
-            from .io.scxml.actions import EventDataWrapper
-
-            _event = EventDataWrapper(_TriggerDataAdapter(trigger_data))
-            config.finalize(
-                machine=self.sm, model=self.sm.model, event_data=trigger_data, _event=_event
-            )
-        except Exception:
-            logger.exception("Error in finalize for %s", invocation.invokeid)
-
-    def forward_event(self, invocation: Invocation, event_name: str, trigger_data: Any):
-        """Forward an event to a child session (autoforward)."""
-        handler = invocation.handler
-        if handler is not None and hasattr(handler, "on_event"):
-            try:
-                handler.on_event(event_name, **trigger_data.kwargs)
-            except Exception:
-                logger.exception("Error forwarding event to %s", invocation.invokeid)
-        else:
-            child_sm = invocation.child_sm or getattr(handler, "_child_sm", None)
-            if child_sm is not None and not invocation.terminated:
-                child_sm.send(event_name, **trigger_data.kwargs)
 
     # --- Cross-session sends ---
 
