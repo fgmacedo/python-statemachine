@@ -31,6 +31,7 @@ Users can use any callable or class with a ``run()`` method::
         s3 = State(invoke=ChildChart)
 """
 
+import asyncio
 import inspect
 import logging
 import threading
@@ -44,6 +45,8 @@ from typing import Dict
 from typing import List
 from typing import runtime_checkable
 from uuid import uuid4
+
+from .orderedset import OrderedSet
 
 try:
     from typing import Protocol
@@ -79,11 +82,24 @@ class InvokeContext:
     send: "Callable[..., None]"
     """``send(event, **data)`` — sends an event to the parent machine."""
     cancelled: bool = False
+    _parent_sm: "Any" = field(default=None, repr=False)
 
 
 # ---------------------------------------------------------------------------
 # Configuration & Runtime
 # ---------------------------------------------------------------------------
+
+
+@dataclass
+class InvokeSession:
+    """Tracks the parent session relationship for a child StateChart.
+
+    Attached to child StateMachines as ``_invoke_session`` so the engine
+    can route events back to the parent without ad-hoc ``setattr`` hacks.
+    """
+
+    parent_sm: "StateChart"
+    invokeid: str
 
 
 @dataclass
@@ -166,18 +182,12 @@ class StateChartInvoker:
         child_class = self._child_class
         bridge = _ParentBridge(ctx)
 
-        # Set class-level attrs temporarily for __init__
-        child_class._parent_sm = ctx._parent_sm  # type: ignore[attr-defined]
-        child_class._invokeid = ctx.invokeid  # type: ignore[attr-defined]
-        child_class._defer_start = True  # type: ignore[attr-defined]
-        try:
-            child_sm = child_class(listeners=[bridge])
-        finally:
-            _cleanup_class_attrs(child_class)
+        child_sm = child_class(listeners=[bridge], _start=False)
 
-        # Ensure instance-level parent references
-        child_sm._parent_sm = ctx._parent_sm  # type: ignore[attr-defined]
-        child_sm._invokeid = ctx.invokeid  # type: ignore[attr-defined]
+        child_sm._invoke_session = InvokeSession(  # type: ignore[attr-defined]
+            parent_sm=ctx._parent_sm,
+            invokeid=ctx.invokeid,
+        )
 
         return child_sm
 
@@ -196,12 +206,6 @@ class _ParentBridge:
         self._ctx = ctx
 
 
-def _cleanup_class_attrs(cls: type):
-    for attr in ("_parent_sm", "_invokeid", "_defer_start"):
-        if hasattr(cls, attr):
-            delattr(cls, attr)
-
-
 # ---------------------------------------------------------------------------
 # InvokeManager
 # ---------------------------------------------------------------------------
@@ -218,15 +222,102 @@ class _TriggerDataAdapter:
 
 
 class InvokeManager:
-    """Manages active invocations for an engine instance."""
+    """Manages active invocations for an engine instance.
+
+    Also acts as the invoke handler: the engine calls hook methods
+    (``on_state_entered``, ``on_state_exiting``, ``spawn_pending_sync``, etc.)
+    instead of containing inline invoke logic.
+    """
 
     def __init__(self, engine: "BaseEngine"):
         self._engine = engine
         self._active: Dict[str, Invocation] = {}
+        self._states_to_invoke: "OrderedSet[State]" = OrderedSet()
 
     @property
     def sm(self) -> "StateChart":
         return self._engine.sm
+
+    # --- Engine hooks ---
+
+    def on_state_entered(self, state: "State") -> None:
+        """Track a state with invocations for post-macrostep spawning."""
+        if getattr(state, "invocations", None):
+            self._states_to_invoke.add(state)
+
+    def on_state_exiting(self, state: "State") -> None:
+        """Cancel invocations and remove from pending spawn set."""
+        if getattr(state, "invocations", None):
+            self.cancel_for_state(state)
+        self._states_to_invoke.discard(state)
+
+    def spawn_pending_sync(self, trigger_data: Any) -> None:
+        """Spawn invocations for states entered during this macrostep (sync)."""
+        for state in sorted(self._states_to_invoke, key=lambda s: s.document_order):
+            for config in state.invocations:
+                self.spawn_sync(state, config, trigger_data)
+        self._states_to_invoke.clear()
+
+    async def spawn_pending_async(self, trigger_data: Any) -> None:
+        """Spawn invocations for states entered during this macrostep (async)."""
+        for state in sorted(self._states_to_invoke, key=lambda s: s.document_order):
+            for config in state.invocations:
+                await self.spawn_async(state, config, trigger_data)
+        self._states_to_invoke.clear()
+
+    def handle_external_event(self, trigger_data: Any) -> bool:
+        """Process invoke-related aspects of an external event.
+
+        Handles forward_target (returns ``True`` if the event was consumed),
+        and applies finalize/autoforward as side-effects.
+
+        Returns:
+            ``True`` if the event was forwarded to another session and should
+            not be processed further; ``False`` otherwise.
+        """
+        # Forward delayed cross-session events to their target
+        if "_forward_target" in trigger_data.kwargs:
+            self._forward_to_target(trigger_data)
+            return True
+
+        # Handle invoke finalize and autoforward
+        for state in self.sm.configuration:
+            for inv in self.active_for_state(state):
+                if trigger_data.invokeid and inv.invokeid == trigger_data.invokeid:
+                    self.apply_finalize(inv, trigger_data)
+                if inv.config.autoforward and trigger_data.event:
+                    self.forward_event(inv, str(trigger_data.event), trigger_data)
+
+        return False
+
+    def on_terminate(self) -> None:
+        """Cancel all active invocations on machine termination."""
+        self.cancel_all()
+
+    def _forward_to_target(self, trigger_data: Any) -> None:
+        """Forward an event to a cross-session target instead of processing it.
+
+        Called when ``trigger_data.kwargs['_forward_target']`` is set.
+        This supports delayed cross-session sends.
+        """
+        target = trigger_data.kwargs.pop("_forward_target")
+        event_name = str(trigger_data.event)
+        kwargs = trigger_data.kwargs
+        if target in ("#_parent", "parent"):
+            session = getattr(self.sm, "_invoke_session", None)
+            if session is not None:
+                session.parent_sm.send(
+                    event_name,
+                    *trigger_data.args,
+                    invokeid=session.invokeid,
+                    **kwargs,
+                )
+            else:
+                self.sm.send("error.communication", internal=True)
+        elif target == "#_child":
+            self.send_to_child(event_name, **kwargs)
+        else:
+            logger.warning("Unknown forward_target: %s", target)
 
     # --- ID generation ---
 
@@ -305,9 +396,8 @@ class InvokeManager:
             invokeid=invokeid,
             params=params,
             send=self._make_parent_send(invokeid),
+            _parent_sm=self.sm,
         )
-        # Attach parent SM reference for StateChartInvoker (not part of public API)
-        ctx._parent_sm = self.sm  # type: ignore[attr-defined]
 
         handler = self._resolve_handler(config.handler)
 
@@ -377,8 +467,6 @@ class InvokeManager:
 
     async def spawn_async(self, state: "State", config: InvokeConfig, trigger_data: Any):
         """Spawn a child session asynchronously."""
-        import asyncio
-
         invokeid = self._generate_invokeid(state, config)
         self._set_idlocation(config, invokeid)
 
@@ -392,8 +480,8 @@ class InvokeManager:
             invokeid=invokeid,
             params=params,
             send=self._make_parent_send(invokeid),
+            _parent_sm=self.sm,
         )
-        ctx._parent_sm = self.sm  # type: ignore[attr-defined]
 
         handler = self._resolve_handler(config.handler)
 
@@ -421,8 +509,6 @@ class InvokeManager:
         self, handler: Any, ctx: InvokeContext, invokeid: str, invocation: Invocation
     ):
         """Run a sync handler in a thread executor, handle completion on the event loop."""
-        import asyncio
-
         loop = asyncio.get_running_loop()
         try:
             if hasattr(handler, "run"):

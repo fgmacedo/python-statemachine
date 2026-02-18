@@ -26,8 +26,10 @@ from .exceptions import InvalidDefinition
 from .exceptions import InvalidStateValue
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
+from .graph import iterate_states
 from .graph import iterate_states_and_transitions
 from .i18n import _
+from .invoke import InvokeManager
 from .model import Model
 from .utils import run_async_from_sync
 
@@ -137,6 +139,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         state_field: str = "state",
         start_value: Any = None,
         listeners: "List[object] | None" = None,
+        _start: bool = True,
     ):
         self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
         self.history_values: Dict[
@@ -160,7 +163,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         # for async code, the user should manually call `await sm.activate_initial_state()`
         # after state machine creation.
         self._engine = self._get_engine()
-        if not getattr(self, "_defer_start", False):
+        self._setup_invoke()
+        if _start:
             self._engine.start()
 
     def _get_engine(self):
@@ -168,6 +172,14 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             return AsyncEngine(self)
 
         return SyncEngine(self)
+
+    def _setup_invoke(self):
+        """Attach an InvokeManager to the engine if any state uses invoke."""
+        has_invocations = any(
+            getattr(state, "invocations", None) for state in iterate_states(self.states)
+        )
+        if has_invocations:
+            self._engine._invoke = InvokeManager(self._engine)
 
     def activate_initial_state(self) -> Any:
         result = self._engine.activate_initial_state()
@@ -206,6 +218,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         self._register_callbacks([])
         self.add_listener(*listeners.values())
         self._engine = self._get_engine()
+        self._setup_invoke()
         self._engine.start()
 
     def _get_initial_configuration(self):

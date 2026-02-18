@@ -194,7 +194,7 @@ class TestInvokeSpawnAndCancel:
         await sm_runner.send(sm, "start")
         await _sleep(sm_runner)
 
-        active = sm._engine.invoke_manager._active
+        active = sm._engine._invoke._active
         assert len(active) > 0, "No active invocations found after entering invoke state"
 
     @pytest.mark.asyncio()
@@ -215,7 +215,7 @@ class TestInvokeSpawnAndCancel:
         await sm_runner.send(sm, "start")
         await _sleep(sm_runner)
 
-        active_before = list(sm._engine.invoke_manager._active.values())
+        active_before = list(sm._engine._invoke._active.values())
         assert len(active_before) > 0
 
         await sm_runner.send(sm, "abort")

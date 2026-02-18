@@ -173,12 +173,8 @@ class AsyncEngine(BaseEngine):
         for info in ordered_states:
             args, kwargs = await self._get_args_kwargs(info.transition, trigger_data)
 
-            # Cancel invocations for states being exited
-            if info.state is not None and getattr(info.state, "invocations", None):
-                self.invoke_manager.cancel_for_state(info.state)
-
-            # Remove from states_to_invoke if we exit before invoking
-            self.states_to_invoke.discard(info.state)
+            if self._invoke is not None:
+                self._invoke.on_state_exiting(info.state)
 
             if info.state is not None:  # pragma: no branch
                 await self.sm._callbacks.async_call(
@@ -250,8 +246,8 @@ class AsyncEngine(BaseEngine):
                 )
 
             # Track states with invocations for post-macrostep spawning
-            if getattr(target, "invocations", None):
-                self.states_to_invoke.add(target)
+            if self._invoke is not None:
+                self._invoke.on_state_entered(target)
 
             # Handle final states
             if target.final:
@@ -383,13 +379,8 @@ class AsyncEngine(BaseEngine):
                         await self._run_microstep(enabled_transitions, internal_event)
 
                 # Spawn invocations for states entered during this macrostep
-                for state in sorted(
-                    self.states_to_invoke,
-                    key=lambda s: s.document_order,
-                ):
-                    for config in state.invocations:
-                        await self.invoke_manager.spawn_async(state, config, internal_event)
-                self.states_to_invoke.clear()
+                if self._invoke is not None:
+                    await self._invoke.spawn_pending_async(internal_event)
 
                 # Phase 2: remaining internal events
                 while not self.internal_queue.is_empty():  # pragma: no cover
@@ -412,22 +403,12 @@ class AsyncEngine(BaseEngine):
                         # transitions can be processed while we wait.
                         break
 
-                    # Forward delayed cross-session events to their target
-                    if external_event.forward_target:
-                        self._forward_to_target(external_event)
-                        continue
+                    # Handle invoke-related event processing (forward, finalize, autoforward)
+                    if self._invoke is not None:
+                        if self._invoke.handle_external_event(external_event):
+                            continue
 
                     logger.debug("External event: %s", external_event.event)
-
-                    # Handle invoke finalize and autoforward
-                    for state in self.sm.configuration:
-                        for inv in self.invoke_manager.active_for_state(state):
-                            if external_event.invokeid and inv.invokeid == external_event.invokeid:
-                                self.invoke_manager.apply_finalize(inv, external_event)
-                            if inv.config.autoforward and external_event.event:
-                                self.invoke_manager.forward_event(
-                                    inv, str(external_event.event), external_event
-                                )
 
                     # Handle lazy initial state activation.
                     # Break out of phase 3 so the outer loop restarts from phase 1

@@ -128,11 +128,9 @@ class SCXMLInvoker(StateChartInvoker):
     def _create_scxml_child(self, ctx: InvokeContext) -> "StateChart":
         """Create a child SM from SCXML-parsed class with deferred start.
 
-        Uses ``_defer_start=True`` so that the caller can apply namelist/param
-        data before the engine starts.  The caller is responsible for calling
-        ``child_sm._engine.start()`` after applying params.
+        Uses ``_start=False`` so that the caller can apply namelist/param
+        data before the engine starts.
         """
-        from ...invoke import _cleanup_class_attrs
         from ...invoke import _ParentBridge
         from .processor import SCXMLProcessor
 
@@ -154,18 +152,14 @@ class SCXMLInvoker(StateChartInvoker):
                     path = self._base_dir / path
                 processor.parse_scxml_file(path)
 
-        child_cls = next(iter(processor.scs.values()))
-        child_cls._parent_sm = ctx._parent_sm  # type: ignore[attr-defined]
-        child_cls._invokeid = ctx.invokeid  # type: ignore[attr-defined]
-        child_cls._defer_start = True  # type: ignore[attr-defined]
+        child_sm = processor.start(listeners=[bridge], _start=False)
 
-        try:
-            child_sm = processor.start(listeners=[bridge])
-        finally:
-            _cleanup_class_attrs(child_cls)
+        from ...invoke import InvokeSession
 
-        child_sm._parent_sm = ctx._parent_sm  # type: ignore[attr-defined]
-        child_sm._invokeid = ctx.invokeid  # type: ignore[attr-defined]
+        child_sm._invoke_session = InvokeSession(  # type: ignore[attr-defined]
+            parent_sm=ctx._parent_sm,
+            invokeid=ctx.invokeid,
+        )
 
         # Copy base_dir for nested invocations
         if self._base_dir is not None:

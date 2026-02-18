@@ -20,13 +20,13 @@ from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
-from ..invoke import InvokeManager
 from ..orderedset import OrderedSet
 from ..state import HistoryState
 from ..state import State
 from ..transition import Transition
 
 if TYPE_CHECKING:
+    from ..invoke import InvokeManager
     from ..statemachine import StateChart
 
 logger = logging.getLogger(__name__)
@@ -95,8 +95,7 @@ class BaseEngine:
         self.running = True
         self._processing = Lock()
         self._cache: Dict = {}  # Cache for _get_args_kwargs results
-        self.invoke_manager = InvokeManager(self)
-        self.states_to_invoke: "OrderedSet[State]" = OrderedSet()
+        self._invoke: "InvokeManager | None" = None  # set by StateChart if needed
 
     def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
@@ -137,33 +136,6 @@ class BaseEngine:
     def cancel_event(self, send_id: str):
         """Cancel the event with the given send_id."""
         self.external_queue.remove(send_id)
-
-    def _forward_to_target(self, trigger_data: TriggerData):
-        """Forward an event to a cross-session target instead of processing it.
-
-        Called by the processing loop when ``trigger_data.forward_target`` is set.
-        This supports delayed cross-session sends: the event sits on the child's
-        queue with a delay, and when it expires the processing loop forwards it
-        to the named target.
-        """
-        target = trigger_data.forward_target
-        event_name = str(trigger_data.event)
-        if target in ("#_parent", "parent"):
-            parent_sm = getattr(self.sm, "_parent_sm", None)
-            if parent_sm is not None:
-                child_invokeid = getattr(self.sm, "_invokeid", None)
-                parent_sm.send(
-                    event_name,
-                    *trigger_data.args,
-                    invokeid=child_invokeid,
-                    **trigger_data.kwargs,
-                )
-            else:
-                self.sm.send("error.communication", internal=True)
-        elif target == "#_child":
-            self.invoke_manager.send_to_child(event_name, **trigger_data.kwargs)
-        else:
-            logger.warning("Unknown forward_target: %s", target)
 
     def _on_error_handler(self) -> "Callable[[Exception], None] | None":
         """Return a per-block error handler, or ``None``.
@@ -528,12 +500,8 @@ class BaseEngine:
         for info in ordered_states:
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
-            # Cancel invocations for states being exited
-            if info.state is not None and getattr(info.state, "invocations", None):
-                self.invoke_manager.cancel_for_state(info.state)
-
-            # Remove from states_to_invoke if we exit before invoking
-            self.states_to_invoke.discard(info.state)
+            if self._invoke is not None:
+                self._invoke.on_state_exiting(info.state)
 
             # Execute `onexit` handlers — same per-block error isolation as onentry.
             if info.state is not None:  # pragma: no branch
@@ -602,16 +570,16 @@ class BaseEngine:
         if not self.sm.atomic_configuration_update:
             self.sm.configuration |= {target}
 
-    def _terminate_machine(self):
-        """SCXML termination: exit all active states in exit order, firing onexit handlers.
+    def _terminate_child_session(self):
+        """Exit all active states (firing onexit handlers) and stop the engine.
 
-        Per SCXML spec, when a top-level final state is reached, the machine
-        terminates. All active states have their ``onexit`` handlers fired
-        (in reverse document order), but the final configuration is preserved
-        so that observers can see which final state was reached.
+        Called when a child session (one with ``_invoke_session``) reaches a
+        top-level final state. Per SCXML spec, all active states have their
+        ``onexit`` handlers fired (in reverse document order), but the final
+        configuration is preserved so that observers can see which final state
+        was reached.
         """
         on_error = self._on_error_handler()
-        # Sort active states by document_order (reverse) for exit order
         active_states = sorted(
             self.sm.configuration,
             key=lambda s: s.document_order,
@@ -621,24 +589,24 @@ class BaseEngine:
         event_data = EventData(trigger_data=trigger_data, transition=None)
         args, kwargs = event_data.args, event_data.extended_kwargs
         for state in active_states:
-            if getattr(state, "invocations", None):
-                self.invoke_manager.cancel_for_state(state)
+            if self._invoke is not None:
+                self._invoke.on_state_exiting(state)
             self.sm._callbacks.call(state.exit.key, *args, on_error=on_error, **kwargs)
-        # Note: we intentionally do NOT clear configuration — the final state
-        # must remain visible for assertions and done.invoke reporting.
-        self.invoke_manager.cancel_all()
+        if self._invoke is not None:
+            self._invoke.on_terminate()
         self.running = False
 
     def _handle_final_state(self, target: State, on_entry_result: list):
         """Handle final state entry: queue done events. No direct callback dispatch."""
         if target.parent is None:
-            if getattr(self.sm, "_parent_sm", None) is not None:
+            if getattr(self.sm, "_invoke_session", None) is not None:
                 # Child session: fire onexit on all active states before terminating
                 # so that #_parent sends in <onexit> of final states are delivered
-                self._terminate_machine()
+                self._terminate_child_session()
             else:
                 self.running = False
-                self.invoke_manager.cancel_all()
+                if self._invoke is not None:
+                    self._invoke.on_terminate()
         else:
             parent = target.parent
             grandparent = parent.parent
@@ -729,8 +697,8 @@ class BaseEngine:
                 )
 
             # Track states with invocations for post-macrostep spawning
-            if getattr(target, "invocations", None):
-                self.states_to_invoke.add(target)
+            if self._invoke is not None:
+                self._invoke.on_state_entered(target)
 
             # Handle final states
             if target.final:

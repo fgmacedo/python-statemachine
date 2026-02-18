@@ -98,19 +98,19 @@ class Event(AddCallbacksMixin, str):
         if self == event:
             return True
         if event is not None:
-            event_str = str(event)
-            self_dot = str(self).replace("_", ".")
-            event_dot = event_str.replace("_", ".")
-
-            # Exact match with dot/underscore normalization
-            if self_dot == event_dot:
-                return True
-
-            # SCXML prefix matching: descriptor "done.invoke.active" matches
-            # actual event "done.invoke.active.abc123"
-            if event_dot.startswith(self_dot + "."):
-                return True
+            return self._is_prefix_match(str(event))
         return False
+
+    def _is_prefix_match(self, event_str: str) -> bool:
+        """SCXML prefix matching with dot/underscore normalization.
+
+        ``'done.invoke.x'`` matches ``'done.invoke.x.uuid'``.
+        """
+        self_dot = str(self).replace("_", ".")
+        event_dot = event_str.replace("_", ".")
+        if self_dot == event_dot:
+            return True
+        return event_dot.startswith(self_dot + ".")
 
     def _add_callback(self, callback, grouper: CallbackGroup, is_event=False, **kwargs):
         if self._transitions is None:
@@ -141,7 +141,6 @@ class Event(AddCallbacksMixin, str):
         *args,
         send_id: "str | None" = None,
         invokeid: "str | None" = None,
-        forward_target: "str | None" = None,
         **kwargs,
     ):
         # The `__call__` is declared here to help IDEs knowing that an `Event`
@@ -154,7 +153,6 @@ class Event(AddCallbacksMixin, str):
             machine=self._sm,
             send_id=send_id,
             invokeid=invokeid,
-            forward_target=forward_target,
             **kwargs,
         )
         self._sm._put_nonblocking(trigger_data, internal=self.internal)
@@ -166,7 +164,6 @@ class Event(AddCallbacksMixin, str):
         machine: "StateChart",
         send_id: "str | None" = None,
         invokeid: "str | None" = None,
-        forward_target: "str | None" = None,
         **kwargs,
     ):
         if machine is None:
@@ -178,7 +175,6 @@ class Event(AddCallbacksMixin, str):
             event=self,
             send_id=send_id,
             invokeid=invokeid,
-            forward_target=forward_target,
             args=args,
             kwargs=kwargs,
         )

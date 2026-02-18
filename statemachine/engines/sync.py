@@ -108,13 +108,8 @@ class SyncEngine(BaseEngine):
                         self._run_microstep(enabled_transitions, internal_event)
 
                 # Spawn invocations for states entered during this macrostep
-                for state in sorted(
-                    self.states_to_invoke,
-                    key=lambda s: s.document_order,
-                ):
-                    for config in state.invocations:
-                        self.invoke_manager.spawn_sync(state, config, internal_event)
-                self.states_to_invoke.clear()
+                if self._invoke is not None:
+                    self._invoke.spawn_pending_sync(internal_event)
 
                 # Process remaining internal events before external events.
                 # Note: the macrostep loop above already drains the internal queue,
@@ -139,22 +134,12 @@ class SyncEngine(BaseEngine):
                         # transitions can be processed while we wait.
                         break
 
-                    # Forward delayed cross-session events to their target
-                    if external_event.forward_target:
-                        self._forward_to_target(external_event)
-                        continue
+                    # Handle invoke-related event processing (forward, finalize, autoforward)
+                    if self._invoke is not None:
+                        if self._invoke.handle_external_event(external_event):
+                            continue
 
                     logger.debug("External event: %s", external_event.event)
-
-                    # Handle invoke finalize and autoforward
-                    for state in self.sm.configuration:
-                        for inv in self.invoke_manager.active_for_state(state):
-                            if external_event.invokeid and inv.invokeid == external_event.invokeid:
-                                self.invoke_manager.apply_finalize(inv, external_event)
-                            if inv.config.autoforward and external_event.event:
-                                self.invoke_manager.forward_event(
-                                    inv, str(external_event.event), external_event
-                                )
 
                     enabled_transitions = self.select_transitions(external_event)
                     logger.debug("Enabled transitions: %s", enabled_transitions)

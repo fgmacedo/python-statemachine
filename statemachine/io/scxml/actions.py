@@ -367,18 +367,18 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
 
 def _send_to_parent(machine: "StateChart", event: str, content: Any, params_values: dict):
     """Route an event to the parent session via #_parent."""
-    parent_sm = getattr(machine, "_parent_sm", None)
-    if parent_sm is not None:
-        child_invokeid = getattr(machine, "_invokeid", None)
-        parent_sm.send(event, *content, invokeid=child_invokeid, **params_values)
+    session = getattr(machine, "_invoke_session", None)
+    if session is not None:
+        session.parent_sm.send(event, *content, invokeid=session.invokeid, **params_values)
     else:
         machine.send("error.communication", internal=True)
 
 
 def _send_to_child(machine: "StateChart", event: str, params_values: dict):
     """Route an event to the first active child via #_child."""
-    if hasattr(machine, "_engine") and hasattr(machine._engine, "invoke_manager"):
-        machine._engine.invoke_manager.send_to_child(event, **params_values)
+    invoke = getattr(machine._engine, "_invoke", None) if hasattr(machine, "_engine") else None
+    if invoke is not None:
+        invoke.send_to_child(event, **params_values)
     else:
         machine.send("error.communication", internal=True)
 
@@ -387,12 +387,13 @@ def _send_to_invokeid(send_target: str, send_event: str, action: SendAction, **k
     """Route an event to a specific child by #_<invokeid>."""
     machine: "StateChart" = kwargs["machine"]
     invokeid = send_target[2:]
-    if hasattr(machine, "_engine") and hasattr(machine._engine, "invoke_manager"):
+    invoke = getattr(machine._engine, "_invoke", None) if hasattr(machine, "_engine") else None
+    if invoke is not None:
         params_values = {}
         for param in action.params:
             if param.expr:
                 params_values[param.name] = _eval(param.expr, **kwargs)
-        machine._engine.invoke_manager.send_to_invokeid(invokeid, send_event, **params_values)
+        invoke.send_to_invokeid(invokeid, send_event, **params_values)
     elif send_target.startswith("#_scxml_"):
         machine.send("error.communication", internal=True)
     else:
@@ -460,7 +461,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
                 # first, the event stays in the queue unprocessed — automatic
                 # cancellation per SCXML spec.
                 Event(id=event, name=event, delay=delay, _sm=machine).put(
-                    *content, forward_target="#_parent", **params_values
+                    *content, _forward_target="#_parent", **params_values
                 )
             else:
                 _send_to_parent(machine, event, content, params_values)
