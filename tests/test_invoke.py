@@ -111,7 +111,7 @@ class TestInvokeIInvokeProtocol:
                 return "invoker_result"
 
             def on_cancel(self):
-                pass
+                pass  # no-op: only verifying the protocol is satisfied
 
         assert isinstance(MyInvoker(), IInvoke)
 

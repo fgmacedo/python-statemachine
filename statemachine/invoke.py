@@ -179,7 +179,7 @@ class StateChartInvoker:
         self._child_class = child_class
         self._child: "StateChart | None" = None
 
-    def run(self, ctx: "InvokeContext") -> Any:
+    def run(self, _ctx: "InvokeContext") -> Any:
         self._child = self._child_class()
         # The child machine starts automatically in its constructor.
         # If it has final states, it will terminate on its own.
@@ -357,7 +357,7 @@ class InvokeManager:
             )
         self._states_to_invoke.clear()
 
-    async def _spawn_one_async(self, callback: "CallbackWrapper", **kwargs):
+    def _spawn_one_async(self, callback: "CallbackWrapper", **kwargs):
         state: "State" = kwargs["state"]
         ctx = self._make_context(state)
         invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
@@ -394,7 +394,9 @@ class InvokeManager:
                     internal=True,
                 )
         except asyncio.CancelledError:
-            pass
+            # Intentionally swallowed: the owning state was exited, so this
+            # invocation was cancelled — there is nothing to propagate.
+            return
         except Exception as e:
             if not ctx.cancelled.is_set():
                 self.sm.send("error.execution", error=e, internal=True)
