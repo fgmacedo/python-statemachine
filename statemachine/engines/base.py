@@ -20,6 +20,7 @@ from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
+from ..invoke import InvokeManager
 from ..orderedset import OrderedSet
 from ..state import HistoryState
 from ..state import State
@@ -94,6 +95,7 @@ class BaseEngine:
         self.running = True
         self._processing = Lock()
         self._cache: Dict = {}  # Cache for _get_args_kwargs results
+        self._invoke_manager = InvokeManager(self)
 
     def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
@@ -483,6 +485,10 @@ class BaseEngine:
         on_error = self._on_error_handler()
 
         for info in ordered_states:
+            # Cancel invocations for this state before executing exit handlers.
+            if info.state is not None:  # pragma: no branch
+                self._invoke_manager.cancel_for_state(info.state)
+
             args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
 
             # Execute `onexit` handlers — same per-block error isolation as onentry.
@@ -644,6 +650,10 @@ class BaseEngine:
                     previous_configuration=previous_configuration,
                     new_configuration=new_configuration,
                 )
+
+            # Mark state for invocation if it has invoke callbacks registered
+            if target.invoke.key in self.sm._callbacks:
+                self._invoke_manager.mark_for_invoke(target)
 
             # Handle final states
             if target.final:

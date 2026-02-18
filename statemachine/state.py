@@ -11,6 +11,7 @@ from .callbacks import CallbackSpecList
 from .exceptions import InvalidDefinition
 from .exceptions import StateMachineError
 from .i18n import _
+from .invoke import normalize_invoke_callbacks
 from .transition import Transition
 from .transition_list import TransitionList
 
@@ -205,6 +206,7 @@ class State:
         history: "List[HistoryState] | None" = None,
         enter: Any = None,
         exit: Any = None,
+        invoke: Any = None,
         donedata: Any = None,
         _callbacks: Any = None,
     ):
@@ -227,6 +229,9 @@ class State:
         )
         self.exit = self._specs.grouper(CallbackGroup.EXIT).add(
             exit, priority=CallbackPriority.INLINE
+        )
+        self.invoke = self._specs.grouper(CallbackGroup.INVOKE).add(
+            normalize_invoke_callbacks(invoke), priority=CallbackPriority.INLINE
         )
         if donedata is not None:
             if not final:
@@ -261,6 +266,10 @@ class State:
         self.enter.add(f"on_enter_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
         self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
+        self.invoke.add("on_invoke_state", priority=CallbackPriority.GENERIC, is_convention=True)
+        self.invoke.add(
+            f"on_invoke_{self.id}", priority=CallbackPriority.NAMING, is_convention=True
+        )
 
     def _on_event_defined(self, event: str, transition: Transition, states: List["State"]):
         """Called by statemachine factory when an event is defined having a transition
@@ -385,6 +394,10 @@ class InstanceState(State):
     @property
     def exit(self):
         return self._ref().exit
+
+    @property
+    def invoke(self):
+        return self._ref().invoke
 
     def __eq__(self, other):
         return self._ref() == other

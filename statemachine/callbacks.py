@@ -46,6 +46,7 @@ class CallbackGroup(IntEnum):
     PREPARE = auto()
     ENTER = auto()
     EXIT = auto()
+    INVOKE = auto()
     VALIDATOR = auto()
     BEFORE = auto()
     ON = auto()
@@ -362,6 +363,20 @@ class CallbacksExecutor:
                 raise
         return True
 
+    def visit(self, visitor_fn, *args, **kwargs):
+        """Like call() but delegates execution to visitor_fn for each matching callback."""
+        for callback in self:
+            if callback.condition(*args, **kwargs):
+                visitor_fn(callback, *args, **kwargs)
+
+    async def async_visit(self, visitor_fn, *args, **kwargs):
+        """Async variant of visit()."""
+        for callback in self:
+            if callback.condition(*args, **kwargs):
+                result = visitor_fn(callback, *args, **kwargs)
+                if isawaitable(result):
+                    await result
+
 
 class CallbacksRegistry:
     def __init__(self) -> None:
@@ -370,6 +385,9 @@ class CallbacksRegistry:
 
     def __getitem__(self, key: str) -> CallbacksExecutor:
         return self._registry[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._registry
 
     def check(self, specs: CallbackSpecList):
         for meta in specs:
@@ -439,6 +457,16 @@ class CallbacksRegistry:
         if key not in self._registry:
             return True
         return await self._registry[key].async_all(*args, on_error=on_error, **kwargs)
+
+    def visit(self, key: str, visitor_fn, *args, **kwargs):
+        if key not in self._registry:
+            return
+        self._registry[key].visit(visitor_fn, *args, **kwargs)
+
+    async def async_visit(self, key: str, visitor_fn, *args, **kwargs):
+        if key not in self._registry:
+            return
+        await self._registry[key].async_visit(visitor_fn, *args, **kwargs)
 
     def str(self, key: str) -> str:
         if key not in self._registry:

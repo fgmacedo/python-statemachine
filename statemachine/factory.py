@@ -274,6 +274,9 @@ class StateMachineMetaclass(type):
                 event_id = key
                 if key.startswith("error_"):
                     event_id = f"{key} {key.replace('_', '.')}"
+                elif key.startswith("done_invoke_"):
+                    suffix = key[len("done_invoke_") :]
+                    event_id = f"{key} done.invoke.{suffix}"
                 elif key.startswith("done_state_"):
                     suffix = key[len("done_state_") :]
                     event_id = f"{key} done.state.{suffix}"
@@ -283,6 +286,9 @@ class StateMachineMetaclass(type):
                     event_id = value.id
                 elif key.startswith("error_"):
                     event_id = f"{key} {key.replace('_', '.')}"
+                elif key.startswith("done_invoke_"):
+                    suffix = key[len("done_invoke_") :]
+                    event_id = f"{key} done.invoke.{suffix}"
                 elif key.startswith("done_state_"):
                     suffix = key[len("done_state_") :]
                     event_id = f"{key} done.state.{suffix}"

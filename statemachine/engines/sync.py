@@ -107,11 +107,8 @@ class SyncEngine(BaseEngine):
                         took_events = True
                         self._run_microstep(enabled_transitions, internal_event)
 
-                # TODO: Invoke platform-specific logic
-                # for state in sorted(self.states_to_invoke, key=self.entry_order):
-                #     for inv in sorted(state.invoke, key=self.document_order):
-                #         self.invoke(inv)
-                # self.states_to_invoke.clear()
+                # Spawn invoke handlers for states entered during this macrostep.
+                self._invoke_manager.spawn_pending_sync()
 
                 # Process remaining internal events before external events.
                 # Note: the macrostep loop above already drains the internal queue,
