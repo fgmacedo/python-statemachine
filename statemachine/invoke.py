@@ -290,7 +290,7 @@ class InvokeManager:
         for inv_id, inv in list(self._active.items()):
             if inv.state_id == state.id and not inv.terminated:
                 self._cancel(inv_id)
-        self._pending = [(s, kw) for s, kw in self._pending if s is not state]
+        self._pending = [(s, kw) for s, kw in self._pending if s.id != state.id]
 
     def cancel_all(self):
         """Cancel all active invocations."""
@@ -314,12 +314,13 @@ class InvokeManager:
     def _spawn_one_sync(self, callback: "CallbackWrapper", **kwargs):
         state: "State" = kwargs["state"]
         event_kwargs: dict = kwargs.get("event_kwargs", {})
-        ctx = self._make_context(state, event_kwargs)
-        invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
 
         # Use meta.func to find the original (unwrapped) handler; the callback
         # system wraps everything in a signature_adapter closure.
         handler = self._resolve_handler(callback.meta.func)
+        ctx = self._make_context(state, event_kwargs, handler=handler)
+        invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
+
         invocation._handler = handler
         self._active[ctx.invokeid] = invocation
 
@@ -347,11 +348,10 @@ class InvokeManager:
                 self.sm.send(
                     f"done.invoke.{ctx.invokeid}",
                     data=result,
-                    internal=True,
                 )
         except Exception as e:
             if not ctx.cancelled.is_set():
-                self.sm.send("error.execution", error=e, internal=True)
+                self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
 
@@ -372,10 +372,11 @@ class InvokeManager:
     def _spawn_one_async(self, callback: "CallbackWrapper", **kwargs):
         state: "State" = kwargs["state"]
         event_kwargs: dict = kwargs.get("event_kwargs", {})
-        ctx = self._make_context(state, event_kwargs)
-        invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
 
         handler = self._resolve_handler(callback.meta.func)
+        ctx = self._make_context(state, event_kwargs, handler=handler)
+        invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
+
         invocation._handler = handler
         self._active[ctx.invokeid] = invocation
 
@@ -404,7 +405,6 @@ class InvokeManager:
                 self.sm.send(
                     f"done.invoke.{ctx.invokeid}",
                     data=result,
-                    internal=True,
                 )
         except asyncio.CancelledError:
             # Intentionally swallowed: the owning state was exited, so this
@@ -412,7 +412,7 @@ class InvokeManager:
             return
         except Exception as e:
             if not ctx.cancelled.is_set():
-                self.sm.send("error.execution", error=e, internal=True)
+                self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
 
@@ -434,8 +434,55 @@ class InvokeManager:
 
     # --- Helpers ---
 
-    def _make_context(self, state: "State", event_kwargs: "dict | None" = None) -> InvokeContext:
-        invokeid = f"{state.id}.{uuid.uuid4().hex[:8]}"
+    def handle_external_event(self, trigger_data) -> None:
+        """Run finalize blocks and autoforward for active invocations.
+
+        Called by the engine before processing each external event.
+        For each active invocation whose handler has ``on_finalize`` or
+        ``on_event`` (autoforward), delegate accordingly.
+        """
+        event_name = str(trigger_data.event) if trigger_data.event else None
+        if event_name is None:
+            return
+
+        # Tag done.invoke events with the invokeid
+        if event_name.startswith("done.invoke."):
+            invokeid = event_name[len("done.invoke.") :]
+            trigger_data.kwargs.setdefault("_invokeid", invokeid)
+
+        for inv in list(self._active.values()):
+            handler = inv._handler
+            if handler is None:
+                continue
+
+            # Check if event originates from this invocation
+            is_from_child = trigger_data.kwargs.get(
+                "_invokeid"
+            ) == inv.invokeid or event_name.startswith(f"done.invoke.{inv.invokeid}")
+
+            # Finalize: run the finalize block if the event came from this invocation.
+            # Note: finalize must run even after the invocation terminates, because
+            # child events may still be queued when the handler thread completes.
+            if is_from_child and hasattr(handler, "on_finalize"):
+                handler.on_finalize(trigger_data)
+
+            # Autoforward: forward parent events to child (not events from child itself).
+            # Only forward if the invocation is still running.
+            if (
+                not inv.terminated
+                and not is_from_child
+                and hasattr(handler, "autoforward")
+                and handler.autoforward
+                and hasattr(handler, "on_event")
+            ):
+                handler.on_event(event_name, **trigger_data.kwargs)
+
+    def _make_context(
+        self, state: "State", event_kwargs: "dict | None" = None, handler: Any = None
+    ) -> InvokeContext:
+        # Use static invoke_id from handler if available (SCXML id= attribute)
+        static_id = getattr(handler, "invoke_id", None) if handler else None
+        invokeid = static_id or f"{state.id}.{uuid.uuid4().hex[:8]}"
         return InvokeContext(
             invokeid=invokeid,
             state_id=state.id,
@@ -453,6 +500,11 @@ class InvokeManager:
             inner = underlying._invoke_handler
             if isinstance(inner, type) and issubclass(inner, StateChart):
                 return StateChartInvoker(inner)
+            # Return the inner handler directly if it's an IInvoke instance
+            # (e.g., SCXMLInvoker) so duck-typed attributes like invoke_id are accessible.
+            # Exclude classes — @runtime_checkable matches classes that define run().
+            if not isinstance(inner, type) and isinstance(inner, IInvoke):
+                return inner
             return underlying
         if isinstance(underlying, IInvoke):
             return underlying

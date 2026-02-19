@@ -81,7 +81,7 @@ class SyncEngine(BaseEngine):
         first_result = self._sentinel
         try:
             took_events = True
-            while took_events:
+            while took_events and self.running:
                 self.clear_cache()
                 took_events = False
                 # Execute the triggers in the queue in FIFO order until the queue is empty
@@ -136,18 +136,9 @@ class SyncEngine(BaseEngine):
                         break
 
                     logger.debug("External event: %s", external_event.event)
-                    # # TODO: Handle cancel event
-                    # if self.is_cancel_event(external_event):
-                    #     self.running = False
-                    #     return
 
-                    # TODO: Invoke states
-                    # for state in self.configuration:
-                    #     for inv in state.invoke:
-                    #         if inv.invokeid == external_event.invokeid:
-                    #             self.apply_finalize(inv, external_event)
-                    #         if inv.autoforward:
-                    #             self.send(inv.id, external_event)
+                    # Finalize + autoforward for active invocations
+                    self._invoke_manager.handle_external_event(external_event)
 
                     enabled_transitions = self.select_transitions(external_event)
                     logger.debug("Enabled transitions: %s", enabled_transitions)

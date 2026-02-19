@@ -111,9 +111,12 @@ class EventDataWrapper:
 
     def __init__(self, event_data):
         self.event_data = event_data
-        self.sendid = event_data.trigger_data.send_id
-        if event_data.trigger_data.event is None or event_data.trigger_data.event.internal:
-            if "error.execution" == event_data.trigger_data.event:
+        self.trigger_data = event_data.trigger_data
+        td = self.trigger_data
+        self.sendid = td.send_id
+        self.invokeid = td.kwargs.get("_invokeid", "")
+        if td.event is None or td.event.internal:
+            if "error.execution" == td.event:
                 self.type = "platform"
             else:
                 self.type = "internal"
@@ -121,26 +124,56 @@ class EventDataWrapper:
         else:
             self.type = "external"
 
+    @classmethod
+    def from_trigger_data(cls, trigger_data):
+        """Create an EventDataWrapper directly from a TriggerData (no EventData needed)."""
+        obj = cls.__new__(cls)
+        obj.event_data = None
+        obj.sendid = trigger_data.send_id
+        obj.trigger_data = trigger_data
+        obj.invokeid = trigger_data.kwargs.get("_invokeid", "")
+        event = trigger_data.event
+        if event is None or event.internal:
+            if "error.execution" == event:
+                obj.type = "platform"
+            else:
+                obj.type = "internal"
+                obj.origintype = ""
+        else:
+            obj.type = "external"
+        return obj
+
     def __getattr__(self, name):
-        return getattr(self.event_data, name)
+        if self.event_data is not None:
+            return getattr(self.event_data, name)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def __eq__(self, value):
         "This makes SCXML test 329 pass. It assumes that the event is the same instance"
         return isinstance(value, EventDataWrapper)
 
     @property
+    def _trigger_data(self):
+        if self.event_data is not None:
+            return self.event_data.trigger_data
+        return self.trigger_data
+
+    @property
     def name(self):
-        return self.event_data.event
+        if self.event_data is not None:
+            return self.event_data.event
+        return str(self._trigger_data.event) if self._trigger_data.event else None
 
     @property
     def data(self):
         "Property used by the SCXML namespace"
-        if self.trigger_data.kwargs:
-            return _Data(self.trigger_data.kwargs)
-        elif self.trigger_data.args and len(self.trigger_data.args) == 1:
-            return self.trigger_data.args[0]
-        elif self.trigger_data.args:
-            return self.trigger_data.args
+        td = self._trigger_data
+        if td.kwargs:
+            return _Data(td.kwargs)
+        elif td.args and len(td.args) == 1:
+            return td.args[0]
+        elif td.args:
+            return td.args
         else:
             return None
 
@@ -257,7 +290,10 @@ class Assign(CallableAction):
 
     def __call__(self, *args, **kwargs):
         machine: StateChart = kwargs["machine"]
-        value = _eval(self.action.expr, **kwargs)
+        if self.action.child_xml is not None:
+            value = self.action.child_xml
+        else:
+            value = _eval(self.action.expr, **kwargs)
 
         *path, attr = self.action.location.split(".")
         obj = machine.model
@@ -364,6 +400,26 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
     return raise_action
 
 
+def _send_to_parent(action: SendAction, **kwargs):
+    """Route a <send target="#_parent"> to the parent machine via _invoke_session."""
+    machine = kwargs["machine"]
+    session = getattr(machine, "_invoke_session", None)
+    if session is None:
+        return
+    event = action.event or _eval(action.eventexpr, **kwargs)  # type: ignore[arg-type]
+    names = []
+    for name in (action.namelist or "").strip().split():
+        if not hasattr(machine.model, name):
+            raise NameError(f"Namelist variable '{name}' not found on model")
+        names.append(Param(name=name, expr=name))
+    params_values = {}
+    for param in chain(names, action.params):
+        if param.expr is None:
+            continue
+        params_values[param.name] = _eval(param.expr, **kwargs)
+    session.send_to_parent(event, **params_values)
+
+
 def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
     content: Any = ()
     _valid_targets = (None, "#_internal", "internal", "#_parent", "parent")
@@ -373,7 +429,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
         except (NameError, SyntaxError, TypeError):
             content = (action.content,)
 
-    def send_action(*args, **kwargs):
+    def send_action(*args, **kwargs):  # noqa: C901
         machine: StateChart = kwargs["machine"]
         event = action.event or _eval(action.eventexpr, **kwargs)  # type: ignore[arg-type]
         target = action.target if action.target else None
@@ -391,6 +447,11 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
             else:
                 # Invalid target expression → error.execution (raised as exception)
                 raise ValueError(f"Invalid target: {target}. Must be one of {_valid_targets}")
+            return
+
+        # Handle #_parent target — route to parent via _invoke_session
+        if target == "#_parent":
+            _send_to_parent(action, **kwargs)
             return
 
         internal = target in ("#_internal", "internal")
@@ -463,6 +524,12 @@ def create_script_action_callable(action: ScriptAction) -> Callable:
 def _create_dataitem_callable(action: DataItem) -> Callable:
     def data_initializer(**kwargs):
         machine: StateChart = kwargs["machine"]
+
+        # Check for invoke param overrides — params from parent override child defaults
+        invoke_params = getattr(machine, "_invoke_params", None)
+        if invoke_params and action.id in invoke_params:
+            setattr(machine.model, action.id, invoke_params[action.id])
+            return
 
         if action.expr:
             try:

@@ -346,7 +346,7 @@ class AsyncEngine(BaseEngine):
         first_result = self._sentinel
         try:
             took_events = True
-            while took_events:
+            while took_events and self.running:
                 self.clear_cache()
                 took_events = False
                 macrostep_done = False
@@ -406,6 +406,9 @@ class AsyncEngine(BaseEngine):
                         )
                         break
 
+                    # Finalize + autoforward for active invocations
+                    self._invoke_manager.handle_external_event(external_event)
+
                     event_future = external_event.future
                     try:
                         enabled_transitions = await self.select_transitions(external_event)
@@ -451,6 +454,8 @@ class AsyncEngine(BaseEngine):
         result = first_result if first_result is not self._sentinel else None
         # If the caller has a future, await it (already resolved by now).
         if caller_future is not None:
+            # Resolve the future if it wasn't processed (e.g. machine terminated).
+            self._resolve_future(caller_future, result)
             return await caller_future
         return result
 

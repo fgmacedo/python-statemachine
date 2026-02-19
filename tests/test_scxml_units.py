@@ -59,11 +59,13 @@ class TestParseScxml:
 
 
 class TestParseState:
-    def test_state_without_id_raises(self):
-        """State element without id attribute raises ValueError."""
+    def test_state_without_id_gets_auto_generated(self):
+        """State element without id attribute gets an auto-generated id."""
         xml = '<scxml xmlns="http://www.w3.org/2005/07/scxml"><state/></scxml>'
-        with pytest.raises(ValueError, match="State must have an 'id' attribute"):
-            parse_scxml(xml)
+        definition = parse_scxml(xml)
+        state_ids = list(definition.states.keys())
+        assert len(state_ids) == 1
+        assert state_ids[0].startswith("__auto_")
 
 
 class TestParseHistory:

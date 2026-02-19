@@ -15,6 +15,7 @@ from .schema import ForeachAction
 from .schema import HistoryState
 from .schema import IfAction
 from .schema import IfBranch
+from .schema import InvokeDefinition
 from .schema import LogAction
 from .schema import Param
 from .schema import RaiseAction
@@ -84,10 +85,30 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     return definition
 
 
+def _find_own_datamodel_elements(root: ET.Element) -> List[ET.Element]:
+    """Find <datamodel> elements that belong to this SCXML document, not to inline children.
+
+    Skips any <datamodel> nested inside <content> elements (which contain inline
+    child SCXML documents for <invoke>).
+    """
+    result: List[ET.Element] = []
+
+    def _walk(elem: ET.Element):
+        for child in elem:
+            if child.tag == "content":
+                continue  # Skip inline SCXML content
+            if child.tag == "datamodel":
+                result.append(child)
+            _walk(child)
+
+    _walk(root)
+    return result
+
+
 def parse_datamodel(root: ET.Element) -> "DataModel | None":
     data_model = DataModel()
 
-    for datamodel_elem in root.findall(".//datamodel"):
+    for datamodel_elem in _find_own_datamodel_elements(root):
         for data_elem in datamodel_elem.findall("data"):
             content = data_elem.text and re.sub(r"\s+", " ", data_elem.text).strip() or None
             src = data_elem.attrib.get("src")
@@ -139,7 +160,10 @@ def parse_state(  # noqa: C901
 ) -> State:
     state_id = state_elem.get("id")
     if not state_id:
-        raise ValueError("State must have an 'id' attribute")
+        # Per SCXML spec, if no id is specified, the processor auto-generates one.
+        from uuid import uuid4
+
+        state_id = f"__auto_{uuid4().hex[:8]}"
 
     initial = state_id in initial_states
     state = State(id=state_id, initial=initial, final=is_final, parallel=is_parallel)
@@ -191,6 +215,10 @@ def parse_state(  # noqa: C901
     for child_state_elem in state_elem.findall("history"):
         child_history_state = parse_history(child_state_elem)
         state.history[child_history_state.id] = child_history_state
+
+    # Parse invoke elements
+    for invoke_elem in state_elem.findall("invoke"):
+        state.invocations.append(parse_invoke(invoke_elem))
 
     # Parse donedata (only valid on final states)
     if is_final:
@@ -276,8 +304,16 @@ def parse_raise(element: ET.Element) -> RaiseAction:
 
 def parse_assign(element: ET.Element) -> AssignAction:
     location = element.attrib["location"]
-    expr = element.attrib["expr"]
-    return AssignAction(location=location, expr=expr)
+    expr = element.attrib.get("expr")
+    child_xml: "str | None" = None
+    if expr is None:
+        # Per SCXML spec, <assign> can have child content instead of expr
+        children = list(element)
+        if children:
+            child_xml = ET.tostring(children[0], encoding="unicode")
+        elif element.text:
+            expr = element.text.strip()
+    return AssignAction(location=location, expr=expr, child_xml=child_xml)
 
 
 def parse_log(element: ET.Element) -> LogAction:
@@ -382,3 +418,55 @@ def parse_cancel(element: ET.Element) -> CancelAction:
 def parse_script(element: ET.Element) -> ScriptAction:
     content = element.text.strip() if element.text else ""
     return ScriptAction(content=content)
+
+
+def parse_invoke(element: ET.Element) -> InvokeDefinition:
+    """Parse an <invoke> element into an InvokeDefinition."""
+    invoke_type = element.attrib.get("type")
+    typeexpr = element.attrib.get("typeexpr")
+    src = element.attrib.get("src")
+    srcexpr = element.attrib.get("srcexpr")
+    invoke_id = element.attrib.get("id")
+    idlocation = element.attrib.get("idlocation")
+    autoforward = element.attrib.get("autoforward", "false").lower() == "true"
+    namelist = element.attrib.get("namelist")
+
+    params: List[Param] = []
+    content: "str | None" = None
+    finalize: "ExecutableContent | None" = None
+
+    for child in element:
+        if child.tag == "param":
+            name = child.attrib["name"]
+            expr = child.attrib.get("expr")
+            location = child.attrib.get("location")
+            params.append(Param(name=name, expr=expr, location=location))
+        elif child.tag == "content":
+            # Check for inline <scxml> element
+            scxml_child = child.find("{http://www.w3.org/2005/07/scxml}scxml")
+            if scxml_child is None:
+                scxml_child = child.find("scxml")
+            if scxml_child is not None:
+                # Serialize the inline SCXML back to string for later parsing
+                content = ET.tostring(scxml_child, encoding="unicode")
+            elif child.attrib.get("expr"):
+                # Dynamic content via expr attribute
+                content = child.attrib["expr"]
+            elif child.text:
+                content = re.sub(r"\s+", " ", child.text).strip()
+        elif child.tag == "finalize":
+            finalize = parse_executable_content(child)
+
+    return InvokeDefinition(
+        type=invoke_type,
+        typeexpr=typeexpr,
+        src=src,
+        srcexpr=srcexpr,
+        id=invoke_id,
+        idlocation=idlocation,
+        autoforward=autoforward,
+        namelist=namelist,
+        params=params,
+        content=content,
+        finalize=finalize,
+    )
