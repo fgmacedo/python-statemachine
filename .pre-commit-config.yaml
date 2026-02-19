@@ -33,7 +33,7 @@ repos:
     pass_filenames: false
   - id: pytest
     name: Pytest
-    entry: uv run pytest -n auto
+    entry: uv run pytest -n auto --cov-fail-under=100
     types: [python]
     language: system
     pass_filenames: false

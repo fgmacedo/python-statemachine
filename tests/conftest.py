@@ -1,3 +1,5 @@
+import asyncio
+import time
 from datetime import datetime
 
 import pytest
@@ -282,6 +284,13 @@ class SMRunner:
         if isawaitable(result):
             return await result
         return result
+
+    async def sleep(self, seconds: float):
+        """Sleep that works for both sync and async engines."""
+        if self.is_async:
+            await asyncio.sleep(seconds)
+        else:
+            time.sleep(seconds)
 
 
 @pytest.fixture(params=["sync", "async"])

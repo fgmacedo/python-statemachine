@@ -171,6 +171,10 @@ class AsyncEngine(BaseEngine):
         on_error = self._on_error_handler()
 
         for info in ordered_states:
+            # Cancel invocations for this state before executing exit handlers.
+            if info.state is not None:  # pragma: no branch
+                self._invoke_manager.cancel_for_state(info.state)
+
             args, kwargs = await self._get_args_kwargs(info.transition, trigger_data)
 
             if info.state is not None:  # pragma: no branch
@@ -241,6 +245,10 @@ class AsyncEngine(BaseEngine):
                     previous_configuration=previous_configuration,
                     new_configuration=new_configuration,
                 )
+
+            # Mark state for invocation if it has invoke callbacks registered
+            if target.invoke.key in self.sm._callbacks:
+                self._invoke_manager.mark_for_invoke(target, trigger_data.kwargs)
 
             # Handle final states
             if target.final:
@@ -357,6 +365,9 @@ class AsyncEngine(BaseEngine):
                         logger.debug("Enabled transitions: %s", enabled_transitions)
                         took_events = True
                         await self._run_microstep(enabled_transitions, internal_event)
+
+                # Spawn invoke handlers for states entered during this macrostep.
+                await self._invoke_manager.spawn_pending_async()
 
                 # Phase 2: remaining internal events
                 while not self.internal_queue.is_empty():  # pragma: no cover

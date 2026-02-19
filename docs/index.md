@@ -19,6 +19,7 @@ integrations
 diagram
 weighted_transitions
 processing_model
+invoke
 statecharts
 api
 auto_examples/index
