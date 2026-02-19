@@ -5,39 +5,16 @@ import pytest
 CURRENT_DIR = Path(__file__).parent
 TESTCASES_DIR = CURRENT_DIR
 
-# xfail sets — all tests currently fail identically on both engines
+# xfail sets — tests that fail identically on both engines
 XFAIL_BOTH = {
-    # mandatory — invoke-related
-    "test191",
+    # mandatory — invoke-related (still failing)
+    "test187",
     "test192",
-    "test207",
-    "test215",
-    "test216",
-    "test220",
-    "test223",
-    "test224",
-    "test225",
-    "test226",
-    "test228",
     "test229",
-    "test232",
-    "test233",
-    "test234",
-    "test235",
     "test236",
-    "test239",
     "test240",
-    "test241",
-    "test243",
-    "test244",
-    "test245",
-    "test247",
     "test253",
-    "test276",
-    "test338",
-    "test347",
-    "test422",
-    "test530",
+    "test554",
     # optional
     "test201",
     "test446",

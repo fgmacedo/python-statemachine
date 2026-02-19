@@ -19,8 +19,10 @@ from .actions import DoneDataCallable
 from .actions import EventDataWrapper
 from .actions import ExecuteBlock
 from .actions import create_datamodel_action_callable
+from .invoke import SCXMLInvoker
 from .parser import parse_scxml
 from .schema import HistoryState
+from .schema import InvokeDefinition
 from .schema import State
 from .schema import Transition
 
@@ -157,7 +159,7 @@ class SCXMLProcessor:
             states_dict[state_id] = self._process_state(state)
         return states_dict
 
-    def _process_state(self, state: State) -> StateDefinition:
+    def _process_state(self, state: State) -> StateDefinition:  # noqa: C901
         state_dict = StateDefinition()
         if state.initial:
             state_dict["initial"] = True
@@ -184,6 +186,11 @@ class SCXMLProcessor:
         if state.transitions:
             state_dict["transitions"] = self._process_transitions(state.transitions)
 
+        # Process invoke elements
+        if state.invocations:
+            invokers = [self._process_invocation(inv) for inv in state.invocations]
+            state_dict["invoke"] = invokers  # type: ignore[typeddict-unknown-key]
+
         if state.states:
             state_dict["states"] = self._process_states(state.states)
 
@@ -191,6 +198,10 @@ class SCXMLProcessor:
             state_dict["history"] = self._process_history(state.history)
 
         return state_dict
+
+    def _process_invocation(self, invoke_def: InvokeDefinition) -> SCXMLInvoker:
+        """Convert an InvokeDefinition into an SCXMLInvoker."""
+        return SCXMLInvoker(definition=invoke_def, processor=self)
 
     def _process_transitions(self, transitions: List[Transition]):
         result: TransitionsList = []

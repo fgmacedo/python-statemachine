@@ -142,6 +142,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         **kwargs: Any,
     ):
         self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
+        self._invoke_params: "dict | None" = kwargs.pop("_invoke_params", None)
+        self._invoke_session: Any = kwargs.pop("_invoke_session", None)
         self.history_values: Dict[
             str, List[State]
         ] = {}  # Mapping of compound states to last active state(s).

@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import pytest
@@ -57,13 +58,33 @@ def _assert_passed(sm: StateChart):
     assert "pass" in {s.id for s in sm.configuration}
 
 
+def _wait_for_completion(sm: StateChart, timeout_s: float = 5.0):
+    """Poll the processing loop until the SM reaches a final state or times out."""
+    deadline = time.monotonic() + timeout_s
+    while not sm.is_terminated and time.monotonic() < deadline:
+        time.sleep(0.02)
+        # Trigger processing loop to handle events from invoke threads
+        sm._engine.processing_loop()
+
+
 def test_scxml_usecase_sync(testcase_path: Path, should_generate_debug_diagram, caplog):
     sm = _run_scxml_testcase(
         testcase_path,
         should_generate_debug_diagram,
         async_mode=False,
     )
+    _wait_for_completion(sm)
     _assert_passed(sm)
+
+
+async def _async_wait_for_completion(sm: StateChart, timeout_s: float = 5.0):
+    """Poll the processing loop until the SM reaches a final state or times out."""
+    import asyncio
+
+    deadline = time.monotonic() + timeout_s
+    while not sm.is_terminated and time.monotonic() < deadline:
+        await asyncio.sleep(0.02)
+        await sm._engine.processing_loop()
 
 
 @pytest.mark.asyncio()
@@ -76,4 +97,5 @@ async def test_scxml_usecase_async(testcase_path: Path, should_generate_debug_di
     # In async context, the engine only queued __initial__ during __init__.
     # Activate now within the running event loop.
     await sm.activate_initial_state()
+    await _async_wait_for_completion(sm)
     _assert_passed(sm)
