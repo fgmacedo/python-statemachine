@@ -19,8 +19,6 @@ class TestInCondition:
         """In('state_id') when state is active -> transition fires."""
 
         class Fellowship(StateChart):
-            validate_disconnected_states = False
-
             class positions(State.Parallel):
                 class frodo(State.Compound):
                     shire_f = State(initial=True)
@@ -62,8 +60,6 @@ class TestInCondition:
         """Cross-region In() evaluation in parallel states."""
 
         class FellowshipCoordination(StateChart):
-            validate_disconnected_states = False
-
             class mission(State.Parallel):
                 class scouts(State.Compound):
                     scouting = State(initial=True)
@@ -117,8 +113,6 @@ class TestInCondition:
         """Event + In() guard together."""
 
         class CombinedGuard(StateChart):
-            validate_disconnected_states = False
-
             class positions(State.Parallel):
                 class scout(State.Compound):
                     out = State(initial=True)
@@ -145,8 +139,6 @@ class TestInCondition:
         """Eventless + In() guard."""
 
         class EventlessIn(StateChart):
-            validate_disconnected_states = False
-
             class coordination(State.Parallel):
                 class leader(State.Compound):
                     planning = State(initial=True)

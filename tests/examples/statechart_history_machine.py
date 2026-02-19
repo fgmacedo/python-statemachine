@@ -25,8 +25,6 @@ class PersonalityMachine(StateChart):
     pseudo-state, the previously active personality is restored.
     """
 
-    validate_disconnected_states = False
-
     class personality(State.Compound):
         smeagol = State("Smeagol", initial=True)
         gollum = State("Gollum")
@@ -88,8 +86,6 @@ assert "smeagol" in sm.configuration_values
 
 class DeepPersonalityMachine(StateChart):
     """A machine with nested compounds and deep history."""
-
-    validate_disconnected_states = False
 
     class realm(State.Compound):
         class inner(State.Compound):

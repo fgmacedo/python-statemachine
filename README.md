@@ -181,7 +181,6 @@ regions reach a final state:
 >>> from statemachine import StateChart, State
 
 >>> class DeployPipeline(StateChart):
-...     validate_disconnected_states = False
 ...     class deploy(State.Parallel):
 ...         class build(State.Compound):
 ...             compiling = State(initial=True)
@@ -219,7 +218,6 @@ of starting from the initial one:
 >>> from statemachine import HistoryState, StateChart, State
 
 >>> class EditorWithHistory(StateChart):
-...     validate_disconnected_states = False
 ...     class editor(State.Compound):
 ...         source = State(initial=True)
 ...         visual = State()

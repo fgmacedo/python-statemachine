@@ -111,8 +111,6 @@ class TestCompoundStates:
         """Transition from one compound to another removes old children."""
 
         class MiddleEarthJourney(StateChart):
-            validate_disconnected_states = False
-
             class rivendell(State.Compound):
                 council = State(initial=True)
                 preparing = State()
@@ -148,8 +146,6 @@ class TestCompoundStates:
         """Entering a compound from outside lands on the initial child."""
 
         class MiddleEarthJourney(StateChart):
-            validate_disconnected_states = False
-
             class rivendell(State.Compound):
                 council = State(initial=True)
                 preparing = State()
@@ -192,8 +188,6 @@ class TestCompoundStates:
         """Traverse all three compounds sequentially."""
 
         class MiddleEarthJourney(StateChart):
-            validate_disconnected_states = False
-
             class rivendell(State.Compound):
                 council = State(initial=True)
                 preparing = State(final=True)

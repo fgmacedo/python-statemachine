@@ -339,7 +339,6 @@ independently — events in one region don't affect others. Use `State.Parallel`
 >>> from statemachine import State, StateChart
 
 >>> class WarOfTheRing(StateChart):
-...     validate_disconnected_states = False
 ...     class war(State.Parallel):
 ...         class frodos_quest(State.Compound):
 ...             shire = State(initial=True)
@@ -373,7 +372,6 @@ state have reached a final state:
 >>> from statemachine import State, StateChart
 
 >>> class WarWithDone(StateChart):
-...     validate_disconnected_states = False
 ...     class war(State.Parallel):
 ...         class quest(State.Compound):
 ...             start_q = State(initial=True)
@@ -396,12 +394,6 @@ True
 True
 
 ```
-
-```{note}
-Parallel states commonly require `validate_disconnected_states = False` because
-regions may not be reachable from each other via transitions.
-```
-
 (history-states)=
 ## History pseudo-states
 
@@ -415,7 +407,6 @@ Import `HistoryState` and place it inside a `State.Compound`:
 >>> from statemachine import HistoryState, State, StateChart
 
 >>> class GollumPersonality(StateChart):
-...     validate_disconnected_states = False
 ...     class personality(State.Compound):
 ...         smeagol = State(initial=True)
 ...         gollum = State()
@@ -454,7 +445,6 @@ state and restores the full hierarchy:
 >>> from statemachine import HistoryState, State, StateChart
 
 >>> class DeepMemoryOfMoria(StateChart):
-...     validate_disconnected_states = False
 ...     class moria(State.Compound):
 ...         class halls(State.Compound):
 ...             entrance = State(initial=True)
@@ -677,7 +667,6 @@ currently active. This is especially useful for cross-region guards in parallel 
 >>> from statemachine import State, StateChart
 
 >>> class CoordinatedAdvance(StateChart):
-...     validate_disconnected_states = False
 ...     class forces(State.Parallel):
 ...         class vanguard(State.Compound):
 ...             waiting = State(initial=True)

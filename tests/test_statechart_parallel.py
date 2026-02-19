@@ -18,8 +18,6 @@ class TestParallelStates:
     @pytest.fixture()
     def war_of_the_ring_cls(self):
         class WarOfTheRing(StateChart):
-            validate_disconnected_states = False
-
             class war(State.Parallel):
                 class frodos_quest(State.Compound):
                     shire = State(initial=True)
@@ -82,8 +80,6 @@ class TestParallelStates:
         """Transition out of a parallel clears everything."""
 
         class WarWithExit(StateChart):
-            validate_disconnected_states = False
-
             class war(State.Parallel):
                 class front_a(State.Compound):
                     fighting = State(initial=True, final=True)
@@ -134,8 +130,6 @@ class TestParallelStates:
         """done.state fires when ALL regions reach a final state."""
 
         class TwoTowers(StateChart):
-            validate_disconnected_states = False
-
             class battle(State.Parallel):
                 class helms_deep(State.Compound):
                     fighting = State(initial=True)
@@ -165,8 +159,6 @@ class TestParallelStates:
         """Parallel not done when only one region reaches final."""
 
         class TwoTowers(StateChart):
-            validate_disconnected_states = False
-
             class battle(State.Parallel):
                 class helms_deep(State.Compound):
                     fighting = State(initial=True)
