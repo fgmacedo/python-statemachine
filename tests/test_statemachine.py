@@ -1,6 +1,7 @@
 import pytest
 from statemachine.orderedset import OrderedSet
 
+from statemachine import HistoryState
 from statemachine import State
 from statemachine import StateChart
 from statemachine import exceptions
@@ -371,6 +372,76 @@ def test_should_not_create_big_disconnected_machine():
             cycle = green.to(yellow)
             diverge = green.to(cyan) | cyan.to(red)
             validate = yellow.to(green)
+
+
+def test_disconnected_validation_bypassed_by_flag():
+    """Setting validate_disconnected_states=False allows unreachable states."""
+
+    class DisconnectedButAllowed(StateChart):
+        validate_disconnected_states = False
+        green = State(initial=True)
+        yellow = State()
+        blue = State()  # unreachable, but flag disables the check
+
+        cycle = green.to(yellow) | yellow.to(green)
+        blink = blue.to.itself()
+
+    assert "green" in DisconnectedButAllowed.states_map
+
+
+def test_parallel_states_reachable_without_disabling_flag():
+    """Substates of parallel regions are reachable via hierarchy."""
+
+    class ParallelMachine(StateChart):
+        class top(State.Parallel):
+            class region1(State.Compound):
+                a = State(initial=True)
+                b = State(final=True)
+                go = a.to(b)
+
+            class region2(State.Compound):
+                c = State(initial=True)
+                d = State(final=True)
+                go2 = c.to(d)
+
+    assert "a" in ParallelMachine.states_map
+    assert "c" in ParallelMachine.states_map
+
+
+def test_compound_substates_reachable_without_disabling_flag():
+    """Substates of a compound state are reachable via hierarchy."""
+
+    class CompoundMachine(StateChart):
+        start = State(initial=True)
+
+        class parent(State.Compound):
+            child1 = State(initial=True)
+            child2 = State(final=True)
+            inner = child1.to(child2)
+
+        enter = start.to(parent)
+
+    assert "child1" in CompoundMachine.states_map
+    assert "child2" in CompoundMachine.states_map
+
+
+def test_history_state_reachable_without_disabling_flag():
+    """History states and their parent compound are reachable via hierarchy."""
+
+    class HistoryMachine(StateChart):
+        outside = State(initial=True)
+
+        class compound(State.Compound):
+            a = State(initial=True)
+            b = State()
+            h = HistoryState()
+            go = a.to(b)
+
+        enter_via_history = outside.to(compound.h)
+        leave = compound.to(outside)
+
+    assert "compound" in HistoryMachine.states_map
+    assert "a" in HistoryMachine.states_map
 
 
 def test_state_value_is_correct():

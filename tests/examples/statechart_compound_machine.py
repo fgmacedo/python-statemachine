@@ -22,8 +22,6 @@ class QuestMachine(StateChart):
     and ``rivendell`` (with council activities). A ``wilderness`` state connects them.
     """
 
-    validate_disconnected_states = False
-
     class shire(State.Compound):
         bag_end = State("Bag End", initial=True)
         green_dragon = State("The Green Dragon")

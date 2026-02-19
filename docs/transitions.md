@@ -486,7 +486,6 @@ source and all target states.
 >>> from statemachine import State, StateChart
 
 >>> class MiddleEarthJourney(StateChart):
-...     validate_disconnected_states = False
 ...     class rivendell(State.Compound):
 ...         council = State(initial=True)
 ...         preparing = State()

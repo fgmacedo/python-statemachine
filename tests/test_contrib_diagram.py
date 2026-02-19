@@ -139,8 +139,6 @@ def test_parallel_state_diagram():
     """Diagram renders parallel state with dashed style."""
 
     class SM(StateChart):
-        validate_disconnected_states: bool = False
-
         class p(State.Parallel, name="p"):
             class r1(State.Compound, name="r1"):
                 a = State(initial=True)
@@ -167,8 +165,6 @@ def test_nested_compound_state_diagram():
     """Diagram renders nested compound states."""
 
     class SM(StateChart):
-        validate_disconnected_states: bool = False
-
         class outer(State.Compound, name="Outer"):
             class inner(State.Compound, name="Inner"):
                 deep = State(initial=True)
@@ -296,8 +292,6 @@ def test_parallel_state_label_indicator():
     """Parallel subgraph label includes a visual indicator."""
 
     class SM(StateChart):
-        validate_disconnected_states: bool = False
-
         class p(State.Parallel, name="p"):
             class r1(State.Compound, name="r1"):
                 a = State(initial=True)
@@ -353,8 +347,6 @@ def test_compound_and_parallel_mixed():
     """Full diagram with compound and parallel states renders without error."""
 
     class SM(StateChart):
-        validate_disconnected_states: bool = False
-
         class top(State.Compound, name="Top"):
             class par(State.Parallel, name="Par"):
                 class region1(State.Compound, name="Region1"):

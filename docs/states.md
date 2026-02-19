@@ -233,7 +233,6 @@ independently. Define them using `State.Parallel`:
 >>> from statemachine import State, StateChart
 
 >>> class WarOfTheRing(StateChart):
-...     validate_disconnected_states = False
 ...     class war(State.Parallel):
 ...         class quest(State.Compound):
 ...             start = State(initial=True)
@@ -267,7 +266,6 @@ Re-entering via the history state restores the previously active child. Import a
 >>> from statemachine import HistoryState, State, StateChart
 
 >>> class WithHistory(StateChart):
-...     validate_disconnected_states = False
 ...     class mode(State.Compound):
 ...         a = State(initial=True)
 ...         b = State()

@@ -20,8 +20,6 @@ class TestHistoryStates:
         """Exit compound, re-enter via history -> restores last active child."""
 
         class GollumPersonality(StateChart):
-            validate_disconnected_states = False
-
             class personality(State.Compound):
                 smeagol = State(initial=True)
                 gollum = State()
@@ -49,8 +47,6 @@ class TestHistoryStates:
         """No prior visit -> history uses default transition target."""
 
         class GollumPersonality(StateChart):
-            validate_disconnected_states = False
-
             class personality(State.Compound):
                 smeagol = State(initial=True)
                 gollum = State()
@@ -73,8 +69,6 @@ class TestHistoryStates:
         """Deep history restores the exact leaf in a nested compound."""
 
         class DeepMemoryOfMoria(StateChart):
-            validate_disconnected_states = False
-
             class moria(State.Compound):
                 class halls(State.Compound):
                     entrance = State(initial=True)
@@ -107,8 +101,6 @@ class TestHistoryStates:
         """History updates each time we exit the compound."""
 
         class GollumPersonality(StateChart):
-            validate_disconnected_states = False
-
             class personality(State.Compound):
                 smeagol = State(initial=True)
                 gollum = State()
@@ -140,8 +132,6 @@ class TestHistoryStates:
         """Change state within compound, exit, re-enter -> new state restored."""
 
         class GollumPersonality(StateChart):
-            validate_disconnected_states = False
-
             class personality(State.Compound):
                 smeagol = State(initial=True)
                 gollum = State()
@@ -163,8 +153,6 @@ class TestHistoryStates:
         """Shallow history in nested compound restores direct child, not grandchild."""
 
         class ShallowMoria(StateChart):
-            validate_disconnected_states = False
-
             class moria(State.Compound):
                 class halls(State.Compound):
                     entrance = State(initial=True)
@@ -196,8 +184,6 @@ class TestHistoryStates:
         """sm.history_values[history_id] has saved states after exit."""
 
         class GollumPersonality(StateChart):
-            validate_disconnected_states = False
-
             class personality(State.Compound):
                 smeagol = State(initial=True)
                 gollum = State()
@@ -221,8 +207,6 @@ class TestHistoryStates:
         """HistoryState with explicit default .to() transition."""
 
         class GollumPersonality(StateChart):
-            validate_disconnected_states = False
-
             class personality(State.Compound):
                 smeagol = State(initial=True)
                 gollum = State()

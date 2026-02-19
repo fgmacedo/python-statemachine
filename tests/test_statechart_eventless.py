@@ -134,8 +134,6 @@ class TestEventlessTransitions:
         """Eventless transition guarded by In('state_id')."""
 
         class CoordinatedAdvance(StateChart):
-            validate_disconnected_states = False
-
             class forces(State.Parallel):
                 class vanguard(State.Compound):
                     waiting = State(initial=True)

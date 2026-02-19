@@ -18,6 +18,16 @@ def visit_connected_states(state: "State"):
         already_visited.add(state)
         yield state
         visit.extend(t.target for t in state.transitions if t.target)
+        # Traverse the state hierarchy: entering a compound/parallel state
+        # implicitly enters its initial children (all children for parallel).
+        for child in state.states:
+            if child.initial:
+                visit.append(child)
+        for child in state.history:
+            visit.append(child)
+        # Being in a child state implies being in all ancestor states.
+        if state.parent:
+            visit.append(state.parent)
 
 
 def disconnected_states(starting_state: "State", all_states: MutableSet["State"]):

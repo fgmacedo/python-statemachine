@@ -22,8 +22,6 @@ class WarMachine(StateChart):
     Gandalf's defense of the realms.
     """
 
-    validate_disconnected_states = False
-
     class war(State.Parallel):
         class frodos_quest(State.Compound):
             shire = State("The Shire", initial=True)

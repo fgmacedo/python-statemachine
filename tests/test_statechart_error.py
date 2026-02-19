@@ -38,8 +38,6 @@ class TestErrorExecutionStatechart:
         """Error in one parallel region; error.execution handles the exit."""
 
         class ParallelError(StateChart):
-            validate_disconnected_states = False
-
             class fronts(State.Parallel):
                 class battle_a(State.Compound):
                     fighting = State(initial=True)

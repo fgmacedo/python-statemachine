@@ -23,8 +23,6 @@ class FellowshipMachine(StateChart):
     only follows Frodo to Mordor after Frodo has already arrived there.
     """
 
-    validate_disconnected_states = False
-
     class quest(State.Parallel):
         class frodo_path(State.Compound):
             shire_f = State("Frodo in Shire", initial=True)

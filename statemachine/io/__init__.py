@@ -156,7 +156,7 @@ def create_machine_class_from_definition(
             ``history``, and transitions via ``on`` (event-triggered) or
             ``transitions`` (eventless).
         **definition: Additional keyword arguments passed to the metaclass
-            (e.g., ``validate_disconnected_states=False``).
+            (e.g., ``validate_final_reachability=False``).
 
     Returns:
         A new StateChart subclass configured with the given states and transitions.
