@@ -1,6 +1,6 @@
 [project]
 name = "python-statemachine"
-version = "2.6.0"
+version = "3.0.0"
 description = "Python Finite State Machines made easy."
 authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
 maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]

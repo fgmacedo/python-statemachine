@@ -7,6 +7,6 @@ from .statemachine import TModel
 
 __author__ = """Fernando Macedo"""
 __email__ = "fgmacedo@gmail.com"
-__version__ = "2.6.0"
+__version__ = "3.0.0"
 
 __all__ = ["StateChart", "StateMachine", "State", "HistoryState", "Event", "TModel"]
