@@ -302,7 +302,37 @@ True
 
 ```
 
-For initial states (entered automatically, not via an event), `kwargs` is empty.
+For initial states, any extra keyword arguments passed to the `StateChart` constructor
+are forwarded as event data. This makes self-contained machines that start processing
+immediately especially useful:
+
+```py
+>>> config_file = Path(tempfile.mktemp(suffix=".json"))
+>>> _ = config_file.write_text('{"theme": "dark"}')
+
+>>> class AppLoader(StateChart):
+...     loading = State(initial=True)
+...     ready = State(final=True)
+...     done_invoke_loading = loading.to(ready)
+...
+...     def on_invoke_loading(self, config_path=None, **kwargs):
+...         """config_path comes from the constructor: AppLoader(config_path=...)."""
+...         return json.loads(Path(config_path).read_text())
+...
+...     def on_enter_ready(self, data=None, **kwargs):
+...         self.config = data
+
+>>> sm = AppLoader(config_path=str(config_file))
+>>> time.sleep(0.2)
+
+>>> "ready" in sm.configuration_values
+True
+>>> sm.config
+{'theme': 'dark'}
+
+>>> config_file.unlink()
+
+```
 
 ## Error handling
 

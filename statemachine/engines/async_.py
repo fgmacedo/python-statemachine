@@ -309,12 +309,15 @@ class AsyncEngine(BaseEngine):
         except Exception as e:
             self._handle_error(e, trigger_data)
 
-    async def activate_initial_state(self):
+    async def activate_initial_state(self, **kwargs):
         """Activate the initial state.
 
         In async code, the user must call this method explicitly (or it will be lazily
         activated on the first event). There's no built-in way to call async code from
         ``StateMachine.__init__``.
+
+        Any ``**kwargs`` are forwarded to initial state entry callbacks via dependency
+        injection, just like event kwargs on ``send()``.
         """
         return await self.processing_loop()
 

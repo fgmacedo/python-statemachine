@@ -165,7 +165,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         # for async code, the user should manually call `await sm.activate_initial_state()`
         # after state machine creation.
         self._engine = self._get_engine()
-        self._engine.start()
+        self._engine.start(**kwargs)
 
     def _get_engine(self):
         if self._callbacks.has_async_callbacks:
