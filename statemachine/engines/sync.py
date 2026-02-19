@@ -31,13 +31,13 @@ class SyncEngine(BaseEngine):
         except Exception as e:  # pragma: no cover
             self._handle_error(e, trigger_data)
 
-    def start(self):
+    def start(self, **kwargs):
         if self.sm.current_state_value is not None:
             return
 
-        self.activate_initial_state()
+        self.activate_initial_state(**kwargs)
 
-    def activate_initial_state(self):
+    def activate_initial_state(self, **kwargs):
         """
         Activate the initial state.
 
@@ -48,7 +48,9 @@ class SyncEngine(BaseEngine):
         may depend on async code from the StateMachine.__init__ method.
         """
         if self.sm.current_state_value is None:
-            trigger_data = BoundEvent("__initial__", _sm=self.sm).build_trigger(machine=self.sm)
+            trigger_data = BoundEvent("__initial__", _sm=self.sm).build_trigger(
+                machine=self.sm, **kwargs
+            )
             transitions = self._initial_transitions(trigger_data)
             self._processing.acquire(blocking=False)
             try:

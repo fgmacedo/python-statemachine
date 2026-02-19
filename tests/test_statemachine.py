@@ -729,3 +729,81 @@ class TestInvalidStateValueNonNone:
             warnings.simplefilter("ignore", DeprecationWarning)
             with pytest.raises(exceptions.InvalidStateValue):
                 _ = sm.current_state
+
+
+class TestInitKwargsPropagation:
+    """Constructor kwargs are forwarded to initial state entry callbacks."""
+
+    async def test_kwargs_available_in_on_enter_initial(self, sm_runner):
+        class SM(StateChart):
+            idle = State(initial=True)
+            done = State(final=True)
+            go = idle.to(done)
+
+            def on_enter_idle(self, greeting=None, **kwargs):
+                self.greeting = greeting
+
+        sm = await sm_runner.start(SM, greeting="hello")
+        assert sm.greeting == "hello"
+
+    async def test_kwargs_flow_through_eventless_transitions(self, sm_runner):
+        class Pipeline(StateChart):
+            start = State(initial=True)
+            processing = State()
+            done = State(final=True)
+
+            start.to(processing)
+            processing.to(done)
+
+            def on_enter_start(self, task_id=None, **kwargs):
+                self.task_id = task_id
+
+        sm = await sm_runner.start(Pipeline, task_id="abc-123")
+        assert sm.task_id == "abc-123"
+        assert "done" in sm.configuration_values
+
+    async def test_no_kwargs_still_works(self, sm_runner):
+        class SM(StateChart):
+            idle = State(initial=True)
+            done = State(final=True)
+            go = idle.to(done)
+
+            def on_enter_idle(self, **kwargs):
+                self.entered = True
+
+        sm = await sm_runner.start(SM)
+        assert sm.entered is True
+
+    async def test_multiple_kwargs(self, sm_runner):
+        class SM(StateChart):
+            idle = State(initial=True)
+            done = State(final=True)
+            go = idle.to(done)
+
+            def on_enter_idle(self, host=None, port=None, **kwargs):
+                self.host = host
+                self.port = port
+
+        sm = await sm_runner.start(SM, host="localhost", port=5432)
+        assert sm.host == "localhost"
+        assert sm.port == 5432
+
+    async def test_kwargs_in_invoke_handler(self, sm_runner):
+        """Init kwargs flow to invoke handlers via dependency injection."""
+
+        class SM(StateChart):
+            loading = State(initial=True)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+            def on_invoke_loading(self, url=None, **kwargs):
+                return f"fetched:{url}"
+
+            def on_enter_ready(self, data=None, **kwargs):
+                self.result = data
+
+        sm = await sm_runner.start(SM, url="https://example.com")
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+        assert "ready" in sm.configuration_values
+        assert sm.result == "fetched:https://example.com"

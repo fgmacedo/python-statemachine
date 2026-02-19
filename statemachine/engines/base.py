@@ -181,11 +181,11 @@ class BaseEngine:
             return
         self.sm.send(_ERROR_EXECUTION, error=error, internal=True)
 
-    def start(self):
+    def start(self, **kwargs):
         if self.sm.current_state_value is not None:
             return
 
-        BoundEvent("__initial__", _sm=self.sm).put()
+        BoundEvent("__initial__", _sm=self.sm).put(**kwargs)
 
     def _initial_transitions(self, trigger_data):
         empty_state = State()
