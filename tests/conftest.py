@@ -7,12 +7,6 @@ import pytest
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--upd-fail",
-        action="store_true",
-        default=False,
-        help="Update marks for failing tests",
-    )
-    parser.addoption(
         "--gen-diagram",
         action="store_true",
         default=False,
