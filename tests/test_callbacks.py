@@ -2,6 +2,7 @@ from unittest import mock
 
 import pytest
 from statemachine.callbacks import CallbackGroup
+from statemachine.callbacks import CallbacksExecutor
 from statemachine.callbacks import CallbackSpec
 from statemachine.callbacks import CallbackSpecList
 from statemachine.callbacks import CallbacksRegistry
@@ -351,3 +352,35 @@ class TestIssue417:
             match="Error on transition start from Created to Started when resolving callbacks",
         ):
             ExampleStateMachine()
+
+
+class TestVisitConditionFalse:
+    """visit/async_visit skip callbacks whose condition returns False."""
+
+    def test_visit_skips_when_condition_is_false(self):
+        visited = []
+        spec = CallbackSpec(
+            "never_called",
+            group=CallbackGroup.INVOKE,
+            is_convention=True,
+            cond=lambda *a, **kw: False,
+        )
+        executor = CallbacksExecutor()
+        executor.add("test_key", spec, lambda: lambda **kw: True)
+
+        executor.visit(lambda cb, *a, **kw: visited.append(str(cb)))
+        assert visited == []
+
+    async def test_async_visit_skips_when_condition_is_false(self):
+        visited = []
+        spec = CallbackSpec(
+            "never_called",
+            group=CallbackGroup.INVOKE,
+            is_convention=True,
+            cond=lambda *a, **kw: False,
+        )
+        executor = CallbacksExecutor()
+        executor.add("test_key", spec, lambda: lambda **kw: True)
+
+        await executor.async_visit(lambda cb, *a, **kw: visited.append(str(cb)))
+        assert visited == []

@@ -44,7 +44,7 @@ class IInvoke(Protocol):
     Optionally implement ``on_cancel()`` for cleanup when the state is exited.
     """
 
-    def run(self, ctx: "InvokeContext") -> Any: ...
+    def run(self, ctx: "InvokeContext") -> Any: ...  # pragma: no branch
 
 
 class _InvokeCallableWrapper:

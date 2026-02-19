@@ -709,3 +709,23 @@ class TestEnabledEvents:
 
         sm = MyMachine()
         assert [e.id for e in sm.enabled_events()] == ["go"]
+
+
+class TestInvalidStateValueNonNone:
+    """current_state raises InvalidStateValue when state value is non-None but invalid."""
+
+    def test_invalid_non_none_state_value(self):
+        import warnings
+
+        class SM(StateChart):
+            idle = State(initial=True)
+            active = State(final=True)
+            go = idle.to(active)
+
+        sm = SM()
+        # Bypass setter validation by writing directly to the model attribute
+        setattr(sm.model, sm.state_field, "nonexistent_state")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(exceptions.InvalidStateValue):
+                _ = sm.current_state

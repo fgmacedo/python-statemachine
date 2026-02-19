@@ -880,3 +880,110 @@ class TestAsyncVisitAwaitable:
 
         await executor.async_visit(async_visitor)
         assert visited == ["dummy"]
+
+
+class TestIInvokeProtocolRun:
+    """IInvoke.run() protocol method can be called on a concrete implementation."""
+
+    def test_protocol_run_is_callable(self):
+        """Verify that calling run() on a concrete IInvoke instance works."""
+
+        class ConcreteInvoker:
+            def run(self, ctx):
+                return "concrete_result"
+
+        invoker: IInvoke = ConcreteInvoker()
+        result = invoker.run(None)
+        assert result == "concrete_result"
+
+
+class TestSpawnPendingAsyncEmpty:
+    """spawn_pending_async with nothing pending is a no-op."""
+
+    async def test_spawn_pending_async_no_pending(self, sm_runner):
+        class SM(StateChart):
+            idle = State(initial=True)
+            active = State(final=True)
+            go = idle.to(active)
+
+        sm = await sm_runner.start(SM)
+        # Directly call spawn_pending_async with empty pending list
+        await sm._engine._invoke_manager.spawn_pending_async()
+
+
+class TestInvokeAsyncCancelledDuringExecution:
+    """Async handler completes or errors after state was already exited."""
+
+    async def test_success_after_cancel(self):
+        """Handler returns successfully but ctx.cancelled is already set."""
+        from tests.conftest import SMRunner
+
+        class SM(StateChart):
+            loading = State(initial=True)
+            stopped = State(final=True)
+            cancel = loading.to(stopped)
+
+            def on_invoke_loading(self, ctx=None, **kwargs):
+                if ctx is None:
+                    return
+                # Simulate: cancelled is set during execution but we still return
+                ctx.cancelled.set()
+                return "should_be_ignored"
+
+        sm_runner = SMRunner(is_async=True)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+
+        # The done.invoke event should NOT have been sent (cancelled)
+        assert "loading" in sm.configuration_values
+
+    async def test_error_after_cancel(self):
+        """Handler raises but ctx.cancelled is already set — error is swallowed."""
+        from tests.conftest import SMRunner
+
+        class SM(StateChart):
+            loading = State(initial=True)
+            error_state = State(final=True)
+            error_execution = loading.to(error_state)
+
+            def on_invoke_loading(self, ctx=None, **kwargs):
+                if ctx is None:
+                    return
+                # Simulate: cancelled during execution, then error
+                ctx.cancelled.set()
+                raise ValueError("should be ignored")
+
+        sm_runner = SMRunner(is_async=True)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+
+        # The error.execution event should NOT have been sent (cancelled)
+        assert "loading" in sm.configuration_values
+
+
+class TestSyncInvokeErrorAfterCancel:
+    """Sync handler errors after state was already exited."""
+
+    async def test_sync_error_after_cancel(self):
+        """Sync handler raises but ctx.cancelled is set — error.execution not sent."""
+        from tests.conftest import SMRunner
+
+        class SM(StateChart):
+            loading = State(initial=True)
+            error_state = State(final=True)
+            error_execution = loading.to(error_state)
+
+            def on_invoke_loading(self, ctx=None, **kwargs):
+                if ctx is None:
+                    return
+                ctx.cancelled.set()
+                raise ValueError("should be ignored")
+
+        sm_runner = SMRunner(is_async=False)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+
+        assert "loading" in sm.configuration_values
