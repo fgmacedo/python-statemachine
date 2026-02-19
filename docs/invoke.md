@@ -28,6 +28,10 @@ Invoke is a first-class callback group, just like `enter` and `exit`. This means
 convention naming (`on_invoke_<state>`), decorators (`@state.invoke`), inline callables,
 and the full {ref}`SignatureAdapter <actions>` dependency injection all work out of the box.
 
+See the {ref}`actions` page for how invoke fits into the overall
+callback {ref}`Ordering` and the available
+{ref}`dependency injection <dynamic-dispatch>` parameters.
+
 ## Quick start
 
 The simplest invoke is a plain callable passed to the `invoke` parameter. Here we read a
@@ -73,7 +77,8 @@ keyword argument in callbacks on the target state.
 
 ## Naming conventions
 
-Like `on_enter_<state>` and `on_exit_<state>`, invoke supports naming conventions:
+Like `on_enter_<state>` and `on_exit_<state>`, invoke supports naming conventions
+(see {ref}`State actions` for the general pattern):
 
 - `on_invoke_state` — generic, called for every state with invoke
 - `on_invoke_<state_id>` — specific to a state
@@ -108,7 +113,8 @@ True
 
 ## Decorator syntax
 
-Use the `@state.invoke` decorator:
+Use the `@state.invoke` decorator (same pattern as `@state.enter` and `@state.exit` —
+see {ref}`Bind state actions using decorator syntax`):
 
 ```py
 >>> config_file = Path(tempfile.mktemp(suffix=".txt"))

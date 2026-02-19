@@ -160,6 +160,22 @@ It's also possible to use an event name as action.
 
 ```
 
+### Invoke actions
+
+States can also declare **invoke** callbacks — background work that is spawned when the
+state is entered and cancelled when it is exited. Like `enter` and `exit`, invoke supports
+all three binding patterns:
+
+- **Naming convention:** `on_invoke_<state_id>()`
+- **Inline parameter:** `State(invoke=callable)`
+- **Decorator:** `@state.invoke`
+
+```{seealso}
+Invoke handlers run outside the main processing loop (in threads or executors) and have
+their own completion and error events. See {ref}`invoke` for the full execution model,
+cancellation semantics, and advanced patterns like `IInvoke` and `invoke_group`.
+```
+
 ## Transition actions
 
 For each {ref}`events`, you can register `before`, `on`, and `after` callbacks.
@@ -374,6 +390,10 @@ Actions registered on the same group don't have order guaranties and are execute
     - `on_enter_state()`, `on_enter_<state.id>()`
     - `destination`
     - Callbacks declared in the destination state.
+*   - Invoke
+    - `on_invoke_state()`, `on_invoke_<state.id>()`
+    - `destination`
+    - Background work spawned after entering the state. See {ref}`invoke`.
 *   - After
     - `after_<event>()`, `after_transition()`
     - `destination`
