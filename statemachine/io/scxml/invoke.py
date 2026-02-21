@@ -6,7 +6,9 @@ the child machine lifecycle including ``#_parent`` routing, autoforward, and
 finalize.
 """
 
+import asyncio
 import logging
+from inspect import isawaitable
 from pathlib import Path
 from typing import Any
 from typing import Callable
@@ -222,7 +224,9 @@ class _InvokeSession:
 
     def send_to_parent(self, event: str, **data):
         """Send an event to the parent machine's external queue."""
-        self.parent.send(event, _invokeid=self.invokeid, **data)
+        result = self.parent.send(event, _invokeid=self.invokeid, **data)
+        if isawaitable(result):
+            asyncio.ensure_future(result)
 
 
 # Verify protocol compliance at import time
