@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import time
 from datetime import datetime
 
@@ -291,3 +292,41 @@ class SMRunner:
 def sm_runner(request):
     """Fixture that runs tests on both sync and async engines."""
     return SMRunner(is_async=request.param == "async")
+
+
+@pytest.fixture(autouse=True)
+def _check_leaked_threads():
+    """Detect threads leaked by test cases (e.g. invoke daemon threads).
+
+    Snapshots active threads before the test, yields, then checks for any new
+    threads still alive after teardown.  Leaked threads are joined with a
+    timeout and reported as a test failure.
+    """
+    before = set(threading.enumerate())
+    yield
+
+    new_threads = set(threading.enumerate()) - before
+    if not new_threads:
+        return
+
+    # Filter out asyncio event loop threads (managed by pytest-asyncio, not by us).
+    new_threads = {t for t in new_threads if not t.name.startswith("asyncio_")}
+    if not new_threads:
+        return
+
+    # Give ephemeral threads (e.g. executor workers) a chance to finish.
+    for t in new_threads:
+        t.join(timeout=2.0)
+
+    leaked = [t for t in new_threads if t.is_alive()]
+    if not leaked:
+        return
+
+    details: list[str] = []
+    for t in leaked:
+        details.append(f"  - {t.name!r} (daemon={t.daemon}, ident={t.ident})")
+
+    pytest.fail(
+        f"Test leaked {len(leaked)} thread(s) still alive after join:\n" + "\n".join(details),
+        pytrace=False,
+    )

@@ -7,19 +7,15 @@ finalize.
 """
 
 import logging
-import os
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
 
 from ...invoke import IInvoke
 from ...invoke import InvokeContext
 from .actions import ExecuteBlock
 from .actions import _eval
 from .schema import InvokeDefinition
-
-if TYPE_CHECKING:
-    from .processor import SCXMLProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +38,13 @@ class SCXMLInvoker:
     def __init__(
         self,
         definition: InvokeDefinition,
-        processor: "SCXMLProcessor",
+        base_dir: str,
+        register_child: "Callable[[str, str], type]",
     ):
         self._definition = definition
-        self._processor = processor
+        self._register_child = register_child
         self._child: Any = None
-        self._base_dir: str = os.getcwd()
+        self._base_dir: str = base_dir
 
         # Duck-typed attributes for InvokeManager
         self.invoke_id: "str | None" = definition.id
@@ -88,21 +85,30 @@ class SCXMLInvoker:
         # Parse and create the child machine
         child_cls = self._create_child_class(scxml_content, ctx.invokeid)
 
-        # Create child machine with param overrides and parent session reference.
-        # _invoke_session must be passed as a kwarg so it's available during
-        # the constructor (the child SM runs in __init__).
+        # _invoke_session and _invoke_params are passed as kwargs so that the
+        # invoke_init callback (inserted at position 0 in the initial state's onentry
+        # by the processor) can pop them and store them on the machine instance.
+        #
+        # The _ChildRefSetter listener captures ``self._child`` during the first
+        # state entry, before the processing loop blocks.  This is necessary
+        # because the child's ``__init__`` may block for an extended time when
+        # there are delayed events, and ``on_event()`` needs access to the child
+        # to forward events from the parent session.
         session = _InvokeSession(parent=machine, invokeid=ctx.invokeid)
+        ref_setter = _ChildRefSetter(self)
         self._child = child_cls(
             _invoke_params=invoke_params,
             _invoke_session=session,
+            listeners=[ref_setter],
         )
 
-        # Wait for child to reach final state (it already ran in constructor)
-        # The child sends events to parent via #_parent routing.
         return None
 
     def on_cancel(self):
-        """Cancel the child machine."""
+        """Cancel the child machine and all its invocations."""
+        from ...invoke import _stop_child_machine
+
+        _stop_child_machine(self._child)
         self._child = None
 
     def on_event(self, event_name: str, **data):
@@ -186,12 +192,25 @@ class SCXMLInvoker:
 
     def _create_child_class(self, scxml_content: str, invokeid: str):
         """Parse the child SCXML and create a machine class."""
-        from .parser import parse_scxml
-
         child_name = f"invoke_{invokeid}"
-        definition = parse_scxml(scxml_content)
-        self._processor.process_definition(definition, location=child_name)
-        return self._processor.scs[child_name]
+        return self._register_child(scxml_content, child_name)
+
+
+class _ChildRefSetter:
+    """Listener that captures the child machine reference during initialization.
+
+    The child's ``__init__`` blocks inside the processing loop (e.g. when there
+    are delayed events).  By using this listener, ``SCXMLInvoker._child`` is set
+    during the first state entry — *before* the processing loop starts spinning —
+    so that ``on_event()`` can forward events to the child immediately.
+    """
+
+    def __init__(self, invoker: "SCXMLInvoker"):
+        self._invoker = invoker
+
+    def on_enter_state(self, machine=None, **kwargs):
+        if self._invoker._child is None and machine is not None:
+            self._invoker._child = machine
 
 
 class _InvokeSession:

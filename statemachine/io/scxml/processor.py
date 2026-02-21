@@ -19,6 +19,7 @@ from .actions import DoneDataCallable
 from .actions import EventDataWrapper
 from .actions import ExecuteBlock
 from .actions import create_datamodel_action_callable
+from .actions import create_invoke_init_callable
 from .invoke import SCXMLInvoker
 from .parser import parse_scxml
 from .schema import HistoryState
@@ -65,7 +66,7 @@ class SessionData:
 
 class SCXMLProcessor:
     def __init__(self):
-        self.scs = {}
+        self.scs: "Dict[str, type[StateChart]]" = {}
         self.sessions: Dict[str, SessionData] = {}
         self._ioprocessors = {
             "http://www.w3.org/TR/scxml/#SCXMLEventProcessor": self,
@@ -81,25 +82,34 @@ class SCXMLProcessor:
         definition = parse_scxml(scxml_content)
         self.process_definition(definition, location=definition.name or sm_name)
 
-    def process_definition(self, definition, location: str):
+    def process_definition(self, definition, location: str, is_invoked: bool = False):
         states_dict = self._process_states(definition.states)
+
+        # Find the initial state for inserting init callbacks
+        try:
+            initial_state = next(s for s in iter(states_dict.values()) if s.get("initial"))
+        except StopIteration:
+            initial_state = next(iter(states_dict.values()))
+
+        if "enter" not in initial_state:
+            initial_state["enter"] = []
+
+        insert_pos = 0
+
+        # For invoked children, insert invoke_init to pop _invoke_session/_invoke_params
+        # from kwargs and store them on the machine instance before any other callbacks.
+        if is_invoked:
+            initial_state["enter"].insert(0, create_invoke_init_callable())  # type: ignore[union-attr]
+            insert_pos = 1
 
         # Process datamodel (initial variables)
         if definition.datamodel:
             datamodel = create_datamodel_action_callable(definition.datamodel)
             if datamodel:  # pragma: no branch – parse_datamodel guarantees non-empty
-                try:
-                    initial_state = next(s for s in iter(states_dict.values()) if s.get("initial"))
-                except StopIteration:
-                    # If there's no explicit initial state, use the first one
-                    initial_state = next(iter(states_dict.values()))
-
-                if "enter" not in initial_state:
-                    initial_state["enter"] = []
                 if isinstance(  # pragma: no branch – always a list from lines above
                     initial_state["enter"], list
                 ):
-                    initial_state["enter"].insert(0, datamodel)  # type: ignore[arg-type]
+                    initial_state["enter"].insert(insert_pos, datamodel)  # type: ignore[arg-type]
 
         self._add(
             location,
@@ -201,7 +211,17 @@ class SCXMLProcessor:
 
     def _process_invocation(self, invoke_def: InvokeDefinition) -> SCXMLInvoker:
         """Convert an InvokeDefinition into an SCXMLInvoker."""
-        return SCXMLInvoker(definition=invoke_def, processor=self)
+        return SCXMLInvoker(
+            definition=invoke_def,
+            base_dir=os.getcwd(),
+            register_child=self._register_child,
+        )
+
+    def _register_child(self, scxml_content: str, child_name: str) -> type:
+        """Parse SCXML content, register it as a child machine, and return its class."""
+        definition = parse_scxml(scxml_content)
+        self.process_definition(definition, location=child_name, is_invoked=True)
+        return self.scs[child_name]
 
     def _process_transitions(self, transitions: List[Transition]):
         result: TransitionsList = []

@@ -109,9 +109,15 @@ class EventDataWrapper:
     Otherwise it MUST leave it blank.
     """
 
-    def __init__(self, event_data):
+    def __init__(self, event_data=None, *, trigger_data=None):
         self.event_data = event_data
-        self.trigger_data = event_data.trigger_data
+        if trigger_data is not None:
+            self.trigger_data = trigger_data
+        elif event_data is not None:
+            self.trigger_data = event_data.trigger_data
+        else:
+            raise ValueError("Either event_data or trigger_data must be provided")
+
         td = self.trigger_data
         self.sendid = td.send_id
         self.invokeid = td.kwargs.get("_invokeid", "")
@@ -127,21 +133,7 @@ class EventDataWrapper:
     @classmethod
     def from_trigger_data(cls, trigger_data):
         """Create an EventDataWrapper directly from a TriggerData (no EventData needed)."""
-        obj = cls.__new__(cls)
-        obj.event_data = None
-        obj.sendid = trigger_data.send_id
-        obj.trigger_data = trigger_data
-        obj.invokeid = trigger_data.kwargs.get("_invokeid", "")
-        event = trigger_data.event
-        if event is None or event.internal:
-            if "error.execution" == event:
-                obj.type = "platform"
-            else:
-                obj.type = "internal"
-                obj.origintype = ""
-        else:
-            obj.type = "external"
-        return obj
+        return cls(trigger_data=trigger_data)
 
     def __getattr__(self, name):
         if self.event_data is not None:
@@ -153,21 +145,15 @@ class EventDataWrapper:
         return isinstance(value, EventDataWrapper)
 
     @property
-    def _trigger_data(self):
-        if self.event_data is not None:
-            return self.event_data.trigger_data
-        return self.trigger_data
-
-    @property
     def name(self):
         if self.event_data is not None:
             return self.event_data.event
-        return str(self._trigger_data.event) if self._trigger_data.event else None
+        return str(self.trigger_data.event) if self.trigger_data.event else None
 
     @property
     def data(self):
         "Property used by the SCXML namespace"
-        td = self._trigger_data
+        td = self.trigger_data
         if td.kwargs:
             return _Data(td.kwargs)
         elif td.args and len(td.args) == 1:
@@ -405,6 +391,10 @@ def _send_to_parent(action: SendAction, **kwargs):
     machine = kwargs["machine"]
     session = getattr(machine, "_invoke_session", None)
     if session is None:
+        logger.warning(
+            "<send target='#_parent'> ignored: machine %r has no _invoke_session",
+            machine.name,
+        )
         return
     event = action.event or _eval(action.eventexpr, **kwargs)  # type: ignore[arg-type]
     names = []
@@ -418,6 +408,25 @@ def _send_to_parent(action: SendAction, **kwargs):
             continue
         params_values[param.name] = _eval(param.expr, **kwargs)
     session.send_to_parent(event, **params_values)
+
+
+def _send_to_invoke(action: SendAction, invokeid: str, **kwargs):
+    """Route a <send target="#_<invokeid>"> to the invoked child session."""
+    machine: StateChart = kwargs["machine"]
+    event = action.event or _eval(action.eventexpr, **kwargs)  # type: ignore[arg-type]
+    names = []
+    for name in (action.namelist or "").strip().split():
+        if not hasattr(machine.model, name):
+            raise NameError(f"Namelist variable '{name}' not found on model")
+        names.append(Param(name=name, expr=name))
+    params_values = {}
+    for param in chain(names, action.params):
+        if param.expr is None:
+            continue
+        params_values[param.name] = _eval(param.expr, **kwargs)
+    if not machine._engine._invoke_manager.send_to_child(invokeid, event, **params_values):
+        # Per SCXML spec: if target is not reachable → error.communication
+        machine.send("error.communication", internal=True)
 
 
 def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
@@ -444,6 +453,9 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
             if target and target.startswith("#_scxml_"):
                 # Valid SCXML session reference but undispatchable → error.communication
                 machine.send("error.communication", internal=True)
+            elif target and target.startswith("#_"):
+                # #_<invokeid> → route to invoked child session
+                _send_to_invoke(action, target[2:], **kwargs)
             else:
                 # Invalid target expression → error.execution (raised as exception)
                 raise ValueError(f"Invalid target: {target}. Must be one of {_valid_targets}")
@@ -521,6 +533,30 @@ def create_script_action_callable(action: ScriptAction) -> Callable:
     return script_action
 
 
+def create_invoke_init_callable() -> Callable:
+    """Create a callback that extracts invoke-specific kwargs and stores them on the machine.
+
+    This is always inserted at position 0 in the initial state's onentry list by the
+    SCXML processor, so that ``_invoke_session`` and ``_invoke_params`` are handled
+    before any other callbacks run — even for SMs without a ``<datamodel>``.
+    """
+    initialized = False
+
+    def invoke_init(*args, **kwargs):
+        nonlocal initialized
+        if initialized:
+            return
+        initialized = True
+        machine = kwargs.get("machine")
+        if machine is not None:
+            # Use get() not pop(): each callback receives a copy of kwargs
+            # (via EventData.extended_kwargs), so pop would be misleading.
+            machine._invoke_params = kwargs.get("_invoke_params")
+            machine._invoke_session = kwargs.get("_invoke_session")
+
+    return invoke_init
+
+
 def _create_dataitem_callable(action: DataItem) -> Callable:
     def data_initializer(**kwargs):
         machine: StateChart = kwargs["machine"]
@@ -565,6 +601,7 @@ def create_datamodel_action_callable(action: DataModel) -> "Callable | None":
         if initialized:
             return
         initialized = True
+
         for act in data_elements:
             act(**kwargs)
 

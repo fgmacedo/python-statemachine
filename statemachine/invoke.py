@@ -47,6 +47,18 @@ class IInvoke(Protocol):
     def run(self, ctx: "InvokeContext") -> Any: ...  # pragma: no branch
 
 
+def _stop_child_machine(child: "StateChart | None") -> None:
+    """Stop a child state machine and cancel all its invocations."""
+    if child is None:
+        return
+    logger.debug("invoke: stopping child machine %s", type(child).__name__)
+    try:
+        child._engine.running = False
+        child._engine._invoke_manager.cancel_all()
+    except Exception:
+        logger.debug("Error stopping child machine", exc_info=True)
+
+
 class _InvokeCallableWrapper:
     """Wraps an IInvoke class/instance or StateChart class for the callback system.
 
@@ -185,8 +197,7 @@ class StateChartInvoker:
         return None
 
     def on_cancel(self):
-        # Child machine cleanup — currently a no-op since sync machines
-        # run to completion in the constructor.
+        _stop_child_machine(self._child)
         self._child = None
 
 
@@ -224,13 +235,17 @@ class InvokeGroup:
             self._cancel_remaining()
             raise
         finally:
+            # Normal exit: all futures completed, safe to shutdown without waiting.
             self._executor.shutdown(wait=False)
         return results
 
     def on_cancel(self):
+        # Called from the engine thread — must not block. Cancel pending futures
+        # and signal shutdown; the invoke thread's run() will detect ctx.cancelled
+        # and exit, then _cancel()'s thread.join() waits for the actual cleanup.
         self._cancel_remaining()
         if self._executor is not None:
-            self._executor.shutdown(wait=False)
+            self._executor.shutdown(wait=False, cancel_futures=True)
 
     def _cancel_remaining(self):
         for future in self._futures:
@@ -287,20 +302,44 @@ class InvokeManager:
 
     def cancel_for_state(self, state: "State"):
         """Called by ``_exit_states()`` before exiting a state."""
+        logger.debug("invoke cancel_for_state: %s", state.id)
         for inv_id, inv in list(self._active.items()):
-            if inv.state_id == state.id and not inv.terminated:
+            if inv.state_id == state.id and not inv.ctx.cancelled.is_set():
                 self._cancel(inv_id)
         self._pending = [(s, kw) for s, kw in self._pending if s.id != state.id]
+        # Don't cleanup here — terminated invocations must stay in _active
+        # so that handle_external_event can still run finalize blocks for
+        # done.invoke events that are already queued.
 
     def cancel_all(self):
         """Cancel all active invocations."""
+        logger.debug("invoke cancel_all: %d active", len(self._active))
         for inv_id in list(self._active.keys()):
             self._cancel(inv_id)
+        self._cleanup_terminated()
+
+    def _cleanup_terminated(self):
+        """Remove invocations whose threads/tasks have actually finished.
+
+        Only removes invocations that are both terminated AND cancelled.
+        A terminated-but-not-cancelled invocation means the handler's ``run()``
+        has returned but the owning state is still active — the invocation must
+        stay in ``_active`` so that ``send_to_child()`` can still forward events
+        to it (e.g. ``<send target="#_<invokeid>">``).
+        """
+        self._active = {
+            inv_id: inv
+            for inv_id, inv in self._active.items()
+            if not inv.terminated or not inv.ctx.cancelled.is_set()
+        }
 
     # --- Sync spawning ---
 
     def spawn_pending_sync(self):
         """Spawn invoke handlers for all states marked for invocation (sync engine)."""
+        # Opportunistically clean up finished invocations before spawning new ones.
+        self._cleanup_terminated()
+
         pending = sorted(self._pending, key=lambda p: p[0].document_order)
         self._pending.clear()
         for state, event_kwargs in pending:
@@ -323,6 +362,7 @@ class InvokeManager:
 
         invocation._handler = handler
         self._active[ctx.invokeid] = invocation
+        logger.debug("invoke spawn sync: %s on state %s", ctx.invokeid, state.id)
 
         thread = threading.Thread(
             target=self._run_sync_handler,
@@ -354,11 +394,17 @@ class InvokeManager:
                 self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
+            logger.debug(
+                "invoke %s: completed (cancelled=%s)", ctx.invokeid, ctx.cancelled.is_set()
+            )
 
     # --- Async spawning ---
 
     async def spawn_pending_async(self):
         """Spawn invoke handlers for all states marked for invocation (async engine)."""
+        # Opportunistically clean up finished invocations before spawning new ones.
+        self._cleanup_terminated()
+
         pending = sorted(self._pending, key=lambda p: p[0].document_order)
         self._pending.clear()
         for state, event_kwargs in pending:
@@ -379,6 +425,7 @@ class InvokeManager:
 
         invocation._handler = handler
         self._active[ctx.invokeid] = invocation
+        logger.debug("invoke spawn async: %s on state %s", ctx.invokeid, state.id)
 
         loop = asyncio.get_running_loop()
         task = loop.create_task(self._run_async_handler(callback, handler, ctx, invocation))
@@ -415,22 +462,56 @@ class InvokeManager:
                 self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
+            logger.debug(
+                "invoke %s: completed (cancelled=%s)", ctx.invokeid, ctx.cancelled.is_set()
+            )
 
     # --- Cancel ---
 
     def _cancel(self, invokeid: str):
         invocation = self._active.get(invokeid)
-        if not invocation or invocation.terminated:
+        if not invocation or invocation.ctx.cancelled.is_set():
             return
+
+        logger.debug("invoke cancel: %s", invokeid)
+        # 1) Signal cancellation so the handler can check and stop early.
         invocation.ctx.cancelled.set()
+
+        # 2) Notify the handler (may stop child SMs, cancel futures, etc.).
         handler = invocation._handler
         if handler is not None and hasattr(handler, "on_cancel"):
             try:
                 handler.on_cancel()
             except Exception:
                 logger.debug("Error in on_cancel for %s", invokeid, exc_info=True)
+
+        # 3) Cancel the async task (raises CancelledError at next await).
         if invocation.task is not None and not invocation.task.done():
             invocation.task.cancel()
+
+        # 4) Wait for the sync thread to actually finish (skip if we ARE
+        #    that thread — e.g. done.invoke processed from within the handler).
+        if (
+            invocation.thread is not None
+            and invocation.thread is not threading.current_thread()
+            and invocation.thread.is_alive()
+        ):
+            invocation.thread.join(timeout=2.0)
+
+    def send_to_child(self, invokeid: str, event: str, **data) -> bool:
+        """Send an event to an invoked child session by its invokeid.
+
+        Returns True if the event was forwarded, False if the invocation was
+        not found or doesn't support event forwarding.
+        """
+        invocation = self._active.get(invokeid)
+        if invocation is None:
+            return False
+        handler = invocation._handler
+        if handler is not None and hasattr(handler, "on_event"):
+            handler.on_event(event, **data)
+            return True
+        return False
 
     # --- Helpers ---
 
@@ -470,11 +551,13 @@ class InvokeManager:
             # Only forward if the invocation is still running.
             if (
                 not inv.terminated
+                and not inv.ctx.cancelled.is_set()
                 and not is_from_child
                 and hasattr(handler, "autoforward")
                 and handler.autoforward
                 and hasattr(handler, "on_event")
             ):
+                logger.debug("invoke autoforward: %s -> %s", event_name, inv.invokeid)
                 handler.on_event(event_name, **trigger_data.kwargs)
 
     def _make_context(
