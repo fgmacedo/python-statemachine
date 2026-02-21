@@ -1,16 +1,19 @@
 import asyncio
-import logging
+from typing import TYPE_CHECKING
 
 import pytest
 from statemachine.spec_parser import Functions
 from statemachine.spec_parser import operator_mapping
 from statemachine.spec_parser import parse_boolean_expr
 
-logger = logging.getLogger(__name__)
-DEBUG = logging.DEBUG
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
-def variable_hook(var_name):
+def variable_hook(
+    var_name: str,
+    spy: "Callable[[str], None] | None" = None,
+) -> "Callable":
     values = {
         "frodo_has_ring": True,
         "sauron_alive": False,
@@ -30,7 +33,8 @@ def variable_hook(var_name):
     }
 
     def decorated(*args, **kwargs):
-        logger.debug(f"variable_hook({var_name})")
+        if spy is not None:
+            spy(var_name)
         return values.get(var_name, False)
 
     decorated.__name__ = var_name
@@ -171,16 +175,15 @@ def variable_hook(var_name):
         ("height > 1 and height < 2", True, ["height", "height"]),
     ],
 )
-def test_expressions(expression, expected, caplog, hooks_called):
-    caplog.set_level(logging.DEBUG, logger="tests")
+def test_expressions(expression, expected, hooks_called):
+    calls: list[str] = []
 
-    parsed_expr = parse_boolean_expr(expression, variable_hook, operator_mapping)
+    def hook(name):
+        return variable_hook(name, spy=calls.append)
+
+    parsed_expr = parse_boolean_expr(expression, hook, operator_mapping)
     assert parsed_expr() is expected, expression
-
-    if hooks_called:
-        assert caplog.record_tuples == [
-            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
-        ]
+    assert calls == hooks_called
 
 
 def test_negating_compound_false_expression():
@@ -377,16 +380,15 @@ def test_mixed_sync_async_expressions(expression, expected):
 
 
 @pytest.mark.xfail(reason="TODO: Optimize so that expressios are evaluated only once")
-def test_should_evaluate_values_only_once(expression, expected, caplog, hooks_called):
-    caplog.set_level(logging.DEBUG, logger="tests")
+def test_should_evaluate_values_only_once(expression, expected, hooks_called):
+    calls: list[str] = []
 
-    parsed_expr = parse_boolean_expr(expression, variable_hook, operator_mapping)
+    def hook(name):
+        return variable_hook(name, spy=calls.append)
+
+    parsed_expr = parse_boolean_expr(expression, hook, operator_mapping)
     assert parsed_expr() is expected, expression
-
-    if hooks_called:
-        assert caplog.record_tuples == [
-            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
-        ]
+    assert calls == hooks_called
 
 
 def test_functions_get_unknown_raises():
