@@ -274,6 +274,29 @@ async def test_async_error_on_execution_in_after():
 
 
 @pytest.mark.timeout(5)
+async def test_async_error_on_execution_in_before():
+    """Async engine catches errors in before callbacks with error_on_execution."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        error_state = State(final=True)
+
+        go = s1.to(s1)
+        error_execution = s1.to(error_state)
+
+        def before_go(self, **kwargs):
+            raise RuntimeError("Before boom")
+
+        async def on_enter_state(self, **kwargs):
+            """Async callback to force the async engine."""
+
+    sm = SM()
+    await sm.activate_initial_state()
+    await sm.go()
+    assert sm.configuration == {sm.error_state}
+
+
+@pytest.mark.timeout(5)
 async def test_async_invalid_definition_in_transition_propagates():
     """InvalidDefinition in async transition propagates."""
 

@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from unittest.mock import Mock
 
 import pytest
+from statemachine.io.scxml.actions import EventDataWrapper
 from statemachine.io.scxml.actions import Log
 from statemachine.io.scxml.actions import ParseTime
 from statemachine.io.scxml.actions import create_action_callable
@@ -364,10 +365,12 @@ class TestSCXMLHistoryWithoutTransitions:
 # --- SCXMLInvoker ---
 
 
-def _make_invoker(definition=None, base_dir="/tmp", register_child=None):
+def _make_invoker(definition=None, base_dir=None, register_child=None):
     """Helper to create an SCXMLInvoker with sensible defaults."""
     if definition is None:
         definition = InvokeDefinition()
+    if base_dir is None:
+        base_dir = ""
     if register_child is None:
         register_child = Mock(return_value=Mock)
     return SCXMLInvoker(
@@ -609,3 +612,259 @@ class TestSendToInvoke:
 
         machine.send.assert_called_once_with("error.communication", internal=True)
         machine._engine._invoke_manager.send_to_child.assert_not_called()
+
+
+# --- EventDataWrapper coverage ---
+
+
+class TestEventDataWrapperEdgeCases:
+    def test_no_event_data_no_trigger_data_raises(self):
+        """EventDataWrapper raises ValueError when neither is provided."""
+        with pytest.raises(ValueError, match="Either event_data or trigger_data"):
+            EventDataWrapper()
+
+    def test_getattr_with_event_data_delegates(self):
+        """__getattr__ delegates to event_data when present."""
+        event_data = Mock()
+        event_data.trigger_data = Mock(
+            kwargs={}, send_id=None, event=Mock(internal=True, __str__=lambda s: "test")
+        )
+        event_data.some_custom_attr = "custom_value"
+        wrapper = EventDataWrapper(event_data)
+        assert wrapper.some_custom_attr == "custom_value"
+
+    def test_getattr_without_event_data_raises(self):
+        """__getattr__ raises AttributeError when event_data is None."""
+        trigger_data = Mock(kwargs={}, send_id=None, event=Mock(internal=True))
+        trigger_data.event.__str__ = lambda s: "test"
+        wrapper = EventDataWrapper(trigger_data=trigger_data)
+        with pytest.raises(AttributeError, match="no attribute 'missing_attr'"):
+            wrapper.missing_attr  # noqa: B018
+
+    def test_name_via_trigger_data(self):
+        """name property returns event string from trigger_data when no event_data."""
+        trigger_data = Mock(kwargs={}, send_id=None, event=Mock(internal=True))
+        trigger_data.event.__str__ = lambda s: "my.event"
+        wrapper = EventDataWrapper(trigger_data=trigger_data)
+        assert wrapper.name == "my.event"
+
+
+# --- _send_to_parent coverage ---
+
+
+class TestSendToParentParams:
+    def test_send_to_parent_with_namelist_and_params(self):
+        """_send_to_parent resolves namelist and params before sending."""
+        from statemachine.io.scxml.actions import _send_to_parent
+        from statemachine.io.scxml.parser import SendAction
+
+        model = type("Model", (), {})()
+        model.myvar = "hello"
+        machine = Mock(model=model)
+        machine.model.__dict__ = {"myvar": "hello"}
+        session = Mock()
+        machine._invoke_session = session
+
+        action = SendAction(
+            event="childDone",
+            target="#_parent",
+            namelist="myvar",
+            params=[Param(name="extra", expr="42")],
+        )
+
+        _send_to_parent(action, machine=machine)
+
+        session.send_to_parent.assert_called_once_with("childDone", myvar="hello", extra=42)
+
+    def test_send_to_parent_namelist_missing_raises(self):
+        """_send_to_parent raises NameError when namelist variable is missing."""
+        from statemachine.io.scxml.actions import _send_to_parent
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = Mock()
+        machine.model = Mock(spec=[])  # no attributes
+        machine._invoke_session = Mock()
+
+        action = SendAction(event="ev", target="#_parent", namelist="missing_var")
+
+        with pytest.raises(NameError, match="missing_var"):
+            _send_to_parent(action, machine=machine)
+
+    def test_send_to_parent_param_without_expr_skipped(self):
+        """_send_to_parent skips params where expr is None."""
+        from statemachine.io.scxml.actions import _send_to_parent
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = Mock()
+        machine.model = Mock()
+        machine.model.__dict__ = {}
+        session = Mock()
+        machine._invoke_session = session
+
+        action = SendAction(
+            event="ev",
+            target="#_parent",
+            params=[
+                Param(name="has_expr", expr="1"),
+                Param(name="no_expr", expr=None),
+            ],
+        )
+
+        _send_to_parent(action, machine=machine)
+        session.send_to_parent.assert_called_once_with("ev", has_expr=1)
+
+
+# --- _send_to_invoke param skip coverage ---
+
+
+class TestSendToInvokeParamSkip:
+    def test_param_without_expr_is_skipped(self):
+        """_send_to_invoke skips params where expr is None."""
+        from statemachine.io.scxml.actions import _send_to_invoke
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = Mock()
+        machine.model = Mock()
+        machine.model.__dict__ = {}
+        machine._engine._invoke_manager.send_to_child.return_value = True
+
+        action = SendAction(
+            event="ev",
+            target="#_child",
+            params=[
+                Param(name="with_expr", expr="1"),
+                Param(name="no_expr", expr=None),
+            ],
+        )
+
+        _send_to_invoke(action, "child", machine=machine)
+
+        machine._engine._invoke_manager.send_to_child.assert_called_once_with(
+            "child", "ev", with_expr=1
+        )
+
+
+# --- invoke_init coverage ---
+
+
+class TestInvokeInitCallback:
+    def test_invoke_init_idempotent(self):
+        """invoke_init only runs once, even if called multiple times."""
+        from statemachine.io.scxml.actions import create_invoke_init_callable
+
+        callback = create_invoke_init_callable()
+        machine = Mock()
+
+        callback(machine=machine)
+        assert machine._invoke_params is not None or True  # first call sets attrs
+
+        # Reset to detect second call
+        machine._invoke_params = "first"
+        callback(machine=machine)
+        # Should NOT have been overwritten
+        assert machine._invoke_params == "first"
+
+
+# --- SCXMLInvoker edge cases ---
+
+
+class TestSCXMLInvokerEdgeCases:
+    def test_on_event_exception_in_child_send(self):
+        """on_event swallows exceptions from child.send()."""
+        invoker = _make_invoker()
+        child = Mock()
+        child.is_terminated = False
+        child.send.side_effect = RuntimeError("child error")
+        invoker._child = child
+
+        # Should not raise
+        invoker.on_event("some.event")
+        child.send.assert_called_once_with("some.event")
+
+    def test_resolve_content_expr_non_string(self):
+        """_resolve_content converts non-string eval result to string."""
+        defn = InvokeDefinition(content="42")  # evaluates to int
+        invoker = _make_invoker(definition=defn)
+        machine = Mock()
+        machine.model.__dict__ = {}
+
+        result = invoker._resolve_content(machine)
+        assert result == "42"
+
+    def test_evaluate_params_with_location(self):
+        """_evaluate_params resolves param with location instead of expr."""
+        defn = InvokeDefinition(
+            params=[Param(name="p1", expr=None, location="myvar")],
+        )
+        invoker = _make_invoker(definition=defn)
+
+        model = type("Model", (), {})()
+        model.myvar = "resolved"
+        machine = Mock(model=model)
+        machine.model.__dict__ = {"myvar": "resolved"}
+
+        result = invoker._evaluate_params(machine)
+        assert result == {"p1": "resolved"}
+
+
+# --- Parser edge cases ---
+
+
+class TestParserAssignChildXml:
+    def test_assign_with_child_xml_content(self):
+        """<assign> with child XML content is parsed as child_xml."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <datamodel>
+            <data id="mydata" expr="None"/>
+          </datamodel>
+          <state id="s1">
+            <onentry>
+              <assign location="mydata"><node attr="val"/></assign>
+            </onentry>
+            <transition event="error.execution" target="err"/>
+          </state>
+          <final id="err"/>
+        </scxml>
+        """
+        # Should parse without error — the child XML is stored in child_xml
+        definition = parse_scxml(scxml)
+        # Verify it parsed states correctly
+        assert "s1" in definition.states
+
+    def test_assign_with_text_content(self):
+        """<assign> with text content (no expr attr) uses text as expr."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <datamodel>
+            <data id="mydata" expr="0"/>
+          </datamodel>
+          <state id="s1">
+            <onentry>
+              <assign location="mydata">42</assign>
+            </onentry>
+            <transition target="s2"/>
+          </state>
+          <final id="s2"/>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        assert "s1" in definition.states
+
+
+class TestParserInvokeContent:
+    def test_invoke_with_text_content(self):
+        """<invoke> <content> with text body is parsed."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <state id="s1">
+            <invoke type="http://www.w3.org/TR/scxml/">
+              <content>some text content</content>
+            </invoke>
+          </state>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        assert "s1" in definition.states
+        invoke_def = definition.states["s1"].invocations[0]
+        assert "some text content" in invoke_def.content

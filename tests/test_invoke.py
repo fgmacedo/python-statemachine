@@ -990,3 +990,83 @@ class TestSyncInvokeErrorAfterCancel:
         await sm_runner.processing_loop(sm)
 
         assert "loading" in sm.configuration_values
+
+
+class TestInvokeManagerUnit:
+    """Unit tests for InvokeManager methods not exercised by integration tests."""
+
+    def test_send_to_child_not_found(self):
+        """send_to_child returns False when invokeid is not in _active."""
+        from unittest.mock import Mock
+
+        from statemachine.invoke import InvokeManager
+
+        engine = Mock()
+        manager = InvokeManager(engine)
+
+        assert manager.send_to_child("nonexistent", "event") is False
+
+    def test_send_to_child_handler_without_on_event(self):
+        """send_to_child returns False when handler has no on_event."""
+        from unittest.mock import Mock
+
+        from statemachine.invoke import Invocation
+        from statemachine.invoke import InvokeContext
+        from statemachine.invoke import InvokeManager
+
+        engine = Mock()
+        manager = InvokeManager(engine)
+
+        handler = Mock(spec=[])  # no on_event
+        ctx = InvokeContext(invokeid="test_id", state_id="s1", send=Mock(), machine=Mock())
+        inv = Invocation(invokeid="test_id", state_id="s1", ctx=ctx, _handler=handler)
+        manager._active["test_id"] = inv
+
+        assert manager.send_to_child("test_id", "event") is False
+
+    def test_handle_external_event_none_event(self):
+        """handle_external_event returns early when event is None."""
+        from unittest.mock import Mock
+
+        from statemachine.invoke import InvokeManager
+
+        engine = Mock()
+        manager = InvokeManager(engine)
+
+        trigger_data = Mock(event=None)
+        # Should not raise
+        manager.handle_external_event(trigger_data)
+
+
+class TestStopChildMachine:
+    """Tests for _stop_child_machine."""
+
+    def test_stop_child_machine_exception_swallowed(self):
+        """_stop_child_machine swallows exceptions during stop."""
+        from unittest.mock import Mock
+
+        from statemachine.invoke import _stop_child_machine
+
+        child = Mock()
+        child._engine.running = True
+        child._engine._invoke_manager.cancel_all.side_effect = RuntimeError("boom")
+
+        # Should not raise
+        _stop_child_machine(child)
+
+
+class TestEngineDelCleanup:
+    """Test BaseEngine.__del__ cancel_all exception handling."""
+
+    def test_del_swallows_cancel_all_exception(self):
+        """__del__ swallows exceptions from cancel_all."""
+
+        class SM(StateChart):
+            s1 = State(initial=True, final=True)
+
+        sm = SM()
+        engine = sm._engine
+        engine._invoke_manager.cancel_all = lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+
+        # Should not raise
+        engine.__del__()
