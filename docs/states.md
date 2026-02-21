@@ -284,7 +284,7 @@ True
 
 ```
 
-Use `HistoryState(deep=True)` for deep history that remembers the exact leaf state
+Use `HistoryState(type="deep")` for deep history that remembers the exact leaf state
 in nested compounds.
 
 ```{seealso}

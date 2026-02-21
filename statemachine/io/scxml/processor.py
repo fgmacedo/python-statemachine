@@ -153,7 +153,7 @@ class SCXMLProcessor:
         for state_id, state in history.items():
             state_dict = HistoryDefinition()
 
-            state_dict["deep"] = state.deep
+            state_dict["type"] = state.type
 
             # Process transitions
             if state.transitions:

@@ -56,7 +56,7 @@ class StateKwargs(BaseStateKwargs, total=False):
 class HistoryKwargs(TypedDict, total=False):
     name: str
     value: Any
-    deep: bool
+    type: str
 
 
 class HistoryDefinition(HistoryKwargs, total=False):

@@ -1,7 +1,9 @@
 import re
 import xml.etree.ElementTree as ET
 from typing import List
+from typing import Literal
 from typing import Set
+from typing import cast
 from urllib.parse import urlparse
 
 from .schema import Action
@@ -141,9 +143,10 @@ def parse_history(state_elem: ET.Element) -> HistoryState:
     if not state_id:
         raise ValueError("History must have an 'id' attribute")
 
+    history_type = cast("Literal['shallow', 'deep']", state_elem.get("type", "shallow"))
     state = HistoryState(
         id=state_id,
-        deep=state_elem.get("type") == "deep",
+        type=history_type,
     )
     for trans_elem in state_elem.findall("transition"):
         transition = parse_transition(trans_elem)

@@ -8,7 +8,7 @@ exited. Re-entering via the history state restores the previously active
 child instead of starting from the initial child.
 
 Both shallow history (``HistoryState()``) and deep history
-(``HistoryState(deep=True)``) are shown.
+(``HistoryState(type="deep")``) are shown.
 
 """
 
@@ -95,7 +95,7 @@ class DeepPersonalityMachine(StateChart):
             explore = entrance.to(chamber)
 
         assert isinstance(inner, State)
-        h = HistoryState(deep=True)  # type: ignore[has-type]
+        h = HistoryState(type="deep")  # type: ignore[has-type]
         bridge = State("Bridge", final=True)
         flee = inner.to(bridge)
 

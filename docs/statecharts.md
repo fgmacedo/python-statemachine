@@ -462,7 +462,7 @@ By default, `HistoryState()` uses **shallow** history: it remembers only the dir
 child of the compound. If the remembered child is itself a compound, it re-enters
 from its initial state.
 
-Use `HistoryState(deep=True)` for **deep** history, which remembers the exact leaf
+Use `HistoryState(type="deep")` for **deep** history, which remembers the exact leaf
 state and restores the full hierarchy:
 
 ```py
@@ -475,7 +475,7 @@ state and restores the full hierarchy:
 ...             chamber = State()
 ...             explore = entrance.to(chamber)
 ...         assert isinstance(halls, State)
-...         h = HistoryState(deep=True)
+...         h = HistoryState(type="deep")
 ...         bridge = State(final=True)
 ...         flee = halls.to(bridge)
 ...     outside = State()

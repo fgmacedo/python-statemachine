@@ -132,7 +132,7 @@ class DotGraphMachine:
             return state.id
 
     def _history_node(self, state):
-        label = "H*" if state.deep else "H"
+        label = "H*" if state.type.is_deep else "H"
         return pydot.Node(
             self._state_id(state),
             label=label,

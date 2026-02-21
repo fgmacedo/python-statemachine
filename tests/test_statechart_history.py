@@ -77,7 +77,7 @@ class TestHistoryStates:
                     explore = entrance.to(chamber)
 
                 assert isinstance(halls, State)
-                h = HistoryState(deep=True)
+                h = HistoryState(type="deep")
                 bridge = State(final=True)
                 flee = halls.to(bridge)
 
@@ -161,7 +161,7 @@ class TestHistoryStates:
                     explore = entrance.to(chamber)
 
                 assert isinstance(halls, State)
-                h = HistoryState(deep=False)
+                h = HistoryState()
                 bridge = State(final=True)
                 flee = halls.to(bridge)
 
