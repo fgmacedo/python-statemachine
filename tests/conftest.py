@@ -309,8 +309,13 @@ def _check_leaked_threads():
     if not new_threads:
         return
 
-    # Filter out asyncio event loop threads (managed by pytest-asyncio, not by us).
-    new_threads = {t for t in new_threads if not t.name.startswith("asyncio_")}
+    # Filter out asyncio event loop threads (managed by pytest-asyncio, not by us)
+    # and DummyThreads (created by Python for foreign threads — cannot be joined).
+    new_threads = {
+        t
+        for t in new_threads
+        if not t.name.startswith("asyncio_") and not isinstance(t, threading._DummyThread)
+    }
     if not new_threads:
         return
 
