@@ -127,7 +127,19 @@ timeout 120 uv run pytest -n 4
 
 Testes normally run under 60s (~40s on average), so take a closer look if they take longer, it can be a regression.
 
-Coverage is enabled by default.
+Coverage is enabled by default (`--cov` is in `pyproject.toml`'s `addopts`). To generate a
+coverage report to a file, pass `--cov-report` **in addition to** `--cov`:
+
+```bash
+# JSON report (machine-readable, includes missing_lines per file)
+timeout 120 uv run pytest -n auto --cov=statemachine --cov-report=json:cov.json
+
+# Terminal report with missing lines
+timeout 120 uv run pytest -n auto --cov=statemachine --cov-report=term-missing
+```
+
+Note: `--cov=statemachine` is required to activate coverage collection; `--cov-report`
+alone only changes the output format.
 
 ### Testing both sync and async engines
 
