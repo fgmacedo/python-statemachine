@@ -455,7 +455,7 @@ class InvokeManager:
                     None, lambda: callback.call(ctx=ctx, machine=ctx.machine, **ctx.kwargs)
                 )
             if not ctx.cancelled.is_set():
-                self.sm.send(
+                await self.sm.send(
                     f"done.invoke.{ctx.invokeid}",
                     data=result,
                 )
@@ -466,7 +466,7 @@ class InvokeManager:
         except Exception as e:
             if not ctx.cancelled.is_set():
                 # External queue — see comment in _run_sync_handler.
-                self.sm.send("error.execution", error=e)
+                await self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
             logger.debug(
