@@ -39,8 +39,6 @@ import subprocess
 import sys
 import threading
 
-from openai import OpenAI  # type: ignore[import-not-found]
-
 from statemachine import HistoryState
 from statemachine import State
 from statemachine import StateChart
@@ -410,6 +408,8 @@ class AIShell(StateChart):
     # --- Initialization ---
 
     def __init__(self):
+        from openai import OpenAI  # type: ignore[import-not-found]
+
         self.client = OpenAI()
         self.messages: list = [{"role": "system", "content": SYSTEM_PROMPT}]
         self._last_text: str = ""
@@ -510,7 +510,22 @@ class AIShell(StateChart):
 # ---------------------------------------------------------------------------
 
 
+def _check_openai():
+    """Return True if the openai package is available."""
+    try:
+        import openai  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def main():
+    if not _check_openai():
+        print("This example requires the 'openai' package.")
+        print("Install it with: pip install openai")
+        return
+
     print("AI Shell")
     print("A coding assistant powered by python-statemachine + OpenAI.")
     print("Type 'bye', 'exit', or 'quit' to end. Ctrl+C to interrupt.")
@@ -534,5 +549,5 @@ def main():
             sm.send("user_message", text=text)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "sphinx" not in sys.modules:  # pragma: no cover
     main()
