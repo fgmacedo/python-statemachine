@@ -372,10 +372,13 @@ True
 
 ### Independent invokes (one event each)
 
-Pass a list to run multiple handlers concurrently. Each handler gets its own
-`done.invoke.<state>.<id>` event — the **first** one to complete triggers the
-`done_invoke_<state>` transition (the remaining events are ignored if the state
-was already exited):
+Pass a list to run multiple handlers concurrently. Each handler is an independent
+invocation that sends its own `done.invoke.<state>.<id>` completion event.
+
+This means that the **first** handler to complete triggers the `done_invoke_<state>`
+transition, which exits the owning state and **cancels all remaining invocations**.
+If you need all handlers to complete before transitioning, use
+{func}`~statemachine.invoke.invoke_group` instead (see below).
 
 ```py
 >>> file_a = Path(tempfile.mktemp(suffix=".txt"))
@@ -411,7 +414,8 @@ separate transition.
 
 Use {func}`~statemachine.invoke.invoke_group` to run multiple callables concurrently
 and wait for **all** of them to complete before sending a single `done.invoke` event.
-The `data` is a list of results in the same order as the input callables:
+Unlike independent invokes (list), the transition only fires after every callable
+finishes, and the `data` is a list of results in the same order as the input callables:
 
 ```py
 >>> from statemachine.invoke import invoke_group
