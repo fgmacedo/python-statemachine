@@ -1,11 +1,8 @@
-# /// script
-# requires-python = ">=3.9"
-# dependencies = [
-#     "openai",
-#     "python-statemachine",
-# ]
-# ///
-"""AI Shell — a feature-rich coding assistant powered by python-statemachine.
+"""
+AI Shell -- coding assistant
+=============================
+
+A feature-rich coding assistant powered by python-statemachine.
 
 A standalone interactive CLI that uses the OpenAI SDK for LLM calls with
 tool_use. Demonstrates **parallel states**, **compound states**,
@@ -25,6 +22,13 @@ Usage::
     OPENAI_API_KEY=sk-... uv run --with openai python examples/ai_shell.py -v
 
 """
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "openai",
+#     "python-statemachine",
+# ]
+# ///
 
 import itertools
 import json
