@@ -254,7 +254,7 @@ class TestInvokeMultiple:
             return "b"
 
         class SM(StateChart):
-            loading = State(initial=True, invoke=[task_a, task_b])
+            loading = State(initial=True, invoke=invoke_group(task_a, task_b))
             ready = State(final=True)
             done_invoke_loading = loading.to(ready)
 
