@@ -22,20 +22,20 @@ class TestWeightedTransitionsBasic:
     def test_deterministic_with_seed(self, WeightedIdleSC):
         sm = WeightedIdleSC()
         sm.send("idle")
-        first_state = sm.current_state
+        first_config = sm.configuration
 
         sm.send("finish")
         sm.send("idle")
-        second_state = sm.current_state
+        second_config = sm.configuration
 
         # With seed=42, results are deterministic
         # Create a fresh instance to verify same seed produces same sequence
         sm2 = WeightedIdleSC()
         sm2.send("idle")
-        assert sm2.current_state == first_state
+        assert sm2.configuration == first_config
         sm2.send("finish")
         sm2.send("idle")
-        assert sm2.current_state == second_state
+        assert sm2.configuration == second_config
 
     def test_statistical_distribution(self, WeightedIdleSC):
         """Over many iterations, the distribution should approximate the weights."""
@@ -45,7 +45,7 @@ class TestWeightedTransitionsBasic:
 
         for _ in range(iterations):
             sm.send("idle")
-            counts[sm.current_state.id] += 1
+            counts[next(iter(sm.configuration)).id] += 1
             sm.send("finish")
 
         # With 70/20/10 weights, check roughly correct distribution (within 5%)
@@ -63,7 +63,7 @@ class TestWeightedTransitionsBasic:
 
         sm = SingleWeighted()
         sm.send("go")
-        assert sm.current_state == SingleWeighted.s2
+        assert sm.configuration == {SingleWeighted.s2}
 
     def test_equal_weights(self):
         class EqualWeights(StateChart):
@@ -80,7 +80,7 @@ class TestWeightedTransitionsBasic:
 
         for _ in range(iterations):
             sm.send("go")
-            counts[sm.current_state.id] += 1
+            counts[next(iter(sm.configuration)).id] += 1
             sm.send("back")
 
         # Should be roughly 50/50 within 5%
@@ -102,7 +102,7 @@ class TestWeightedTransitionsBasic:
 
         for _ in range(iterations):
             sm.send("go")
-            counts[sm.current_state.id] += 1
+            counts[next(iter(sm.configuration)).id] += 1
             sm.send("back")
 
         assert abs(counts["s2"] / iterations - 0.70) < 0.05
@@ -119,7 +119,7 @@ class TestWeightedTransitionsBasic:
 
         sm = MixedWeights()
         sm.send("go")
-        assert sm.current_state in (MixedWeights.s2, MixedWeights.s3)
+        assert sm.configuration & {MixedWeights.s2, MixedWeights.s3}
 
 
 class TestWeightedTransitionsWithGuards:
@@ -147,7 +147,7 @@ class TestWeightedTransitionsWithGuards:
         counts = Counter()
         for _ in range(1000):
             sm.send("go")
-            counts[sm.current_state.id] += 1
+            counts[next(iter(sm.configuration)).id] += 1
             sm.send("back")
 
         assert counts["s2"] > 0
@@ -175,7 +175,7 @@ class TestWeightedTransitionsWithGuards:
 
         # When not blocked, s2 can fire
         sm.send("go")
-        first_state = sm.current_state
+        first_state = next(iter(sm.configuration))
         sm.send("back")
 
         # When blocked, s2 cond fails even if weight selects it
@@ -184,7 +184,7 @@ class TestWeightedTransitionsWithGuards:
         for _ in range(100):
             try:
                 sm.send("go")
-                results[sm.current_state.id] += 1
+                results[next(iter(sm.configuration)).id] += 1
                 sm.send("back")
             except Exception:
                 results["failed"] += 1
@@ -427,12 +427,12 @@ class TestMultipleWeightedGroups:
         sm = MultiGroup()
 
         sm.send("go_a")
-        state_a = sm.current_state
+        state_a = next(iter(sm.configuration))
         assert state_a in (MultiGroup.s2, MultiGroup.s3)
         sm.send("back")
 
         sm.send("go_b")
-        state_b = sm.current_state
+        state_b = next(iter(sm.configuration))
         assert state_b in (MultiGroup.s4, MultiGroup.s5)
 
 

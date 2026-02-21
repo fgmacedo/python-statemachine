@@ -39,9 +39,9 @@ dev = [
     "pytest-cov >=6.0.0; python_version >='3.9'",
     "pytest-cov; python_version <'3.9'",
     "pytest-sugar >=1.0.0",
-    "pytest-mock >=3.10.0",
+    "pytest-mock >=3.14.0",
     "pytest-benchmark >=4.0.0",
-    "pytest-asyncio",
+    "pytest-asyncio >=0.25.0",
     "pydot",
     "django >=5.2.11; python_version >='3.10'",
     "pytest-django >=4.8.0; python_version >'3.8'",
@@ -93,6 +93,9 @@ log_cli_level = "DEBUG"
 log_cli_format = "%(relativeCreated)6.0fms %(threadName)-18s %(name)-35s %(message)s"
 log_cli_date_format = "%H:%M:%S"
 asyncio_default_fixture_loop_scope = "module"
+filterwarnings = [
+    "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
+]
 
 [tool.coverage.run]
 branch = true

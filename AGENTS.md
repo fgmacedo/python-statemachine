@@ -127,6 +127,10 @@ timeout 120 uv run pytest -n 4
 
 Testes normally run under 60s (~40s on average), so take a closer look if they take longer, it can be a regression.
 
+When analyzing warnings or extensive output, run the tests **once** saving the output to a file
+(`> /tmp/pytest-output.txt 2>&1`), then analyze the file — instead of running the suite
+repeatedly with different greps.
+
 Coverage is enabled by default (`--cov` is in `pyproject.toml`'s `addopts`). To generate a
 coverage report to a file, pass `--cov-report` **in addition to** `--cov`:
 

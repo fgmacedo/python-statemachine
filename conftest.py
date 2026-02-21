@@ -29,11 +29,11 @@ def add_doctest_context(doctest_namespace):  # noqa: PT004
     doctest_namespace["asyncio"] = ContribAsyncio()
 
 
-def pytest_ignore_collect(collection_path, path, config):
+def pytest_ignore_collect(collection_path, config):
     if sys.version_info >= (3, 10):  # noqa: UP036
         return None
 
-    if "django_project" in str(path):
+    if "django_project" in str(collection_path):
         return True
 
 
