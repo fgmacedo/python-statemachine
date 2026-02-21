@@ -237,7 +237,7 @@ def test_initial_edge_inside_compound_subgraph():
 
 def test_history_state_shallow_diagram():
     """DOT output contains an 'H' circle node for shallow history state."""
-    h = HistoryState(name="H", deep=False)
+    h = HistoryState(name="H")
     h._set_id("h_shallow")
 
     graph_maker = DotGraphMachine.__new__(DotGraphMachine)
@@ -250,7 +250,7 @@ def test_history_state_shallow_diagram():
 
 def test_history_state_deep_diagram():
     """DOT output contains an 'H*' circle node for deep history state."""
-    h = HistoryState(name="H*", deep=True)
+    h = HistoryState(name="H*", type="deep")
     h._set_id("h_deep")
 
     graph_maker = DotGraphMachine.__new__(DotGraphMachine)
@@ -269,7 +269,7 @@ def test_history_state_default_transition():
     child2 = State("child2")
     child2._set_id("child2")
 
-    h = HistoryState(name="H", deep=False)
+    h = HistoryState(name="H")
     h._set_id("hist")
     # Add a default transition from history to child1
     t = Transition(source=h, target=child1, initial=True)

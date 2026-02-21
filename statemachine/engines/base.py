@@ -474,7 +474,7 @@ class BaseEngine:
         for info in ordered_states:
             state = info.state
             for history in state.history:
-                if history.deep:
+                if history.type.is_deep:
                     history_value = [s for s in self.sm.configuration if s.is_descendant(state)]  # noqa: E501
                 else:  # shallow history
                     history_value = [s for s in self.sm.configuration if s.parent == state]
@@ -767,12 +767,12 @@ class BaseEngine:
                     self._log_id,
                     state.parent,
                     state,
-                    "deep" if state.deep else "shallow",
+                    state.type.value,
                     [s.id for s in self.sm.history_values[state.id]],
                 )
                 for history_state in self.sm.history_values[state.id]:
                     info_to_add = StateTransition(transition=info.transition, state=history_state)
-                    if state.deep:
+                    if state.type.is_deep:
                         states_to_enter.add(info_to_add)
                     else:
                         self.add_descendant_states_to_enter(

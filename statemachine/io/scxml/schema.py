@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Dict
 from typing import List
+from typing import Literal
 from urllib.parse import ParseResult
 
 
@@ -148,7 +149,7 @@ class State:
 @dataclass
 class HistoryState:
     id: str
-    deep: bool = False  # Must be 'deep' or 'shallow'
+    type: "Literal['shallow', 'deep']" = "shallow"
     transitions: List[Transition] = field(default_factory=list)
 
 

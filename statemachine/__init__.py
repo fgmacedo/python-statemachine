@@ -1,5 +1,6 @@
 from .event import Event
 from .state import HistoryState
+from .state import HistoryType
 from .state import State
 from .statemachine import StateChart
 from .statemachine import StateMachine
@@ -9,4 +10,12 @@ __author__ = """Fernando Macedo"""
 __email__ = "fgmacedo@gmail.com"
 __version__ = "3.0.0"
 
-__all__ = ["StateChart", "StateMachine", "State", "HistoryState", "Event", "TModel"]
+__all__ = [
+    "StateChart",
+    "StateMachine",
+    "State",
+    "HistoryState",
+    "HistoryType",
+    "Event",
+    "TModel",
+]

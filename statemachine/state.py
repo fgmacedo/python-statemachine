@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -471,8 +472,26 @@ class AnyState(State):
             state.transitions.add_transitions(new_transition)
 
 
+class HistoryType(str, Enum):
+    """Type of history recorded by a :class:`HistoryState`."""
+
+    SHALLOW = "shallow"
+    """Remembers only the direct children of the compound state.
+    If the remembered child is itself a compound, it re-enters from its initial state."""
+
+    DEEP = "deep"
+    """Remembers the exact leaf (atomic) state across the entire nested hierarchy.
+    Re-entering restores the full ancestor chain down to that leaf."""
+
+    @property
+    def is_deep(self) -> bool:
+        return self == HistoryType.DEEP
+
+
 class HistoryState(State):
-    def __init__(self, name: str = "", value: Any = None, deep: bool = False):
+    def __init__(
+        self, name: str = "", value: Any = None, type: "str | HistoryType" = HistoryType.SHALLOW
+    ):
         super().__init__(name=name, value=value)
-        self.deep = deep
+        self.type = HistoryType(type)
         self.is_active = False
