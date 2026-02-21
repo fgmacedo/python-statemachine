@@ -522,7 +522,9 @@ class TestSendToInvoke:
 
         _send_to_invoke(action, "unknown", machine=machine)
 
-        machine.send.assert_called_once_with("error.communication", internal=True)
+        machine._put_nonblocking.assert_called_once()
+        trigger_data = machine._put_nonblocking.call_args[0][0]
+        assert str(trigger_data.event) == "error.communication"
 
     def test_evaluates_eventexpr(self):
         """_send_to_invoke evaluates eventexpr when event is None."""
@@ -610,7 +612,9 @@ class TestSendToInvoke:
 
         send_callable(machine=machine)
 
-        machine.send.assert_called_once_with("error.communication", internal=True)
+        machine._put_nonblocking.assert_called_once()
+        trigger_data = machine._put_nonblocking.call_args[0][0]
+        assert str(trigger_data.event) == "error.communication"
         machine._engine._invoke_manager.send_to_child.assert_not_called()
 
 
