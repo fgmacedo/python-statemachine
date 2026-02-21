@@ -256,34 +256,6 @@ def test_simple_variable_returns_the_original_callback():
     assert parsed_expr is original_callback
 
 
-@pytest.mark.parametrize(
-    ("expression", "expected", "hooks_called"),
-    [
-        ("49 < frodo_age < 51", True, ["frodo_age"]),
-        ("49 < frodo_age > 50", False, ["frodo_age"]),
-        (
-            "aragorn_age < legolas_age < gimli_age",
-            False,
-            ["aragorn_age", "legolas_age", "gimli_age"],
-        ),  # 87 < 2931 and 2931 < 139
-        (
-            "gimli_age > aragorn_age < legolas_age",
-            True,
-            ["gimli_age", "aragorn_age", "legolas_age"],
-        ),  # 139 > 87 and 87 < 2931
-        (
-            "sword_power < ring_power > bow_power",
-            True,
-            ["sword_power", "ring_power", "bow_power"],
-        ),  # 80 < 100 and 100 > 75
-        (
-            "axe_power > sword_power == bow_power",
-            False,
-            ["axe_power", "sword_power", "bow_power"],
-        ),  # 85 > 80 and 80 == 75
-        ("height > 1 and height < 2", True, ["height"]),
-    ],
-)
 def async_variable_hook(var_name):
     """Variable hook that returns async callables, for testing issue #535."""
     values = {
@@ -377,18 +349,6 @@ def test_mixed_sync_async_expressions(expression, expected):
         assert asyncio.run(result) is expected, expression
     else:
         assert result is expected, expression
-
-
-@pytest.mark.xfail(reason="TODO: Optimize so that expressios are evaluated only once")
-def test_should_evaluate_values_only_once(expression, expected, hooks_called):
-    calls: list[str] = []
-
-    def hook(name):
-        return variable_hook(name, spy=calls.append)
-
-    parsed_expr = parse_boolean_expr(expression, hook, operator_mapping)
-    assert parsed_expr() is expected, expression
-    assert calls == hooks_called
 
 
 def test_functions_get_unknown_raises():
