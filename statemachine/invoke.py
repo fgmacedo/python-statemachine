@@ -391,6 +391,12 @@ class InvokeManager:
                 )
         except Exception as e:
             if not ctx.cancelled.is_set():
+                # Intentionally using the external queue (no internal=True):
+                # This handler runs in a background thread, outside the processing
+                # loop. Using the internal queue would either contaminate an
+                # unrelated macrostep in progress, or stall if no macrostep is
+                # active (the internal queue is only drained within a macrostep).
+                # This matches done.invoke, which also uses the external queue.
                 self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
@@ -459,6 +465,7 @@ class InvokeManager:
             return
         except Exception as e:
             if not ctx.cancelled.is_set():
+                # External queue — see comment in _run_sync_handler.
                 self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
