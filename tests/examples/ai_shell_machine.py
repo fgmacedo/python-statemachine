@@ -7,8 +7,22 @@ A feature-rich coding assistant powered by python-statemachine.
 A standalone interactive CLI that uses the OpenAI SDK for LLM calls with
 tool_use. Demonstrates **parallel states**, **compound states**,
 **HistoryState**, **eventless transitions**, **In() guards**,
-**done.state**, **error.execution**, and **raise_()** — all working
-together in a practical application.
+**done.state**, **error.execution**, **invoke**, and **raise_()** — all
+working together in a practical application.
+
+.. warning::
+
+    This example grants an LLM the ability to read files, list directories,
+    and execute shell commands — which can be very useful for exploring a
+    codebase, running tests, or automating tasks. However, the actual behavior
+    depends on the prompts you send and the model you use, and unintended
+    actions (e.g., deleting files or exposing credentials) are possible.
+
+    **Use at your own risk.** This code is provided for educational and
+    demonstration purposes only. The authors and contributors of
+    python-statemachine accept no liability for any damage or data loss.
+    Consider running it in an isolated environment (e.g., a container or
+    virtual machine) and avoid using elevated privileges.
 
 Usage::
 
@@ -329,8 +343,8 @@ class AIShell(StateChart):
     """An agentic coding assistant as a StateChart.
 
     Demonstrates parallel states, compound states, HistoryState, eventless
-    transitions, In() guards, done.state, error.execution, and raise_() —
-    all in a practical application.
+    transitions, In() guards, done.state, error.execution, invoke, and
+    raise_() — all in a practical application.
 
     States::
 
@@ -338,8 +352,8 @@ class AIShell(StateChart):
         ├── conversation (Compound)
         │   ├── idle (initial)
         │   ├── processing (Compound)
-        │   │   ├── thinking (initial) ← API call + spinner
-        │   │   ├── using_tool
+        │   │   ├── thinking (initial, invoke) ← API call + spinner
+        │   │   ├── using_tool (invoke) ← tool execution
         │   │   ├── done (final)
         │   │   └── h = HistoryState(deep) ← for error retry
         │   ├── responding
@@ -367,12 +381,11 @@ class AIShell(StateChart):
                 done = State("Done", final=True)
                 h = HistoryState(type="deep")
 
-                # Internal events route thinking results
-                use_tool = thinking.to(using_tool)
-                text_ready = thinking.to(done)
-
-                # Tool execution → think again (via raise_())
-                think_again = using_tool.to(thinking)
+                # Invoke results route automatically
+                done_invoke_thinking = thinking.to(
+                    using_tool, cond="has_tool_calls"
+                ) | thinking.to(done)
+                done_invoke_using_tool = using_tool.to(thinking)
 
             responding = State("Responding")
             recovering = State("Recovering")
@@ -414,6 +427,7 @@ class AIShell(StateChart):
         self.messages: list = [{"role": "system", "content": SYSTEM_PROMPT}]
         self._last_text: str = ""
         self._retries: int = 0
+        self._ready = threading.Event()
         super().__init__()
 
     # --- Guards ---
@@ -431,10 +445,10 @@ class AIShell(StateChart):
         return not self.can_retry()
 
     def is_active_context(self, **kwargs) -> bool:
-        return len(self.messages) >= 3
+        return len(self.messages) >= 5
 
     def is_deep_context(self, **kwargs) -> bool:
-        return len(self.messages) >= 5
+        return len(self.messages) >= 20
 
     # --- Callbacks ---
 
@@ -442,8 +456,12 @@ class AIShell(StateChart):
         """Append the user's message to conversation history."""
         self.messages.append({"role": "user", "content": text})
 
-    def on_enter_thinking(self, **kwargs):
-        """Call the OpenAI API with a spinner animation. Route to tool use or done."""
+    def has_tool_calls(self, data=None, **kwargs) -> bool:
+        """Guard: check if the API response contains tool calls."""
+        return bool(getattr(data, "tool_calls", None))
+
+    def on_invoke_thinking(self, **kwargs):
+        """Call the OpenAI API with a spinner animation. Returns the message."""
         with Spinner():
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -452,21 +470,16 @@ class AIShell(StateChart):
             )
 
         message = response.choices[0].message
-        tool_calls = message.tool_calls
-
-        # Store the assistant response in history
         self.messages.append(message)
 
-        if tool_calls:
-            self.raise_("use_tool", tool_calls=list(tool_calls))
-        else:
+        if not message.tool_calls:
             self._last_text = message.content or ""
-            # Enter the final child → triggers done.state.processing automatically
-            self.raise_("text_ready")
 
-    def on_enter_using_tool(self, tool_calls, **kwargs):
-        """Execute tool calls and send results back for another thinking round."""
-        for call in tool_calls:
+        return message
+
+    def on_invoke_using_tool(self, data, **kwargs):
+        """Execute tool calls from the API response."""
+        for call in data.tool_calls:
             args = json.loads(call.function.arguments)
             print(f"  [tool] {call.function.name}({json.dumps(args)})")
             result = execute_tool(call.function.name, args, sm=self)
@@ -477,7 +490,6 @@ class AIShell(StateChart):
                     "content": result,
                 }
             )
-        self.raise_("think_again")
 
     def on_enter_responding(self, **kwargs):
         """Print the assistant's text response."""
@@ -486,8 +498,9 @@ class AIShell(StateChart):
             self._last_text = ""
 
     def on_enter_idle(self, **kwargs):
-        """Reset retry counter when returning to idle."""
+        """Reset retry counter and signal readiness when returning to idle."""
         self._retries = 0
+        self._ready.set()
 
     def on_enter_recovering(self, **kwargs):
         """Handle API errors with retry logic (via error.execution)."""
@@ -540,6 +553,8 @@ def main():
         sys.exit(f"Error initializing: {e}")
 
     while not sm.is_terminated:
+        sm._ready.wait()
+        sm._ready.clear()
         try:
             text = input("> ")
         except (EOFError, KeyboardInterrupt):
