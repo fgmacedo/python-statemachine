@@ -7,6 +7,7 @@ from typing import Any
 from typing import Callable
 from uuid import uuid4
 
+from ...event import BoundEvent
 from ...event import Event
 from ...event import _event_data_kwargs
 from ...spec_parser import InState
@@ -426,7 +427,7 @@ def _send_to_invoke(action: SendAction, invokeid: str, **kwargs):
         params_values[param.name] = _eval(param.expr, **kwargs)
     if not machine._engine._invoke_manager.send_to_child(invokeid, event, **params_values):
         # Per SCXML spec: if target is not reachable → error.communication
-        machine.send("error.communication", internal=True)
+        BoundEvent("error.communication", internal=True, _sm=machine).put()
 
 
 def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
@@ -452,7 +453,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
         if target not in _valid_targets:
             if target and target.startswith("#_scxml_"):
                 # Valid SCXML session reference but undispatchable → error.communication
-                machine.send("error.communication", internal=True)
+                BoundEvent("error.communication", internal=True, _sm=machine).put()
             elif target and target.startswith("#_"):
                 # #_<invokeid> → route to invoked child session
                 _send_to_invoke(action, target[2:], **kwargs)
