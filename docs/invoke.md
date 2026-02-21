@@ -456,24 +456,28 @@ is cancelled.
 
 Pass a `StateChart` subclass to spawn a child machine:
 
-```python
-from statemachine import State, StateChart
+```py
+>>> class ChildMachine(StateChart):
+...     start = State(initial=True)
+...     end = State(final=True)
+...     go = start.to(end)
+...
+...     def on_enter_start(self, **kwargs):
+...         self.send("go")
 
-class ChildMachine(StateChart):
-    start = State(initial=True)
-    end = State(final=True)
-    go = start.to(end)
+>>> class ParentMachine(StateChart):
+...     loading = State(initial=True, invoke=ChildMachine)
+...     ready = State(final=True)
+...     done_invoke_loading = loading.to(ready)
 
-    def on_enter_start(self, **kwargs):
-        self.send("go")
+>>> sm = ParentMachine()
+>>> time.sleep(0.2)
 
-class ParentMachine(StateChart):
-    loading = State(initial=True, invoke=ChildMachine)
-    ready = State(final=True)
-    done_invoke_loading = loading.to(ready)
+>>> "ready" in sm.configuration_values
+True
+
 ```
 
 The child machine is instantiated and run when the parent's `loading` state is entered.
 When the child terminates (reaches a final state), a `done.invoke` event is sent to the
-parent, triggering the `done_invoke_loading` transition. See
-`tests/test_invoke.py::TestInvokeStateChartChild` for a working example.
+parent, triggering the `done_invoke_loading` transition.

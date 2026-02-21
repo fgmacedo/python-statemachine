@@ -236,11 +236,14 @@ async def test_async_error_on_execution_in_transition():
 
     class SM(StateChart):
         s1 = State(initial=True)
-        s2 = State(final=True)
+        s2 = State()
         error_state = State(final=True)
 
         go = s1.to(s2, on="bad_action")
-        error_execution = s1.to(error_state)
+        finish = s2.to(error_state)
+        # Transition 'on' content error is caught per-block, so the transition
+        # completes to s2.  error.execution fires from s2.
+        error_execution = s1.to(error_state) | s2.to(error_state)
 
         def bad_action(self, **kwargs):
             raise RuntimeError("Transition boom")

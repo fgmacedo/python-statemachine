@@ -84,10 +84,15 @@ class ErrorInErrorHandlerSC(StateChart):
     """Error in error.execution handler should not cause infinite loop."""
 
     s1 = State("s1", initial=True)
-    s2 = State("s2", final=True)
+    s2 = State("s2")
+    s3 = State("s3", final=True)
 
     go = s1.to(s2, on="bad_action")
-    error_execution = Event(s1.to(s1, on="bad_error_handler"), id="error.execution")
+    finish = s2.to(s3)
+    error_execution = Event(
+        s1.to(s1, on="bad_error_handler") | s2.to(s2, on="bad_error_handler"),
+        id="error.execution",
+    )
 
     def bad_action(self):
         raise RuntimeError("action failed")
@@ -174,12 +179,15 @@ def test_error_in_error_handler_no_infinite_loop():
     sm = ErrorInErrorHandlerSC()
     assert sm.configuration == {sm.s1}
 
-    # bad_action raises -> error.execution fires -> bad_error_handler raises
-    # Second error during error.execution processing is ignored (logged as warning)
+    # bad_action raises -> caught per-block, transition completes to s2 ->
+    # error.execution fires -> bad_error_handler raises during error.execution
+    # processing -> rolled back, second error ignored (logged as warning)
     sm.send("go")
 
-    # Machine should still be in s1 (rolled back from failed transition)
-    assert sm.configuration == {sm.s1}
+    # Transition 'on' content error is caught per-block (SCXML spec),
+    # so the transition s1->s2 completes. error.execution fires from s2,
+    # bad_error_handler raises, which is ignored during error.execution.
+    assert sm.configuration == {sm.s2}
 
 
 def test_statemachine_with_error_on_execution_true():
@@ -456,7 +464,9 @@ class TestErrorConventionLOTR:
 
         sm = OneRingTemptation()
         sm.send("tempt")
-        # Error in error handler is ignored, machine stays in carrying
+        # resist raises -> caught per-block, self-transition completes (carrying) ->
+        # error.execution fires -> struggle raises during error.execution ->
+        # rolled back, second error ignored -> stays in carrying
         assert sm.configuration == {sm.carrying}
 
     def test_multiple_source_states_with_convention(self):
@@ -585,12 +595,11 @@ class TestErrorConventionLOTR:
 
         sm = BeaconOfGondor()
         sm.send("light_beacon")
-        # error.communication.failed won't match error.execution, but
-        # error_communication_failed will match "error_communication_failed"
-        # The engine sends "error.execution" which does NOT match
-        # "error_communication_failed" or "error.communication.failed".
-        # So the error is unhandled and silently ignored (StateChart default).
-        assert sm.configuration == {sm.waiting}
+        # Transition 'on' content error is caught per-block (SCXML spec),
+        # so waiting->lit completes. error.execution fires from lit, but
+        # error_communication_failed does NOT match error.execution.
+        # Error is unhandled and silently ignored (StateChart default).
+        assert sm.configuration == {sm.lit}
 
     def test_multiple_errors_sequential(self):
         """Multiple events that fail are each handled by error.execution."""
@@ -698,7 +707,8 @@ class TestErrorHandlerBehaviorLOTR:
         """If the `on` callback of error.execution raises, the second error is ignored.
 
         Per SCXML spec: errors during error.execution processing must not recurse.
-        The machine should roll back to the configuration before the failed error handler.
+        During error.execution, transition 'on' content errors propagate to
+        microstep(), which rolls back and ignores the second error.
         """
 
         class MountDoom(StateChart):
@@ -717,7 +727,9 @@ class TestErrorHandlerBehaviorLOTR:
 
         sm = MountDoom()
         sm.send("ascend")
-        # Error in error handler is ignored, config rolled back to climbing
+        # slip raises -> caught per-block, self-transition completes (climbing) ->
+        # error.execution fires -> gollum_intervenes raises during error.execution ->
+        # rolled back to climbing, second error ignored
         assert sm.configuration == {sm.climbing}
 
     def test_condition_on_error_transition_routes_to_different_states(self):

@@ -213,12 +213,36 @@ If an error occurs while processing the `error.execution` event itself, the engi
 ignores the second error (logging a warning) to prevent infinite loops. The state machine
 remains in the configuration it was in before the failed error handler.
 
+### Block-level error catching
+
+`StateChart` catches errors at the **block level**, not the microstep level.
+Each phase of the microstep — `on_exit`, transition `on` content, `on_enter` — is an
+independent block. An error in one block:
+
+- **Stops remaining actions in that block** (per SCXML spec, execution MUST NOT continue
+  within the same block after an error).
+- **Does not affect other blocks** — subsequent phases of the microstep still execute.
+  In particular, `after` callbacks always run regardless of errors in earlier blocks.
+
+This means that even if a transition's `on` action raises an exception, the transition
+completes: target states are entered and `after_<event>()` callbacks still run. The error
+is caught and queued as an `error.execution` internal event, which can be handled by a
+separate transition.
+
+```{note}
+During `error.execution` processing, errors in transition `on` content are **not** caught
+at block level — they propagate to the microstep, where they are silently ignored. This
+prevents infinite loops when an error handler's own action raises (e.g., a self-transition
+`error_execution = s1.to(s1, on="handler")` where `handler` raises). Entry/exit blocks
+always use block-level error catching regardless of the current event.
+```
+
 ### Cleanup / finalize pattern
 
 A common need is to run cleanup code after a transition **regardless of success or failure**
 — for example, releasing a lock or closing a resource.
 
-Because `StateChart` catches errors at the **block level** (not the microstep level),
+Because `StateChart` catches errors at the **block level** (see above),
 `after_<event>()` callbacks still run even when an action raises an exception. This makes
 `after_<event>()` a natural **finalize** hook — no need to duplicate cleanup logic in
 an error handler.

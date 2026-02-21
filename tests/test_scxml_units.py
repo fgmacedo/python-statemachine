@@ -1,5 +1,6 @@
 """Unit tests for SCXML parser, actions, and schema modules."""
 
+import logging
 import xml.etree.ElementTree as ET
 from unittest.mock import Mock
 
@@ -8,13 +9,16 @@ from statemachine.io.scxml.actions import Log
 from statemachine.io.scxml.actions import ParseTime
 from statemachine.io.scxml.actions import create_action_callable
 from statemachine.io.scxml.actions import create_datamodel_action_callable
+from statemachine.io.scxml.invoke import SCXMLInvoker
 from statemachine.io.scxml.parser import parse_element
 from statemachine.io.scxml.parser import parse_scxml
 from statemachine.io.scxml.parser import strip_namespaces
 from statemachine.io.scxml.schema import CancelAction
 from statemachine.io.scxml.schema import DataModel
 from statemachine.io.scxml.schema import IfBranch
+from statemachine.io.scxml.schema import InvokeDefinition
 from statemachine.io.scxml.schema import LogAction
+from statemachine.io.scxml.schema import Param
 
 # --- ParseTime ---
 
@@ -355,3 +359,253 @@ class TestSCXMLHistoryWithoutTransitions:
         processor.parse_scxml("test_history_no_trans", scxml)
         sm = processor.start()
         assert sm.states_map["a"] in sm.configuration
+
+
+# --- SCXMLInvoker ---
+
+
+def _make_invoker(definition=None, base_dir="/tmp", register_child=None):
+    """Helper to create an SCXMLInvoker with sensible defaults."""
+    if definition is None:
+        definition = InvokeDefinition()
+    if register_child is None:
+        register_child = Mock(return_value=Mock)
+    return SCXMLInvoker(
+        definition=definition,
+        base_dir=base_dir,
+        register_child=register_child,
+    )
+
+
+class TestSCXMLInvoker:
+    def test_invalid_invoke_type_raises(self):
+        """run() raises ValueError for unsupported invoke type."""
+        defn = InvokeDefinition(
+            type="http://unsupported/type",
+            content="<scxml/>",
+        )
+        invoker = _make_invoker(definition=defn)
+        ctx = Mock()
+        model = Mock(spec=[])
+        ctx.machine = Mock(model=model)
+
+        with pytest.raises(ValueError, match="Unsupported invoke type"):
+            invoker.run(ctx)
+
+    def test_no_content_resolved_raises(self):
+        """run() raises ValueError when no src/content/srcexpr is provided."""
+        defn = InvokeDefinition()  # no content, src, or srcexpr
+        invoker = _make_invoker(definition=defn)
+        ctx = Mock()
+        model = Mock(spec=[])
+        ctx.machine = Mock(model=model)
+
+        with pytest.raises(ValueError, match="No content resolved"):
+            invoker.run(ctx)
+
+    def test_resolve_content_inline_xml(self):
+        """_resolve_content returns inline XML content directly."""
+        xml_content = '<scxml xmlns="http://www.w3.org/2005/07/scxml"><final id="f"/></scxml>'
+        defn = InvokeDefinition(content=xml_content)
+        invoker = _make_invoker(definition=defn)
+
+        result = invoker._resolve_content(Mock())
+        assert result == xml_content
+
+    def test_resolve_content_from_file(self, tmp_path):
+        """_resolve_content reads content from src file path."""
+        scxml_file = tmp_path / "child.scxml"
+        scxml_file.write_text("<scxml/>")
+
+        defn = InvokeDefinition(src="child.scxml")
+        invoker = _make_invoker(definition=defn, base_dir=str(tmp_path))
+
+        result = invoker._resolve_content(Mock())
+        assert result == "<scxml/>"
+
+    def test_evaluate_params_namelist_and_params(self):
+        """_evaluate_params resolves both namelist variables and param elements."""
+        defn = InvokeDefinition(
+            namelist="var1 var2",
+            params=[Param(name="p1", expr="42")],
+        )
+        invoker = _make_invoker(definition=defn)
+
+        model = type("Model", (), {"var1": "a", "var2": "b"})()
+        machine = Mock(model=model)
+
+        result = invoker._evaluate_params(machine)
+        assert result == {"var1": "a", "var2": "b", "p1": 42}
+
+    def test_on_cancel_clears_child(self):
+        """on_cancel() sets _child to None."""
+        invoker = _make_invoker()
+        invoker._child = Mock()
+
+        invoker.on_cancel()
+        assert invoker._child is None
+
+    def test_on_event_skips_terminated_child(self):
+        """on_event() does not error when child is terminated."""
+        invoker = _make_invoker()
+        child = Mock()
+        child.is_terminated = True
+        invoker._child = child
+
+        # Should not raise or call send
+        invoker.on_event("some.event")
+        child.send.assert_not_called()
+
+    def test_on_finalize_without_block_is_noop(self):
+        """on_finalize() does nothing when no finalize block is defined."""
+        invoker = _make_invoker()
+        assert invoker._finalize_block is None
+
+        # Should not raise
+        trigger_data = Mock()
+        invoker.on_finalize(trigger_data)
+
+    def test_send_to_parent_warns_without_session(self, caplog):
+        """_send_to_parent logs a warning when machine has no _invoke_session."""
+        from statemachine.io.scxml.actions import _send_to_parent
+        from statemachine.io.scxml.parser import SendAction
+
+        action = SendAction(event="done", target="#_parent")
+        machine = Mock(spec=[])  # spec=[] ensures no _invoke_session attribute
+        machine.name = "test_machine"
+
+        with caplog.at_level(logging.WARNING, logger="statemachine.io.scxml.actions"):
+            _send_to_parent(action, machine=machine)
+
+        assert "no _invoke_session" in caplog.text
+
+
+# --- _send_to_invoke ---
+
+
+class TestSendToInvoke:
+    """Unit tests for _send_to_invoke (routes <send target="#_<invokeid>">)."""
+
+    def _make_machine_with_invoke_manager(self, send_to_child_return=True):
+        """Create a mock machine with an InvokeManager that has send_to_child."""
+        machine = Mock()
+        machine.model = Mock()
+        machine.model.__dict__ = {}
+        machine._engine._invoke_manager.send_to_child.return_value = send_to_child_return
+        return machine
+
+    def test_routes_event_to_child(self):
+        """_send_to_invoke forwards the event to InvokeManager.send_to_child."""
+        from statemachine.io.scxml.actions import _send_to_invoke
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager()
+        action = SendAction(event="childEvent", target="#_child1")
+
+        _send_to_invoke(action, "child1", machine=machine)
+
+        machine._engine._invoke_manager.send_to_child.assert_called_once_with(
+            "child1", "childEvent"
+        )
+        machine.send.assert_not_called()
+
+    def test_sends_error_communication_when_child_not_found(self):
+        """_send_to_invoke sends error.communication when invokeid is not found."""
+        from statemachine.io.scxml.actions import _send_to_invoke
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager(send_to_child_return=False)
+        action = SendAction(event="childEvent", target="#_unknown")
+
+        _send_to_invoke(action, "unknown", machine=machine)
+
+        machine.send.assert_called_once_with("error.communication", internal=True)
+
+    def test_evaluates_eventexpr(self):
+        """_send_to_invoke evaluates eventexpr when event is None."""
+        from statemachine.io.scxml.actions import _send_to_invoke
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager()
+        action = SendAction(event=None, eventexpr="'dynamic_event'", target="#_child1")
+
+        _send_to_invoke(action, "child1", machine=machine)
+
+        machine._engine._invoke_manager.send_to_child.assert_called_once_with(
+            "child1", "dynamic_event"
+        )
+
+    def test_forwards_params(self):
+        """_send_to_invoke forwards evaluated params to send_to_child."""
+        from statemachine.io.scxml.actions import _send_to_invoke
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager()
+        action = SendAction(
+            event="childEvent",
+            target="#_child1",
+            params=[Param(name="x", expr="42"), Param(name="y", expr="'hello'")],
+        )
+
+        _send_to_invoke(action, "child1", machine=machine)
+
+        machine._engine._invoke_manager.send_to_child.assert_called_once_with(
+            "child1", "childEvent", x=42, y="hello"
+        )
+
+    def test_forwards_namelist_variables(self):
+        """_send_to_invoke resolves namelist variables from model and forwards them."""
+        from statemachine.io.scxml.actions import _send_to_invoke
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager()
+        model = type("Model", (), {})()
+        model.var1 = "alpha"
+        model.var2 = "beta"
+        machine.model = model
+        action = SendAction(event="childEvent", target="#_child1", namelist="var1 var2")
+
+        _send_to_invoke(action, "child1", machine=machine)
+
+        machine._engine._invoke_manager.send_to_child.assert_called_once_with(
+            "child1", "childEvent", var1="alpha", var2="beta"
+        )
+
+    def test_namelist_missing_variable_raises(self):
+        """_send_to_invoke raises NameError when namelist variable is not on model."""
+        from statemachine.io.scxml.actions import _send_to_invoke
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager()
+        machine.model = Mock(spec=[])  # no attributes
+        action = SendAction(event="childEvent", target="#_child1", namelist="missing_var")
+
+        with pytest.raises(NameError, match="missing_var"):
+            _send_to_invoke(action, "child1", machine=machine)
+
+    def test_send_action_callable_routes_invoke_target(self):
+        """create_send_action_callable routes #_<invokeid> targets to _send_to_invoke."""
+        from statemachine.io.scxml.actions import create_send_action_callable
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager()
+        action = SendAction(event="hello", target="#_myinvoke")
+        send_callable = create_send_action_callable(action)
+
+        send_callable(machine=machine)
+
+        machine._engine._invoke_manager.send_to_child.assert_called_once_with("myinvoke", "hello")
+
+    def test_send_action_callable_scxml_session_target(self):
+        """create_send_action_callable sends error.communication for #_scxml_ targets."""
+        from statemachine.io.scxml.actions import create_send_action_callable
+        from statemachine.io.scxml.parser import SendAction
+
+        machine = self._make_machine_with_invoke_manager()
+        action = SendAction(event="hello", target="#_scxml_session123")
+        send_callable = create_send_action_callable(action)
+
+        send_callable(machine=machine)
+
+        machine.send.assert_called_once_with("error.communication", internal=True)
+        machine._engine._invoke_manager.send_to_child.assert_not_called()

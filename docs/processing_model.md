@@ -111,8 +111,10 @@ and executes them atomically:
 
 If an error occurs during steps 1–4 and `error_on_execution` is enabled, the error is
 caught at the **block level** — meaning remaining actions in that block are skipped, but
-the microstep continues and `after` callbacks still run (see
-{ref}`cleanup / finalize pattern <sphx_glr_auto_examples_statechart_cleanup_machine.py>`).
+the microstep continues and `after` callbacks still run. Each phase (exit, `on`, enter)
+is an independent block, so an error in the transition `on` action does not prevent target
+states from being entered. See {ref}`block-level error catching <error-execution>` and the
+{ref}`cleanup / finalize pattern <sphx_glr_auto_examples_statechart_cleanup_machine.py>`.
 
 ### Macrostep
 

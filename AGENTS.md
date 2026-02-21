@@ -44,12 +44,21 @@ The engine follows the SCXML run-to-completion (RTC) model with two processing l
 ### Error handling (`error_on_execution`)
 
 - `StateChart` has `error_on_execution=True` by default; `StateMachine` has `False`.
-- Errors are caught at the **block level** (per onentry/onexit block), not per microstep.
-- This means `after` callbacks still run even when an action raises — making `after_<event>()`
-  a natural **finalize** hook (runs on both success and failure paths).
+- Errors are caught at the **block level** (per onentry/onexit/transition `on` block), not per
+  microstep. This means `after` callbacks still run even when an action raises — making
+  `after_<event>()` a natural **finalize** hook (runs on both success and failure paths).
 - `error.execution` is dispatched as an internal event; define transitions for it to handle
   errors within the statechart.
 - Error during `error.execution` handling → ignored to prevent infinite loops.
+
+#### `on_error` asymmetry: transition `on` vs onentry/onexit
+
+Transition `on` content uses `on_error` **only for non-`error.execution` events**. During
+`error.execution` processing, `on_error` is disabled for transition `on` content — errors
+propagate to `microstep()` where `_send_error_execution` ignores them. This prevents infinite
+loops in self-transition error handlers (e.g., `error_execution = s1.to(s1, on="handler")`
+where `handler` raises). `onentry`/`onexit` blocks always use `on_error` regardless of the
+current event.
 
 ### Eventless transitions
 
@@ -68,6 +77,21 @@ The engine follows the SCXML run-to-completion (RTC) model with two processing l
 - `on_error_execution()` works via naming convention but **only** when a transition for
   `error.execution` is declared — it is NOT a generic callback.
 
+### Invoke (`<invoke>`)
+
+- `invoke.py` — `InvokeManager` on the engine manages the lifecycle: `mark_for_invoke()`,
+  `cancel_for_state()`, `spawn_pending_sync/async()`, `send_to_child()`.
+- `_cleanup_terminated()` only removes invocations that are both terminated **and** cancelled.
+  A terminated-but-not-cancelled invocation means the handler's `run()` returned but the owning
+  state is still active — it must stay in `_active` so `send_to_child()` can still route events.
+- **Child machine constructor blocks** in the processing loop. Use a listener pattern (e.g.,
+  `_ChildRefSetter`) to capture the child reference during the first `on_enter_state`, before
+  the loop spins.
+- `#_<invokeid>` send target: routed via `_send_to_invoke()` in `io/scxml/actions.py` →
+  `InvokeManager.send_to_child()` → handler's `on_event()`.
+- **Tests with blocking threads**: use `threading.Event.wait(timeout=)` instead of
+  `time.sleep()` for interruptible waits — avoids thread leak errors in teardown.
+
 ## Environment setup
 
 ```bash
@@ -77,11 +101,11 @@ pre-commit install
 
 ## Running tests
 
-Always use `uv` to run commands:
+Always use `uv` to run commands. Also, use a timeout to avoid being stuck in the case of a leaked thread or infinite loop:
 
 ```bash
 # Run all tests (parallel)
-uv run pytest -n auto
+timeout 120 uv run pytest -n 4
 
 # Run a specific test file
 uv run pytest tests/test_signature.py
@@ -98,8 +122,10 @@ Don't specify the directory `tests/`, because this will exclude doctests from bo
 (`--doctest-glob=*.md`) (enabled by default):
 
 ```bash
-uv run pytest -n auto
+timeout 120 uv run pytest -n 4
 ```
+
+Testes normally run under 60s (~40s on average), so take a closer look if they take longer, it can be a regression.
 
 Coverage is enabled by default.
 

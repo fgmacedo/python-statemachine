@@ -96,6 +96,9 @@ class BaseEngine:
         self._processing = Lock()
         self._cache: Dict = {}  # Cache for _get_args_kwargs results
         self._invoke_manager = InvokeManager(self)
+        self._macrostep_count: int = 0
+        self._microstep_count: int = 0
+        self._log_id = f"[{type(sm).__name__}]"
 
     def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
@@ -122,7 +125,8 @@ class BaseEngine:
 
         if not _delayed:
             logger.debug(
-                "New event '%s' put on the '%s' queue",
+                "%s New event '%s' put on the '%s' queue",
+                self._log_id,
                 trigger_data.event,
                 "internal" if internal else "external",
             )
@@ -175,7 +179,12 @@ class BaseEngine:
 
         If already processing an error.execution event, ignore to avoid infinite loops.
         """
-        logger.debug("Error %s captured while executing event=%s", error, trigger_data.event)
+        logger.debug(
+            "%s Error %s captured while executing event=%s",
+            self._log_id,
+            error,
+            trigger_data.event,
+        )
         if trigger_data.event and str(trigger_data.event) == _ERROR_EXECUTION:
             logger.warning("Error while processing error.execution, ignoring: %s", error)
             return
@@ -371,6 +380,14 @@ class BaseEngine:
         """Process a single set of transitions in a 'lock step'.
         This includes exiting states, executing transition content, and entering states.
         """
+        self._microstep_count += 1
+        logger.debug(
+            "%s macro:%d micro:%d transitions: %s",
+            self._log_id,
+            self._macrostep_count,
+            self._microstep_count,
+            transitions,
+        )
         previous_configuration = self.sm.configuration
         try:
             result = self._execute_transition_content(
@@ -451,7 +468,7 @@ class BaseEngine:
             states_to_exit, key=lambda x: x.state and x.state.document_order or 0, reverse=True
         )
         result = OrderedSet([info.state for info in ordered_states if info.state])
-        logger.debug("States to exit: %s", result)
+        logger.debug("%s States to exit: %s", self._log_id, result)
 
         # Update history
         for info in ordered_states:
@@ -463,7 +480,8 @@ class BaseEngine:
                     history_value = [s for s in self.sm.configuration if s.parent == state]
 
                 logger.debug(
-                    "Saving '%s.%s' history state: '%s'",
+                    "%s Saving '%s.%s' history state: '%s'",
+                    self._log_id,
                     state,
                     history,
                     [s.id for s in history_value],
@@ -493,6 +511,7 @@ class BaseEngine:
 
             # Execute `onexit` handlers — same per-block error isolation as onentry.
             if info.state is not None:  # pragma: no branch
+                logger.debug("%s Exiting state: %s", self._log_id, info.state)
                 self.sm._callbacks.call(info.state.exit.key, *args, on_error=on_error, **kwargs)
 
             self._remove_state_from_configuration(info.state)
@@ -549,7 +568,7 @@ class BaseEngine:
         new_configuration = cast(
             OrderedSet[State], (previous_configuration - states_to_exit) | states_targets_to_enter
         )
-        logger.debug("States to enter: %s", states_targets_to_enter)
+        logger.debug("%s States to enter: %s", self._log_id, states_targets_to_enter)
 
         return ordered_states, states_for_default_entry, default_history_content, new_configuration
 
@@ -558,9 +577,17 @@ class BaseEngine:
         if not self.sm.atomic_configuration_update:
             self.sm.configuration |= {target}
 
+    def __del__(self):
+        try:
+            self._invoke_manager.cancel_all()
+        except Exception:
+            pass
+
     def _handle_final_state(self, target: State, on_entry_result: list):
         """Handle final state entry: queue done events. No direct callback dispatch."""
+        logger.debug("%s Reached final state: %s", self._log_id, target)
         if target.parent is None:
+            self._invoke_manager.cancel_all()
             self.running = False
         else:
             parent = target.parent
@@ -601,10 +628,24 @@ class BaseEngine:
             self._prepare_entry_states(enabled_transitions, states_to_exit, previous_configuration)
         )
 
+        # For transition 'on' content, use on_error only for non-error.execution
+        # events.  During error.execution processing, errors in transition content
+        # must propagate to microstep() where _send_error_execution's guard
+        # prevents infinite loops (per SCXML spec: errors during error event
+        # processing are ignored).
+        on_error_transition = on_error
+        if (
+            on_error is not None
+            and trigger_data.event
+            and str(trigger_data.event) == _ERROR_EXECUTION
+        ):
+            on_error_transition = None
+
         result = self._execute_transition_content(
             enabled_transitions,
             trigger_data,
             lambda t: t.on.key,
+            on_error=on_error_transition,
             previous_configuration=previous_configuration,
             new_configuration=new_configuration,
         )
@@ -621,7 +662,7 @@ class BaseEngine:
                 target=target,
             )
 
-            logger.debug("Entering state: %s", target)
+            logger.debug("%s Entering state: %s", self._log_id, target)
             self._add_state_to_configuration(target)
 
             # Execute `onentry` handlers — each handler is a separate block per
@@ -722,7 +763,8 @@ class BaseEngine:
             default_history_content[parent_id] = [info]
             if state.id in self.sm.history_values:
                 logger.debug(
-                    "History state '%s.%s' %s restoring: '%s'",
+                    "%s History state '%s.%s' %s restoring: '%s'",
+                    self._log_id,
                     state.parent,
                     state,
                     "deep" if state.deep else "shallow",
@@ -751,7 +793,8 @@ class BaseEngine:
             else:
                 # Handle default history content
                 logger.debug(
-                    "History state '%s.%s' default content: %s",
+                    "%s History state '%s.%s' default content: %s",
+                    self._log_id,
                     state.parent,
                     state,
                     [t.target.id for t in state.transitions if t.target],

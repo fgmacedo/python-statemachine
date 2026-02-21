@@ -420,9 +420,11 @@ class TestInvokeGroup:
 
     async def test_group_cancel_on_exit(self, sm_runner):
         """Cancellation propagates: exiting state stops the group."""
+        cancel_flag = threading.Event()
 
         def slow_task():
-            time.sleep(5.0)
+            # Use interruptible wait so thread can exit promptly on cancellation.
+            cancel_flag.wait(timeout=5.0)
             return "should not complete"
 
         class SM(StateChart):
@@ -433,6 +435,7 @@ class TestInvokeGroup:
         sm = await sm_runner.start(SM)
         await sm_runner.sleep(0.05)
         await sm_runner.send(sm, "cancel")
+        cancel_flag.set()  # Unblock the slow_task thread
         await sm_runner.sleep(0.1)
 
         assert "stopped" in sm.configuration_values

@@ -90,6 +90,8 @@ python_files = ["tests.py", "test_*.py", "*_tests.py"]
 xfail_strict = true
 log_cli = true
 log_cli_level = "DEBUG"
+log_cli_format = "%(relativeCreated)6.0fms %(threadName)-18s %(name)-35s %(message)s"
+log_cli_date_format = "%H:%M:%S"
 asyncio_default_fixture_loop_scope = "module"
 
 [tool.coverage.run]
