@@ -442,10 +442,8 @@ def parse_invoke(element: ET.Element) -> InvokeDefinition:
             location = child.attrib.get("location")
             params.append(Param(name=name, expr=expr, location=location))
         elif child.tag == "content":
-            # Check for inline <scxml> element
-            scxml_child = child.find("{http://www.w3.org/2005/07/scxml}scxml")
-            if scxml_child is None:
-                scxml_child = child.find("scxml")
+            # Check for inline <scxml> element (namespaces already stripped)
+            scxml_child = child.find("scxml")
             if scxml_child is not None:
                 # Serialize the inline SCXML back to string for later parsing
                 content = ET.tostring(scxml_child, encoding="unicode")

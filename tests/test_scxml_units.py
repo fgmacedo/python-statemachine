@@ -899,6 +899,22 @@ class TestParserInvokeContent:
         invoke_def = definition.states["s1"].invocations[0]
         assert "<final" in invoke_def.content
 
+    def test_invoke_with_unknown_child_element(self):
+        """Unknown child elements inside <invoke> are silently ignored."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <state id="s1">
+            <invoke type="http://www.w3.org/TR/scxml/">
+              <param name="x" expr="1"/>
+              <unknownElement/>
+            </invoke>
+          </state>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        invoke_def = definition.states["s1"].invocations[0]
+        assert len(invoke_def.params) == 1
+
     def test_invoke_with_empty_content(self):
         """<invoke> with empty <content/> results in content=None."""
         scxml = """
