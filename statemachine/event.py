@@ -16,6 +16,24 @@ if TYPE_CHECKING:
     from .transition_list import TransitionList
 
 
+def _expand_event_id(key: str) -> str:
+    """Apply naming conventions for special event prefixes.
+
+    Converts underscore-based Python attribute names to their dot-separated
+    event equivalents. Returns a space-separated string so ``Events.add()``
+    registers both forms.
+    """
+    if key.startswith("done_invoke_"):
+        suffix = key[len("done_invoke_") :]
+        return f"{key} done.invoke.{suffix}"
+    if key.startswith("done_state_"):
+        suffix = key[len("done_state_") :]
+        return f"{key} done.state.{suffix}"
+    if key.startswith("error_"):
+        return f"{key} {key.replace('_', '.')}"
+    return key
+
+
 _event_data_kwargs = {
     "event_data",
     "machine",

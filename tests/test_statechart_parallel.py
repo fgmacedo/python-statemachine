@@ -82,10 +82,16 @@ class TestParallelStates:
         class WarWithExit(StateChart):
             class war(State.Parallel):
                 class front_a(State.Compound):
-                    fighting = State(initial=True, final=True)
+                    fighting = State(initial=True)
+                    won = State(final=True)
+
+                    win_a = fighting.to(won)
 
                 class front_b(State.Compound):
-                    holding = State(initial=True, final=True)
+                    holding = State(initial=True)
+                    held = State(final=True)
+
+                    hold_b = holding.to(held)
 
             peace = State(final=True)
             truce = war.to(peace)
@@ -191,3 +197,79 @@ class TestParallelStates:
         vals = set(sm.configuration_values)
         assert "mount_doom" in vals
         assert "ranger" in vals  # other regions unchanged
+
+    async def test_top_level_parallel_terminates_when_all_children_final(self, sm_runner):
+        """A root parallel terminates when all regions reach final states."""
+
+        class Session(StateChart):
+            class session(State.Parallel):
+                class ui(State.Compound):
+                    active = State(initial=True)
+                    closed = State(final=True)
+
+                    close_ui = active.to(closed)
+
+                class backend(State.Compound):
+                    running = State(initial=True)
+                    stopped = State(final=True)
+
+                    stop_backend = running.to(stopped)
+
+        sm = await sm_runner.start(Session)
+        assert sm.is_terminated is False
+
+        await sm_runner.send(sm, "close_ui")
+        assert sm.is_terminated is False  # one region still active
+
+        await sm_runner.send(sm, "stop_backend")
+        assert sm.is_terminated is True
+
+    async def test_top_level_parallel_done_state_fires_before_termination(self, sm_runner):
+        """done.state fires and transitions before root-final check terminates."""
+
+        class Session(StateChart):
+            class session(State.Parallel):
+                class ui(State.Compound):
+                    active = State(initial=True)
+                    closed = State(final=True)
+
+                    close_ui = active.to(closed)
+
+                class backend(State.Compound):
+                    running = State(initial=True)
+                    stopped = State(final=True)
+
+                    stop_backend = running.to(stopped)
+
+            finished = State(final=True)
+            done_state_session = session.to(finished)
+
+        sm = await sm_runner.start(Session)
+        await sm_runner.send(sm, "close_ui")
+        await sm_runner.send(sm, "stop_backend")
+        # done.state.session fires, transitions to finished, then terminates
+        assert {"finished"} == set(sm.configuration_values)
+        assert sm.is_terminated is True
+
+    async def test_top_level_parallel_not_terminated_when_one_region_pending(self, sm_runner):
+        """Machine keeps running when only one region reaches final."""
+
+        class Session(StateChart):
+            class session(State.Parallel):
+                class ui(State.Compound):
+                    active = State(initial=True)
+                    closed = State(final=True)
+
+                    close_ui = active.to(closed)
+
+                class backend(State.Compound):
+                    running = State(initial=True)
+                    stopped = State(final=True)
+
+                    stop_backend = running.to(stopped)
+
+        sm = await sm_runner.start(Session)
+        await sm_runner.send(sm, "close_ui")
+        assert sm.is_terminated is False
+        assert "closed" in sm.configuration_values
+        assert "running" in sm.configuration_values

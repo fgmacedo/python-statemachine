@@ -266,6 +266,70 @@ class TestCompoundStates:
         await sm_runner.send(sm, "darken")
         assert log == ["entered troubled times"]
 
+    async def test_done_state_inside_compound(self, sm_runner):
+        """done_state_* bare transition inside a compound body registers done.state.* event."""
+
+        class InnerDoneState(StateChart):
+            class outer(State.Compound):
+                class inner(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+
+                    finish = start.to(end)
+
+                after_inner = State(final=True)
+                done_state_inner = inner.to(after_inner)
+
+            victory = State(final=True)
+            done_state_outer = outer.to(victory)
+
+        sm = await sm_runner.start(InnerDoneState)
+        assert "start" in sm.configuration_values
+
+        await sm_runner.send(sm, "finish")
+        assert {"victory"} == set(sm.configuration_values)
+
+    async def test_done_invoke_inside_compound(self, sm_runner):
+        """done_invoke_* bare transition inside a compound registers done.invoke.* event."""
+
+        class InvokeInCompound(StateChart):
+            class wrapper(State.Compound):
+                loading = State(initial=True, invoke=lambda: 42)
+                loaded = State(final=True)
+
+                done_invoke_loading = loading.to(loaded)
+
+            done = State(final=True)
+            done_state_wrapper = wrapper.to(done)
+
+        sm = await sm_runner.start(InvokeInCompound)
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+        assert {"done"} == set(sm.configuration_values)
+
+    async def test_error_execution_inside_compound(self, sm_runner):
+        """error_execution inside a compound body registers error.execution event."""
+
+        def raise_error():
+            raise RuntimeError("boom")
+
+        class ErrorInCompound(StateChart):
+            class active(State.Compound):
+                ok = State(initial=True)
+                failing = State()
+
+                trigger = ok.to(failing, on=raise_error)
+
+                errored = State()
+                error_execution = failing.to(errored)
+
+            done = State(final=True)
+            finish = active.to(done)
+
+        sm = await sm_runner.start(ErrorInCompound)
+        await sm_runner.send(sm, "trigger")
+        assert "errored" in sm.configuration_values
+
     def test_compound_state_name_attribute(self):
         """The name= kwarg in class syntax sets the state name."""
 

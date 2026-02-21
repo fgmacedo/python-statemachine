@@ -402,6 +402,7 @@ class AsyncEngine(BaseEngine):
 
                 # Spawn invoke handlers for states entered during this macrostep.
                 await self._invoke_manager.spawn_pending_async()
+                self._check_root_final_state()
 
                 # Phase 2: remaining internal events
                 while not self.internal_queue.is_empty():  # pragma: no cover

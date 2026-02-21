@@ -118,6 +118,7 @@ class SyncEngine(BaseEngine):
 
                 # Spawn invoke handlers for states entered during this macrostep.
                 self._invoke_manager.spawn_pending_sync()
+                self._check_root_final_state()
 
                 # Process remaining internal events before external events.
                 # Note: the macrostep loop above already drains the internal queue,

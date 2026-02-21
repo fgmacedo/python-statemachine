@@ -38,7 +38,7 @@ class QuestMachine(StateChart):
     destination = State("Quest continues", final=True)
 
     depart_shire = shire.to(wilderness)
-    arrive_rivendell = wilderness.to(rivendell)  # type: ignore[arg-type]
+    arrive_rivendell = wilderness.to(rivendell)
     done_state_rivendell = rivendell.to(destination)
 
 
