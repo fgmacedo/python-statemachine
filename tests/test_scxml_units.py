@@ -868,3 +868,153 @@ class TestParserInvokeContent:
         assert "s1" in definition.states
         invoke_def = definition.states["s1"].invocations[0]
         assert "some text content" in invoke_def.content
+
+    def test_invoke_with_content_expr(self):
+        """<invoke> <content expr="..."> is parsed as dynamic content."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <state id="s1">
+            <invoke type="http://www.w3.org/TR/scxml/">
+              <content expr="'dynamic'"/>
+            </invoke>
+          </state>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        invoke_def = definition.states["s1"].invocations[0]
+        assert invoke_def.content == "'dynamic'"
+
+    def test_invoke_with_inline_scxml_no_namespace(self):
+        """<invoke> <content> with inline <scxml> (no namespace) is parsed."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <state id="s1">
+            <invoke type="http://www.w3.org/TR/scxml/">
+              <content><scxml><final id="f"/></scxml></content>
+            </invoke>
+          </state>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        invoke_def = definition.states["s1"].invocations[0]
+        assert "<final" in invoke_def.content
+
+    def test_invoke_with_empty_content(self):
+        """<invoke> with empty <content/> results in content=None."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <state id="s1">
+            <invoke type="http://www.w3.org/TR/scxml/">
+              <content/>
+            </invoke>
+          </state>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        invoke_def = definition.states["s1"].invocations[0]
+        assert invoke_def.content is None
+
+    def test_invoke_with_finalize_block(self):
+        """<invoke> with <finalize> block is parsed."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <state id="s1">
+            <invoke type="http://www.w3.org/TR/scxml/">
+              <content>child content</content>
+              <finalize>
+                <log label="finalized"/>
+              </finalize>
+            </invoke>
+          </state>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        invoke_def = definition.states["s1"].invocations[0]
+        assert invoke_def.finalize is not None
+        assert len(invoke_def.finalize.actions) == 1
+
+
+class TestParserAssignEdgeCases:
+    def test_assign_without_children_or_text(self):
+        """<assign> with neither children nor text results in expr=None."""
+        scxml = """
+        <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s1">
+          <datamodel>
+            <data id="mydata" expr="0"/>
+          </datamodel>
+          <state id="s1">
+            <onentry>
+              <assign location="mydata"/>
+            </onentry>
+            <transition event="error.execution" target="err"/>
+          </state>
+          <final id="err"/>
+        </scxml>
+        """
+        definition = parse_scxml(scxml)
+        assert "s1" in definition.states
+
+
+class TestSCXMLInvokerResolveContentAbsolutePath:
+    def test_resolve_content_absolute_path(self, tmp_path):
+        """_resolve_content with absolute src path doesn't prepend base_dir."""
+        scxml_file = tmp_path / "child.scxml"
+        scxml_file.write_text("<scxml/>")
+
+        defn = InvokeDefinition(src=str(scxml_file))
+        invoker = _make_invoker(definition=defn, base_dir="/some/other/dir")
+
+        result = invoker._resolve_content(Mock())
+        assert result == "<scxml/>"
+
+
+class TestSCXMLInvokerEvaluateParamsNoExprNoLocation:
+    def test_param_without_expr_or_location_skipped(self):
+        """_evaluate_params skips params with neither expr nor location."""
+        defn = InvokeDefinition(
+            params=[Param(name="p1", expr=None, location=None)],
+        )
+        invoker = _make_invoker(definition=defn)
+        machine = Mock(model=type("M", (), {})())
+        machine.model.__dict__ = {}
+
+        result = invoker._evaluate_params(machine)
+        assert result == {}
+
+
+class TestInvokeInitMachineNone:
+    def test_invoke_init_without_machine_is_noop(self):
+        """invoke_init does nothing when machine is not in kwargs."""
+        from statemachine.io.scxml.actions import create_invoke_init_callable
+
+        callback = create_invoke_init_callable()
+        # Call without machine kwarg — should not raise
+        callback()
+
+
+class TestInvokeCallableWrapperRunInstance:
+    def test_run_with_instance_not_class(self):
+        """_InvokeCallableWrapper.run() works with an instance (not a class)."""
+        from statemachine.invoke import _InvokeCallableWrapper
+
+        class Handler:
+            def run(self, ctx):
+                return "result"
+
+        handler_instance = Handler()
+        wrapper = _InvokeCallableWrapper(handler_instance)
+        assert not wrapper._is_class
+
+        ctx = Mock()
+        result = wrapper.run(ctx)
+        assert result == "result"
+        assert wrapper._instance is handler_instance
+
+
+class TestOrderedSetStr:
+    def test_str_representation(self):
+        """OrderedSet.__str__ returns a set-like string."""
+        from statemachine.orderedset import OrderedSet
+
+        os = OrderedSet([1, 2, 3])
+        assert str(os) == "{1, 2, 3}"
