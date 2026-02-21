@@ -159,7 +159,7 @@ class BaseEngine:
             # new error.execution is a separate event that may trigger a different
             # transition (see W3C test 152).  The infinite-loop guard lives at the
             # *microstep* level (in ``_send_error_execution``), not here.
-            self.sm.send(_ERROR_EXECUTION, error=error, internal=True)
+            BoundEvent(_ERROR_EXECUTION, internal=True, _sm=self.sm).put(error=error)
 
         return handler
 
@@ -188,7 +188,7 @@ class BaseEngine:
         if trigger_data.event and str(trigger_data.event) == _ERROR_EXECUTION:
             logger.warning("Error while processing error.execution, ignoring: %s", error)
             return
-        self.sm.send(_ERROR_EXECUTION, error=error, internal=True)
+        BoundEvent(_ERROR_EXECUTION, internal=True, _sm=self.sm).put(error=error)
 
     def start(self, **kwargs):
         if self.sm.current_state_value is not None:
