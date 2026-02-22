@@ -8,7 +8,7 @@ Contents:
 
 readme
 installation
-quickstart
+tutorial
 ```
 
 ```{toctree}

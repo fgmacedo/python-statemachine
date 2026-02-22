@@ -1,5 +1,5 @@
 
-# Quickstart
+# Tutorial
 
 This tutorial walks you through python-statemachine from your first flat state
 machine all the way to full statecharts — compound states, parallel regions,
@@ -370,11 +370,11 @@ Then generate an image at runtime:
 ...     pick_up = ready.to(picked_up)
 
 >>> order = CoffeeOrder()
->>> order._graph().write_png("docs/images/quickstart_coffeeorder.png")
+>>> order._graph().write_png("docs/images/tutorial_coffeeorder.png")
 
 ```
 
-![CoffeeOrder](images/quickstart_coffeeorder.png)
+![CoffeeOrder](images/tutorial_coffeeorder.png)
 
 Or from the command line:
 
@@ -499,6 +499,10 @@ True
 processes events independently. The machine only transitions out when
 **every** region reaches a final state.
 
+
+
+### Checking completion with `is_terminated`
+
 In a flat state machine, checking whether you've reached a specific
 final state is enough. But with compound and parallel states, completion
 depends on the structure — all regions of a parallel must finish, nested
@@ -506,6 +510,26 @@ compounds must reach their own final children, and so on. The
 `is_terminated` property handles this for you: it returns `True` only
 when the entire machine has completed its work, regardless of how deeply
 nested the structure is. Use it instead of checking individual states.
+
+A common pattern is to consume events from a queue or stream, feeding
+them to the machine until it terminates:
+
+```py
+>>> from collections import deque
+
+>>> order = CoffeeOrder()
+>>> queue = deque(["start", "brew", "heat"])
+
+>>> while not order.is_terminated and queue:
+...     order.send(queue.popleft())
+
+>>> order.is_terminated
+True
+
+```
+
+This decouples event production from consumption — the queue could come
+from a message broker, a file, user input, or any other source.
 
 
 ### History states: remember where you left off
