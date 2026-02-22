@@ -151,7 +151,7 @@ ensures the event is handled as part of the current processing cycle, while `sen
 it to after the machine reaches a stable configuration.
 
 ```{seealso}
-See {ref}`triggering-events` for examples of `send()` vs `raise_()`.
+See {ref}`sending-events` for examples of `send()` vs `raise_()`.
 ```
 
 ### Processing loop overview

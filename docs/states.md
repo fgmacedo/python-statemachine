@@ -205,41 +205,9 @@ Use `HistoryState(type="deep")` for deep history that remembers the exact leaf s
 in nested compounds.
 
 
-(configuration)=
-
-## Configuration
-
-```{versionadded} 3.0.0
-```
-
-The `configuration` property returns the set of currently active states as an
-`OrderedSet[State]`. With compound and parallel states, multiple states can be
-active simultaneously:
-
-```py
->>> from statemachine import State, StateChart
-
->>> class Journey(StateChart):
-...     class shire(State.Compound):
-...         bag_end = State(initial=True)
-...         green_dragon = State()
-...         visit_pub = bag_end.to(green_dragon)
-...     road = State(final=True)
-...     depart = shire.to(road)
-
->>> sm = Journey()
->>> {s.id for s in sm.configuration} == {"shire", "bag_end"}
-True
-
-```
-
-Use `configuration_values` for a set of the active state values (or IDs if no
-custom value is defined):
-
-```py
->>> set(sm.configuration_values) == {"shire", "bag_end"}
-True
-
+```{seealso}
+See {ref}`querying-configuration` for how to inspect which states are currently
+active at runtime.
 ```
 
 

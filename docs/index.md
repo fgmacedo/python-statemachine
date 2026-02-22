@@ -16,6 +16,7 @@ tutorial
 :maxdepth: 2
 
 concepts
+statechart
 states
 transitions
 events
@@ -31,7 +32,7 @@ listeners
 processing_model
 error_handling
 validations
-statecharts
+behaviour
 ```
 
 ```{toctree}

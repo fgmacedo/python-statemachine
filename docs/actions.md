@@ -832,7 +832,7 @@ Notice that `sm.configuration` is **empty** during the `on` callback — state
 If you need the old 2.x behavior where `sm.configuration` updates atomically
 (all exits and entries applied at once after the `on` group), set
 `atomic_configuration_update = True` on your class. See the
-[statecharts reference](statecharts.md) for details.
+[behaviour reference](behaviour.md) for details.
 ```
 
 In addition, any positional or keyword arguments you pass when triggering the

@@ -730,7 +730,7 @@ explore next:
 - **[Listeners](listeners.md)** — the observer pattern in depth
 - **[Error handling](error_handling.md)** — `error.execution` events, block-level catching, cleanup patterns
 - **[Processing model](processing_model.md)** — `send()` vs `raise_()`, microstep/macrostep, run-to-completion
-- **[StateChart vs StateMachine](statecharts.md)** — behavioral differences and migration guide
+- **[Behaviour](behaviour.md)** — `StateChart` vs `StateMachine`, behavioral flags, and migration guide
 - **[Django integration](integrations.md)** — auto-discovery, `MachineMixin` with Django models
 - **[Diagrams](diagram.md)** — CLI generation, Jupyter, SVG, DPI settings
 - **[API reference](api.md)** — full class and method reference

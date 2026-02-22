@@ -1,9 +1,3 @@
-```{testsetup}
-
->>> from statemachine import StateChart, State
-
-```
-
 (events)=
 (event)=
 # Events
@@ -13,163 +7,94 @@ New to statecharts? See [](concepts.md) for an overview of how states,
 transitions, events, and actions fit together.
 ```
 
-An event is an external signal that something has happened. Events trigger
-{ref}`transitions <transitions>`, causing the state machine to react and
-move between states.
+An **event** is a named signal that drives the state machine forward. When you
+assign a transition to a class-level name, that name becomes an event — the
+library creates an `Event` object automatically. Events are the external
+interface of your machine: callers send event names, and the machine decides
+which transitions to take.
 
 
 (declaring-events)=
 
 ## Declaring events
 
-The simplest way to declare an {ref}`event` is by assigning a transition to a
-name at the class level. The name is automatically converted to an {ref}`Event`:
+The simplest way to declare an event is by assigning a transition to a name:
 
 ```py
->>> from statemachine import Event
+>>> from statemachine import Event, State, StateChart
 
 >>> class SimpleSM(StateChart):
 ...     initial = State(initial=True)
 ...     final = State(final=True)
 ...
-...     start = initial.to(final)  # start is a name that will be converted to an `Event`
+...     start = initial.to(final)
 
 >>> isinstance(SimpleSM.start, Event)
 True
->>> sm = SimpleSM()
->>> sm.start()  # call `start` event
 
 ```
 
-```{versionadded} 2.4.0
-You can also explictly declare an {ref}`Event` instance, this helps IDEs to know that the event is callable, and also with translation strings.
-```
-
-To declare an explicit event you must also import the {ref}`Event`:
+The name `start` is automatically converted to an `Event` with
+`id="start"`. Multiple transitions can share the same event using
+the `|` operator:
 
 ```py
->>> from statemachine import Event
-
->>> class SimpleSM(StateChart):
-...     initial = State(initial=True)
-...     final = State(final=True)
-...
-...     start = Event(
-...         initial.to(final),
-...         name="Start the state machine"  # optional name, if not provided it will be derived from id
-...     )
-
->>> SimpleSM.start.name
-'Start the state machine'
-
->>> sm = SimpleSM()
->>> sm.start()  # call `start` event
-
-```
-
-### The `event` parameter on transitions
-
-Each transition accepts an optional `event` parameter that binds it to a
-specific event, overriding the default (which is the class-level attribute
-name). This lets you group transitions under one umbrella event while giving
-individual transitions their own event identifiers. The `event` parameter
-accepts a string, an `Event` instance, or a previously declared `Event`:
-
-```py
->>> from statemachine import State, StateChart, Event
-
->>> class TrafficLightMachine(StateChart):
-...     "A traffic light machine"
-...
+>>> class TrafficLight(StateChart):
 ...     green = State(initial=True)
 ...     yellow = State()
 ...     red = State()
 ...
-...     slowdown = Event(name="Slowing down")
-...
-...     cycle = Event(
-...         green.to(yellow, event=slowdown)
-...         | yellow.to(red, event=Event("stop", name="Please stop!"))
-...         | red.to(green, event="go"),
-...         name="Loop",
-...     )
-...
-...     def on_transition(self, event_data, event: Event):
-...         # The `event` parameter can be declared as `str` or `Event`, since `Event` is a subclass of `str`
-...         # Note also that in this example, we're using `on_transition` instead of `on_cycle`, as this
-...         # binds the action to run for every transition instead of a specific event ID.
-...         assert event_data.event == event
-...         return (
-...             f"Running {event.name} from {event_data.transition.source.id} to "
-...             f"{event_data.transition.target.id}"
-...         )
+...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
->>> # Event IDs
->>> TrafficLightMachine.cycle.id
-'cycle'
->>> TrafficLightMachine.slowdown.id
-'slowdown'
->>> TrafficLightMachine.stop.id
-'stop'
->>> TrafficLightMachine.go.id
-'go'
-
->>> # Event names
->>> TrafficLightMachine.cycle.name
-'Loop'
->>> TrafficLightMachine.slowdown.name
-'Slowing down'
->>> TrafficLightMachine.stop.name
-'Please stop!'
->>> TrafficLightMachine.go.name
-'go'
-
->>> sm = TrafficLightMachine()
-
->>> sm.cycle()  # Your IDE is happy because it now knows that `cycle` is callable!
-'Running Loop from green to yellow'
-
->>> sm.send("cycle")  # You can also use `send` in order to process dynamic event sources
-'Running Loop from yellow to red'
-
+>>> sm = TrafficLight()
 >>> sm.send("cycle")
-'Running Loop from red to green'
+>>> sm.yellow.is_active
+True
 
->>> sm.send("slowdown")
-'Running Slowing down from green to yellow'
+```
 
->>> sm.send("stop")
-'Running Please stop! from yellow to red'
+For better IDE support (autocompletion, type checking) or to set a
+human-readable display name, use the `Event` class explicitly:
 
->>> sm.send("go")
-'Running go from red to green'
+```py
+>>> class SimpleSM(StateChart):
+...     initial = State(initial=True)
+...     final = State(final=True)
+...
+...     start = Event(initial.to(final), name="Start the machine")
+
+>>> SimpleSM.start.name
+'Start the machine'
+
+>>> SimpleSM.start.id
+'start'
+
+```
+
+
+(event-identity)=
+
+## Event identity: `id` vs `name`
+
+Every event has two string properties:
+
+- **`id`** — the programmatic identifier, derived from the class attribute name.
+  Use this in `send()`, guards, and comparisons.
+- **`name`** — a human-readable label for display purposes. Defaults to the `id`
+  when not explicitly set.
+
+```py
+>>> TrafficLight.cycle.id
+'cycle'
+
+>>> TrafficLight.cycle.name
+'cycle'
 
 ```
 
 ```{tip}
-Avoid mixing these options within the same project; instead, choose the one that best serves your use case. Declaring events as strings has been the standard approach since the library's inception and can be considered syntactic sugar, as the state machine metaclass will convert all events to {ref}`Event` instances under the hood.
-
-```
-
-```{note}
-In order to allow the seamless upgrade from using strings to `Event` instances, the {ref}`Event` inherits from `str`.
-
-Note that this is just an implementation detail and can change in the future.
-
-    >>> isinstance(TrafficLightMachine.cycle, str)
-    True
-
-```
-
-
-```{warning}
-
-An {ref}`Event` declared as string will have its `name` set equal to its `id`. This is for backward compatibility when migrating from previous versions.
-
-In the next major release, `Event.name` will default to a capitalized version of `id` (i.e., `Event.id.replace("_", " ").capitalize()`).
-
-Starting from version 2.4.0, use `Event.id` to check for event identifiers instead of `Event.name`.
-
+Always use `event.id` for programmatic checks. The `name` property is intended
+for UI display and may change format in future versions.
 ```
 
 
@@ -178,144 +103,120 @@ Starting from version 2.4.0, use `Event.id` to check for event identifiers inste
 
 ## Triggering events
 
-There are two ways to trigger an event: **imperative** (calling the event
-directly) and **event-oriented** (using `send()`).
+Once declared, events are triggered on a {ref}`StateChart <statechart>` instance
+in two ways:
 
-The imperative style calls the event as a method:
+- **As a method call:** `sm.cycle()` — when the event name is known at
+  development time.
+- **Via `send()`:** `sm.send("cycle")` — when the event name is dynamic (e.g.,
+  from user input, a message queue, or a data file).
 
-```py
->>> machine = TrafficLightMachine()
-
->>> machine.cycle()
-'Running Loop from green to yellow'
-
->>> [s.id for s in machine.configuration]
-['yellow']
-
-```
-
-The event-oriented style uses {func}`send() <StateChart.send>`, which is
-useful for dispatching events dynamically (e.g., from external input):
-
-```py
->>> machine.send("cycle")
-'Running Loop from yellow to red'
-
->>> [s.id for s in machine.configuration]
-['red']
-
-```
-
-Both styles trigger the same processing pipeline:
-
-1. Check the current state
-2. Evaluate {ref}`guard conditions <validators and guards>`
-3. Execute {ref}`actions` on the transition and states
-4. Update the current state
-
-```py
->>> [s.id for s in machine.configuration]
-['red']
-
->>> machine.cycle()
-'Running Loop from red to green'
-
->>> [s.id for s in machine.configuration]
-['green']
-
-```
+Both styles produce the same result. The machine evaluates
+{ref}`guard conditions <validators and guards>`, executes {ref}`actions`, and
+updates the {ref}`configuration <querying-configuration>`.
 
 ```{seealso}
-See {ref}`actions` and {ref}`validators and guards` for what happens during
-each step of the processing pipeline.
+See {ref}`sending-events` for the full runtime API — `send()`, `raise_()`,
+delayed events, and cancellation.
 ```
 
 
-## `send()` vs `raise_()`
+(event-parameter)=
 
-{func}`send() <StateChart.send>` places events on the **external queue** — they
-are processed after the current macrostep completes.
+## The `event` parameter on transitions
 
-{func}`raise_() <StateChart.raise_>` places events on the **internal queue** —
-they are processed **within** the current macrostep, before any pending external
-events.
-
-Use `raise_()` inside callbacks when you want the event handled as part of the
-current processing cycle:
+Each transition accepts an optional `event` parameter that binds it to a
+specific event, overriding the default (which is the class-level attribute
+name). This lets individual transitions within a group respond to their own
+event identifiers:
 
 ```py
->>> from statemachine import State, StateChart
+>>> from statemachine import Event, State, StateChart
 
->>> class TwoStepChart(StateChart):
-...     idle = State("Idle", initial=True)
-...     step1 = State("Step 1")
-...     step2 = State("Step 2")
+>>> class TrafficLightMachine(StateChart):
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
 ...
-...     start = idle.to(step1)
-...     advance = step1.to(step2)
-...     reset = step2.to(idle)
+...     slowdown = Event(name="Slowing down")
 ...
-...     def on_enter_step1(self):
-...         self.raise_("advance")  # processed before the macrostep ends
-...
-...     def on_enter_step2(self):
-...         self.raise_("reset")
+...     cycle = Event(
+...         green.to(yellow, event=slowdown)
+...         | yellow.to(red, event="stop")
+...         | red.to(green, event="go"),
+...         name="Loop",
+...     )
 
->>> sm = TwoStepChart()
+>>> sm = TrafficLightMachine()
+
+>>> sm.send("cycle")  # umbrella event — dispatches green→yellow
+>>> sm.yellow.is_active
+True
+
+>>> sm.send("stop")   # individual event — dispatches yellow→red
+>>> sm.red.is_active
+True
+
+>>> sm.send("go")     # individual event — dispatches red→green
+>>> sm.green.is_active
+True
+
+```
+
+The `event` parameter accepts a string, an `Event` instance, a reference
+to a previously declared `Event` (like `slowdown` above), or a **list** of
+any of these. A space-separated string is also accepted and split into
+individual events automatically:
+
+```py
+>>> class MultiEvent(StateChart):
+...     a = State(initial=True)
+...     b = State(final=True)
+...
+...     # Both forms are equivalent — the transition responds to "move", "go" and "start"
+...     move = a.to(b, event=["go", "start"])
+
+>>> sm = MultiEvent()
+>>> sm.send("move")
+>>> sm.b.is_active
+True
+
+>>> sm = MultiEvent()
+>>> sm.send("go")
+>>> sm.b.is_active
+True
+
+>>> sm = MultiEvent()
 >>> sm.send("start")
->>> [s.id for s in sm.configuration]
-['idle']
+>>> sm.b.is_active
+True
 
 ```
 
-All three transitions (`start → advance → reset`) execute within a single
-macrostep.
-
-```{seealso}
-See {ref}`macrostep-microstep` for the full processing model and
-{ref}`error-execution` for using `raise_()` in error recovery patterns.
-```
-
-
-(delayed-events)=
-
-## Delayed events
-
-```{versionadded} 3.0.0
-```
-
-Events can be scheduled to fire after a delay (in milliseconds) using the
-`delay` parameter on `send()`:
-
-```python
-# Fire after 500ms
-sm.send("light_beacons", delay=500)
-
-# Define delay directly on the Event
-light = Event(dark.to(lit), delay=100)
-```
-
-Delayed events remain in the queue until their execution time arrives. They
-can be cancelled before firing by providing a `send_id` and calling
-`cancel_event()`:
-
-```python
-sm.send("light_beacons", delay=5000, send_id="beacon_signal")
-sm.cancel_event("beacon_signal")  # removed from queue
+```{tip}
+This is an advanced feature. Most state machines only need the simple
+`name = source.to(target)` form. Use the `event` parameter when you need
+fine-grained control over event routing within a composite transition group.
 ```
 
 
 (done-state-events)=
 
-## `done.state` events
+## Automatic events
+
+The engine generates certain events automatically in response to structural
+changes. You don't send these yourself — you define transitions that react
+to them.
+
+
+### `done.state` events
 
 ```{versionadded} 3.0.0
 ```
 
 When a {ref}`compound state's <compound-states>` final child is entered, the
-engine automatically queues a `done.state.{parent_id}` internal event. You
-can define transitions for this event to react when a compound's work is
-complete:
+engine queues a `done.state.{parent_id}` internal event. Define a transition
+for this event to react when a compound's work is complete:
 
 ```py
 >>> from statemachine import State, StateChart
@@ -334,8 +235,6 @@ complete:
 True
 
 ```
-
-### `done.state` in parallel states
 
 For {ref}`parallel states <parallel-states>`, the `done.state` event fires
 only when **all** regions have reached a final state:
@@ -367,12 +266,13 @@ True
 
 ```
 
-### DoneData
+(donedata)=
+
+#### DoneData
 
 Final states can carry data to their `done.state` handlers via the `donedata`
-parameter. The `donedata` value should be a callable (or method name string)
-that returns a `dict`. The returned dict is passed as keyword arguments to the
-`done.state` transition handler:
+parameter. The value should be a callable (or method name string) that returns
+a `dict`, which is forwarded as keyword arguments to the transition handler:
 
 ```py
 >>> from statemachine import Event, State, StateChart
@@ -397,83 +297,17 @@ that returns a `dict`. The returned dict is passed as keyword arguments to the
 ```
 
 ```{note}
-`donedata` can only be specified on `final=True` states. Attempting to use it on a
-non-final state raises `InvalidDefinition`.
+`donedata` can only be specified on `final=True` states. Attempting to use it
+on a non-final state raises `InvalidDefinition`.
 ```
 
 
-(done-state-convention)=
+### `error.execution` events
 
-### The `done_state_` naming convention
-
-Since Python identifiers cannot contain dots, the library provides a naming
-convention: any event attribute starting with `done_state_` automatically
-matches both the underscore form and the dot-notation form.
-
-Unlike the `error_` convention (which replaces all underscores with dots),
-`done_state_` only replaces the prefix, keeping the suffix unchanged. This
-ensures that multi-word state names are preserved correctly:
-
-| Attribute name                | Matches                                           |
-|-------------------------------|---------------------------------------------------|
-| `done_state_quest`            | `"done_state_quest"` and `"done.state.quest"`     |
-| `done_state_lonely_mountain`  | `"done_state_lonely_mountain"` and `"done.state.lonely_mountain"` |
-
-```py
->>> from statemachine import State, StateChart
-
->>> class QuestForErebor(StateChart):
-...     class lonely_mountain(State.Compound):
-...         approach = State(initial=True)
-...         inside = State(final=True)
-...         enter_mountain = approach.to(inside)
-...     victory = State(final=True)
-...     done_state_lonely_mountain = lonely_mountain.to(victory)
-
->>> sm = QuestForErebor()
->>> sm.send("enter_mountain")
->>> set(sm.configuration_values) == {"victory"}
-True
-
-```
-
-The convention works with bare transitions, `TransitionList`, and `Event` objects
-without an explicit `id`:
-
-```py
->>> from statemachine import Event, State, StateChart
-
->>> class QuestWithEvent(StateChart):
-...     class quest(State.Compound):
-...         traveling = State(initial=True)
-...         arrived = State(final=True)
-...         finish = traveling.to(arrived)
-...     celebration = State(final=True)
-...     done_state_quest = Event(quest.to(celebration))
-
->>> sm = QuestWithEvent()
->>> sm.send("finish")
->>> set(sm.configuration_values) == {"celebration"}
-True
-
-```
-
-```{note}
-If you provide an explicit `id=` parameter, it takes precedence and the naming
-convention is not applied.
-```
-
-
-## Error events
-
-When a callback raises during a macrostep and {ref}`error_on_execution <error-execution>` is enabled,
-the engine dispatches an `error.execution` internal event. You can define
-transitions for this event to recover from errors within the statechart itself.
-
-Since Python identifiers cannot contain dots, the library provides the `error_`
-prefix naming convention: any event attribute starting with `error_` automatically
-matches both the underscore form and the dot-notation form. For example,
-`error_execution` matches both `"error_execution"` and `"error.execution"`.
+When a callback raises during a macrostep and
+{ref}`error_on_execution <behaviour>` is enabled, the engine dispatches an
+`error.execution` internal event. Define a transition for this event to
+recover from errors within the statechart:
 
 ```py
 >>> from statemachine import State, StateChart
@@ -498,4 +332,42 @@ True
 ```{seealso}
 See {ref}`error-execution` for the full error handling reference: recovery
 patterns, `after` as a finalize hook, and nested error scenarios.
+```
+
+
+(naming-conventions)=
+
+## Dot-notation naming conventions
+
+SCXML uses dot-separated event names (`done.state.quest`, `error.execution`),
+but Python identifiers cannot contain dots. The library provides prefix-based
+naming conventions that automatically register both forms:
+
+(done-state-convention)=
+
+### `done_state_` prefix
+
+Any event attribute starting with `done_state_` matches both the underscore
+form and the dot-notation form. Only the prefix is replaced — the suffix is
+kept as-is, preserving multi-word state names:
+
+| Attribute name                | Matches event names |
+|-------------------------------|---------------------|
+| `done_state_quest`            | `"done_state_quest"` and `"done.state.quest"` |
+| `done_state_lonely_mountain`  | `"done_state_lonely_mountain"` and `"done.state.lonely_mountain"` |
+
+
+### `error_` prefix
+
+Any event attribute starting with `error_` matches both the underscore form
+and the dot-notation form. Unlike `done_state_`, **all** underscores after
+the prefix are replaced with dots:
+
+| Attribute name       | Matches event names |
+|----------------------|---------------------|
+| `error_execution`    | `"error_execution"` and `"error.execution"` |
+
+```{note}
+If you provide an explicit `id=` parameter on the `Event`, it takes precedence
+and the naming convention is not applied.
 ```
