@@ -99,6 +99,7 @@ class BaseEngine:
         self._macrostep_count: int = 0
         self._microstep_count: int = 0
         self._log_id = f"[{type(sm).__name__}]"
+        self._root_parallel_final_pending: "State | None" = None
 
     def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
@@ -614,6 +615,8 @@ class BaseEngine:
                     BoundEvent(f"done.state.{grandparent.id}", _sm=self.sm, internal=True).put(
                         *donedata_args, **donedata_kwargs
                     )
+                    if grandparent.parent is None:
+                        self._root_parallel_final_pending = grandparent
 
     def _enter_states(  # noqa: C901
         self,
@@ -907,6 +910,29 @@ class BaseEngine:
                             states_for_default_entry,
                             default_history_content,
                         )
+
+    def _check_root_final_state(self):
+        """SCXML spec: terminate when the root configuration is final.
+
+        For top-level parallel states, the machine terminates when all child
+        regions have reached their final states — equivalent to the SCXML
+        algorithm's ``isInFinalState(scxml_element)`` check.
+
+        Uses a flag set by ``_handle_final_state`` (Information Expert) to
+        avoid re-scanning top-level states on every macrostep.  The flag is
+        deferred because ``done.state`` events queued by ``_handle_final_state``
+        may trigger transitions that exit the parallel, so we verify the
+        parallel is still in the configuration before terminating.
+        """
+        state = self._root_parallel_final_pending
+        if state is None:
+            return
+        self._root_parallel_final_pending = None
+        # A done.state transition may have exited the parallel; verify it's
+        # still in the configuration before terminating.
+        if state in self.sm.configuration and self.is_in_final_state(state):
+            self._invoke_manager.cancel_all()
+            self.running = False
 
     def is_in_final_state(self, state: State) -> bool:
         if state.is_compound:

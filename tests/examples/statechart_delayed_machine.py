@@ -100,7 +100,7 @@ class BeaconsMachine(StateChart):
     city_falls = State("Minas Tirith has fallen!", final=True)
 
     # External event to kick off the quest
-    start = idle.to(quest)  # type: ignore[arg-type]
+    start = idle.to(quest)
 
     # Eventless transitions -- checked automatically each macrostep
     quest.to(rohan_rides, cond="In('rohan_reached')")

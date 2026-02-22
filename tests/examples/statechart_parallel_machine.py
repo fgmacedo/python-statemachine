@@ -44,7 +44,7 @@ class WarMachine(StateChart):
             ride_to_gondor = rohan.to(gondor)
 
     peace = State("Peace in Middle-earth", final=True)
-    done_state_war = war.to(peace)  # type: ignore[arg-type]
+    done_state_war = war.to(peace)
 
 
 # %%

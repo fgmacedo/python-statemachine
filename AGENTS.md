@@ -180,7 +180,8 @@ uv run mypy statemachine/ tests/
 
 - **Formatter/Linter:** ruff (line length 99, target Python 3.9)
 - **Rules:** pycodestyle, pyflakes, isort, pyupgrade, flake8-comprehensions, flake8-bugbear, flake8-pytest-style
-- **Imports:** single-line, sorted by isort
+- **Imports:** single-line, sorted by isort. **Always prefer top-level imports** — only use
+  lazy (in-function) imports when strictly necessary to break circular dependencies
 - **Docstrings:** Google convention
 - **Naming:** PascalCase for classes, snake_case for functions/methods, UPPER_SNAKE_CASE for constants
 - **Type hints:** used throughout; `TYPE_CHECKING` for circular imports
@@ -188,13 +189,19 @@ uv run mypy statemachine/ tests/
 
 ## Design principles
 
-- **Follow SOLID principles.** In particular:
+- **Use GRASP/SOLID patterns to guide decisions.** When refactoring or designing, explicitly
+  apply patterns like Information Expert, Single Responsibility, and Law of Demeter to decide
+  where logic belongs — don't just pick a convenient location.
+  - **Information Expert (GRASP):** Place logic in the module/class that already has the
+    knowledge it needs. If a method computes a result, it should signal or return it rather
+    than forcing another method to recompute the same thing.
   - **Law of Demeter:** Methods should depend only on the data they need, not on the
     objects that contain it. Pass the specific value (e.g., a `Future`) rather than the
     parent object (e.g., `TriggerData`) — this reduces coupling and removes the need for
     null-checks on intermediate accessors.
   - **Single Responsibility:** Each module, class, and function should have one clear reason
-    to change.
+    to change. Functions and types belong in the module that owns their domain (e.g.,
+    event-name helpers belong in `event.py`, not in `factory.py`).
   - **Interface Segregation:** Depend on narrow interfaces. If a helper only needs one field
     from a dataclass, accept that field directly.
 - **Decouple infrastructure from domain:** Modules like `signature.py` and `dispatcher.py` are

@@ -4,11 +4,13 @@ from typing import Any
 from typing import Dict
 from typing import Generator
 from typing import List
+from typing import cast
 from weakref import ref
 
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .event import _expand_event_id
 from .exceptions import InvalidDefinition
 from .exceptions import StateMachineError
 from .i18n import _
@@ -32,8 +34,10 @@ class _TransitionBuilder:
 
 
 class _ToState(_TransitionBuilder):
-    def __call__(self, *states: "State | None", **kwargs):
-        transitions = TransitionList(Transition(self._state, state, **kwargs) for state in states)
+    def __call__(self, *states: "State | NestedStateFactory | None", **kwargs):
+        transitions = TransitionList(
+            Transition(self._state, cast("State | None", state), **kwargs) for state in states
+        )
         self._state.transitions.add_transitions(transitions)
         return transitions
 
@@ -43,11 +47,12 @@ class _FromState(_TransitionBuilder):
         """Create transitions from all non-final states (reversed)."""
         return self.__call__(AnyState(), **kwargs)
 
-    def __call__(self, *states: "State", **kwargs):
+    def __call__(self, *states: "State | NestedStateFactory", **kwargs):
         transitions = TransitionList()
         for origin in states:
-            transition = Transition(origin, self._state, **kwargs)
-            origin.transitions.add_transitions(transition)
+            state = cast(State, origin)
+            transition = Transition(state, self._state, **kwargs)
+            state.transitions.add_transitions(transition)
             transitions.add_transitions(transition)
         return transitions
 
@@ -78,7 +83,7 @@ class NestedStateFactory(type):
                 value._set_id(key)
                 states.append(value)
             elif isinstance(value, TransitionList):
-                value.add_event(key)
+                value.add_event(_expand_event_id(key))
             elif callable(value):
                 callbacks[key] = value
 
@@ -87,7 +92,7 @@ class NestedStateFactory(type):
         )
 
     @classmethod
-    def to(cls, *args: "State", **kwargs) -> "_ToState":  # pragma: no cover
+    def to(cls, *args: "State | NestedStateFactory", **kwargs) -> "_ToState":  # pragma: no cover
         """Create transitions to the given target states.
         .. note: This method is only a type hint for mypy.
             The actual implementation belongs to the :ref:`State` class.
@@ -95,7 +100,9 @@ class NestedStateFactory(type):
         return _ToState(State())
 
     @classmethod
-    def from_(cls, *args: "State", **kwargs) -> "_FromState":  # pragma: no cover
+    def from_(  # pragma: no cover
+        cls, *args: "State | NestedStateFactory", **kwargs
+    ) -> "_FromState":
         """Create transitions from the given target states (reversed).
         .. note: This method is only a type hint for mypy.
             The actual implementation belongs to the :ref:`State` class.

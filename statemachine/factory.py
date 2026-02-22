@@ -9,6 +9,7 @@ from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .event import Event
+from .event import _expand_event_id
 from .exceptions import InvalidDefinition
 from .graph import disconnected_states
 from .graph import iterate_states
@@ -271,29 +272,13 @@ class StateMachineMetaclass(type):
             if isinstance(value, State):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
-                event_id = key
-                if key.startswith("error_"):
-                    event_id = f"{key} {key.replace('_', '.')}"
-                elif key.startswith("done_invoke_"):
-                    suffix = key[len("done_invoke_") :]
-                    event_id = f"{key} done.invoke.{suffix}"
-                elif key.startswith("done_state_"):
-                    suffix = key[len("done_state_") :]
-                    event_id = f"{key} done.state.{suffix}"
+                event_id = _expand_event_id(key)
                 cls.add_event(event=Event(transitions=value, id=event_id, name=key))
             elif isinstance(value, (Event,)):
                 if value._has_real_id:
                     event_id = value.id
-                elif key.startswith("error_"):
-                    event_id = f"{key} {key.replace('_', '.')}"
-                elif key.startswith("done_invoke_"):
-                    suffix = key[len("done_invoke_") :]
-                    event_id = f"{key} done.invoke.{suffix}"
-                elif key.startswith("done_state_"):
-                    suffix = key[len("done_state_") :]
-                    event_id = f"{key} done.state.{suffix}"
                 else:
-                    event_id = key
+                    event_id = _expand_event_id(key)
                 new_event = Event(
                     transitions=value._transitions,
                     id=event_id,
