@@ -53,9 +53,6 @@ True
 >>> order.picked_up.is_active
 True
 
->>> order.is_terminated
-True
-
 ```
 
 You can also call events as methods — `order.start()` is equivalent to
@@ -486,8 +483,14 @@ True
 >>> "drink_done" in order.configuration_values and "heating" in order.configuration_values
 True
 
+>>> order.is_terminated  # drink region finished, but snack hasn't
+False
+
 >>> order.send("heat")  # both done — auto-transitions to picked_up
 >>> order.picked_up.is_active
+True
+
+>>> order.is_terminated
 True
 
 ```
@@ -495,6 +498,14 @@ True
 `State.Parallel` activates all child regions at once. Each region
 processes events independently. The machine only transitions out when
 **every** region reaches a final state.
+
+In a flat state machine, checking whether you've reached a specific
+final state is enough. But with compound and parallel states, completion
+depends on the structure — all regions of a parallel must finish, nested
+compounds must reach their own final children, and so on. The
+`is_terminated` property handles this for you: it returns `True` only
+when the entire machine has completed its work, regardless of how deeply
+nested the structure is. Use it instead of checking individual states.
 
 
 ### History states: remember where you left off
