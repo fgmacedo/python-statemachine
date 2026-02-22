@@ -1,6 +1,8 @@
 
 # Integrations
 
+(django integration)=
+(machinemixin)=
 ## Django integration
 
 When used in a Django App, this library implements an auto-discovery hook similar to how Django's

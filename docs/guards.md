@@ -14,6 +14,7 @@ for all the available callbacks, being validators and guards or {ref}`actions`.
 ```
 
 (guards)=
+(conditions)=
 ## Conditions
 
 This feature is also known as a **Conditional Transition**.
@@ -71,6 +72,7 @@ unless
 * Single condition: `unless="condition"` / `unless="<condition expression>"`
 * Multiple conditions: `unless=["condition1", "condition2"]`
 
+(condition expressions)=
 ### Condition expressions
 
 This library supports a mini-language for boolean expressions in conditions, allowing the definition of guards that control transitions based on specified criteria. It includes basic [boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra) operators, parentheses for controlling precedence, and **names** that refer to attributes on the state machine, its associated model, or registered {ref}`Listeners`.
@@ -159,6 +161,7 @@ So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an emp
 **falsy** value.
 ```
 
+(checking enabled events)=
 ### Checking enabled events
 
 The {ref}`StateChart.allowed_events` property returns events reachable from the current state,
@@ -232,6 +235,7 @@ has all conditions satisfied. If a condition raises an exception, the event is t
 enabled (permissive behavior).
 ```
 
+(validators)=
 ## Validators
 
 

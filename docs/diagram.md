@@ -1,3 +1,5 @@
+(diagram)=
+(diagrams)=
 # Diagrams
 
 You can generate diagrams from your {ref}`StateChart`.

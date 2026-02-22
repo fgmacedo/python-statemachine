@@ -3,30 +3,58 @@
 Contents:
 
 ```{toctree}
+:caption: Getting started
 :maxdepth: 2
 
 readme
 installation
+quickstart
+```
+
+```{toctree}
+:caption: Core Concepts
+:maxdepth: 2
+
+concepts
 states
 transitions
+events
 actions
 guards
-models
 listeners
+```
+
+```{toctree}
+:caption: Engine
+:maxdepth: 2
+
+processing_model
+error_handling
+validations
+statecharts
+```
+
+```{toctree}
+:caption: Advanced
+:maxdepth: 2
+
 async
-mixins
+invoke
+models
 integrations
 diagram
 weighted_transitions
-processing_model
-invoke
-statecharts
+```
+
+```{toctree}
+:caption: Reference
+:maxdepth: 2
+
 api
 auto_examples/index
 contributing
 authors
 releases/index
-
 ```
 
 ## Indices and tables

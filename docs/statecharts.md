@@ -1,4 +1,6 @@
 (statecharts)=
+(statechart)=
+(statemachine)=
 # Statecharts
 
 Statecharts are a powerful extension to state machines that add hierarchy and concurrency.

@@ -1,3 +1,4 @@
+(async)=
 # Async
 
 ```{versionadded} 2.3.0
@@ -68,10 +69,12 @@ Reuses external loop
 All handlers will run on the same thread they are called. Therefore, mixing synchronous and asynchronous code is not recommended unless you are confident in your implementation.
 ```
 
+(syncengine)=
 ### SyncEngine
 Activated if there are no async callbacks. All code runs exactly as it did before version 2.3.0.
 There's no event loop.
 
+(asyncengine)=
 ### AsyncEngine
 Activated if there is at least one async callback. The code runs asynchronously and requires a running event loop, which it will create if none exists.
 

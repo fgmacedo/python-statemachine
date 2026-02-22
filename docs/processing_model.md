@@ -1,4 +1,5 @@
 (processing-model)=
+(processing model)=
 
 # Processing model
 
@@ -49,6 +50,8 @@ Consider this state machine:
 ```
 
 (rtc-model)=
+(rtc model)=
+(non-rtc model)=
 
 ## RTC model
 

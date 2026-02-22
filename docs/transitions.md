@@ -1,80 +1,173 @@
 (transitions)=
+(transition)=
 
 ```{testsetup}
 
 >>> from statemachine import StateChart, State
 
->>> from tests.examples.traffic_light_machine import TrafficLightMachine
+```
+
+# Transitions
+
+```{seealso}
+New to statecharts? See [](concepts.md) for an overview of how states,
+transitions, events, and actions fit together.
+```
+
+A transition describes a valid state change: it connects a **source** state to
+a **target** state and is triggered by an {ref}`event <events>`. Transitions
+can carry {ref}`actions` (side-effects) and {ref}`conditions <validators and guards>` that
+control whether the transition fires.
+
+
+## Declaring transitions
+
+The most common way to declare a transition is to link states directly using
+the `source.to(target)` syntax and assign the result to a class attribute —
+the attribute name becomes the event that triggers the transition:
+
+```py
+>>> class SimpleSM(StateChart):
+...     draft = State(initial=True)
+...     published = State(final=True)
+...
+...     publish = draft.to(published)
+
+>>> sm = SimpleSM()
+>>> sm.send("publish")
+>>> "published" in sm.configuration_values
+True
 
 ```
 
-# Transitions and events
 
-A state machine is typically composed of a set of {ref}`state`, {ref}`transition`, {ref}`event`,
-and {ref}`actions`. A state is a representation of the system's current condition or behavior.
-A transition represents the change in the system's state in response to an event or condition.
-An event is a trigger that causes the system to transition from one state to another, and action
-is any side-effect, which is the way a StateChart can cause things to happen in the
-outside world.
+### `target.from_(source)`
 
+You can also declare the transition from the target's perspective:
 
-Consider this traffic light machine as an example:
+```py
+>>> class SimpleSM(StateChart):
+...     draft = State(initial=True)
+...     review = State()
+...     published = State(final=True)
+...
+...     submit = review.from_(draft)
+...     publish = published.from_(review)
 
-![TrafficLightMachine](images/traffic_light_machine.png)
-
-
-There're three transitions, one starting from green to yellow, another from
-yellow to red, and another from red back to green. All these transitions
-are triggered by the same {ref}`event` called `cycle`.
-
-This state machine could be expressed in `python-statemachine` as:
-
-```{literalinclude} ../tests/examples/traffic_light_machine.py
-:language: python
-:linenos:
-:emphasize-lines: 12
-:start-at: from statemachine
-:end-before: "# %%"
-```
-
-In line 12, you can say that this code defines three transitions:
-
-* `green.to(yellow)`
-* `yellow.to(red)`
-* `red.to(green)`
-
-And these transitions are assigned to the {ref}`event` `cycle` defined at the class level.
-
-```{note}
-
-In fact, before the full class body is evaluated, the assigments of transitions are instances of [](statemachine.transition_list.TransitionList). When the state machine is evaluated by our custom [metaclass](https://docs.python.org/3/reference/datamodel.html#metaclasses), these names will be transformed into {ref}`Event` instances.
+>>> sm = SimpleSM()
+>>> sm.send("submit")
+>>> sm.send("publish")
+>>> "published" in sm.configuration_values
+True
 
 ```
 
-## Transitions
 
-In an executing state machine, a {ref}`transition` is a transfer from one state to another. In a {ref}`statemachine`, a {ref}`transition` tells us what happens when an {ref}`event` occurs.
+### Multiple sources or targets
 
+Both `.to()` and `.from_()` accept multiple states. Each pair creates a
+separate transition under the same event — the first transition whose
+conditions are met wins:
 
-A transition can define {ref}`actions` that will be executed whenever that transition
-is executed.
+```py
+>>> class Router(StateChart):
+...     start = State(initial=True)
+...     a = State(final=True)
+...     b = State(final=True)
+...
+...     route = start.to(a, cond="go_a") | start.to(b, cond="go_b")
+...
+...     def __init__(self, choice="a"):
+...         self.choice = choice
+...         super().__init__()
+...     def go_a(self):
+...         return self.choice == "a"
+...     def go_b(self):
+...         return self.choice == "b"
 
-Transitions can have {ref}`conditions` allowing you to specify when a
-transition may be executed.
+>>> sm = Router(choice="b")
+>>> sm.send("route")
+>>> "b" in sm.configuration_values
+True
 
-An action associated with an event (before, on, after), will be assigned to all transitions
-bounded that uses the event as trigger.
-
-
-```{hint}
-Usually you don't need to import and use a {ref}`transition` class directly in your code,
-one of the most powerful features of this library is how transitions and events can be expressed
-linking directly from/to {ref}`state` instances.
 ```
+
+Multiple sources with `.from_()`:
+
+```py
+>>> class Merge(StateChart):
+...     a = State(initial=True)
+...     b = State()
+...     done = State(final=True)
+...
+...     go = a.to(b)
+...     finish = done.from_(a, b)
+
+```
+
+
+### `target.from_.any()`
+
+Creates a transition from **every non-final state** to the target — useful for
+global events like "cancel" that should be reachable from anywhere:
+
+```py
+>>> class OrderWorkflow(StateChart):
+...     pending = State(initial=True)
+...     processing = State()
+...     completed = State(final=True)
+...     cancelled = State(final=True)
+...
+...     process = pending.to(processing)
+...     complete = processing.to(completed)
+...     cancel = cancelled.from_.any()
+
+>>> sm = OrderWorkflow()
+>>> sm.send("cancel")
+>>> "cancelled" in sm.configuration_values
+True
+
+```
+
+
+### Combining transitions with `|`
+
+The `|` operator merges transition lists under a single event:
+
+```py
+>>> class TrafficLight(StateChart):
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
+...
+...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+>>> sm = TrafficLight()
+>>> sm.send("cycle")
+>>> "yellow" in sm.configuration_values
+True
+
+```
+
+
+### Transition parameters
+
+| Parameter | Description |
+|---|---|
+| `on` | Action callback(s) to run during the transition. See {ref}`transition-actions`. |
+| `before` | Callback(s) to run before exit/on/enter. |
+| `after` | Callback(s) to run after the transition completes. |
+| `cond` | Guard condition(s). See {ref}`validators and guards`. |
+| `unless` | Negative guard — transition fires when this returns `False`. |
+| `validators` | Validation callback(s) that raise on failure. |
+| `event` | Override the event that triggers this transition. See {ref}`declaring-events`. |
+| `internal` | If `True`, no exit/enter actions fire. See {ref}`internal transition`. |
+
 
 (self-transition)=
+(self transition)=
 
-### Self transition
+## Self transition
 
 A transition that goes from a state to itself.
 
@@ -88,7 +181,10 @@ TransitionList([Transition('Draft', 'Draft', event=[], internal=False, initial=F
 
 ```
 
-### Internal transition
+(internal transition)=
+(internal-transition)=
+
+## Internal transition
 
 It's like a {ref}`self transition`.
 
@@ -164,270 +260,9 @@ the event name is used to describe the transition.
 
 ```
 
-## Events
-
-An event is an external signal that something has happened.
-They are sent to a state machine and allow the state machine to react.
-
-An event starts a {ref}`transition`, which can be thought of as a "cause" that
-initiates a change in the state of the system.
-
-In `python-statemachine`, an event is specified as an attribute of the state machine class declaration or directly on the {ref}`event` parameter on a {ref}`transition`.
-
-
-### Declaring events
-
-The simplest way to declare an {ref}`event` is by assigning a transitions list to a name at the
-State machine class level. The name will be converted to an {ref}`Event`:
-
-```py
->>> from statemachine import Event
-
->>> class SimpleSM(StateChart):
-...     initial = State(initial=True)
-...     final = State(final=True)
-...
-...     start = initial.to(final)  # start is a name that will be converted to an `Event`
-
->>> isinstance(SimpleSM.start, Event)
-True
->>> sm = SimpleSM()
->>> sm.start()  # call `start` event
-
-```
-
-```{versionadded} 2.4.0
-You can also explictly declare an {ref}`Event` instance, this helps IDEs to know that the event is callable, and also with translation strings.
-```
-
-To declare an explicit event you must also import the {ref}`Event`:
-
-```py
->>> from statemachine import Event
-
->>> class SimpleSM(StateChart):
-...     initial = State(initial=True)
-...     final = State(final=True)
-...
-...     start = Event(
-...         initial.to(final),
-...         name="Start the state machine"  # optional name, if not provided it will be derived from id
-...     )
-
->>> SimpleSM.start.name
-'Start the state machine'
-
->>> sm = SimpleSM()
->>> sm.start()  # call `start` event
-
-```
-
-An {ref}`Event` instance or an event id string can also be used as the `event` parameter of a {ref}`transition`. So you can mix these options as you need.
-
-```py
->>> from statemachine import State, StateChart, Event
-
->>> class TrafficLightMachine(StateChart):
-...     "A traffic light machine"
-...
-...     green = State(initial=True)
-...     yellow = State()
-...     red = State()
-...
-...     slowdown = Event(name="Slowing down")
-...
-...     cycle = Event(
-...         green.to(yellow, event=slowdown)
-...         | yellow.to(red, event=Event("stop", name="Please stop!"))
-...         | red.to(green, event="go"),
-...         name="Loop",
-...     )
-...
-...     def on_transition(self, event_data, event: Event):
-...         # The `event` parameter can be declared as `str` or `Event`, since `Event` is a subclass of `str`
-...         # Note also that in this example, we're using `on_transition` instead of `on_cycle`, as this
-...         # binds the action to run for every transition instead of a specific event ID.
-...         assert event_data.event == event
-...         return (
-...             f"Running {event.name} from {event_data.transition.source.id} to "
-...             f"{event_data.transition.target.id}"
-...         )
-
->>> # Event IDs
->>> TrafficLightMachine.cycle.id
-'cycle'
->>> TrafficLightMachine.slowdown.id
-'slowdown'
->>> TrafficLightMachine.stop.id
-'stop'
->>> TrafficLightMachine.go.id
-'go'
-
->>> # Event names
->>> TrafficLightMachine.cycle.name
-'Loop'
->>> TrafficLightMachine.slowdown.name
-'Slowing down'
->>> TrafficLightMachine.stop.name
-'Please stop!'
->>> TrafficLightMachine.go.name
-'go'
-
->>> sm = TrafficLightMachine()
-
->>> sm.cycle()  # Your IDE is happy because it now knows that `cycle` is callable!
-'Running Loop from green to yellow'
-
->>> sm.send("cycle")  # You can also use `send` in order to process dynamic event sources
-'Running Loop from yellow to red'
-
->>> sm.send("cycle")
-'Running Loop from red to green'
-
->>> sm.send("slowdown")
-'Running Slowing down from green to yellow'
-
->>> sm.send("stop")
-'Running Please stop! from yellow to red'
-
->>> sm.send("go")
-'Running go from red to green'
-
-```
-
-```{tip}
-Avoid mixing these options within the same project; instead, choose the one that best serves your use case. Declaring events as strings has been the standard approach since the library’s inception and can be considered syntactic sugar, as the state machine metaclass will convert all events to {ref}`Event` instances under the hood.
-
-```
-
-```{note}
-In order to allow the seamless upgrade from using strings to `Event` instances, the {ref}`Event` inherits from `str`.
-
-Note that this is just an implementation detail and can change in the future.
-
-    >>> isinstance(TrafficLightMachine.cycle, str)
-    True
-
-```
-
-
-```{warning}
-
-An {ref}`Event` declared as string will have its `name` set equal to its `id`. This is for backward compatibility when migrating from previous versions.
-
-In the next major release, `Event.name` will default to a capitalized version of `id` (i.e., `Event.id.replace("_", " ").capitalize()`).
-
-Starting from version 2.4.0, use `Event.id` to check for event identifiers instead of `Event.name`.
-
-```
-
-
-(triggering-events)=
-
-### Triggering events
-
-Triggering an event on a state machine means invoking or sending a signal, initiating the
-process that may result in executing a transition.
-
-This process usually involves
-
-1. checking the current state
-1. evaluating any guard conditions
-associated with the transition
-1. executing any actions associated with the transition and (current and target) states
-1. finally updating the current state.
-
-```{seealso}
-See {ref}`actions` and {ref}`validators and guards`.
-```
-
-You can invoke the event in an imperative syntax:
-
-```py
->>> machine = TrafficLightMachine()
-
->>> machine.cycle()
-'Running Loop from green to yellow'
-
->>> [s.id for s in machine.configuration]
-['yellow']
-
-```
-
-Or in an event-oriented style, events are `send`:
-
-```py
->>> machine.send("cycle")
-'Running Loop from yellow to red'
-
->>> [s.id for s in machine.configuration]
-['red']
-
-```
-
-This action is executed before the transition associated with `cycle` event is activated.
-You can raise an exception at this point to stop a transition from completing.
-
-```py
->>> [s.id for s in machine.configuration]
-['red']
-
->>> machine.cycle()
-'Running Loop from red to green'
-
->>> [s.id for s in machine.configuration]
-['green']
-
-```
-
-#### External vs internal events
-
-{func}`send() <StateMachine.send>` places events on the **external queue**. External events
-are only processed after the current macrostep completes (i.e., after all eventless and
-internal events have been handled).
-
-{func}`raise_() <StateMachine.raise_>` places events on the **internal queue**. Internal
-events are processed **immediately** within the current macrostep, before any pending external
-events. This is equivalent to calling `send(..., internal=True)`.
-
-Use `raise_()` inside callbacks when you want the event to be handled as part of the current
-processing cycle — for example, to trigger auto-recovery after an error or to chain
-transitions atomically:
-
-```py
->>> from statemachine import State, StateChart
-
->>> class TwoStepChart(StateChart):
-...     idle = State("Idle", initial=True)
-...     step1 = State("Step 1")
-...     step2 = State("Step 2")
-...
-...     start = idle.to(step1)
-...     advance = step1.to(step2)
-...     reset = step2.to(idle)
-...
-...     def on_enter_step1(self):
-...         self.raise_("advance")  # processed before the macrostep ends
-...
-...     def on_enter_step2(self):
-...         self.raise_("reset")
-
->>> sm = TwoStepChart()
->>> sm.send("start")
->>> [s.id for s in sm.configuration]
-['idle']
-
-```
-
-All three transitions (`start → advance → reset`) are processed within a single macrostep.
-
-```{seealso}
-See {ref}`error-execution` for using `raise_()` in error recovery patterns.
-```
-
 (eventless)=
 
-### Eventless (automatic) transitions
+## Eventless (automatic) transitions
 
 ```{versionadded} 3.0.0
 ```
@@ -466,12 +301,12 @@ The eventless transition from `resisting` to `corrupted` fires automatically aft
 the third `bear_ring` event pushes `ring_power` past the threshold.
 
 ```{seealso}
-See {ref}`eventless-transitions` for chains, compound interactions, and `In()` guards.
+See {ref}`continuous-machines` for chains, compound interactions, and `In()` guards.
 ```
 
 (cross-boundary-transitions)=
 
-### Cross-boundary transitions
+## Cross-boundary transitions
 
 ```{versionadded} 3.0.0
 ```
@@ -540,7 +375,7 @@ True
 
 (transition-priority)=
 
-### Transition priority in compound states
+## Transition priority in compound states
 
 ```{versionadded} 3.0.0
 ```
