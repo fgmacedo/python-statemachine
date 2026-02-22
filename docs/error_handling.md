@@ -193,6 +193,6 @@ See the full working example in {ref}`sphx_glr_auto_examples_statechart_cleanup_
 
 
 ```{seealso}
-See {ref}`statecharts` for the full comparison of `StateChart` behavioral
+See {ref}`behaviour` for the full comparison of `StateChart` behavioral
 attributes and how to customize them.
 ```

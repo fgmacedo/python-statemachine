@@ -54,9 +54,9 @@ sequence of **groups**. Each group runs to completion before the next one starts
     - entering state
     - Runs once per state being entered, from ancestor to child.
 *   - Invoke
-    - `on_invoke_<state>()`
+    - `on_invoke_state()`, `on_invoke_<state>()`
     - `target`
-    - Spawns background work. See {ref}`invoke-actions`.
+    - Spawns background work. See {ref}`invoke`.
 *   - After
     - `after_transition()`, `after_<event>()`
     - `target`
@@ -70,7 +70,7 @@ The `state` column shows what the `state` parameter resolves to when
 ```{tip}
 `after` callbacks run even when an earlier group raises and
 `error_on_execution` is enabled — making them a natural **finalize** hook.
-See {ref}`error-execution` for details.
+See {ref}`error-handling-cleanup-finalize` for the full pattern.
 ```
 
 ```{seealso}
@@ -157,6 +157,136 @@ and {ref}`compound-states` for how state hierarchies work.
 ```
 
 
+(dependency-injection)=
+(dynamic-dispatch)=
+(dynamic dispatch)=
+
+## Dependency injection
+
+All callbacks (actions, conditions, validators) support automatic dependency
+injection. The library inspects your method signature and passes only the
+parameters you declare — you never need to accept arguments you don't use.
+
+```py
+>>> class FlexibleSC(StateChart):
+...     idle = State(initial=True)
+...     done = State(final=True)
+...
+...     go = idle.to(done)
+...
+...     def on_go(self):
+...         """No params needed? That's fine."""
+...         return "minimal"
+...
+...     def after_go(self, event, source, target):
+...         """Need context? Just declare what you want."""
+...         print(f"{event}: {source.id} → {target.id}")
+
+>>> sm = FlexibleSC()
+>>> sm.send("go")
+go: idle → done
+'minimal'
+
+```
+
+### Available parameters
+
+These parameters are available for injection into any callback:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event_data` | {class}`~statemachine.event_data.EventData` | The full event data object for this microstep. |
+| `event` | {class}`~statemachine.event.Event` | The event that triggered the transition. |
+| `source` | {class}`~statemachine.state.State` | The state the machine was in when the event started. |
+| `target` | {class}`~statemachine.state.State` | The destination state of the transition. |
+| `state` | {class}`~statemachine.state.State` | The *current* state — equals `source` for before/exit/on, `target` for enter/after. |
+| `error` | `Exception` | The exception object. Only available in callbacks triggered by `error.execution` events. See {ref}`error-execution`. |
+| `model` | {class}`~statemachine.model.Model` | The underlying model instance (see {ref}`models`). |
+| `machine` | {class}`~statemachine.statemachine.StateChart` | The state machine instance itself. |
+| `transition` | {class}`~statemachine.transition.Transition` | The transition being executed. |
+
+The following parameters are available **only in `on` callbacks** (transition
+content):
+
+| Parameter | Type | Description |
+|---|---|---|
+| `previous_configuration` | `OrderedSet[`{class}`~statemachine.state.State``]` | States that were active before the microstep. |
+| `new_configuration` | `OrderedSet[`{class}`~statemachine.state.State``]` | States that will be active after the microstep. |
+
+#### Configuration during `on` callbacks
+
+By the time the `on` group runs, exit callbacks have already fired and the
+exiting states may have been removed from `sm.configuration`, but the entering
+states have not been added yet. This means that reading `sm.configuration`
+inside an `on` callback returns a **transitional** snapshot — neither the old
+nor the new configuration.
+
+Use `previous_configuration` and `new_configuration` instead to reliably
+inspect which states were active before and which will be active after:
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class InspectConfig(StateChart):
+...     a = State(initial=True)
+...     b = State(final=True)
+...
+...     go = a.to(b)
+...
+...     def on_go(self, previous_configuration, new_configuration):
+...         current = {s.id for s in self.configuration}
+...         prev = {s.id for s in previous_configuration}
+...         new = {s.id for s in new_configuration}
+...         print(f"previous:      {sorted(prev)}")
+...         print(f"configuration: {sorted(current)}")
+...         print(f"new:           {sorted(new)}")
+
+>>> sm = InspectConfig()
+>>> sm.send("go")
+previous:      ['a']
+configuration: []
+new:           ['b']
+
+```
+
+Notice that `sm.configuration` is **empty** during the `on` callback — state
+`a` has already exited, but state `b` has not entered yet.
+
+```{tip}
+If you need the old 2.x behavior where `sm.configuration` updates atomically
+(all exits and entries applied at once after the `on` group), set
+`atomic_configuration_update = True` on your class. See the
+[behaviour reference](behaviour.md) for details.
+```
+
+In addition, any positional or keyword arguments you pass when triggering the
+event are forwarded to all callbacks:
+
+```py
+>>> class Greeter(StateChart):
+...     idle = State(initial=True)
+...
+...     greet = idle.to.itself()
+...
+...     def on_greet(self, name, greeting="Hello"):
+...         return f"{greeting}, {name}!"
+
+>>> sm = Greeter()
+>>> sm.send("greet", "Alice")
+'Hello, Alice!'
+
+>>> sm.send("greet", "Bob", greeting="Hi")
+'Hi, Bob!'
+
+```
+
+```{seealso}
+All actions and {ref}`conditions <validators and guards>` support the same
+dependency injection mechanism. See {ref}`validators and guards` for how it
+applies to guards.
+```
+
+
 ## Binding actions
 
 There are three ways to attach an action to a state or transition: **naming
@@ -228,244 +358,15 @@ session started
 
 ```
 
-(invoke-actions)=
-
-#### Invoke actions
-
-States can declare **invoke** callbacks — background work that is spawned when
+States also support `invoke` callbacks — background work that is spawned when
 the state is entered and automatically cancelled when the state is exited.
-This follows the [SCXML `<invoke>` semantics](https://www.w3.org/TR/scxml/#invoke)
-and is similar to the **do activity** (`do/`) concept in UML Statecharts.
-
-Invoke handlers run **outside** the main processing loop — in a daemon thread
-(sync engine) or a thread executor wrapped in an asyncio Task (async engine).
-When a handler returns, a `done.invoke.<state>.<id>` event is automatically
-sent to the machine. If it raises, an `error.execution` event is sent instead.
-
-Like `enter` and `exit`, invoke supports all three binding patterns:
-
-**Inline parameter** — pass a callable to `State(invoke=...)`:
-
-```py
->>> import json
->>> import tempfile
->>> import time
->>> from pathlib import Path
->>> from statemachine import State, StateChart
-
->>> config_file = Path(tempfile.mktemp(suffix=".json"))
->>> _ = config_file.write_text('{"db_host": "localhost", "db_port": 5432}')
-
->>> def load_config():
-...     return json.loads(config_file.read_text())
-
->>> class ConfigLoader(StateChart):
-...     loading = State(initial=True, invoke=load_config)
-...     ready = State(final=True)
-...     done_invoke_loading = loading.to(ready)
-...
-...     def on_enter_ready(self, data=None, **kwargs):
-...         self.config = data
-
->>> sm = ConfigLoader()
->>> time.sleep(0.2)
-
->>> "ready" in sm.configuration_values
-True
->>> sm.config
-{'db_host': 'localhost', 'db_port': 5432}
-
->>> config_file.unlink()
-
-```
-
-When `loading` is entered, `load_config()` runs in a background thread. When
-it returns, a `done.invoke.loading.<id>` event triggers the
-`done_invoke_loading` transition. The return value is available as the `data`
-keyword argument in callbacks on the target state.
-
-**Naming convention** — define `on_invoke_<state_id>()`:
-
-```py
->>> config_file = Path(tempfile.mktemp(suffix=".json"))
->>> _ = config_file.write_text('{"feature_flags": ["dark_mode", "beta_api"]}')
-
->>> class FeatureLoader(StateChart):
-...     loading = State(initial=True)
-...     ready = State(final=True)
-...     done_invoke_loading = loading.to(ready)
-...
-...     def on_invoke_loading(self, **kwargs):
-...         return json.loads(config_file.read_text())
-...
-...     def on_enter_ready(self, data=None, **kwargs):
-...         self.features = data
-
->>> sm = FeatureLoader()
->>> time.sleep(0.2)
-
->>> "ready" in sm.configuration_values
-True
->>> sm.features["feature_flags"]
-['dark_mode', 'beta_api']
-
->>> config_file.unlink()
-
-```
-
-**Decorator** — use `@state.invoke`:
-
-```py
->>> config_file = Path(tempfile.mktemp(suffix=".txt"))
->>> _ = config_file.write_text("line 1\nline 2\nline 3\n")
-
->>> class LineCounter(StateChart):
-...     counting = State(initial=True)
-...     done = State(final=True)
-...     done_invoke_counting = counting.to(done)
-...
-...     @counting.invoke
-...     def count_lines(self, **kwargs):
-...         return len(config_file.read_text().splitlines())
-...
-...     def on_enter_done(self, data=None, **kwargs):
-...         self.total_lines = data
-
->>> sm = LineCounter()
->>> time.sleep(0.2)
-
->>> "done" in sm.configuration_values
-True
->>> sm.total_lines
-3
-
->>> config_file.unlink()
-
-```
-
-
-#### `done.invoke` transitions
-
-Use the `done_invoke_<state>` naming convention to declare transitions that
-fire when an invoke handler completes. The `done_invoke_<state>` prefix maps
-to the `done.invoke.<state>` event family, matching any invoke completion for
-that state regardless of the specific invoke ID.
-
-The handler's return value is available as the `data` keyword argument in
-callbacks of the target state.
-
-
-#### Cancellation
-
-When a state with active invoke handlers is exited:
-
-1. `ctx.cancelled` is set (a `threading.Event`) — handlers should poll this.
-2. `on_cancel()` is called on `IInvoke` handlers (if implemented).
-3. For the async engine, the asyncio Task is cancelled.
-
-Events from cancelled invocations are silently ignored.
-
-```py
->>> cancel_called = []
-
->>> class SlowWorker:
-...     def run(self, ctx):
-...         ctx.cancelled.wait(timeout=5.0)
-...     def on_cancel(self):
-...         cancel_called.append(True)
-
->>> class CancelExample(StateChart):
-...     working = State(initial=True, invoke=SlowWorker)
-...     stopped = State(final=True)
-...     cancel = working.to(stopped)
-
->>> sm = CancelExample()
->>> time.sleep(0.05)
->>> sm.send("cancel")
->>> time.sleep(0.05)
->>> cancel_called
-[True]
-
-```
-
-
-#### Error handling in invoke
-
-If an invoke handler raises, `error.execution` is sent to the machine's
-internal queue (when `error_on_execution=True`, the default for `StateChart`):
-
-```py
->>> class FailingLoader(StateChart):
-...     loading = State(
-...         initial=True,
-...         invoke=lambda: Path("/tmp/nonexistent_file_12345.json").read_text(),
-...     )
-...     error_state = State(final=True)
-...     error_execution = loading.to(error_state)
-...
-...     def on_enter_error_state(self, error=None, **kwargs):
-...         self.error_type = type(error).__name__
-
->>> sm = FailingLoader()
->>> time.sleep(0.2)
-
->>> "error_state" in sm.configuration_values
-True
->>> sm.error_type
-'FileNotFoundError'
-
-```
-
-
-#### Multiple and grouped invokes
-
-Passing a list (`invoke=[a, b]`) creates independent invocations — each sends
-its own `done.invoke` event. The **first** to complete triggers the transition
-and cancels the rest.
-
-Use {func}`~statemachine.invoke.invoke_group` when you need **all** handlers
-to complete before transitioning. The `data` is a list of results in the same
-order as the input callables:
-
-```py
->>> from statemachine.invoke import invoke_group
-
->>> file_a = Path(tempfile.mktemp(suffix=".txt"))
->>> file_b = Path(tempfile.mktemp(suffix=".txt"))
->>> _ = file_a.write_text("hello")
->>> _ = file_b.write_text("world")
-
->>> class BatchLoader(StateChart):
-...     loading = State(
-...         initial=True,
-...         invoke=invoke_group(
-...             lambda: file_a.read_text(),
-...             lambda: file_b.read_text(),
-...         ),
-...     )
-...     ready = State(final=True)
-...     done_invoke_loading = loading.to(ready)
-...
-...     def on_enter_ready(self, data=None, **kwargs):
-...         self.results = data
-
->>> sm = BatchLoader()
->>> time.sleep(0.2)
-
->>> "ready" in sm.configuration_values
-True
->>> sm.results
-['hello', 'world']
-
->>> file_a.unlink()
->>> file_b.unlink()
-
-```
+Invoke supports the same three binding patterns (naming convention, inline,
+decorator) and has its own completion and cancellation lifecycle.
 
 ```{seealso}
-See {ref}`invoke` for advanced patterns: the `IInvoke` protocol with
-`InvokeContext`, child state machines, event data propagation, and
-`#_<invokeid>` send targets.
+See {ref}`invoke` for the full invoke reference: execution model, binding
+patterns, `done.invoke` transitions, cancellation, error handling, grouped
+invokes, the `IInvoke` protocol, and child state machines.
 ```
 
 
@@ -583,7 +484,7 @@ it only executes when the machine is in a state where a matching transition
 exists.
 
 
-### Generic callbacks
+## Generic callbacks
 
 Generic callbacks run on **every** transition, regardless of which event or
 state is involved. They follow the same group ordering and are useful for
@@ -623,11 +524,18 @@ The full list of generic callbacks:
 | `on_exit_state()` | Exit | Runs when leaving any state. |
 | `on_transition()` | On | Runs during any transition. |
 | `on_enter_state()` | Enter | Runs when entering any state. |
+| `on_invoke_state()` | Invoke | Runs when spawning invoke handlers for any state. See {ref}`invoke`. |
 | `after_transition()` | After | Runs after all state changes. |
 
 ```{note}
 `prepare_event()` is also a generic callback, but it serves a special purpose —
 see {ref}`preparing-events` below.
+```
+
+```{tip}
+Generic callbacks are the building blocks for {ref}`listeners <listeners>` — an
+external object that implements the same callback signatures can observe every
+transition without modifying the state machine class.
 ```
 
 
@@ -731,133 +639,4 @@ True
 ```{note}
 If a callback is defined but returns `None` explicitly, it is included in the
 result list. Only callbacks that are not defined at all are excluded.
-```
-
-
-(dependency-injection)=
-(dynamic-dispatch)=
-(dynamic dispatch)=
-
-## Dependency injection
-
-All callbacks (actions, conditions, validators) support automatic dependency
-injection. The library inspects your method signature and passes only the
-parameters you declare — you never need to accept arguments you don't use.
-
-```py
->>> class FlexibleSC(StateChart):
-...     idle = State(initial=True)
-...     done = State(final=True)
-...
-...     go = idle.to(done)
-...
-...     def on_go(self):
-...         """No params needed? That's fine."""
-...         return "minimal"
-...
-...     def after_go(self, event, source, target):
-...         """Need context? Just declare what you want."""
-...         print(f"{event}: {source.id} → {target.id}")
-
->>> sm = FlexibleSC()
->>> sm.send("go")
-go: idle → done
-'minimal'
-
-```
-
-### Available parameters
-
-These parameters are available for injection into any callback:
-
-| Parameter | Type | Description |
-|---|---|---|
-| `event_data` | `EventData` | The full event data object for this microstep. |
-| `event` | `Event` | The event that triggered the transition. |
-| `source` | `State` | The state the machine was in when the event started. |
-| `target` | `State` | The destination state of the transition. |
-| `state` | `State` | The *current* state — equals `source` for before/exit/on, `target` for enter/after. |
-| `model` | any | The underlying model instance (see {ref}`models`). |
-| `machine` | `StateChart` | The state machine instance itself. |
-| `transition` | `Transition` | The transition being executed. |
-
-The following parameters are available **only in `on` callbacks** (transition
-content):
-
-| Parameter | Type | Description |
-|---|---|---|
-| `previous_configuration` | `OrderedSet[State]` | States that were active before the microstep. |
-| `new_configuration` | `OrderedSet[State]` | States that will be active after the microstep. |
-
-#### Configuration during `on` callbacks
-
-By the time the `on` group runs, exit callbacks have already fired and the
-exiting states may have been removed from `sm.configuration`, but the entering
-states have not been added yet. This means that reading `sm.configuration`
-inside an `on` callback returns a **transitional** snapshot — neither the old
-nor the new configuration.
-
-Use `previous_configuration` and `new_configuration` instead to reliably
-inspect which states were active before and which will be active after:
-
-```py
->>> from statemachine import State, StateChart
-
->>> class InspectConfig(StateChart):
-...     a = State(initial=True)
-...     b = State(final=True)
-...
-...     go = a.to(b)
-...
-...     def on_go(self, previous_configuration, new_configuration):
-...         current = {s.id for s in self.configuration}
-...         prev = {s.id for s in previous_configuration}
-...         new = {s.id for s in new_configuration}
-...         print(f"previous:      {sorted(prev)}")
-...         print(f"configuration: {sorted(current)}")
-...         print(f"new:           {sorted(new)}")
-
->>> sm = InspectConfig()
->>> sm.send("go")
-previous:      ['a']
-configuration: []
-new:           ['b']
-
-```
-
-Notice that `sm.configuration` is **empty** during the `on` callback — state
-`a` has already exited, but state `b` has not entered yet.
-
-```{tip}
-If you need the old 2.x behavior where `sm.configuration` updates atomically
-(all exits and entries applied at once after the `on` group), set
-`atomic_configuration_update = True` on your class. See the
-[behaviour reference](behaviour.md) for details.
-```
-
-In addition, any positional or keyword arguments you pass when triggering the
-event are forwarded to all callbacks:
-
-```py
->>> class Greeter(StateChart):
-...     idle = State(initial=True)
-...
-...     greet = idle.to.itself()
-...
-...     def on_greet(self, name, greeting="Hello"):
-...         return f"{greeting}, {name}!"
-
->>> sm = Greeter()
->>> sm.send("greet", "Alice")
-'Hello, Alice!'
-
->>> sm.send("greet", "Bob", greeting="Hi")
-'Hi, Bob!'
-
-```
-
-```{seealso}
-All actions and {ref}`conditions <validators and guards>` support the same
-dependency injection mechanism. See {ref}`validators and guards` for how it
-applies to guards.
 ```
