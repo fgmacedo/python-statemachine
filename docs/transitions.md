@@ -1,12 +1,6 @@
 (transitions)=
 (transition)=
 
-```{testsetup}
-
->>> from statemachine import StateChart, State
-
-```
-
 # Transitions
 
 ```{seealso}
@@ -16,123 +10,50 @@ transitions, events, and actions fit together.
 
 A transition describes a valid state change: it connects a **source** state to
 a **target** state and is triggered by an {ref}`event <events>`. Transitions
-can carry {ref}`actions` (side-effects) and {ref}`conditions <validators and guards>` that
-control whether the transition fires.
+can carry {ref}`actions` (side-effects) and {ref}`conditions <validators and guards>`
+that control whether the transition fires.
 
 
 ## Declaring transitions
 
-The most common way to declare a transition is to link states directly using
-the `source.to(target)` syntax and assign the result to a class attribute —
-the attribute name becomes the event that triggers the transition:
+Link states using `source.to(target)` and assign the result to a class
+attribute — the attribute name becomes the event:
 
 ```py
->>> class SimpleSM(StateChart):
-...     draft = State(initial=True)
-...     published = State(final=True)
-...
-...     publish = draft.to(published)
+>>> from statemachine import State, StateChart
 
->>> sm = SimpleSM()
->>> sm.send("publish")
->>> "published" in sm.configuration_values
-True
-
-```
-
-
-### `target.from_(source)`
-
-You can also declare the transition from the target's perspective:
-
-```py
->>> class SimpleSM(StateChart):
-...     draft = State(initial=True)
-...     review = State()
-...     published = State(final=True)
-...
-...     submit = review.from_(draft)
-...     publish = published.from_(review)
-
->>> sm = SimpleSM()
->>> sm.send("submit")
->>> sm.send("publish")
->>> "published" in sm.configuration_values
-True
-
-```
-
-
-### Multiple sources or targets
-
-Both `.to()` and `.from_()` accept multiple states. Each pair creates a
-separate transition under the same event — the first transition whose
-conditions are met wins:
-
-```py
->>> class Router(StateChart):
-...     start = State(initial=True)
-...     a = State(final=True)
-...     b = State(final=True)
-...
-...     route = start.to(a, cond="go_a") | start.to(b, cond="go_b")
-...
-...     def __init__(self, choice="a"):
-...         self.choice = choice
-...         super().__init__()
-...     def go_a(self):
-...         return self.choice == "a"
-...     def go_b(self):
-...         return self.choice == "b"
-
->>> sm = Router(choice="b")
->>> sm.send("route")
->>> "b" in sm.configuration_values
-True
-
-```
-
-Multiple sources with `.from_()`:
-
-```py
->>> class Merge(StateChart):
-...     a = State(initial=True)
-...     b = State()
-...     done = State(final=True)
-...
-...     go = a.to(b)
-...     finish = done.from_(a, b)
-
-```
-
-
-### `target.from_.any()`
-
-Creates a transition from **every non-final state** to the target — useful for
-global events like "cancel" that should be reachable from anywhere:
-
-```py
->>> class OrderWorkflow(StateChart):
+>>> class OrderSM(StateChart):
 ...     pending = State(initial=True)
-...     processing = State()
-...     completed = State(final=True)
-...     cancelled = State(final=True)
+...     confirmed = State(final=True)
 ...
-...     process = pending.to(processing)
-...     complete = processing.to(completed)
-...     cancel = cancelled.from_.any()
+...     confirm = pending.to(confirmed)
 
->>> sm = OrderWorkflow()
->>> sm.send("cancel")
->>> "cancelled" in sm.configuration_values
+>>> sm = OrderSM()
+>>> sm.send("confirm")
+>>> "confirmed" in sm.configuration_values
 True
 
 ```
+
+
+### Transition parameters
+
+| Parameter | Description |
+|---|---|
+| `on` | Action callback(s) to run during the transition. See {ref}`transition-actions`. |
+| `before` | Callback(s) to run before exit/on/enter. |
+| `after` | Callback(s) to run after the transition completes. |
+| `cond` | Guard condition(s). See {ref}`validators and guards`. |
+| `unless` | Negative guard — transition fires when this returns `False`. |
+| `validators` | Validation callback(s) that raise on failure. |
+| `event` | Override the event for this transition. See {ref}`event-parameter`. |
+| `internal` | If `True`, no exit/enter actions fire. See {ref}`internal transition`. |
 
 
 ### Combining transitions with `|`
 
-The `|` operator merges transition lists under a single event:
+The `|` operator merges transitions under a single event. Each transition
+is evaluated in declaration order — the first whose conditions are met wins:
 
 ```py
 >>> class TrafficLight(StateChart):
@@ -149,116 +70,189 @@ True
 
 ```
 
+Combine `|` with guards to route the same event to different targets:
 
-### Transition parameters
+```py
+>>> class OrderReview(StateChart):
+...     pending = State(initial=True)
+...     approved = State(final=True)
+...     rejected = State(final=True)
+...
+...     review = (
+...         pending.to(approved, cond="is_valid")
+...         | pending.to(rejected)
+...     )
+...
+...     def is_valid(self, score: int = 0):
+...         return score >= 70
 
-| Parameter | Description |
+>>> sm = OrderReview()
+>>> sm.send("review", score=50)
+>>> "rejected" in sm.configuration_values
+True
+
+>>> sm = OrderReview()
+>>> sm.send("review", score=85)
+>>> "approved" in sm.configuration_values
+True
+
+```
+
+The first transition whose guard passes wins. When `score < 70`, `is_valid`
+returns `False`, so the second transition (no guard — always matches) fires.
+
+
+### `from_()` and `from_.any()`
+
+`target.from_(source)` declares the same transition from the target's
+perspective — useful when multiple sources converge on one target:
+
+```py
+>>> class OrderSM(StateChart):
+...     pending = State(initial=True)
+...     processing = State()
+...     shipped = State(final=True)
+...
+...     process = pending.to(processing)
+...     ship = shipped.from_(pending, processing)
+
+```
+
+`target.from_.any()` creates a transition from **every non-final state** —
+useful for global events like "cancel" that should be reachable from anywhere:
+
+```py
+>>> class OrderWorkflow(StateChart):
+...     pending = State(initial=True)
+...     processing = State()
+...     done = State()
+...     completed = State(final=True)
+...     cancelled = State(final=True)
+...
+...     process = pending.to(processing)
+...     complete = processing.to(done)
+...     finish = done.to(completed)
+...     cancel = cancelled.from_.any()
+
+>>> sm = OrderWorkflow()
+>>> sm.send("cancel")
+>>> "cancelled" in sm.configuration_values
+True
+
+```
+
+With {ref}`compound states <compound-states>`, there is another way to model
+the same workflow: group the cancellable states under a compound parent, and
+define a single transition out of it. The `cancel` event exits the compound
+regardless of which child is active:
+
+```py
+>>> class OrderWorkflowCompound(StateChart):
+...     class active(State.Compound):
+...         pending = State(initial=True)
+...         processing = State()
+...         done = State(final=True)
+...
+...         process = pending.to(processing)
+...         complete = processing.to(done)
+...     completed = State(final=True)
+...     cancelled = State(final=True)
+...     done_state_active = active.to(completed)
+...     cancel = active.to(cancelled)
+
+>>> sm = OrderWorkflowCompound()
+>>> sm.send("process")
+>>> sm.send("cancel")
+>>> "cancelled" in sm.configuration_values
+True
+
+```
+
+Compare the diagrams — both model the same behavior, but the compound version
+makes the "cancellable" grouping explicit in the hierarchy:
+
+```py
+>>> getfixture("requires_dot_installed")
+>>> OrderWorkflow()._graph().write_png("docs/images/transition_from_any.png")
+>>> OrderWorkflowCompound()._graph().write_png("docs/images/transition_compound_cancel.png")
+
+```
+
+| `from_.any()` | Compound |
 |---|---|
-| `on` | Action callback(s) to run during the transition. See {ref}`transition-actions`. |
-| `before` | Callback(s) to run before exit/on/enter. |
-| `after` | Callback(s) to run after the transition completes. |
-| `cond` | Guard condition(s). See {ref}`validators and guards`. |
-| `unless` | Negative guard — transition fires when this returns `False`. |
-| `validators` | Validation callback(s) that raise on failure. |
-| `event` | Override the event that triggers this transition. See {ref}`declaring-events`. |
-| `internal` | If `True`, no exit/enter actions fire. See {ref}`internal transition`. |
+| ![from_.any()](images/transition_from_any.png) | ![Compound](images/transition_compound_cancel.png) |
+
+The compound approach scales better as you add more states — no need to
+remember to include each new state in a `from_()` list.
 
 
 (self-transition)=
 (self transition)=
 
-## Self transition
+## Self-transitions and internal transitions
 
-A transition that goes from a state to itself.
-
-Syntax:
+A **self-transition** goes from a state back to itself. It exits and
+re-enters the state, running all exit and entry actions:
 
 ```py
->>> draft = State("Draft")
+>>> class RetryOrder(StateChart):
+...     processing = State(initial=True)
+...     done = State(final=True)
+...
+...     retry = processing.to.itself(on="do_retry")
+...     finish = processing.to(done)
+...
+...     attempts: int = 0
+...
+...     def do_retry(self):
+...         self.attempts += 1
 
->>> draft.to.itself()
-TransitionList([Transition('Draft', 'Draft', event=[], internal=False, initial=False)])
+>>> sm = RetryOrder()
+>>> sm.send("retry")
+>>> sm.send("retry")
+>>> sm.attempts
+2
 
 ```
 
 (internal transition)=
 (internal-transition)=
 
-## Internal transition
-
-It's like a {ref}`self transition`.
-
-But in contrast to a self-transition, no entry or exit actions are ever executed as a result of an internal transition.
-
-
-Syntax:
+An **internal transition** stays in the same state **without** running exit
+or entry actions — only the `on` callback executes. Use `internal=True`:
 
 ```py
->>> draft = State("Draft")
+>>> class OrderCart(StateChart):
+...     shopping = State(initial=True)
+...     checkout = State(final=True)
+...
+...     add_item = shopping.to.itself(internal=True, on="do_add_item")
+...     pay = shopping.to(checkout)
+...
+...     total: float = 0
+...
+...     def do_add_item(self, price: float = 0):
+...         self.total += price
 
->>> draft.to.itself(internal=True)
-TransitionList([Transition('Draft', 'Draft', event=[], internal=True, initial=False)])
+>>> sm = OrderCart()
+>>> sm.send("add_item", price=9.99)
+>>> sm.send("add_item", price=4.50)
+>>> sm.total
+14.49
 
 ```
 
-Example:
+The key difference: self-transitions fire exit/enter callbacks (useful when
+entering a state has side-effects like resetting a timer), while internal
+transitions skip them (useful for pure data updates that shouldn't re-trigger
+entry logic).
 
-```py
->>> class TestStateMachine(StateChart):
-...     enable_self_transition_entries = False
-...     initial = State(initial=True)
-...
-...     external_loop = initial.to.itself(on="do_something")
-...     internal_loop = initial.to.itself(internal=True, on="do_something")
-...
-...     def __init__(self):
-...         self.calls = []
-...         super().__init__()
-...
-...     def do_something(self):
-...         self.calls.append("do_something")
-...
-...     def on_exit_initial(self):
-...         self.calls.append("on_exit_initial")
-...
-...     def on_enter_initial(self):
-...         self.calls.append("on_enter_initial")
-
-```
-Usage:
-
-```py
->>> # This example will only run on automated tests if dot is present
->>> getfixture("requires_dot_installed")
-
->>> sm = TestStateMachine()
-
->>> sm._graph().write_png("docs/images/test_state_machine_internal.png")
-
->>> sm.calls.clear()
-
->>> sm.external_loop()
-
->>> sm.calls
-['on_exit_initial', 'do_something', 'on_enter_initial']
-
->>> sm.calls.clear()
-
->>> sm.internal_loop()
-
->>> sm.calls
-['do_something']
-
+```{seealso}
+The `enable_self_transition_entries` flag in {ref}`behaviour` controls whether
+self-transitions run exit/enter actions. `StateChart` defaults to `True` (SCXML
+semantics); `StateMachine` defaults to `False` (legacy behavior).
 ```
 
-![TestStateMachine](images/test_state_machine_internal.png)
-
-```{note}
-
-The internal transition is represented the same way as an entry/exit action, where
-the event name is used to describe the transition.
-
-```
 
 (eventless)=
 
@@ -267,41 +261,43 @@ the event name is used to describe the transition.
 ```{versionadded} 3.0.0
 ```
 
-Eventless transitions have no event trigger — they fire automatically when their guard
-condition evaluates to `True`. If no guard is specified, they fire immediately
-(unconditional). This is useful for modeling automatic state progressions.
+Eventless transitions have no event trigger — they fire automatically when
+their guard condition evaluates to `True`. If no guard is specified, they
+fire immediately (unconditional). Declare them as bare statements, without
+assigning to a variable:
 
 ```py
 >>> from statemachine import State, StateChart
 
->>> class RingCorruption(StateChart):
-...     resisting = State(initial=True)
-...     corrupted = State(final=True)
-...     resisting.to(corrupted, cond="is_corrupted")
-...     bear_ring = resisting.to.itself(internal=True, on="increase_power")
-...     ring_power = 0
-...     def is_corrupted(self):
-...         return self.ring_power > 5
-...     def increase_power(self):
-...         self.ring_power += 2
+>>> class AutoEscalation(StateChart):
+...     normal = State(initial=True)
+...     escalated = State(final=True)
+...     normal.to(escalated, cond="should_escalate")
+...     report = normal.to.itself(internal=True, on="add_report")
+...     report_count = 0
+...     def should_escalate(self):
+...         return self.report_count >= 3
+...     def add_report(self):
+...         self.report_count += 1
 
->>> sm = RingCorruption()
->>> sm.send("bear_ring")
->>> sm.send("bear_ring")
->>> "resisting" in sm.configuration_values
+>>> sm = AutoEscalation()
+>>> sm.send("report")
+>>> sm.send("report")
+>>> "normal" in sm.configuration_values
 True
 
->>> sm.send("bear_ring")
->>> "corrupted" in sm.configuration_values
+>>> sm.send("report")
+>>> "escalated" in sm.configuration_values
 True
 
 ```
 
-The eventless transition from `resisting` to `corrupted` fires automatically after
-the third `bear_ring` event pushes `ring_power` past the threshold.
+The eventless transition fires automatically after the third report pushes
+`report_count` past the threshold.
 
 ```{seealso}
-See {ref}`continuous-machines` for chains, compound interactions, and `In()` guards.
+See {ref}`continuous-machines` for chains, compound interactions, and `In()`
+guards.
 ```
 
 (cross-boundary-transitions)=
@@ -320,58 +316,34 @@ source and all target states.
 ```py
 >>> from statemachine import State, StateChart
 
->>> class MiddleEarthJourney(StateChart):
-...     class rivendell(State.Compound):
-...         council = State(initial=True)
-...         preparing = State()
-...         get_ready = council.to(preparing)
-...     class moria(State.Compound):
-...         gates = State(initial=True)
-...         bridge = State(final=True)
-...         cross = gates.to(bridge)
-...     march = rivendell.to(moria)
+>>> class OrderFulfillment(StateChart):
+...     class picking(State.Compound):
+...         locating = State(initial=True)
+...         packing = State()
+...         locate = locating.to(packing)
+...     class shipping(State.Compound):
+...         labeling = State(initial=True)
+...         dispatched = State(final=True)
+...         dispatch = labeling.to(dispatched)
+...     ship = picking.to(shipping)
 
->>> sm = MiddleEarthJourney()
->>> set(sm.configuration_values) == {"rivendell", "council"}
+>>> sm = OrderFulfillment()
+>>> set(sm.configuration_values) == {"picking", "locating"}
 True
 
->>> sm.send("march")
->>> set(sm.configuration_values) == {"moria", "gates"}
-True
-
-```
-
-When `march` fires, the engine:
-1. Computes the transition domain (the root, since `rivendell` and `moria` are siblings)
-2. Exits `council` and `rivendell` (running their exit actions)
-3. Enters `moria` and its initial child `gates` (running their entry actions)
-
-A transition can also go from a deeply nested child to an outer state:
-
-```py
->>> from statemachine import State, StateChart
-
->>> class MoriaEscape(StateChart):
-...     class moria(State.Compound):
-...         class halls(State.Compound):
-...             entrance = State(initial=True)
-...             bridge = State(final=True)
-...             cross = entrance.to(bridge)
-...         assert isinstance(halls, State)
-...         depths = State(final=True)
-...         descend = halls.to(depths)
-...     daylight = State(final=True)
-...     escape = moria.to(daylight)
-
->>> sm = MoriaEscape()
->>> set(sm.configuration_values) == {"moria", "halls", "entrance"}
-True
-
->>> sm.send("escape")
->>> set(sm.configuration_values) == {"daylight"}
+>>> sm.send("ship")
+>>> set(sm.configuration_values) == {"shipping", "labeling"}
 True
 
 ```
+
+When `ship` fires, the engine:
+1. Computes the transition domain (the root, since `picking` and `shipping` are
+   siblings)
+2. Exits `locating` and `picking` (running their exit actions)
+3. Enters `shipping` and its initial child `labeling` (running their entry
+   actions)
+
 
 (transition-priority)=
 
@@ -388,27 +360,27 @@ ancestor states. This follows the SCXML specification: the most specific
 ```py
 >>> from statemachine import State, StateChart
 
->>> class PriorityExample(StateChart):
+>>> class OrderProcessing(StateChart):
 ...     log = []
-...     class outer(State.Compound):
-...         class inner(State.Compound):
+...     class fulfillment(State.Compound):
+...         class picking(State.Compound):
 ...             s1 = State(initial=True)
 ...             s2 = State(final=True)
-...             go = s1.to(s2, on="log_inner")
-...         assert isinstance(inner, State)
-...         after_inner = State(final=True)
-...         done_state_inner = inner.to(after_inner)
-...     after_outer = State(final=True)
-...     done_state_outer = outer.to(after_outer)
-...     def log_inner(self):
-...         self.log.append("inner won")
+...             go = s1.to(s2, on="log_picking")
+...         assert isinstance(picking, State)
+...         packed = State(final=True)
+...         done_state_picking = picking.to(packed)
+...     shipped = State(final=True)
+...     done_state_fulfillment = fulfillment.to(shipped)
+...     def log_picking(self):
+...         self.log.append("picking handled it")
 
->>> sm = PriorityExample()
+>>> sm = OrderProcessing()
 >>> sm.send("go")
 >>> sm.log
-['inner won']
+['picking handled it']
 
 ```
 
 If two transitions at the same level would exit overlapping states (a conflict),
-the one selected first in document order wins.
+the one declared first wins.
