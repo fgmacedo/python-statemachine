@@ -31,6 +31,7 @@ listeners
 
 processing_model
 error_handling
+async
 validations
 behaviour
 ```
@@ -39,7 +40,6 @@ behaviour
 :caption: Advanced
 :maxdepth: 2
 
-async
 invoke
 models
 integrations
