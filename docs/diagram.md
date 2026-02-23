@@ -2,37 +2,31 @@
 (diagrams)=
 # Diagrams
 
-You can generate diagrams from your {ref}`StateChart`.
+You can generate visual diagrams from any
+{class}`~statemachine.statemachine.StateChart` — useful for documentation,
+debugging, or sharing your machine's structure with teammates.
 
-```{note}
-This functionality depends on [pydot](https://github.com/pydot/pydot), it means that you need to
-have `pydot` installed on your system. pydot is a Python library that allows you to create and
-manipulate graphs in [Graphviz](https://graphviz.org/)'s
-[dot language](https://graphviz.org/doc/info/lang.html).
+## Installation
 
-In order to use [pydot](https://github.com/pydot/pydot), we also need to have
-[Graphviz](https://graphviz.org/) installed on your system.
+Diagram generation requires [pydot](https://github.com/pydot/pydot) and
+[Graphviz](https://graphviz.org/):
 
-You can install this library already with pydot dependency using the `extras` install option:
-
-    pip install python-statemachine[diagrams]
-
-
-Or to install `pydot` manually, you can use pip by running the following command:
-
-    pip install pydot
-
-
-To install Graphviz, you can visit the [Graphviz website](https://graphviz.org/) and follow the
-instructions for your operating system. Alternatively, you can use a package manager to install
-Graphviz. For example, on Debian-based systems (such as Ubuntu), you can use the following command:
-
-    sudo apt install graphviz
-
+```bash
+pip install python-statemachine[diagrams]  # installs pydot
 ```
 
-## How to generate a diagram at runtime
+You also need the `dot` command-line tool from Graphviz. On Debian/Ubuntu:
 
+```bash
+sudo apt install graphviz
+```
+
+For other systems, see the [Graphviz downloads page](https://graphviz.org/download/).
+
+
+## Generating diagrams
+
+Use `DotGraphMachine` to create a diagram from a class or an instance:
 
 ```py
 >>> from statemachine.contrib.diagram import DotGraphMachine
@@ -48,20 +42,16 @@ Graphviz. For example, on Debian-based systems (such as Ubuntu), you can use the
 
 ```
 
-With a `dot` graph instance, you can also generate images:
+Export to an image file:
 
 ```py
 >>> dot.write_png("docs/images/order_control_machine_initial.png")
 
 ```
 
-As this one:
-
-
 ![OrderControl](images/order_control_machine_initial.png)
 
-
-If you find the resolution of the image lacking, you can
+For higher resolution, set the DPI before exporting:
 
 ```py
 >>> dot.set_dpi(300)
@@ -70,10 +60,12 @@ If you find the resolution of the image lacking, you can
 
 ```
 
-![OrderControl](images/order_control_machine_initial_300dpi.png)
+![OrderControl (300 DPI)](images/order_control_machine_initial_300dpi.png)
 
+### Highlighting the current state
 
-The current {ref}`state` is also highlighted:
+When you pass a machine **instance** (not a class), the diagram highlights
+the current state:
 
 ``` py
 >>> # This example will only run on automated tests if dot is present
@@ -96,58 +88,52 @@ The current {ref}`state` is also highlighted:
 
 ![OrderControl](images/order_control_machine_processing.png)
 
-
-```{hint}
-
-A handy shortcut to have the graph representation:
+```{tip}
+Every state machine instance exposes a `_graph()` shortcut that returns
+the `pydot.Dot` object directly.
+```
 
 ```py
->>> machine._graph()
+>>> machine._graph()  # doctest: +ELLIPSIS
 <pydot.core.Dot ...
 
 ```
 
-## Generate from the command line
 
-You can also generate a diagram from the command line using the `statemachine.contrib.diagram` as a module.
+## Command line
+
+You can generate diagrams without writing Python code:
 
 ```bash
-❯ python -m statemachine.contrib.diagram --help
-usage: diagram.py [OPTION] <classpath> <out>
-
-Generate diagrams for StateMachine classes.
-
-positional arguments:
-  classpath   A fully-qualified dotted path to the StateChart class.
-  out         File to generate the image using extension as the output format.
-
-optional arguments:
-  -h, --help  show this help message and exit
+python -m statemachine.contrib.diagram <classpath> <output_file>
 ```
 
-Example:
+The output format is inferred from the file extension:
 
 ```bash
-python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine m.png
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png
 ```
 
 ```{note}
-Supported formats include: `dia`, `dot`, `fig`, `gif`, `jpg`, `pdf`, `png`, `ps`, `svg` and many others.
-Please see [pydot](https://github.com/pydot/pydot) and [Graphviz](https://graphviz.org/) for a
+Supported formats include `dia`, `dot`, `fig`, `gif`, `jpg`, `pdf`,
+`png`, `ps`, `svg`, and many others. See
+[Graphviz output formats](https://graphviz.org/docs/outputs/) for the
 complete list.
 ```
 
 
-## JupyterLab / Jupyter integration
+## Jupyter integration
 
-Machines instances are automatically displayed as a diagram when used on JupyterLab cells:
-
+State machine instances are automatically rendered as diagrams in
+JupyterLab cells — no extra code needed:
 
 ![Approval machine on JupyterLab](images/lab_approval_machine_accepted.png)
 
 
-## Don't want to install Graphviz
+## Online generation (QuickChart)
 
+If you prefer not to install Graphviz locally, you can generate diagrams
+using the [QuickChart](https://quickchart.io/) online service:
 
 ```{eval-rst}
 .. autofunction:: statemachine.contrib.diagram.quickchart_write_svg
