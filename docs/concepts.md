@@ -25,10 +25,41 @@ triggers the change, and *what happens* as a result.
 
 ```
 
-Even in this minimal example, all five core concepts appear:
+Even in this minimal example, the core concepts appear:
+
+| Concept | What it is | Declared as |
+|---|---|---|
+| {ref}`StateChart <statechart>` | The container and runtime for the machine | `class MyChart(StateChart)` |
+| {ref}`State <states>` | A mode or condition of the system | `State()`, `State.Compound`, `State.Parallel` |
+| {ref}`Transition <transitions>` | A link from source state to target state | `source.to(target)`, `target.from_(source)` |
+| {ref}`Event <events>` | A signal that triggers transitions | Class-level assignment or `Event(...)` |
+| {ref}`Action <actions>` | A side-effect during state changes | `on`, `before`, `after`, `enter`, `exit` callbacks |
+| {ref}`Condition <conditions>` | A guard that allows/blocks a transition | `cond`, `unless`, `validators` parameters |
+| {ref}`Listener <listeners>` | An external observer of the lifecycle | `listeners = [...]` class attribute |
+
+
+(concepts-statechart)=
+
+## StateChart
+
+A {ref}`StateChart <statechart>` is the container for states, transitions,
+and events. It defines the topology (which states exist and how they
+connect) and provides the runtime API — sending events, querying the
+current configuration, and managing listeners.
+
+In the turnstile example, `Turnstile` is the `StateChart`. After
+instantiation, `sm` holds the runtime state and exposes methods like
+`sm.send("coin")`, `sm.configuration`, and `sm.allowed_events`.
+
+```{seealso}
+See [](statechart.md) for the full reference: creating instances, sending
+events, querying configuration, checking termination, and managing
+listeners at runtime.
+```
 
 
 (concepts-states)=
+
 ## States
 
 A **state** describes what the system is doing right now. At any point in
@@ -46,12 +77,13 @@ See [](states.md) for the full reference: initial and final states, compound
 
 
 (concepts-transitions)=
+
 ## Transitions
 
 A **transition** is a link between a **source** state and a **target** state.
 When a transition fires, the system leaves the source and enters the target.
-Transitions can carry {ref}`actions` (side-effects) and
-{ref}`conditions <validators and guards>` (guards that must be satisfied).
+Transitions can carry {ref}`actions <actions>` (side-effects) and
+{ref}`conditions <conditions>` (guards that must be satisfied).
 
 In the turnstile, `locked.to(unlocked)` is a transition: it moves the system
 from `locked` to `unlocked` and runs the `thank_you` action along the way.
@@ -64,6 +96,7 @@ and more.
 
 
 (concepts-events)=
+
 ## Events
 
 An **event** is a signal that something has happened. Events trigger
@@ -83,6 +116,7 @@ microsteps work under the hood.
 
 
 (concepts-actions)=
+
 ## Actions
 
 An **action** is a side-effect that runs during a transition or on
@@ -100,7 +134,8 @@ execution order, dependency injection, and all available hooks.
 
 
 (concepts-conditions)=
-## Conditions and validators
+
+## Conditions
 
 A **condition** (also called a **guard**) is a predicate that must evaluate
 to `True` for a transition to fire. A **validator** is similar but raises an
@@ -111,16 +146,21 @@ different guard — the first one that passes wins.
 
 ```{seealso}
 See [](guards.md) for the full reference: `cond`, `unless`, `validators`,
-boolean expressions, and the `In()` condition.
+boolean expressions, and checking enabled events.
 ```
 
 
-## Quick reference
+(concepts-listeners)=
 
-| Concept       | What it is                              | Declared as                       |
-|---------------|-----------------------------------------|-----------------------------------|
-| **State**     | A mode or condition of the system       | `State()`, `State.Compound`, `State.Parallel` |
-| **Transition**| A link from source state to target state| `source.to(target)`, `target.from_(source)` |
-| **Event**     | A signal that triggers transitions      | Class-level assignment or `Event(...)` |
-| **Action**    | A side-effect during state changes      | Callbacks: `on`, `before`, `after`, `enter`, `exit` |
-| **Condition** | A guard that allows/blocks a transition | `cond`, `unless`, `validators` parameters |
+## Listeners
+
+A {ref}`listener <listeners>` is an external object that observes a state
+machine's lifecycle without modifying its class. Listeners receive the same
+callbacks as the state machine itself — `on_enter_state()`,
+`after_transition()`, and so on — enabling cross-cutting concerns like
+logging, persistence, or telemetry to be attached and removed independently.
+
+```{seealso}
+See [](listeners.md) for the full reference: defining listeners, class-level
+declarations, runtime attachment, the `setup()` protocol, and inheritance.
+```
