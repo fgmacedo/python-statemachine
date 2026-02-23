@@ -16,7 +16,6 @@ Below are release notes through StateMachine and its patch releases.
 :maxdepth: 2
 
 3.0.0
-upgrade_2x_to_3
 
 ```
 

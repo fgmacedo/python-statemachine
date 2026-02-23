@@ -51,11 +51,18 @@ weighted_transitions
 :caption: Reference
 :maxdepth: 2
 
-releases/3.0.0
 api
 auto_examples/index
 contributing
 authors
+```
+
+```{toctree}
+:caption: Releases
+:maxdepth: 2
+
+releases/3.0.0
+releases/upgrade_2x_to_3
 releases/index
 ```
 
