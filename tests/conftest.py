@@ -49,8 +49,6 @@ def campaign_machine_with_validator():
     class CampaignMachine(StateChart):
         "A workflow machine"
 
-        error_on_execution = False
-
         draft = State(initial=True)
         producing = State("Being produced")
         closed = State(final=True)
