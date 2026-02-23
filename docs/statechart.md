@@ -113,6 +113,12 @@ sm.send("timeout", delay=5000, send_id="my_timeout")
 sm.cancel_event("my_timeout")
 ```
 
+```{note}
+The delay is **blocking** in the sync engine — the processing loop sleeps until the
+delay elapses, holding the calling thread. In the async engine, delays are scheduled
+with `asyncio` and do not block the event loop.
+```
+
 
 (querying-events)=
 
