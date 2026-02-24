@@ -1,11 +1,13 @@
 from statemachine.states import States
 
-from statemachine import StateMachine
+from statemachine import StateChart
 
 from .models import WorkflowSteps
 
 
-class WorfklowStateMachine(StateMachine):
+class WorfklowStateMachine(StateChart):
+    allow_event_without_transition = False
+
     _ = States.from_enum(WorkflowSteps, initial=WorkflowSteps.DRAFT, final=WorkflowSteps.PUBLISHED)
 
     publish = _.DRAFT.to(_.PUBLISHED, cond="is_active")

@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest403b" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--we
+	test that 'optimally enabled set' really is a set, specifically that if a transition is
+	optimally enabled in
+two different states, it is taken only once.-->
+	<datamodel>
+		<data expr="0" id="Var1" />
+	</datamodel>
+	<state id="s0" initial="p0"><!--this
+		transition should never be taken because a transition in a lower state should
+  always be selected-->
+		<transition event="event1">
+			<assign location="Var1" expr="Var1 + 1" />
+		</transition>
+		<parallel id="p0">
+			<onentry>
+				<raise event="event1" />
+				<raise event="event2" />
+			</onentry><!--this
+			transition will be selected by both states p0s1 and p0s2, but should be executed only
+			once-->
+			<transition event="event1">
+				<assign location="Var1" expr="Var1 + 1" />
+			</transition>
+			<state id="p0s1">
+				<transition cond="Var1==1" event="event2" target="pass" />
+				<transition event="event2" target="fail" />
+			</state>
+			<state id="p0s2" />
+		</parallel>
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

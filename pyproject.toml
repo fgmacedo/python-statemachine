@@ -1,6 +1,6 @@
 [project]
 name = "python-statemachine"
-version = "2.6.0"
+version = "3.0.0"
 description = "Python Finite State Machines made easy."
 authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
 maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
@@ -18,13 +18,11 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Topic :: Home Automation",
     "Topic :: Software Development :: Libraries",
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 
 [project.urls]
 homepage = "https://github.com/fgmacedo/python-statemachine"
@@ -34,16 +32,16 @@ diagrams = ["pydot >= 2.0.0"]
 
 [dependency-groups]
 dev = [
-    "ruff >=0.8.1",
+    "ruff >=0.15.0",
     "pre-commit",
     "mypy",
     "pytest",
     "pytest-cov >=6.0.0; python_version >='3.9'",
     "pytest-cov; python_version <'3.9'",
     "pytest-sugar >=1.0.0",
-    "pytest-mock >=3.10.0",
+    "pytest-mock >=3.14.0",
     "pytest-benchmark >=4.0.0",
-    "pytest-asyncio",
+    "pytest-asyncio >=0.25.0",
     "pydot",
     "django >=5.2.11; python_version >='3.10'",
     "pytest-django >=4.8.0; python_version >'3.8'",
@@ -56,6 +54,9 @@ dev = [
     "sphinx-copybutton >=0.5.2; python_version >'3.8'",
     "pdbr>=0.8.9; python_version >'3.8'",
     "babel >=2.16.0; python_version >='3.8'",
+    "pytest-xdist>=3.6.1",
+    "pytest-timeout>=2.3.1",
+    "pyright>=1.1.400",
 ]
 
 [build-system]
@@ -67,13 +68,11 @@ packages = ["statemachine/"]
 
 [tool.pytest.ini_options]
 addopts = [
+    "-s",
     "--ignore=docs/conf.py",
     "--ignore=docs/auto_examples/",
     "--ignore=docs/_build/",
     "--ignore=tests/examples/",
-    "--cov",
-    "--cov-config",
-    ".coveragerc",
     "--doctest-glob=*.md",
     "--doctest-modules",
     "--doctest-continue-on-failure",
@@ -83,9 +82,20 @@ addopts = [
 ]
 doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
 asyncio_mode = "auto"
-markers = ["""slow: marks tests as slow (deselect with '-m "not slow"')"""]
+markers = [
+    """slow: marks tests as slow (deselect with '-m "not slow"')""",
+    """scxml: marks a tests as scxml (deselect with '-m "not scxml"')""",
+]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 xfail_strict = true
+log_cli = true
+log_cli_level = "DEBUG"
+log_cli_format = "%(relativeCreated)6.0fms %(threadName)-18s %(name)-35s %(message)s"
+log_cli_date_format = "%H:%M:%S"
+asyncio_default_fixture_loop_scope = "module"
+filterwarnings = [
+    "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
+]
 
 [tool.coverage.run]
 branch = true
@@ -195,3 +205,8 @@ convention = "google"
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = true
 mark-parentheses = true
+
+[tool.pyright]
+pythonVersion = "3.9"
+typeCheckingMode = "basic"
+include = ["statemachine"]

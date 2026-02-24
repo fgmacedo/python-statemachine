@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- we test that the processor does not dispatch the event if
+evaluation
+of <send>'s args causes an error..  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="python" version="1.0">
+
+
+  <state id="s0">
+    <onentry>
+      <!-- timeout event -->
+      <send event="timeout" delay="3s" />
+      <!-- include a non-existing var in the namelist -->
+      <send event="event1" namelist="Var2" />
+    </onentry>
+
+    <!-- if we get the timeout before event1, we assume that event1 hasn't been sent
+ We ignore the error event here because this assertion doesn't mention it -->
+    <transition event="timeout" target="pass" />
+    <transition event="event1" target="fail" />
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

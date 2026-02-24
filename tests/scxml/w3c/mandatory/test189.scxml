@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="ecmascript" initial="s0" name="ScxmlTest189" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--we
+	test that #_internal as a target of <send> puts the event on the internal queue.  If it does,
+event1 will be processed before event2, because event1 is added to the internal queue while event2
+	is
+added to the external queue (event though event2 is generated first)-->
+	<state id="s0"><!--once
+		we've entered the state, we should check for internal events first-->
+		<onentry><!--goes
+			to the external queue-->
+			<send event="event2" /><!--to
+			the internal queue-->
+			<send event="event1" target="#_internal" />
+		</onentry>
+		<transition event="event1" target="pass" />
+		<transition event="event2" target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

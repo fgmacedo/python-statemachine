@@ -1,15 +1,19 @@
 import asyncio
-import logging
+from typing import TYPE_CHECKING
 
 import pytest
+from statemachine.spec_parser import Functions
 from statemachine.spec_parser import operator_mapping
 from statemachine.spec_parser import parse_boolean_expr
 
-logger = logging.getLogger(__name__)
-DEBUG = logging.DEBUG
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
-def variable_hook(var_name):
+def variable_hook(
+    var_name: str,
+    spy: "Callable[[str], None] | None" = None,
+) -> "Callable":
     values = {
         "frodo_has_ring": True,
         "sauron_alive": False,
@@ -29,7 +33,8 @@ def variable_hook(var_name):
     }
 
     def decorated(*args, **kwargs):
-        logger.debug(f"variable_hook({var_name})")
+        if spy is not None:
+            spy(var_name)
         return values.get(var_name, False)
 
     decorated.__name__ = var_name
@@ -41,7 +46,11 @@ def variable_hook(var_name):
     [
         ("frodo_has_ring", True, ["frodo_has_ring"]),
         ("frodo_has_ring or sauron_alive", True, ["frodo_has_ring"]),
-        ("frodo_has_ring and gandalf_present", True, ["frodo_has_ring", "gandalf_present"]),
+        (
+            "frodo_has_ring and gandalf_present",
+            True,
+            ["frodo_has_ring", "gandalf_present"],
+        ),
         ("sauron_alive", False, ["sauron_alive"]),
         ("not sauron_alive", True, ["sauron_alive"]),
         (
@@ -49,8 +58,16 @@ def variable_hook(var_name):
             True,
             ["frodo_has_ring", "gandalf_present"],
         ),
-        ("not sauron_alive and orc_army_ready", False, ["sauron_alive", "orc_army_ready"]),
-        ("not (not sauron_alive and orc_army_ready)", True, ["sauron_alive", "orc_army_ready"]),
+        (
+            "not sauron_alive and orc_army_ready",
+            False,
+            ["sauron_alive", "orc_army_ready"],
+        ),
+        (
+            "not (not sauron_alive and orc_army_ready)",
+            True,
+            ["sauron_alive", "orc_army_ready"],
+        ),
         (
             "(frodo_has_ring and sam_is_loyal) or (not sauron_alive and orc_army_ready)",
             True,
@@ -63,10 +80,26 @@ def variable_hook(var_name):
         ),
         ("not (not frodo_has_ring)", True, ["frodo_has_ring"]),
         ("!(!frodo_has_ring)", True, ["frodo_has_ring"]),
-        ("frodo_has_ring and orc_army_ready", False, ["frodo_has_ring", "orc_army_ready"]),
-        ("frodo_has_ring ^ orc_army_ready", False, ["frodo_has_ring", "orc_army_ready"]),
-        ("frodo_has_ring and not orc_army_ready", True, ["frodo_has_ring", "orc_army_ready"]),
-        ("frodo_has_ring ^ !orc_army_ready", True, ["frodo_has_ring", "orc_army_ready"]),
+        (
+            "frodo_has_ring and orc_army_ready",
+            False,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
+        (
+            "frodo_has_ring ^ orc_army_ready",
+            False,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
+        (
+            "frodo_has_ring and not orc_army_ready",
+            True,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
+        (
+            "frodo_has_ring ^ !orc_army_ready",
+            True,
+            ["frodo_has_ring", "orc_army_ready"],
+        ),
         (
             "frodo_has_ring and (sam_is_loyal or (gandalf_present and not sauron_alive))",
             True,
@@ -89,7 +122,11 @@ def variable_hook(var_name):
             True,
             ["orc_army_ready", "frodo_has_ring", "gandalf_present"],
         ),
-        ("orc_army_ready and (frodo_has_ring and gandalf_present)", False, ["orc_army_ready"]),
+        (
+            "orc_army_ready and (frodo_has_ring and gandalf_present)",
+            False,
+            ["orc_army_ready"],
+        ),
         (
             "!orc_army_ready and (frodo_has_ring and gandalf_present)",
             True,
@@ -138,16 +175,15 @@ def variable_hook(var_name):
         ("height > 1 and height < 2", True, ["height", "height"]),
     ],
 )
-def test_expressions(expression, expected, caplog, hooks_called):
-    caplog.set_level(logging.DEBUG, logger="tests")
+def test_expressions(expression, expected, hooks_called):
+    calls: list[str] = []
 
-    parsed_expr = parse_boolean_expr(expression, variable_hook, operator_mapping)
+    def hook(name):
+        return variable_hook(name, spy=calls.append)
+
+    parsed_expr = parse_boolean_expr(expression, hook, operator_mapping)
     assert parsed_expr() is expected, expression
-
-    if hooks_called:
-        assert caplog.record_tuples == [
-            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
-        ]
+    assert calls == hooks_called
 
 
 def test_negating_compound_false_expression():
@@ -220,34 +256,6 @@ def test_simple_variable_returns_the_original_callback():
     assert parsed_expr is original_callback
 
 
-@pytest.mark.parametrize(
-    ("expression", "expected", "hooks_called"),
-    [
-        ("49 < frodo_age < 51", True, ["frodo_age"]),
-        ("49 < frodo_age > 50", False, ["frodo_age"]),
-        (
-            "aragorn_age < legolas_age < gimli_age",
-            False,
-            ["aragorn_age", "legolas_age", "gimli_age"],
-        ),  # 87 < 2931 and 2931 < 139
-        (
-            "gimli_age > aragorn_age < legolas_age",
-            True,
-            ["gimli_age", "aragorn_age", "legolas_age"],
-        ),  # 139 > 87 and 87 < 2931
-        (
-            "sword_power < ring_power > bow_power",
-            True,
-            ["sword_power", "ring_power", "bow_power"],
-        ),  # 80 < 100 and 100 > 75
-        (
-            "axe_power > sword_power == bow_power",
-            False,
-            ["axe_power", "sword_power", "bow_power"],
-        ),  # 85 > 80 and 80 == 75
-        ("height > 1 and height < 2", True, ["height"]),
-    ],
-)
 def async_variable_hook(var_name):
     """Variable hook that returns async callables, for testing issue #535."""
     values = {
@@ -343,14 +351,7 @@ def test_mixed_sync_async_expressions(expression, expected):
         assert result is expected, expression
 
 
-@pytest.mark.xfail(reason="TODO: Optimize so that expressios are evaluated only once")
-def test_should_evaluate_values_only_once(expression, expected, caplog, hooks_called):
-    caplog.set_level(logging.DEBUG, logger="tests")
-
-    parsed_expr = parse_boolean_expr(expression, variable_hook, operator_mapping)
-    assert parsed_expr() is expected, expression
-
-    if hooks_called:
-        assert caplog.record_tuples == [
-            ("tests.test_spec_parser", DEBUG, f"variable_hook({hook})") for hook in hooks_called
-        ]
+def test_functions_get_unknown_raises():
+    """Functions.get raises ValueError for unknown functions."""
+    with pytest.raises(ValueError, match="Unsupported function"):
+        Functions.get("nonexistent_function")

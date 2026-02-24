@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- we test that the processor raises error.communication if it
+cannot dispatch the event.
+(To create an undispatchable event, we choose a non-existent session as target).  If it raises
+the error event, we succeed.  Otherwise we eventually timeout and fail.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="python" version="1.0">
+
+
+  <state id="s0">
+    <onentry>
+      <!-- should cause an error -->
+      <send target="#_scxml_foo" event="event2" />
+      <!-- this will get added to the external event queue after the error has been raised -->
+      <send event="timeout" />
+    </onentry>
+
+    <!-- once we've entered the state, we should check for internal events first -->
+    <transition event="error.communication" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

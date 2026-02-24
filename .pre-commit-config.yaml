@@ -25,9 +25,15 @@ repos:
     types: [python]
     language: system
     pass_filenames: false
+  - id: pyright
+    name: Pyright
+    entry: uv run pyright statemachine/
+    types: [python]
+    language: system
+    pass_filenames: false
   - id: pytest
     name: Pytest
-    entry: uv run pytest
+    entry: uv run pytest -n auto --cov-fail-under=100
     types: [python]
     language: system
     pass_filenames: false

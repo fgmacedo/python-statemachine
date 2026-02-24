@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- we test that states are removed from the active states list as
+they are exited.  When s01's onexit handler
+fires, s011 should not be on the active state list, so in(S011) should be false, and event1 should
+not
+be raised.  Therefore the timeout should fire to indicate success   -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+
+
+  <state id="s0" initial="s01">
+    <onentry>
+      <send event="timeout" delay="1s" />
+    </onentry>
+
+    <transition event="timeout" target="pass" />
+    <transition event="event1" target="fail" />
+
+    <state id="s01" initial="s011">
+      <onexit>
+        <if cond="In('s011')">
+          <raise event="event1" />
+        </if>
+      </onexit>
+
+      <state id="s011">
+        <transition target="s02" />
+      </state>
+    </state> <!-- end s01 -->
+
+    <state id="s02" />
+
+  </state> <!-- end s0 -->
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

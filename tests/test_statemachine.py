@@ -1,7 +1,9 @@
 import pytest
+from statemachine.orderedset import OrderedSet
 
+from statemachine import HistoryState
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 from statemachine import exceptions
 from tests.models import MyModel
 
@@ -11,7 +13,7 @@ def test_machine_repr(campaign_machine):
     machine = campaign_machine(model)
     assert (
         repr(machine) == "CampaignMachine(model=MyModel({'state': 'draft'}), "
-        "state_field='state', current_state='draft')"
+        "state_field='state', configuration=['draft'])"
     )
 
 
@@ -31,13 +33,13 @@ def test_machine_should_be_at_start_state(campaign_machine):
     ]
 
     assert model.state == "draft"
-    assert machine.current_state == machine.draft
+    assert machine.draft.is_active
 
 
 def test_machine_should_only_allow_only_one_initial_state():
     with pytest.raises(exceptions.InvalidDefinition):
 
-        class CampaignMachine(StateMachine):
+        class CampaignMachine(StateChart):
             "A workflow machine"
 
             draft = State(initial=True)
@@ -54,7 +56,7 @@ def test_machine_should_only_allow_only_one_initial_state():
 def test_machine_should_activate_initial_state(mocker):
     spy = mocker.Mock()
 
-    class CampaignMachine(StateMachine):
+    class CampaignMachine(StateChart):
         "A workflow machine"
 
         draft = State(initial=True)
@@ -72,7 +74,7 @@ def test_machine_should_activate_initial_state(mocker):
     sm = CampaignMachine()
 
     spy.assert_called_once_with("draft")
-    assert sm.current_state == sm.draft
+    assert sm.draft.is_active
     assert sm.draft.is_active
 
     spy.reset_mock()
@@ -80,14 +82,14 @@ def test_machine_should_activate_initial_state(mocker):
     assert sm.activate_initial_state() is None
 
     spy.assert_not_called()
-    assert sm.current_state == sm.draft
+    assert sm.draft.is_active
     assert sm.draft.is_active
 
 
 def test_machine_should_not_allow_transitions_from_final_state():
     with pytest.raises(exceptions.InvalidDefinition):
 
-        class CampaignMachine(StateMachine):
+        class CampaignMachine(StateChart):
             "A workflow machine"
 
             draft = State(initial=True)
@@ -104,12 +106,12 @@ def test_should_change_state(campaign_machine):
     machine = campaign_machine(model)
 
     assert model.state == "draft"
-    assert machine.current_state == machine.draft
+    assert machine.draft.is_active
 
     machine.produce()
 
     assert model.state == "producing"
-    assert machine.current_state == machine.producing
+    assert machine.producing.is_active
 
 
 def test_should_run_a_transition_that_keeps_the_state(campaign_machine):
@@ -117,19 +119,19 @@ def test_should_run_a_transition_that_keeps_the_state(campaign_machine):
     machine = campaign_machine(model)
 
     assert model.state == "draft"
-    assert machine.current_state == machine.draft
+    assert machine.draft.is_active
 
     machine.add_job()
     assert model.state == "draft"
-    assert machine.current_state == machine.draft
+    assert machine.draft.is_active
 
     machine.produce()
     assert model.state == "producing"
-    assert machine.current_state == machine.producing
+    assert machine.producing.is_active
 
     machine.add_job()
     assert model.state == "producing"
-    assert machine.current_state == machine.producing
+    assert machine.producing.is_active
 
 
 def test_should_change_state_with_multiple_machine_instances(campaign_machine):
@@ -138,38 +140,19 @@ def test_should_change_state_with_multiple_machine_instances(campaign_machine):
     machine1 = campaign_machine(model1)
     machine2 = campaign_machine(model2)
 
-    assert machine1.current_state == campaign_machine.draft
-    assert machine2.current_state == campaign_machine.draft
+    assert machine1.draft.is_active
+    assert machine2.draft.is_active
 
     p1 = machine1.produce
     p2 = machine2.produce
 
     p2()
-    assert machine1.current_state == campaign_machine.draft
-    assert machine2.current_state == campaign_machine.producing
+    assert machine1.draft.is_active
+    assert machine2.producing.is_active
 
     p1()
-    assert machine1.current_state == campaign_machine.producing
-    assert machine2.current_state == campaign_machine.producing
-
-
-@pytest.mark.parametrize(
-    ("current_state", "transition"),
-    [
-        ("draft", "deliver"),
-        ("closed", "add_job"),
-    ],
-)
-def test_call_to_transition_that_is_not_in_the_current_state_should_raise_exception(
-    campaign_machine, current_state, transition
-):
-    model = MyModel(state=current_state)
-    machine = campaign_machine(model)
-
-    assert machine.current_state.value == current_state
-
-    with pytest.raises(exceptions.TransitionNotAllowed):
-        machine.send(transition)
+    assert machine1.producing.is_active
+    assert machine2.producing.is_active
 
 
 def test_machine_should_list_allowed_events_in_the_current_state(campaign_machine):
@@ -198,23 +181,11 @@ def test_machine_should_run_a_transition_by_his_key(campaign_machine):
 
     machine.send("add_job")
     assert model.state == "draft"
-    assert machine.current_state == machine.draft
+    assert machine.draft.is_active
 
     machine.send("produce")
     assert model.state == "producing"
-    assert machine.current_state == machine.producing
-
-
-def test_machine_should_raise_an_exception_if_a_transition_by_his_key_is_not_found(
-    campaign_machine,
-):
-    model = MyModel()
-    machine = campaign_machine(model)
-
-    assert model.state == "draft"
-
-    with pytest.raises(exceptions.TransitionNotAllowed):
-        machine.send("go_horse")
+    assert machine.producing.is_active
 
 
 def test_machine_should_use_and_model_attr_other_than_state(campaign_machine):
@@ -223,12 +194,12 @@ def test_machine_should_use_and_model_attr_other_than_state(campaign_machine):
 
     assert getattr(model, "state", None) is None
     assert model.status == "producing"
-    assert machine.current_state == machine.producing
+    assert machine.producing.is_active
 
     machine.deliver()
 
     assert model.status == "closed"
-    assert machine.current_state == machine.closed
+    assert machine.closed.is_active
 
 
 def test_cant_assign_an_invalid_state_directly(campaign_machine):
@@ -331,14 +302,12 @@ def test_state_machine_with_a_invalid_model_state_value(request, campaign_machin
     model = MyModel(state="tapioca")
     sm = machine_cls(model)
 
-    with pytest.raises(
-        exceptions.InvalidStateValue, match="'tapioca' is not a valid state value."
-    ):
-        assert sm.current_state == sm.draft
+    with pytest.raises(KeyError):
+        sm.configuration  # noqa: B018
 
 
 def test_should_not_create_instance_of_abstract_machine():
-    class EmptyMachine(StateMachine):
+    class EmptyMachine(StateChart):
         "An empty machine"
 
         pass
@@ -349,16 +318,18 @@ def test_should_not_create_instance_of_abstract_machine():
 
 def test_should_not_create_instance_of_machine_without_states():
     s1 = State()
-    with pytest.raises(exceptions.InvalidDefinition):
 
-        class OnlyTransitionMachine(StateMachine):
-            t1 = s1.to.itself()
+    class OnlyTransitionMachine(StateChart):
+        t1 = s1.to.itself()
+
+    with pytest.raises(exceptions.InvalidDefinition):
+        OnlyTransitionMachine()
 
 
 def test_should_not_create_instance_of_machine_without_transitions():
     with pytest.raises(exceptions.InvalidDefinition):
 
-        class NoTransitionsMachine(StateMachine):
+        class NoTransitionsMachine(StateChart):
             "A machine without transitions"
 
             initial = State(initial=True)
@@ -371,7 +342,7 @@ def test_should_not_create_disconnected_machine():
     )
     with pytest.raises(exceptions.InvalidDefinition, match=expected):
 
-        class BrokenTrafficLightMachine(StateMachine):
+        class BrokenTrafficLightMachine(StateChart):
             "A broken traffic light machine"
 
             green = State(initial=True)
@@ -388,7 +359,7 @@ def test_should_not_create_big_disconnected_machine():
     )
     with pytest.raises(exceptions.InvalidDefinition, match=expected):
 
-        class BrokenTrafficLightMachine(StateMachine):
+        class BrokenTrafficLightMachine(StateChart):
             "A broken traffic light machine"
 
             green = State(initial=True)
@@ -403,11 +374,81 @@ def test_should_not_create_big_disconnected_machine():
             validate = yellow.to(green)
 
 
+def test_disconnected_validation_bypassed_by_flag():
+    """Setting validate_disconnected_states=False allows unreachable states."""
+
+    class DisconnectedButAllowed(StateChart):
+        validate_disconnected_states = False
+        green = State(initial=True)
+        yellow = State()
+        blue = State()  # unreachable, but flag disables the check
+
+        cycle = green.to(yellow) | yellow.to(green)
+        blink = blue.to.itself()
+
+    assert "green" in DisconnectedButAllowed.states_map
+
+
+def test_parallel_states_reachable_without_disabling_flag():
+    """Substates of parallel regions are reachable via hierarchy."""
+
+    class ParallelMachine(StateChart):
+        class top(State.Parallel):
+            class region1(State.Compound):
+                a = State(initial=True)
+                b = State(final=True)
+                go = a.to(b)
+
+            class region2(State.Compound):
+                c = State(initial=True)
+                d = State(final=True)
+                go2 = c.to(d)
+
+    assert "a" in ParallelMachine.states_map
+    assert "c" in ParallelMachine.states_map
+
+
+def test_compound_substates_reachable_without_disabling_flag():
+    """Substates of a compound state are reachable via hierarchy."""
+
+    class CompoundMachine(StateChart):
+        start = State(initial=True)
+
+        class parent(State.Compound):
+            child1 = State(initial=True)
+            child2 = State(final=True)
+            inner = child1.to(child2)
+
+        enter = start.to(parent)
+
+    assert "child1" in CompoundMachine.states_map
+    assert "child2" in CompoundMachine.states_map
+
+
+def test_history_state_reachable_without_disabling_flag():
+    """History states and their parent compound are reachable via hierarchy."""
+
+    class HistoryMachine(StateChart):
+        outside = State(initial=True)
+
+        class compound(State.Compound):
+            a = State(initial=True)
+            b = State()
+            h = HistoryState()
+            go = a.to(b)
+
+        enter_via_history = outside.to(compound.h)
+        leave = compound.to(outside)
+
+    assert "compound" in HistoryMachine.states_map
+    assert "a" in HistoryMachine.states_map
+
+
 def test_state_value_is_correct():
     STATE_NEW = 0
     STATE_DRAFT = 1
 
-    class ValueTestModel(StateMachine, strict_states=False):
+    class ValueTestModel(StateChart):
         new = State(STATE_NEW, value=STATE_NEW, initial=True)
         draft = State(STATE_DRAFT, value=STATE_DRAFT, final=True)
 
@@ -462,25 +503,25 @@ class TestWarnings:
         model.deliver()
         assert sm.current_state_value == "closed"
 
-    def test_should_warn_if_thereis_a_trap_state(self, capsys):
-        with pytest.warns(
-            UserWarning,
+    def test_should_raise_if_thereis_a_trap_state(self):
+        with pytest.raises(
+            exceptions.InvalidDefinition,
             match=r"have no outgoing transition: \['state_without_outgoing_transition'\]",
         ):
 
-            class TrapStateMachine(StateMachine):
+            class TrapStateMachine(StateChart):
                 initial = State(initial=True)
                 state_without_outgoing_transition = State()
 
                 t = initial.to(state_without_outgoing_transition)
 
-    def test_should_warn_if_no_path_to_a_final_state(self, capsys):
-        with pytest.warns(
-            UserWarning,
+    def test_should_raise_if_no_path_to_a_final_state(self):
+        with pytest.raises(
+            exceptions.InvalidDefinition,
             match=r"have no path to a final state: \['producing'\]",
         ):
 
-            class TrapStateMachine(StateMachine):
+            class TrapStateMachine(StateChart):
                 started = State(initial=True)
                 closed = State(final=True)
                 producing = State()
@@ -505,6 +546,90 @@ def test_model_with_custom_bool_is_not_replaced(campaign_machine):
     assert model.state == "producing"
 
 
+def test_abstract_sm_no_states():
+    """A state machine class with no states is abstract."""
+
+    class AbstractSM(StateChart):
+        pass
+
+    assert AbstractSM._abstract is True
+
+
+def test_raise_sends_internal_event():
+    """raise_ sends an internal event."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        internal_event = s1.to(s2)
+
+    sm = SM()
+    sm.raise_("internal_event")
+    assert sm.s2.is_active
+
+
+def test_configuration_values_returns_ordered_set():
+    """configuration_values returns OrderedSet."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+    sm = SM()
+    vals = sm.configuration_values
+    assert isinstance(vals, OrderedSet)
+
+
+def test_states_getitem():
+    """States supports index access."""
+
+    class SM(StateChart):
+        s1 = State(initial=True)
+        s2 = State(final=True)
+
+        go = s1.to(s2)
+
+    assert SM.states[0].id == "s1"
+    assert SM.states[1].id == "s2"
+
+
+def test_multiple_initial_states_raises():
+    """Multiple initial states raise InvalidDefinition."""
+    with pytest.raises(exceptions.InvalidDefinition, match="one and only one initial state"):
+
+        class BadSM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(initial=True)
+
+            go = s1.to(s2)
+
+
+def test_configuration_values_returns_orderedset_when_compound_state():
+    """configuration_values returns the OrderedSet directly when it is already one."""
+    from statemachine import StateChart
+
+    class SM(StateChart):
+        class parent(State.Compound, name="parent"):
+            child1 = State(initial=True)
+            child2 = State(final=True)
+
+            go = child1.to(child2)
+
+        start = State(initial=True)
+        end = State(final=True)
+
+        enter = start.to(parent)
+        finish = parent.to(end)
+
+    sm = SM()
+    sm.send("enter")
+    vals = sm.configuration_values
+    assert isinstance(vals, OrderedSet)
+
+
 class TestEnabledEvents:
     def test_no_conditions_same_as_allowed_events(self, campaign_machine):
         """Without conditions, enabled_events should match allowed_events."""
@@ -512,7 +637,7 @@ class TestEnabledEvents:
         assert [e.id for e in sm.enabled_events()] == [e.id for e in sm.allowed_events]
 
     def test_passing_condition_returns_event(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -525,7 +650,7 @@ class TestEnabledEvents:
         assert [e.id for e in sm.enabled_events()] == ["go"]
 
     def test_failing_condition_excludes_event(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -540,9 +665,9 @@ class TestEnabledEvents:
     def test_multiple_transitions_one_passes(self):
         """Same event with multiple transitions: included if at least one passes."""
 
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
-            s1 = State()
+            s1 = State(final=True)
             s2 = State(final=True)
 
             go = s0.to(s1, cond="cond_false") | s0.to(s2, cond="cond_true")
@@ -556,6 +681,27 @@ class TestEnabledEvents:
         sm = MyMachine()
         assert [e.id for e in sm.enabled_events()] == ["go"]
 
+    def test_duplicate_event_across_transitions_deduplicated(self):
+        """Same event on multiple passing transitions appears only once."""
+
+        class MyMachine(StateChart):
+            s0 = State(initial=True)
+            s1 = State(final=True)
+            s2 = State(final=True)
+
+            go = s0.to(s1, cond="cond_a") | s0.to(s2, cond="cond_b")
+
+            def cond_a(self):
+                return True
+
+            def cond_b(self):
+                return True
+
+        sm = MyMachine()
+        ids = [e.id for e in sm.enabled_events()]
+        assert ids == ["go"]
+        assert len(ids) == 1
+
     def test_final_state_returns_empty(self, campaign_machine):
         sm = campaign_machine()
         sm.produce()
@@ -563,7 +709,7 @@ class TestEnabledEvents:
         assert sm.enabled_events() == []
 
     def test_kwargs_forwarded_to_conditions(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -579,7 +725,7 @@ class TestEnabledEvents:
     def test_condition_exception_treated_as_enabled(self):
         """If a condition raises, the event is treated as enabled (permissive)."""
 
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -592,9 +738,9 @@ class TestEnabledEvents:
         assert [e.id for e in sm.enabled_events()] == ["go"]
 
     def test_mixed_enabled_and_disabled(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
-            s1 = State()
+            s1 = State(final=True)
             s2 = State(final=True)
 
             go = s0.to(s1, cond="cond_true")
@@ -610,7 +756,7 @@ class TestEnabledEvents:
         assert [e.id for e in sm.enabled_events()] == ["go"]
 
     def test_unless_condition(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -623,7 +769,7 @@ class TestEnabledEvents:
         assert sm.enabled_events() == []
 
     def test_unless_condition_passes(self):
-        class MyMachine(StateMachine):
+        class MyMachine(StateChart):
             s0 = State(initial=True)
             s1 = State(final=True)
 
@@ -634,3 +780,101 @@ class TestEnabledEvents:
 
         sm = MyMachine()
         assert [e.id for e in sm.enabled_events()] == ["go"]
+
+
+class TestInvalidStateValueNonNone:
+    """current_state raises InvalidStateValue when state value is non-None but invalid."""
+
+    def test_invalid_non_none_state_value(self):
+        import warnings
+
+        class SM(StateChart):
+            idle = State(initial=True)
+            active = State(final=True)
+            go = idle.to(active)
+
+        sm = SM()
+        # Bypass setter validation by writing directly to the model attribute
+        setattr(sm.model, sm.state_field, "nonexistent_state")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(exceptions.InvalidStateValue):
+                _ = sm.current_state
+
+
+class TestInitKwargsPropagation:
+    """Constructor kwargs are forwarded to initial state entry callbacks."""
+
+    async def test_kwargs_available_in_on_enter_initial(self, sm_runner):
+        class SM(StateChart):
+            idle = State(initial=True)
+            done = State(final=True)
+            go = idle.to(done)
+
+            def on_enter_idle(self, greeting=None, **kwargs):
+                self.greeting = greeting
+
+        sm = await sm_runner.start(SM, greeting="hello")
+        assert sm.greeting == "hello"
+
+    async def test_kwargs_flow_through_eventless_transitions(self, sm_runner):
+        class Pipeline(StateChart):
+            start = State(initial=True)
+            processing = State()
+            done = State(final=True)
+
+            start.to(processing)
+            processing.to(done)
+
+            def on_enter_start(self, task_id=None, **kwargs):
+                self.task_id = task_id
+
+        sm = await sm_runner.start(Pipeline, task_id="abc-123")
+        assert sm.task_id == "abc-123"
+        assert "done" in sm.configuration_values
+
+    async def test_no_kwargs_still_works(self, sm_runner):
+        class SM(StateChart):
+            idle = State(initial=True)
+            done = State(final=True)
+            go = idle.to(done)
+
+            def on_enter_idle(self, **kwargs):
+                self.entered = True
+
+        sm = await sm_runner.start(SM)
+        assert sm.entered is True
+
+    async def test_multiple_kwargs(self, sm_runner):
+        class SM(StateChart):
+            idle = State(initial=True)
+            done = State(final=True)
+            go = idle.to(done)
+
+            def on_enter_idle(self, host=None, port=None, **kwargs):
+                self.host = host
+                self.port = port
+
+        sm = await sm_runner.start(SM, host="localhost", port=5432)
+        assert sm.host == "localhost"
+        assert sm.port == 5432
+
+    async def test_kwargs_in_invoke_handler(self, sm_runner):
+        """Init kwargs flow to invoke handlers via dependency injection."""
+
+        class SM(StateChart):
+            loading = State(initial=True)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+            def on_invoke_loading(self, url=None, **kwargs):
+                return f"fetched:{url}"
+
+            def on_enter_ready(self, data=None, **kwargs):
+                self.result = data
+
+        sm = await sm_runner.start(SM, url="https://example.com")
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+        assert "ready" in sm.configuration_values
+        assert sm.result == "fetched:https://example.com"

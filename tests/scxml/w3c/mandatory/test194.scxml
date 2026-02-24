@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- we test that specifying an illegal target for <send> causes the event error.execution to be raised.  If it does,
+we succeed.  Otherwise we eventually timeout and fail.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance" initial="s0" version="1.0" datamodel="ecmascript">
+  <state id="s0">
+    <onentry>
+      <!-- should cause an error -->
+      <send target="baz" event="event2"/>
+      <!-- this will get added to the external event queue after the error has been raised -->
+      <send event="timeout"/>
+    </onentry>
+    <!-- once we've entered the state, we should check for internal events first -->
+    <transition event="error.execution" target="pass"/>
+    <transition event="*" target="fail"/>
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'"/>
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'"/>
+    </onentry>
+  </final>
+</scxml>

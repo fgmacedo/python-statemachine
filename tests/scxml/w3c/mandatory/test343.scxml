@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  test that illegal <param> produces error.execution and empty event.data -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  version="1.0" datamodel="python" initial="s0">
+  <state id="s0" initial="s01">
+    <!-- we should get the error before the done event -->
+    <transition event="error.execution" target="s1" />
+    <transition event="done.state.s0" target="fail" />
+    <transition event="done.state.s0" target="fail">
+    </transition>
+    <state id="s01">
+      <transition target="s02" />
+    </state>
+    <final id="s02">
+      <donedata>
+        <param location="foo.bar.baz " name="someParam" />
+      </donedata>
+    </final>
+  </state>
+  <!-- if we get here, we received the error event. Now check that the done
+ event has empty event.data -->
+  <state id="s1">
+    <transition event="done.state.s0" cond="_event.data == None" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

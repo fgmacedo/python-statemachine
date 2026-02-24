@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that the origin field of an external event contains a URL
+that lets you send back to the originator.  In
+this case it's the same session, so if we get bar we succeed -->
+<scxml xmlns:conf="http://www.w3.org/2005/scxml-conformance" initial="s0" datamodel="python"
+  name="machineName">
+
+  <state id="s0">
+    <onentry>
+      <send event="foo" />
+    </onentry>
+    <transition event="foo" target="s1">
+      <send event="bar" targetexpr="_event.origin" typeexpr="_event.origintype" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+
+  <state id="s1">
+    <onentry>
+      <send event="baz" />
+    </onentry>
+    <transition event="bar" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+  <final xmlns="http://www.w3.org/2005/07/scxml" id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final xmlns="http://www.w3.org/2005/07/scxml" id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

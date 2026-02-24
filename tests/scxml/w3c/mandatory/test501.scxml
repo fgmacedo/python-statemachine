@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that the location entry for the SCXML Event I/O processor
+can be used as the target for an event -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var1"
+      expr="_ioprocessors[&#34;http://www.w3.org/TR/scxml/#SCXMLEventProcessor&#34;].get('location')" />
+  </datamodel>
+
+  <state id="s0">
+    <onentry>
+      <send targetexpr="Var1" event="foo" />
+      <send event="timeout" delay="2s" />
+    </onentry>
+    <transition event="foo" target="pass" />
+    <transition event="*" target="fail" />
+
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" name="ScxmlTest453" version="1.0" xmlns="http://www.w3.org/2005/07/scxml"
+  xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--test
+  that we can use any python expression as a value expression.
+In this case, we just test that we can assign
+a function to a variable and then call it.-->
+  <datamodel>
+    <data expr="lambda invar: invar + 1" id="var1" />
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <raise event="event1" />
+    </onentry><!--test
+    that we can call the function-->
+    <transition cond="var1(2) == 3" event="event1" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+  <final id="pass">
+    <onentry>
+      <log expr="'pass'" label="Outcome" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log expr="'fail'" label="Outcome" />
+    </onentry>
+  </final>
+</scxml>

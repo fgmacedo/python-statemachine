@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that onexit handlers are executed in document order.  event1
+should be raised before event2 -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  datamodel="python" version="1.0">
+
+
+  <state id="s0">
+    <onexit>
+      <raise event="event1" />
+    </onexit>
+    <onexit>
+      <raise event="event2" />
+    </onexit>
+
+    <transition target="s1" />
+  </state>
+
+  <state id="s1">
+
+    <transition event="event1" target="s2" />
+    <transition event="*" target="fail" />
+
+  </state>
+
+  <state id="s2">
+    <transition event="event2" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

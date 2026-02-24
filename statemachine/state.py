@@ -1,19 +1,25 @@
+from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Generator
 from typing import List
+from typing import cast
 from weakref import ref
 
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .event import _expand_event_id
+from .exceptions import InvalidDefinition
 from .exceptions import StateMachineError
 from .i18n import _
+from .invoke import normalize_invoke_callbacks
 from .transition import Transition
 from .transition_list import TransitionList
 
 if TYPE_CHECKING:
-    from .statemachine import StateMachine
+    from .statemachine import StateChart
 
 
 class _TransitionBuilder:
@@ -28,8 +34,10 @@ class _TransitionBuilder:
 
 
 class _ToState(_TransitionBuilder):
-    def __call__(self, *states: "State", **kwargs):
-        transitions = TransitionList(Transition(self._state, state, **kwargs) for state in states)
+    def __call__(self, *states: "State | NestedStateFactory | None", **kwargs):
+        transitions = TransitionList(
+            Transition(self._state, cast("State | None", state), **kwargs) for state in states
+        )
         self._state.transitions.add_transitions(transitions)
         return transitions
 
@@ -39,13 +47,67 @@ class _FromState(_TransitionBuilder):
         """Create transitions from all non-final states (reversed)."""
         return self.__call__(AnyState(), **kwargs)
 
-    def __call__(self, *states: "State", **kwargs):
+    def __call__(self, *states: "State | NestedStateFactory", **kwargs):
         transitions = TransitionList()
         for origin in states:
-            transition = Transition(origin, self._state, **kwargs)
-            origin.transitions.add_transitions(transition)
+            state = cast(State, origin)
+            transition = Transition(state, self._state, **kwargs)
+            state.transitions.add_transitions(transition)
             transitions.add_transitions(transition)
         return transitions
+
+
+class NestedStateFactory(type):
+    def __new__(  # type: ignore [misc]
+        cls, classname, bases, attrs, name="", **kwargs
+    ) -> "State":
+        if not bases:
+            new_cls = super().__new__(cls, classname, bases, attrs)  # type: ignore [return-value]
+            new_cls._factory_kwargs = kwargs  # type: ignore [attr-defined]
+            return new_cls  # type: ignore [return-value]
+
+        # Inherit factory kwargs from base classes (e.g., parallel=True from State.Parallel)
+        inherited_kwargs: dict = {}
+        for base in bases:
+            inherited_kwargs.update(getattr(base, "_factory_kwargs", {}))
+        inherited_kwargs.update(kwargs)
+
+        states = []
+        history = []
+        callbacks = {}
+        for key, value in attrs.items():
+            if isinstance(value, HistoryState):
+                value._set_id(key)
+                history.append(value)
+            elif isinstance(value, State):
+                value._set_id(key)
+                states.append(value)
+            elif isinstance(value, TransitionList):
+                value.add_event(_expand_event_id(key))
+            elif callable(value):
+                callbacks[key] = value
+
+        return State(
+            name=name, states=states, history=history, _callbacks=callbacks, **inherited_kwargs
+        )
+
+    @classmethod
+    def to(cls, *args: "State | NestedStateFactory", **kwargs) -> "_ToState":  # pragma: no cover
+        """Create transitions to the given target states.
+        .. note: This method is only a type hint for mypy.
+            The actual implementation belongs to the :ref:`State` class.
+        """
+        return _ToState(State())
+
+    @classmethod
+    def from_(  # pragma: no cover
+        cls, *args: "State | NestedStateFactory", **kwargs
+    ) -> "_FromState":
+        """Create transitions from the given target states (reversed).
+        .. note: This method is only a type hint for mypy.
+            The actual implementation belongs to the :ref:`State` class.
+        """
+        return _FromState(State())
 
 
 class State:
@@ -66,6 +128,7 @@ class State:
             value.
         initial: Set ``True`` if the ``State`` is the initial one. There must be one and only
             one initial state in a statemachine. Defaults to ``False``.
+            If not specified, the default initial state is the first child state in document order.
         final: Set ``True`` if represents a final state. A machine can have
             optionally many final states. Final states have no :ref:`transition` starting from It.
             Defaults to ``False``.
@@ -81,7 +144,7 @@ class State:
 
     Given a few states...
 
-    >>> draft = State("Draft", initial=True)
+    >>> draft = State(name="Draft", initial=True)
 
     >>> producing = State("Producing")
 
@@ -90,7 +153,7 @@ class State:
     Transitions are declared using the :func:`State.to` or :func:`State.from_` (reversed) methods.
 
     >>> draft.to(producing)
-    TransitionList([Transition(State('Draft', ...
+    TransitionList([Transition('Draft', 'Producing', event=[], internal=False, initial=False)])
 
     The result is a :ref:`TransitionList`.
     Don't worry about this internal class.
@@ -115,7 +178,7 @@ class State:
     expressed using an alternative syntax:
 
     >>> draft.to.itself()
-    TransitionList([Transition(State('Draft', ...
+    TransitionList([Transition('Draft', 'Draft', event=[], internal=False, initial=False)])
 
     You can even pass a list of target states to declare at once all transitions starting
     from the same state.
@@ -134,20 +197,39 @@ class State:
 
     """
 
+    class Compound(metaclass=NestedStateFactory):
+        "Uses the class namespace to build a :ref:`State` instance of a compound state"
+
+    class Parallel(metaclass=NestedStateFactory, parallel=True):
+        "Uses the class namespace to build a :ref:`State` instance of a parallel state"
+
     def __init__(
         self,
         name: str = "",
         value: Any = None,
         initial: bool = False,
         final: bool = False,
+        parallel: bool = False,
+        states: "List[State] | None" = None,
+        history: "List[HistoryState] | None" = None,
         enter: Any = None,
         exit: Any = None,
+        invoke: Any = None,
+        donedata: Any = None,
+        _callbacks: Any = None,
     ):
         self.name = name
         self.value = value
+        self._parallel = parallel
+        self.states = states or []
+        self.history = history or []
+        self.is_atomic = bool(not self.states)
         self._initial = initial
         self._final = final
+        self.is_active = False
         self._id: str = ""
+        self._callbacks = _callbacks
+        self.parent: "State | None" = None
         self.transitions = TransitionList()
         self._specs = CallbackSpecList()
         self.enter = self._specs.grouper(CallbackGroup.ENTER).add(
@@ -156,9 +238,33 @@ class State:
         self.exit = self._specs.grouper(CallbackGroup.EXIT).add(
             exit, priority=CallbackPriority.INLINE
         )
+        self.invoke = self._specs.grouper(CallbackGroup.INVOKE).add(
+            normalize_invoke_callbacks(invoke), priority=CallbackPriority.INLINE
+        )
+        if donedata is not None:
+            if not final:
+                raise InvalidDefinition(_("'donedata' can only be specified on final states."))
+            self.enter.add(donedata, priority=CallbackPriority.INLINE)
+        self.document_order = 0
+        self._init_states()
+
+    def _init_states(self):
+        for state in self.states:
+            state.parent = self
+            state._initial = state.initial or self.parallel
+            setattr(self, state.id, state)
+
+        for history in self.history:
+            history.parent = self
+            setattr(self, history.id, history)
 
     def __eq__(self, other):
-        return isinstance(other, State) and self.name == other.name and self.id == other.id
+        return (
+            isinstance(other, State)
+            and self.name == other.name
+            and self.id == other.id
+            or (self.value == other)
+        )
 
     def __hash__(self):
         return hash(repr(self))
@@ -168,6 +274,10 @@ class State:
         self.enter.add(f"on_enter_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
         self.exit.add("on_exit_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.exit.add(f"on_exit_{self.id}", priority=CallbackPriority.NAMING, is_convention=True)
+        self.invoke.add("on_invoke_state", priority=CallbackPriority.GENERIC, is_convention=True)
+        self.invoke.add(
+            f"on_invoke_{self.id}", priority=CallbackPriority.NAMING, is_convention=True
+        )
 
     def _on_event_defined(self, event: str, transition: Transition, states: List["State"]):
         """Called by statemachine factory when an event is defined having a transition
@@ -178,7 +288,7 @@ class State:
     def __repr__(self):
         return (
             f"{type(self).__name__}({self.name!r}, id={self.id!r}, value={self.value!r}, "
-            f"initial={self.initial!r}, final={self.final!r})"
+            f"initial={self.initial!r}, final={self.final!r}, parallel={self.parallel!r})"
         )
 
     def __str__(self):
@@ -194,7 +304,7 @@ class State:
             _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
         )
 
-    def for_instance(self, machine: "StateMachine", cache: Dict["State", "State"]) -> "State":
+    def for_instance(self, machine: "StateChart", cache: Dict["State", "State"]) -> "State":
         if self not in cache:
             cache[self] = InstanceState(self, machine)
 
@@ -204,12 +314,14 @@ class State:
     def id(self) -> str:
         return self._id
 
-    def _set_id(self, id: str):
+    def _set_id(self, id: str) -> "State":
         self._id = id
         if self.value is None:
             self.value = id
         if not self.name:
             self.name = self._id.replace("_", " ").capitalize()
+
+        return self
 
     @property
     def to(self) -> _ToState:
@@ -229,6 +341,29 @@ class State:
     def final(self):
         return self._final
 
+    @property
+    def parallel(self):
+        return self._parallel
+
+    @property
+    def is_compound(self):
+        return bool(self.states) and not self.parallel
+
+    @property
+    def is_history(self):
+        return isinstance(self, HistoryState)
+
+    def ancestors(self, parent: "State | None" = None) -> Generator["State", None, None]:  # noqa: UP043
+        selected = self.parent
+        while selected:
+            if parent and selected == parent:
+                break
+            yield selected
+            selected = selected.parent
+
+    def is_descendant(self, state: "State") -> bool:
+        return state in self.ancestors()
+
 
 class InstanceState(State):
     """ """
@@ -236,55 +371,96 @@ class InstanceState(State):
     def __init__(
         self,
         state: State,
-        machine: "StateMachine",
+        machine: "StateChart",
     ):
         self._state = ref(state)
         self._machine = ref(machine)
+        self._init_states()
+
+    def _ref(self) -> State:
+        """Dereference the weakref, raising if the referent has been collected."""
+        state = self._state()
+        assert state is not None
+        return state
 
     @property
     def name(self):
-        return self._state().name
+        return self._ref().name
 
     @property
     def value(self):
-        return self._state().value
+        return self._ref().value
 
     @property
     def transitions(self):
-        return self._state().transitions
+        return self._ref().transitions
 
     @property
     def enter(self):
-        return self._state().enter
+        return self._ref().enter
 
     @property
     def exit(self):
-        return self._state().exit
+        return self._ref().exit
+
+    @property
+    def invoke(self):
+        return self._ref().invoke
 
     def __eq__(self, other):
-        return self._state() == other
+        return self._ref() == other
 
     def __hash__(self):
-        return hash(repr(self._state()))
+        return hash(repr(self._ref()))
 
     def __repr__(self):
-        return repr(self._state())
+        return repr(self._ref())
 
     @property
     def initial(self):
-        return self._state()._initial
+        return self._ref()._initial
 
     @property
     def final(self):
-        return self._state()._final
+        return self._ref()._final
 
     @property
     def id(self) -> str:
-        return (self._state() or self)._id
+        return (self._state() or self)._id  # type: ignore[union-attr]
 
     @property
     def is_active(self):
-        return self._machine().current_state == self
+        machine = self._machine()
+        assert machine is not None
+        return self.value in machine.configuration_values
+
+    @property
+    def is_atomic(self):
+        return self._ref().is_atomic
+
+    @property
+    def parent(self):
+        return self._ref().parent
+
+    @property
+    def states(self):
+        return self._ref().states
+
+    @property
+    def history(self):
+        return self._ref().history
+
+    @property
+    def parallel(self):
+        return self._ref().parallel
+
+    @property
+    def is_compound(self):
+        return self._ref().is_compound
+
+    @property
+    def document_order(self):
+        return self._ref().document_order
 
 
 class AnyState(State):
@@ -301,3 +477,28 @@ class AnyState(State):
             new_transition = transition._copy_with_args(source=state, event=event)
 
             state.transitions.add_transitions(new_transition)
+
+
+class HistoryType(str, Enum):
+    """Type of history recorded by a :class:`HistoryState`."""
+
+    SHALLOW = "shallow"
+    """Remembers only the direct children of the compound state.
+    If the remembered child is itself a compound, it re-enters from its initial state."""
+
+    DEEP = "deep"
+    """Remembers the exact leaf (atomic) state across the entire nested hierarchy.
+    Re-entering restores the full ancestor chain down to that leaf."""
+
+    @property
+    def is_deep(self) -> bool:
+        return self == HistoryType.DEEP
+
+
+class HistoryState(State):
+    def __init__(
+        self, name: str = "", value: Any = None, type: "str | HistoryType" = HistoryType.SHALLOW
+    ):
+        super().__init__(name=name, value=value)
+        self.type = HistoryType(type)
+        self.is_active = False

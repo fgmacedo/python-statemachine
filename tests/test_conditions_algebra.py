@@ -2,10 +2,13 @@ import pytest
 from statemachine.exceptions import InvalidDefinition
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
-class AnyConditionSM(StateMachine):
+class AnyConditionSM(StateChart):
+    allow_event_without_transition = False
+    catch_errors_as_events = False
+
     start = State(initial=True)
     end = State(final=True)
 
@@ -20,25 +23,25 @@ def test_conditions_algebra_any_false():
     with pytest.raises(sm.TransitionNotAllowed):
         sm.submit()
 
-    assert sm.current_state == sm.start
+    assert sm.start.is_active
 
 
 def test_conditions_algebra_any_left_true():
     sm = AnyConditionSM()
     sm.used_money = True
     sm.submit()
-    assert sm.current_state == sm.end
+    assert sm.end.is_active
 
 
 def test_conditions_algebra_any_right_true():
     sm = AnyConditionSM()
     sm.used_credit = True
     sm.submit()
-    assert sm.current_state == sm.end
+    assert sm.end.is_active
 
 
 def test_should_raise_invalid_definition_if_cond_is_not_valid_sintax():
-    class AnyConditionSM(StateMachine):
+    class AnyConditionSM(StateChart):
         start = State(initial=True)
         end = State(final=True)
 
@@ -52,7 +55,7 @@ def test_should_raise_invalid_definition_if_cond_is_not_valid_sintax():
 
 
 def test_should_raise_invalid_definition_if_cond_is_not_found():
-    class AnyConditionSM(StateMachine):
+    class AnyConditionSM(StateChart):
         start = State(initial=True)
         end = State(final=True)
 

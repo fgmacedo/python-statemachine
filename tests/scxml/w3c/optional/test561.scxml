@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest561" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--in
+	the Python data model, test that processor creates an DOM object
+ _event.data when receiving XML in an event-->
+	<state id="s0">
+		<onentry>
+			<send event="foo">
+				<content>
+					<books xmlns="">
+						<book title="title1" />
+						<book title="title2" />
+					</books>
+				</content>
+			</send>
+		</onentry>
+		<transition cond="_event.data.findall('book')[1].get('title') == 'title2'" event="foo"
+			target="pass" />
+		<transition event="*" target="fail" />
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

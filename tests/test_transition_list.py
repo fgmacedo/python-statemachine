@@ -1,6 +1,8 @@
 import pytest
 from statemachine.callbacks import CallbacksRegistry
 from statemachine.dispatcher import resolver_factory_from_objects
+from statemachine.transition import Transition
+from statemachine.transition_list import TransitionList
 
 from statemachine import State
 
@@ -61,3 +63,43 @@ class TestDecorators:
         resolver_factory_from_objects(object()).resolve(transition._specs, registry=registry)
 
         assert registry[specs_grouper.key].call() == [expected_value]
+
+
+def test_has_eventless_transition():
+    """TransitionList.has_eventless_transition returns True for eventless transitions."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2")
+    t = Transition(s1, s2)
+    tl = TransitionList([t])
+    assert tl.has_eventless_transition is True
+
+
+def test_has_no_eventless_transition():
+    """TransitionList.has_eventless_transition returns False when all have events."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2")
+    t = Transition(s1, s2, event="go")
+    tl = TransitionList([t])
+    assert tl.has_eventless_transition is False
+
+
+def test_transition_list_call_with_callable():
+    """Calling a TransitionList with a single callable registers it as an on callback."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2", final=True)
+    tl = s1.to(s2)
+
+    def my_callback(): ...  # No-op: used only to test callback registration
+
+    result = tl(my_callback)
+    assert result is my_callback
+
+
+def test_transition_list_call_with_non_callable_raises():
+    """Calling a TransitionList with a non-callable raises TypeError."""
+    s1 = State("s1", initial=True)
+    s2 = State("s2", final=True)
+    tl = s1.to(s2)
+
+    with pytest.raises(TypeError, match="only supports the decorator syntax"):
+        tl("not_a_callable", "extra_arg")

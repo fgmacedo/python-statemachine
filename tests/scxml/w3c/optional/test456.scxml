@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s0" name="ScxmlTest456" version="1.0" xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--we can't test that _any_ python is valid inside <script>, so we
+just run a simple one and check that it can update the data model.-->
+	<datamodel>
+		<data expr="0" id="Var1"/>
+	</datamodel>
+	<state id="s0">
+		<onentry>
+			<script>
+      Var1+=1
+			</script>
+		</onentry>
+		<transition cond="Var1==1" target="pass"/>
+		<transition target="fail"/>
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome"/>
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome"/>
+		</onentry>
+	</final>
+</scxml>

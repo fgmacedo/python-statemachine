@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- the assertion that errors are 'like any other event' is pretty
+broad, but we can check that they
+are pulled off the internal queue in order, and that prefix matching works on them.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+
+
+  <state id="s0" initial="s01">
+    <onentry>
+      <!-- catch the failure case -->
+      <send event="timeout" delay="1s" />
+    </onentry>
+    <transition event="timeout" target="fail" />
+
+    <state id="s01">
+      <onentry>
+        <!-- the first internal event.  The error will be the second, and event2 will be the third -->
+        <raise event="event1" />
+        <!-- assigning to a non-existent location should raise an error -->
+        <assign location="Var1" expr="2" />
+      </onentry>
+
+      <transition event="event1" target="s02">
+        <raise event="event2" />
+      </transition>
+      <transition event="*" target="fail" />
+    </state>
+
+    <state id="s02">
+      <transition event="error" target="s03" />
+      <transition event="*" target="fail" />
+    </state>
+
+    <state id="s03">
+      <transition event="event2" target="pass" />
+      <transition event="*" target="fail" />
+    </state>
+
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+</scxml>

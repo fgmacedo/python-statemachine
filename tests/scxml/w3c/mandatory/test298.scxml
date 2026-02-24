@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- refence a non-existent data model location in param in donedata
+and see that the right error is raised -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+   version="1.0" datamodel="python" initial="s0">
+   <datamodel>
+      <data id="Var1" expr="0" />
+   </datamodel>
+
+   <state id="s0" initial="s01">
+      <transition event="error.execution" target="pass" />
+      <transition event="*" target="fail" />
+
+      <state id="s01">
+         <transition target="s02" />
+      </state>
+      <final id="s02">
+         <donedata>
+            <param name="Var3" location="Var2" />
+         </donedata>
+      </final>
+   </state>
+
+   <final id="pass">
+      <onentry>
+         <log label="Outcome" expr="'pass'" />
+      </onentry>
+   </final>
+   <final id="fail">
+      <onentry>
+         <log label="Outcome" expr="'fail'" />
+      </onentry>
+   </final>
+
+</scxml>

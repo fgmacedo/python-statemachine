@@ -3,10 +3,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version:  2.4.0\n"
+"Project-Id-Version:  3.0.0\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2026-02-13 18:28-0300\n"
-"PO-Revision-Date: 2024-06-07 17:41-0300\n"
+"POT-Creation-Date: 2026-02-24 14:31-0300\n"
+"PO-Revision-Date: 2026-02-24 14:31-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
 "Language: en\n"
 "Language-Team: en <LL@li.org>\n"
@@ -16,92 +16,118 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.16.0\n"
 
-#: statemachine/callbacks.py:349 statemachine/callbacks.py:354
+#: statemachine/callbacks.py:404 statemachine/callbacks.py:409
 msgid "Did not found name '{}' from model or statemachine"
-msgstr ""
+msgstr "Did not found name '{}' from model or statemachine"
 
 #: statemachine/dispatcher.py:126
 msgid "Failed to parse boolean expression '{}'"
-msgstr ""
+msgstr "Failed to parse boolean expression '{}'"
 
-#: statemachine/event.py:90
+#: statemachine/event.py:121
 msgid "Cannot add callback '{}' to an event with no transitions."
-msgstr ""
+msgstr "Cannot add callback '{}' to an event with no transitions."
 
-#: statemachine/event.py:123
+#: statemachine/event.py:154
 msgid "Event {} cannot be called without a SM instance"
-msgstr ""
+msgstr "Event {} cannot be called without a SM instance"
 
-#: statemachine/exceptions.py:24
+#: statemachine/exceptions.py:25
 msgid "{!r} is not a valid state value."
-msgstr ""
+msgstr "{!r} is not a valid state value."
 
-#: statemachine/exceptions.py:38
+#: statemachine/exceptions.py:40
 msgid "Can't {} when in {}."
-msgstr ""
+msgstr "Can't {} when in {}."
 
-#: statemachine/factory.py:73
-msgid "There are no states."
+#: statemachine/factory.py:79
+msgid ""
+"There should be one and only one initial state. Your currently have "
+"these: {0}"
 msgstr ""
+"There should be one and only one initial state. Your currently have "
+"these: {0}"
 
-#: statemachine/factory.py:76
-msgid "There are no events."
-msgstr ""
-
-#: statemachine/factory.py:88
+#: statemachine/factory.py:160
 msgid ""
 "There should be one and only one initial state. You currently have these:"
 " {!r}"
 msgstr ""
+"There should be one and only one initial state. You currently have these:"
+" {!r}"
 
-#: statemachine/factory.py:101
+#: statemachine/factory.py:176
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
-msgstr ""
+msgstr "Cannot declare transitions from final state. Invalid state(s): {}"
 
-#: statemachine/factory.py:109
+#: statemachine/factory.py:187
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
 "states have no outgoing transition: {!r}"
 msgstr ""
+"All non-final states should have at least one outgoing transition. These "
+"states have no outgoing transition: {!r}"
 
-#: statemachine/factory.py:123
+#: statemachine/factory.py:201
 msgid ""
 "All non-final states should have at least one path to a final state. "
 "These states have no path to a final state: {!r}"
 msgstr ""
+"All non-final states should have at least one path to a final state. "
+"These states have no path to a final state: {!r}"
 
-#: statemachine/factory.py:147
+#: statemachine/factory.py:214
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
 msgstr ""
+"There are unreachable states. The statemachine graph should have a single"
+" component. Disconnected states: {}"
 
-#: statemachine/factory.py:253
-msgid "An event in the '{}' has no id."
+#: statemachine/factory.py:251
+msgid ""
+"Invalid entry in 'listeners': {!r}. Expected a class, callable, or "
+"listener instance."
 msgstr ""
+"Invalid entry in 'listeners': {!r}. Expected a class, callable, or "
+"listener instance."
+
+#: statemachine/factory.py:351
+msgid "An event in the '{}' has no id."
+msgstr "An event in the '{}' has no id."
 
 #: statemachine/mixins.py:28
 msgid "{!r} is not a valid state machine name."
-msgstr ""
+msgstr "{!r} is not a valid state machine name."
 
-#: statemachine/state.py:194
+#: statemachine/state.py:246
+msgid "'donedata' can only be specified on final states."
+msgstr "'donedata' can only be specified on final states."
+
+#: statemachine/state.py:304
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
-msgstr ""
+msgstr "State overriding is not allowed. Trying to add '{}' to {}"
 
-#: statemachine/statemachine.py:89
+#: statemachine/statemachine.py:158
 msgid "There are no states or transitions."
-msgstr ""
+msgstr "There are no states or transitions."
 
-#: statemachine/statemachine.py:277
+#: statemachine/statemachine.py:431
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
 msgstr ""
+"There's no current state set. In async code, did you activate the initial"
+" state? (e.g., `await sm.activate_initial_state()`)"
 
-#: statemachine/transition_mixin.py:15
+#: statemachine/transition.py:74
+msgid ""
+"Not a valid internal transition from source {source!r}, target {target!r}"
+" should be self or a descendant."
+msgstr ""
+"Not a valid internal transition from source {source!r}, target {target!r}"
+" should be self or a descendant."
+
+#: statemachine/transition_mixin.py:19
 msgid "{} only supports the decorator syntax to register callbacks."
-msgstr ""
-
-#: statemachine/engines/async_.py:18
-msgid "Only RTC is supported on async engine"
-msgstr ""
+msgstr "{} only supports the decorator syntax to register callbacks."

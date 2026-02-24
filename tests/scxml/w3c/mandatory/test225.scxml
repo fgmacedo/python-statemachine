@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- we test that the automatically generated id is unique, we call
+invoke twice and compare the ids.   -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+   initial="s0" version="1.0" datamodel="python">
+   <datamodel>
+      <data id="Var1" />
+      <data id="Var2" />
+   </datamodel>
+
+   <state id="s0">
+      <onentry>
+         <send event="timeout" delay="1s" />
+      </onentry>
+
+      <invoke type="http://www.w3.org/TR/scxml/" idlocation="Var1">
+         <content>
+            <scxml initial="subFinal1" version="1.0" datamodel="python">
+               <final id="subFinal1" />
+            </scxml>
+         </content>
+      </invoke>
+      <invoke type="http://www.w3.org/TR/scxml/" idlocation="Var2">
+         <content>
+            <scxml initial="subFinal2" version="1.0" datamodel="python">
+               <final id="subFinal2" />
+            </scxml>
+         </content>
+      </invoke>
+
+      <transition event="*" target="s1" />
+   </state>
+
+   <state id="s1">
+      <transition cond="Var1==Var2" target="fail" />
+      <transition target="pass" />
+   </state>
+
+   <final id="pass">
+      <onentry>
+         <log label="Outcome" expr="'pass'" />
+      </onentry>
+   </final>
+   <final id="fail">
+      <onentry>
+         <log label="Outcome" expr="'fail'" />
+      </onentry>
+   </final>
+
+</scxml>

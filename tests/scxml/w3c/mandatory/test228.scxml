@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that the invokeid is included in events returned from the
+invoked process.   -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+  <datamodel>
+    <data id="Var1" />
+  </datamodel>
+
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="3s" />
+    </onentry>
+
+    <invoke type="http://www.w3.org/TR/scxml/" id="foo">
+      <content>
+        <scxml initial="subFinal" version="1.0" datamodel="python">
+          <final id="subFinal" />
+        </scxml>
+      </content>
+    </invoke>
+
+    <transition event="done.invoke" target="s1">
+      <assign location="Var1" expr="_event.invokeid" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+
+  <state id="s1">
+    <transition cond="Var1=='foo'" target="pass" />
+    <transition target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

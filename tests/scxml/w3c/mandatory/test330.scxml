@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- check that the required fields are present in both internal and
+external events -->
+<scxml xmlns:conf="http://www.w3.org/2005/scxml-conformance" initial="s0" datamodel="python"
+  name="machineName">
+
+  <state id="s0">
+    <onentry>
+      <raise event="foo" />
+    </onentry>
+    <transition event="foo"
+      cond="hasattr(_event, &#34;name&#34;) and hasattr(_event, &#34;type&#34;) and hasattr(_event, &#34;sendid&#34;) and hasattr(_event, &#34;origin&#34;) and hasattr(_event, &#34;origintype&#34;) and hasattr(_event, &#34;invokeid&#34;) and hasattr(_event, &#34;data&#34;)"
+      target="s1" />
+    <transition event="*" target="fail" />
+  </state>
+
+  <state id="s1">
+    <onentry>
+      <send event="foo" />
+    </onentry>
+    <transition event="foo"
+      cond="hasattr(_event, &#34;name&#34;) and hasattr(_event, &#34;type&#34;) and hasattr(_event, &#34;sendid&#34;) and hasattr(_event, &#34;origin&#34;) and hasattr(_event, &#34;origintype&#34;) and hasattr(_event, &#34;invokeid&#34;) and hasattr(_event, &#34;data&#34;)"
+      target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+
+  <final xmlns="http://www.w3.org/2005/07/scxml" id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final xmlns="http://www.w3.org/2005/07/scxml" id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

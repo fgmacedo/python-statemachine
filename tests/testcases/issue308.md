@@ -6,9 +6,9 @@ A StateMachine that exercises the example given on issue
 In this example, we share the transition list between events.
 
 ```py
->>> from statemachine import StateMachine, State
+>>> from statemachine import StateChart, State
 
->>> class TestSM(StateMachine):
+>>> class TestSM(StateChart):
 ...     state1 = State('s1', initial=True)
 ...     state2 = State('s2')
 ...     state3 = State('s3')
@@ -91,31 +91,37 @@ Example given:
 >>> m = TestSM()
 enter state1
 
->>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
-(True, False, False, False, State('s1', id='state1', value='state1', initial=True, final=False))
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, list(m.configuration_values)
+(True, False, False, False, ['state1'])
+
+>>> _ = m.cycle()
 before cycle
 exit state1
 on cycle
 enter state2
 after cycle
 
->>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
-(False, True, False, False, State('s2', id='state2', value='state2', initial=False, final=False))
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, list(m.configuration_values)
+(False, True, False, False, ['state2'])
+
+>>> _ = m.cycle()
 before cycle
 exit state2
 on cycle
 enter state3
 after cycle
 
->>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state ; _ = m.cycle()
-(False, False, True, False, State('s3', id='state3', value='state3', initial=False, final=False))
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, list(m.configuration_values)
+(False, False, True, False, ['state3'])
+
+>>> _ = m.cycle()
 before cycle
 exit state3
 on cycle
 enter state4
 after cycle
 
->>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, m.current_state
-(False, False, False, True, State('s4', id='state4', value='state4', initial=False, final=True))
+>>> m.state1.is_active, m.state2.is_active, m.state3.is_active, m.state4.is_active, list(m.configuration_values)
+(False, False, False, True, ['state4'])
 
 ```

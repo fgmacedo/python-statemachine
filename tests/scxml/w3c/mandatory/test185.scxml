@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- we test that <send> respects the delay specification.  If it does, event1 arrives before event2
+ and we pass.  Otherwise we fail  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance" initial="s0" version="1.0" datamodel="ecmascript">
+  <state id="s0">
+    <onentry>
+      <send event="event2" delayexpr="'1s'"/>
+      <send event="event1"/>
+    </onentry>
+    <transition event="event1" target="s1"/>
+    <transition event="*" target="fail"/>
+  </state>
+  <state id="s1">
+    <transition event="event2" target="pass"/>
+    <transition event="*" target="fail"/>
+  </state>
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'"/>
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'"/>
+    </onentry>
+  </final>
+</scxml>

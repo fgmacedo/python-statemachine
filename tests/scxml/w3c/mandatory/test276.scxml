@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- test that values passed in from parent process override default
+values specified in the child, test276sub1.scxml.
+The child returns event1 if var1 has value 1, event0 if it has default value 0.  -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" datamodel="python">
+
+  <state id="s0">
+    <invoke type="scxml" src="file:test276sub1.scxml">
+      <param name="Var1" expr="1" />
+    </invoke>
+    <transition event="event1" target="pass" />
+    <transition event="event0" target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+
+</scxml>

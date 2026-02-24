@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- we test that the scxml type is supported.   -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  initial="s0" version="1.0" datamodel="python">
+
+  <state id="s0">
+    <onentry>
+      <send event="timeout" delay="2s" />
+    </onentry>
+    <invoke type="http://www.w3.org/TR/scxml/">
+      <content>
+        <!-- when invoked, terminate returning done.invoke. This proves that the invocation
+        succeeded.   -->
+        <scxml initial="subFinal" version="1.0" datamodel="python">
+          <final id="subFinal" />
+        </scxml>
+      </content>
+    </invoke>
+    <transition event="done.invoke" target="pass" />
+    <transition event="*" target="fail" />
+  </state>
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

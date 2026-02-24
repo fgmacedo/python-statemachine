@@ -2,6 +2,7 @@ from unittest import mock
 
 import pytest
 from statemachine.callbacks import CallbackGroup
+from statemachine.callbacks import CallbacksExecutor
 from statemachine.callbacks import CallbackSpec
 from statemachine.callbacks import CallbackSpecList
 from statemachine.callbacks import CallbacksRegistry
@@ -9,7 +10,7 @@ from statemachine.dispatcher import resolver_factory_from_objects
 from statemachine.exceptions import InvalidDefinition
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 @pytest.fixture()
@@ -166,7 +167,7 @@ class TestCallbacksAsDecorator:
         assert race_uppercase("Hobbit") == "HOBBIT"
 
     def test_decorate_unbounded_machine_methods(self):
-        class MiniHeroJourneyMachine(StateMachine, strict_states=False):
+        class MiniHeroJourneyMachine(StateChart):
             ordinary_world = State(initial=True)
             call_to_adventure = State(final=True)
             refusal_of_call = State(final=True)
@@ -222,7 +223,7 @@ class TestIssue406:
     def test_issue_406(self, mocker):
         mock = mocker.Mock()
 
-        class ExampleStateMachine(StateMachine, strict_states=False):
+        class ExampleStateMachine(StateChart):
             created = State(initial=True)
             inited = State(final=True)
 
@@ -277,7 +278,10 @@ class TestIssue417:
 
     @pytest.fixture()
     def sm_class(self, model_class, mock_calls):
-        class ExampleStateMachine(StateMachine):
+        class ExampleStateMachine(StateChart):
+            allow_event_without_transition = False
+            catch_errors_as_events = False
+
             created = State(initial=True)
             started = State(final=True)
 
@@ -336,7 +340,9 @@ class TestIssue417:
             def this_cannot_resolve(self) -> bool:
                 return True
 
-        class ExampleStateMachine(StateMachine):
+        class ExampleStateMachine(StateChart):
+            catch_errors_as_events = False
+
             created = State(initial=True)
             started = State(final=True)
             start = created.to(started, cond=[StrangeObject.this_cannot_resolve])
@@ -346,3 +352,35 @@ class TestIssue417:
             match="Error on transition start from Created to Started when resolving callbacks",
         ):
             ExampleStateMachine()
+
+
+class TestVisitConditionFalse:
+    """visit/async_visit skip callbacks whose condition returns False."""
+
+    def test_visit_skips_when_condition_is_false(self):
+        visited = []
+        spec = CallbackSpec(
+            "never_called",
+            group=CallbackGroup.INVOKE,
+            is_convention=True,
+            cond=lambda *a, **kw: False,
+        )
+        executor = CallbacksExecutor()
+        executor.add("test_key", spec, lambda: lambda **kw: True)
+
+        executor.visit(lambda cb, *a, **kw: visited.append(str(cb)))
+        assert visited == []
+
+    async def test_async_visit_skips_when_condition_is_false(self):
+        visited = []
+        spec = CallbackSpec(
+            "never_called",
+            group=CallbackGroup.INVOKE,
+            is_convention=True,
+            cond=lambda *a, **kw: False,
+        )
+        executor = CallbacksExecutor()
+        executor.add("test_key", spec, lambda: lambda **kw: True)
+
+        await executor.async_visit(lambda cb, *a, **kw: visited.append(str(cb)))
+        assert visited == []

@@ -166,7 +166,7 @@ class Listeners:
                     yield listener.build_key(spec.attr_name), partial(callable_method, func)
                     return
 
-        yield f"{spec.attr_name}@None", partial(callable_method, spec.func)
+        yield f"{spec.attr_name}-{id(spec.func)}@None", partial(callable_method, spec.func)
 
     def search_name(self, name):
         for listener in self.items:
@@ -194,7 +194,7 @@ def callable_method(a_callable) -> Callable:
 
     if sig.is_coroutine:
 
-        async def signature_adapter(*args: Any, **kwargs: Any) -> Any:
+        async def signature_adapter(*args: Any, **kwargs: Any) -> Any:  # pyright: ignore[reportRedeclaration]
             ba = sig_bind_expected(*args, **kwargs)
             return await a_callable(*ba.args, **ba.kwargs)
     else:

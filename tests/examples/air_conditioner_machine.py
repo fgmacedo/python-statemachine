@@ -2,7 +2,7 @@
 Air Conditioner machine
 =======================
 
-A StateMachine that exercises reading from a stream of events.
+A StateChart that exercises reading from a stream of events.
 
 """
 
@@ -11,7 +11,7 @@ import random
 from statemachine.utils import run_async_from_sync
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 def sensor_temperature_reader(seed: int, lower: int = 15, higher: int = 35):
@@ -21,7 +21,7 @@ def sensor_temperature_reader(seed: int, lower: int = 15, higher: int = 35):
         yield random.randint(lower, higher)
 
 
-class AirConditioner(StateMachine):
+class AirConditioner(StateChart):
     off = State(initial=True)
     cooling = State()
     standby = State()

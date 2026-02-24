@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<scxml datamodel="python" initial="s1" name="ScxmlTest422" version="1.0"
+	xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"><!--Test
+	that at the end of a macrostep, the processor executes all invokes in states
+that have been entered and not exited during the step.  (The invokes are supposed to be executed
+in document order, but we can test that since each invocation is separate and they may take
+different amounts to time to start up.)  In this case, there are three invoke statements,
+in states s1, s11 and s12.  Each invoked process returns an event named after its parent state.
+The invokes in s1 and s12 should execute, but not the one
+in s11. So we should receive invokeS1, invokeS12, but not invokeS12.  Furthermore, when the timeout
+	fires, var1 should equal 2.-->
+	<datamodel>
+		<data expr="0" id="Var1" />
+	</datamodel>
+	<state id="s1" initial="s11">
+		<onentry>
+			<send delayexpr="'2s'" event="timeout" />
+		</onentry>
+		<invoke>
+			<content>
+				<scxml datamodel="python" initial="sub0" name="ScxmlShape1" version="1.0"
+					xmlns="http://www.w3.org/2005/07/scxml">
+					<state id="sub0">
+						<onentry>
+							<send event="invokeS1" target="#_parent" />
+						</onentry>
+						<transition target="subFinal0" />
+					</state>
+					<final id="subFinal0" />
+				</scxml><!--when
+				invoked, send 'foo' to parent, then terminate.-->
+			</content>
+		</invoke>
+		<transition event="invokeS1 invokeS12">
+			<assign location="Var1" expr="Var1 + 1" />
+		</transition>
+		<transition event="invokeS11" target="fail" />
+		<transition cond="Var1==2" event="timeout" target="pass" />
+		<transition event="timeout" target="fail" />
+		<state id="s11">
+			<invoke>
+				<content>
+					<scxml datamodel="python" initial="sub1" name="ScxmlShape1" version="1.0"
+						xmlns="http://www.w3.org/2005/07/scxml">
+						<state id="sub1">
+							<onentry>
+								<send event="invokeS11" target="#_parent" />
+							</onentry>
+							<transition target="subFinal1" />
+						</state>
+						<final id="subFinal1" />
+					</scxml><!--when
+					invoked, send 'foo' to parent, then terminate.-->
+				</content>
+			</invoke>
+			<transition target="s12" />
+		</state>
+		<state id="s12">
+			<invoke>
+				<content>
+					<scxml datamodel="python" initial="sub2" name="ScxmlShape1" version="1.0"
+						xmlns="http://www.w3.org/2005/07/scxml">
+						<state id="sub2">
+							<onentry>
+								<send event="invokeS12" target="#_parent" />
+							</onentry>
+							<transition target="subFinal2" />
+						</state>
+						<final id="subFinal2" />
+					</scxml><!--when
+					invoked, send 'foo' to parent, then terminate.-->
+				</content>
+			</invoke>
+		</state>
+	</state>
+	<final id="pass">
+		<onentry>
+			<log expr="'pass'" label="Outcome" />
+		</onentry>
+	</final>
+	<final id="fail">
+		<onentry>
+			<log expr="'fail'" label="Outcome" />
+		</onentry>
+	</final>
+</scxml>

@@ -5,12 +5,24 @@ Versions follow [Semantic Versioning](https://semver.org/) (`<major>.<minor>.<pa
 Backward incompatible (breaking) changes will only be introduced in major versions
 with advance notice in the **Deprecations** section of releases.
 
+```{seealso}
+Upgrading from 2.x? See [](upgrade_2x_to_3.md) for a step-by-step migration guide.
+```
 
-## Releases
+## 3.x releases
 
-Below are release notes through StateMachine and its patch releases.
+Requires Python 3.9+.
 
-###  2.0 releases
+```{toctree}
+:maxdepth: 2
+
+3.0.0
+
+```
+
+## 2.x releases
+
+Last series to support Python 3.7 and 3.8.
 
 ```{toctree}
 :maxdepth: 2
@@ -34,9 +46,9 @@ Below are release notes through StateMachine and its patch releases.
 ```
 
 
-###  1.0 releases
+## 1.x releases
 
-This is the last release series to support Python 2.X series.
+Last series to support Python 2.x.
 
 ```{toctree}
 :maxdepth: 2
@@ -48,7 +60,7 @@ This is the last release series to support Python 2.X series.
 
 ```
 
-###  0.* releases
+## 0.x releases
 
 ```{toctree}
 :maxdepth: 1

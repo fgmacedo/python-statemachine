@@ -2,14 +2,14 @@
 Order control machine (rich model)
 ==================================
 
-An StateMachine that demonstrates :ref:`Actions` being used on a rich model.
+A StateChart that demonstrates :ref:`Actions` being used on a rich model.
 
 """
 
 from statemachine.exceptions import InvalidDefinition
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 class Order:
@@ -36,7 +36,10 @@ class Order:
         self.payment_received = False
 
 
-class OrderControl(StateMachine):
+class OrderControl(StateChart):
+    allow_event_without_transition = False
+    enable_self_transition_entries = False
+
     waiting_for_payment = State(initial=True, enter="wait_for_payment")
     processing = State()
     shipping = State()
@@ -91,7 +94,7 @@ control.send("receive_payment", 4)
 # Since there's still $6 left to fulfill the payment, we cannot process the order.
 try:
     control.send("process_order")
-except StateMachine.TransitionNotAllowed as err:
+except StateChart.TransitionNotAllowed as err:
     print(err)
 
 # %%

@@ -9,6 +9,7 @@ def add_doctest_context(doctest_namespace):  # noqa: PT004
     from statemachine.utils import run_async_from_sync
 
     from statemachine import State
+    from statemachine import StateChart
     from statemachine import StateMachine
 
     class ContribAsyncio:
@@ -23,15 +24,16 @@ def add_doctest_context(doctest_namespace):  # noqa: PT004
             self.run = run_async_from_sync
 
     doctest_namespace["State"] = State
+    doctest_namespace["StateChart"] = StateChart
     doctest_namespace["StateMachine"] = StateMachine
     doctest_namespace["asyncio"] = ContribAsyncio()
 
 
-def pytest_ignore_collect(collection_path, path, config):
+def pytest_ignore_collect(collection_path, config):
     if sys.version_info >= (3, 10):  # noqa: UP036
         return None
 
-    if "django_project" in str(path):
+    if "django_project" in str(collection_path):
         return True
 
 

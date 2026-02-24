@@ -1,4 +1,5 @@
-import warnings
+from typing import List
+from typing import Optional
 
 from .utils import qualname
 
@@ -16,18 +17,11 @@ _initialized = False
 
 def register(cls):
     _REGISTRY[qualname(cls)] = cls
-    _REGISTRY[cls.__name__] = cls
     return cls
 
 
 def get_machine_cls(name):
     init_registry()
-    if "." not in name:
-        warnings.warn(
-            """Use fully qualified names (<module>.<class>) for state machine mixins.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
     return _REGISTRY[name]
 
 
@@ -38,6 +32,6 @@ def init_registry():
         _initialized = True
 
 
-def load_modules(modules=None):
-    for module in modules:
+def load_modules(modules: Optional[List[str]] = None) -> None:
+    for module in modules or []:
         autodiscover_modules(module)

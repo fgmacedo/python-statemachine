@@ -9,7 +9,7 @@ This works also as a regression test.
 
 ```py
 >>> from statemachine import State
->>> from statemachine import StateMachine
+>>> from statemachine import StateChart
 
 >>> class MyObs:
 ...     def on_move_car(self):
@@ -21,7 +21,7 @@ This works also as a regression test.
 ...
 
 
->>> class Car(StateMachine):
+>>> class Car(StateChart):
 ...     stopped = State(initial=True)
 ...     moving = State()
 ...
@@ -40,13 +40,13 @@ Running:
 >>> obs = MyObs()
 >>> obs2 = MyObs2()
 >>> car.add_listener(obs)
-Car(model=Model(state=stopped), state_field='state', current_state='stopped')
+Car(model=Model(state=stopped), state_field='state', configuration=['stopped'])
 
 >>> car.add_listener(obs2)
-Car(model=Model(state=stopped), state_field='state', current_state='stopped')
+Car(model=Model(state=stopped), state_field='state', configuration=['stopped'])
 
 >>> car.add_listener(obs2)  # test to not register duplicated observer callbacks
-Car(model=Model(state=stopped), state_field='state', current_state='stopped')
+Car(model=Model(state=stopped), state_field='state', configuration=['stopped'])
 
 >>> car.move_car()
 I'm moving

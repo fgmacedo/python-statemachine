@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance"
+  version="1.0" datamodel="python" initial="s0" name="machineName">
+
+  <!-- test that _event.type is set correctly for internal, platform, and external events -->
+  <datamodel>
+    <data id="Var1" />
+  </datamodel>
+
+  <state id="s0">
+    <onentry>
+      <!-- internal event -->
+      <raise event="foo" />
+    </onentry>
+    <transition event="foo" target="s1">
+      <assign location="Var1" expr="_event.type" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+
+  <state id="s1">
+    <transition cond="Var1=='internal'" target="s2" />
+    <transition target="fail" />
+  </state>
+
+  <state id="s2">
+    <onentry>
+      <!-- this will generate an error, which is a platform event -->
+      <assign location="Var2" expr="1" />
+    </onentry>
+    <transition event="error" target="s3">
+      <assign location="Var1" expr="_event.type" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+
+  <state id="s3">
+    <transition cond="Var1=='platform'" target="s4" />
+    <transition target="fail" />
+  </state>
+
+  <state id="s4">
+    <onentry>
+      <!-- external event -->
+      <send event="foo" />
+    </onentry>
+    <transition event="foo" target="s5">
+      <assign location="Var1" expr="_event.type" />
+    </transition>
+    <transition event="*" target="fail" />
+  </state>
+
+  <state id="s5">
+    <transition cond="Var1=='external'" target="pass" />
+    <transition target="fail" />
+  </state>
+
+
+  <final id="pass">
+    <onentry>
+      <log label="Outcome" expr="'pass'" />
+    </onentry>
+  </final>
+  <final id="fail">
+    <onentry>
+      <log label="Outcome" expr="'fail'" />
+    </onentry>
+  </final>
+
+</scxml>

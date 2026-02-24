@@ -1,15 +1,20 @@
-import warnings
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Tuple
 
 from . import registry
+from .callbacks import CallbackGroup
+from .callbacks import CallbackPriority
+from .callbacks import CallbackSpecList
 from .event import Event
+from .event import _expand_event_id
 from .exceptions import InvalidDefinition
+from .graph import disconnected_states
+from .graph import iterate_states
 from .graph import iterate_states_and_transitions
-from .graph import visit_connected_states
+from .graph import states_without_path_to_final_states
 from .i18n import _
 from .state import State
 from .states import States
@@ -20,60 +25,127 @@ from .transition_list import TransitionList
 class StateMachineMetaclass(type):
     "Metaclass for constructing StateMachine classes"
 
+    validate_disconnected_states: bool = True
+    """If `True`, the state machine will validate that there are no unreachable states."""
+
+    validate_trap_states: bool = True
+    """If ``True``, non-final states without outgoing transitions raise ``InvalidDefinition``."""
+
+    validate_final_reachability: bool = True
+    """If ``True`` and final states exist, non-final states without a path to any final
+    state raise ``InvalidDefinition``."""
+
     def __init__(
         cls,
         name: str,
         bases: Tuple[type],
         attrs: Dict[str, Any],
-        strict_states: bool = False,
     ) -> None:
         super().__init__(name, bases, attrs)
         registry.register(cls)
         cls.name = cls.__name__
+        cls.id = cls.name.lower()
+        # TODO: Experiment with the IDEA of a root state
+        # cls.root = State(id=cls.id, name=cls.name)
         cls.states: States = States()
         cls.states_map: Dict[Any, State] = {}
         """Map of ``state.value`` to the corresponding :ref:`state`."""
 
         cls._abstract = True
-        cls._strict_states = strict_states
         cls._events: Dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
-        cls._events_to_update: Dict[Event, Event | None] = {}
-
+        cls._events_to_update: Dict[Event, Optional[Event]] = {}
+        cls._specs = CallbackSpecList()
+        cls.prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
+            "prepare_event", priority=CallbackPriority.GENERIC, is_convention=True
+        )
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
+        cls._collect_class_listeners(attrs, bases)
+        cls._unpack_builders_callbacks()
         cls._update_event_references()
 
-        try:
-            cls.initial_state: State = next(s for s in cls.states if s.initial)
-        except StopIteration:
-            cls.initial_state = None  # Abstract SM still don't have states
+        if not cls.states:
+            return
+
+        cls._initials_by_document_order(list(cls.states), parent=None)
+
+        initials = [s for s in cls.states if s.initial]
+        parallels = [s.id for s in cls.states if s.parallel]
+        root_only_has_parallels = len(cls.states) == len(parallels)
+
+        if len(initials) != 1 and not root_only_has_parallels:
+            raise InvalidDefinition(
+                _(
+                    "There should be one and only one initial state. "
+                    "Your currently have these: {0}"
+                ).format(", ".join(s.id for s in initials))
+            )
+
+        if initials:
+            cls.initial_state = initials[0]
+        else:  # pragma: no cover
+            cls.initial_state = None
 
         cls.final_states: List[State] = [state for state in cls.states if state.final]
 
         cls._check()
         cls._setup()
 
-    if TYPE_CHECKING:
-        """Makes mypy happy with dynamic created attributes"""
+    def _initials_by_document_order(  # noqa: C901
+        cls, states: List[State], parent: "State | None" = None, order: int = 1
+    ):
+        """Set initial state by document order if no explicit initial state is set"""
+        initials: List[State] = []
+        for s in states:
+            s.document_order = order
+            order += 1
+            if s.states:
+                cls._initials_by_document_order(s.states, s, order)
+            if s.initial:
+                initials.append(s)
 
-        def __getattr__(self, attribute: str) -> Any: ...
+        if not initials and states:
+            initial = states[0]
+            initial._initial = True
+            initials.append(initial)
+
+        if not parent:
+            return
+
+        # If parent already has a multi-target initial transition (e.g., from SCXML initial
+        # attribute targeting multiple parallel regions), don't create default initial transitions.
+        if any(t for t in parent.transitions if t.initial and len(t.targets) > 1):
+            return
+
+        for initial in initials:
+            if not any(t for t in parent.transitions if t.initial and t.target == initial):
+                parent.to(initial, initial=True)
+
+        if not parent.parallel:
+            return
+
+        for state in states:
+            state._initial = True
+            if not any(t for t in parent.transitions if t.initial and t.target == state):
+                parent.to(state, initial=True)  # pragma: no cover
+
+    def _unpack_builders_callbacks(cls):
+        callbacks = {}
+        for state in iterate_states(cls.states):
+            if state._callbacks:
+                callbacks.update(state._callbacks)
+                del state._callbacks
+        for key, value in callbacks.items():
+            setattr(cls, key, value)
 
     def _check(cls):
         has_states = bool(cls.states)
-        has_events = bool(cls._events)
-
-        cls._abstract = not has_states and not has_events
+        cls._abstract = not has_states
 
         # do not validate the base abstract classes
-        if cls._abstract:
+        if cls._abstract:  # pragma: no cover
             return
-
-        if not has_states:
-            raise InvalidDefinition(_("There are no states."))
-
-        if not has_events:
-            raise InvalidDefinition(_("There are no events."))
 
         cls._check_initial_state()
         cls._check_final_states()
@@ -83,13 +155,16 @@ class StateMachineMetaclass(type):
 
     def _check_initial_state(cls):
         initials = [s for s in cls.states if s.initial]
-        if len(initials) != 1:
+        if len(initials) != 1:  # pragma: no cover
             raise InvalidDefinition(
                 _(
                     "There should be one and only one initial state. "
                     "You currently have these: {!r}"
                 ).format([s.id for s in initials])
             )
+        # TODO: Check if this is still needed
+        # if not initials[0].transitions.transitions:
+        #     raise InvalidDefinition(_("There are no transitions."))
 
     def _check_final_states(cls):
         final_state_with_invalid_transitions = [
@@ -104,51 +179,43 @@ class StateMachineMetaclass(type):
             )
 
     def _check_trap_states(cls):
+        if not cls.validate_trap_states:
+            return
         trap_states = [s for s in cls.states if not s.final and not s.transitions]
         if trap_states:
-            message = _(
-                "All non-final states should have at least one outgoing transition. "
-                "These states have no outgoing transition: {!r}"
-            ).format([s.id for s in trap_states])
-            if cls._strict_states:
-                raise InvalidDefinition(message)
-            else:
-                warnings.warn(message, UserWarning, stacklevel=4)
+            raise InvalidDefinition(
+                _(
+                    "All non-final states should have at least one outgoing transition. "
+                    "These states have no outgoing transition: {!r}"
+                ).format([s.id for s in trap_states])
+            )
 
     def _check_reachable_final_states(cls):
+        if not cls.validate_final_reachability:
+            return
         if not any(s.final for s in cls.states):
             return  # No need to check final reachability
-        disconnected_states = cls._states_without_path_to_final_states()
+        disconnected_states = list(states_without_path_to_final_states(cls.states))
         if disconnected_states:
-            message = _(
-                "All non-final states should have at least one path to a final state. "
-                "These states have no path to a final state: {!r}"
-            ).format([s.id for s in disconnected_states])
-            if cls._strict_states:
-                raise InvalidDefinition(message)
-            else:
-                warnings.warn(message, UserWarning, stacklevel=1)
-
-    def _states_without_path_to_final_states(cls):
-        return [
-            state
-            for state in cls.states
-            if not state.final and not any(s.final for s in visit_connected_states(state))
-        ]
-
-    def _disconnected_states(cls, starting_state):
-        visitable_states = set(visit_connected_states(starting_state))
-        return set(cls.states) - visitable_states
+            raise InvalidDefinition(
+                _(
+                    "All non-final states should have at least one path to a final state. "
+                    "These states have no path to a final state: {!r}"
+                ).format([s.id for s in disconnected_states])
+            )
 
     def _check_disconnected_state(cls):
-        disconnected_states = cls._disconnected_states(cls.initial_state)
-        if disconnected_states:
+        if not cls.validate_disconnected_states:
+            return
+        assert cls.initial_state
+        states = disconnected_states(cls.initial_state, set(cls.states_map.values()))
+        if states:
             raise InvalidDefinition(
                 _(
                     "There are unreachable states. "
                     "The statemachine graph should have a single component. "
                     "Disconnected states: {}"
-                ).format([s.id for s in disconnected_states])
+                ).format([s.id for s in states])
             )
 
     def _setup(cls):
@@ -168,6 +235,27 @@ class StateMachineMetaclass(type):
             "send",
         } | {s.id for s in cls.states}
 
+    def _collect_class_listeners(cls, attrs: Dict[str, Any], bases: Tuple[type]):
+        """Collect class-level listener declarations from attrs and MRO.
+
+        Listeners declared on parent classes are prepended (MRO order),
+        unless the child sets ``listeners_inherit = False``.
+        """
+        class_listeners: List[Any] = []
+        if attrs.get("listeners_inherit", True):
+            for base in reversed(bases):
+                class_listeners.extend(getattr(base, "_class_listeners", []))
+        for entry in attrs.get("listeners", []):
+            if entry is None or isinstance(entry, (str, int, float, bool)):
+                raise InvalidDefinition(
+                    _(
+                        "Invalid entry in 'listeners': {!r}. "
+                        "Expected a class, callable, or listener instance."
+                    ).format(entry)
+                )
+            class_listeners.append(entry)
+        cls._class_listeners: List[Any] = class_listeners
+
     def add_inherited(cls, bases):
         for base in bases:
             for state in getattr(base, "states", []):
@@ -184,16 +272,22 @@ class StateMachineMetaclass(type):
             if isinstance(value, State):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
-                cls.add_event(event=Event(transitions=value, id=key, name=key))
+                event_id = _expand_event_id(key)
+                cls.add_event(event=Event(transitions=value, id=event_id, name=key))
             elif isinstance(value, (Event,)):
-                cls.add_event(
-                    event=Event(
-                        transitions=value._transitions,
-                        id=key,
-                        name=value.name,
-                    ),
-                    old_event=value,
+                if value._has_real_id:
+                    event_id = value.id
+                else:
+                    event_id = _expand_event_id(key)
+                new_event = Event(
+                    transitions=value._transitions,
+                    id=event_id,
+                    name=value.name,
                 )
+                cls.add_event(event=new_event, old_event=value)
+                # Ensure the event is accessible by the Python attribute name
+                if event_id != key:
+                    setattr(cls, key, new_event)
             elif getattr(value, "attr_name", None):
                 cls._add_unbounded_callback(key, value)
 
@@ -211,14 +305,18 @@ class StateMachineMetaclass(type):
 
     def add_state(cls, id, state: State):
         state._set_id(id)
-        cls.states.append(state)
         cls.states_map[state.value] = state
-        if not hasattr(cls, id):
-            setattr(cls, id, state)
+        if not state.parent:
+            cls.states.append(state)
+            if not hasattr(cls, id):
+                setattr(cls, id, state)
 
         # also register all events associated directly with transitions
         for event in state.transitions.unique_events:
             cls.add_event(event)
+
+        for substate in state.states:
+            cls.add_state(substate.id, substate)
 
     def add_event(
         cls,

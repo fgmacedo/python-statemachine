@@ -2,7 +2,7 @@
 Enum campaign machine
 =====================
 
-A :ref:`StateMachine` that demonstrates declaring :ref:`States from Enum types` as source for
+A :ref:`StateChart` that demonstrates declaring :ref:`States from Enum types` as source for
 ``States`` definition.
 
 """
@@ -11,7 +11,7 @@ from enum import Enum
 
 from statemachine.states import States
 
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 class CampaignStatus(Enum):
@@ -20,14 +20,13 @@ class CampaignStatus(Enum):
     CLOSED = 3
 
 
-class CampaignMachine(StateMachine):
+class CampaignMachine(StateChart):
     "A workflow machine"
 
     states = States.from_enum(
         CampaignStatus,
         initial=CampaignStatus.DRAFT,
         final=CampaignStatus.CLOSED,
-        use_enum_instance=True,
     )
 
     add_job = states.DRAFT.to(states.DRAFT) | states.PRODUCING.to(states.PRODUCING)
@@ -38,14 +37,14 @@ class CampaignMachine(StateMachine):
 # %%
 # Asserting campaign machine declaration
 
-assert CampaignMachine.DRAFT.initial
-assert not CampaignMachine.DRAFT.final
+assert CampaignMachine.states.DRAFT.initial
+assert not CampaignMachine.states.DRAFT.final
 
-assert not CampaignMachine.PRODUCING.initial
-assert not CampaignMachine.PRODUCING.final
+assert not CampaignMachine.states.PRODUCING.initial
+assert not CampaignMachine.states.PRODUCING.final
 
-assert not CampaignMachine.CLOSED.initial
-assert CampaignMachine.CLOSED.final
+assert not CampaignMachine.states.CLOSED.initial
+assert CampaignMachine.states.CLOSED.final
 
 
 # %%
@@ -54,8 +53,7 @@ assert CampaignMachine.CLOSED.final
 sm = CampaignMachine()
 res = sm.send("produce")
 
-assert sm.DRAFT.is_active is False
-assert sm.PRODUCING.is_active is True
-assert sm.CLOSED.is_active is False
-assert sm.current_state == sm.PRODUCING
-assert sm.current_state_value == CampaignStatus.PRODUCING
+assert CampaignStatus.DRAFT not in sm.configuration_values
+assert CampaignStatus.PRODUCING in sm.configuration_values
+assert CampaignStatus.CLOSED not in sm.configuration_values
+assert CampaignStatus.PRODUCING in sm.configuration_values

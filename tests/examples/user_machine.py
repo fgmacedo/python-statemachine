@@ -2,7 +2,7 @@
 User workflow machine
 =====================
 
-This machine binds the events to the User model, the StateMachine is wrapped internally
+This machine binds the events to the User model, the StateChart is wrapped internally
 in the `User` class.
 
 Demonstrates that multiple state machines can be used in the same model.
@@ -17,7 +17,7 @@ from enum import Enum
 from statemachine.states import States
 
 from statemachine import State
-from statemachine import StateMachine
+from statemachine import StateChart
 
 
 class UserStatus(str, Enum):
@@ -63,7 +63,8 @@ class MachineChangeListenter:
         print(f"Entering {state} from {event}")
 
 
-class UserStatusMachine(StateMachine):
+class UserStatusMachine(StateChart):
+    catch_errors_as_events = False
     _states = States.from_enum(
         UserStatus,
         initial=UserStatus.signup_incomplete,
@@ -91,7 +92,7 @@ class UserStatusMachine(StateMachine):
         self.model.verified = True  # type: ignore[union-attr]
 
 
-class UserExperienceMachine(StateMachine):
+class UserExperienceMachine(StateChart):
     _states = States.from_enum(
         UserExperience,
         initial=UserExperience.basic,
