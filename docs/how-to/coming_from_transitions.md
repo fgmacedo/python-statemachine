@@ -960,4 +960,4 @@ See {ref}`validations` for the full list.
 | Ordered transitions | Yes | Via explicit wiring |
 | Tags on states | Yes | Via subclassing |
 | {ref}`Machine nesting (children) <invoke>` | Yes | Yes (invoke) |
-| Timeout transitions | Yes | {ref}`Yes <delayed-events>` |
+| {ref}`Timeout transitions <timeout>` | Yes | Yes |
