@@ -1,4 +1,5 @@
-
+(domain models)=
+(models)=
 # Domain models
 
 If you need to use any other object to persist the current state, or you're using the

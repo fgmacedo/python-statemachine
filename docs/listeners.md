@@ -1,20 +1,40 @@
-
 (observers)=
+(listeners)=
+
 # Listeners
 
-Listeners are a way to generically add behavior to a state machine without
-changing its internal implementation.
+A **listener** is an external object that observes a state machine's lifecycle
+without modifying its class definition. Listeners receive the same
+{ref}`generic callbacks <actions>` as the state machine itself —
+`on_enter_state()`, `after_transition()`, `on_exit_state()`, and so on —
+making them ideal for cross-cutting concerns like logging, persistence,
+telemetry, or UI updates.
 
-One possible use case is to add a listener that prints a log message when the SM runs a
-transition or enters a new state.
+Under the hood, the `StateChart` class itself is registered as a listener —
+this is how naming-convention callbacks like `on_enter_idle()` are
+discovered. {ref}`Domain models <models>` are also registered as listeners.
+This means that an external listener has the **same level of access** to
+callbacks as methods defined directly on the state machine class.
 
-Giving the {ref}`sphx_glr_auto_examples_traffic_light_machine.py` as example:
+```{tip}
+Why use a listener instead of defining callbacks directly on the class?
+Listeners keep concerns **separate and reusable** — the same logging
+listener can observe any state machine, and you can attach multiple
+independent listeners without them interfering with each other.
+```
 
+
+## Defining a listener
+
+A listener is any object with methods that match the
+{ref}`callback naming conventions <actions>`. The library inspects the
+method signatures and calls them with {ref}`dependency injection <dependency-injection>`,
+so each listener receives only the parameters it declares:
 
 ```py
->>> from tests.examples.traffic_light_machine import TrafficLightMachine
+>>> from statemachine import State, StateChart
 
->>> class LogListener(object):
+>>> class LogListener:
 ...     def __init__(self, name):
 ...         self.name = name
 ...
@@ -24,88 +44,19 @@ Giving the {ref}`sphx_glr_auto_examples_traffic_light_machine.py` as example:
 ...     def on_enter_state(self, target, event):
 ...         print(f"{self.name} enter: {target.id} from {event}")
 
-
->>> sm = TrafficLightMachine(listeners=[LogListener("Paulista Avenue")])
-Paulista Avenue enter: green from __initial__
-
->>> sm.cycle()
-Running cycle from green to yellow
-Paulista Avenue enter: yellow from cycle
-Paulista Avenue after: green--(cycle)-->yellow
-
 ```
 
-## Adding listeners to an instance
-
-Attach listeners to an already running state machine instance using `add_listener`.
-
-Exploring our example, imagine that you can implement the LED panel as a listener, that
-reacts to state changes and turn on/off automatically.
+No base class or interface is required — any object with matching method
+names works.
 
 
-``` py
->>> class LedPanel:
-...
-...     def __init__(self, color: str):
-...         self.color = color
-...
-...     def on_enter_state(self, target: State):
-...         if target.id == self.color:
-...             print(f"{self.color} turning on")
-...
-...     def on_exit_state(self, source: State):
-...         if source.id == self.color:
-...             print(f"{self.color} turning off")
+## Class-level declarations
 
-```
-
-Adding a listener for each traffic light indicator
-
-```
->>> sm.add_listener(LedPanel("green"), LedPanel("yellow"), LedPanel("red"))  # doctest: +ELLIPSIS
-TrafficLightMachine...
-
-```
-
-Now each "LED panel" reacts to changes in state from the state machine:
+The most common way to attach listeners is at the class level, using the
+`listeners` class attribute. This ensures listeners are automatically
+created for every instance:
 
 ```py
->>> sm.cycle()
-Running cycle from yellow to red
-yellow turning off
-Paulista Avenue enter: red from cycle
-red turning on
-Paulista Avenue after: yellow--(cycle)-->red
-
->>> sm.cycle()
-Running cycle from red to green
-red turning off
-Paulista Avenue enter: green from cycle
-green turning on
-Paulista Avenue after: red--(cycle)-->green
-
-```
-
-
-## Class-level listener declarations
-
-```{versionadded} 3.0.0
-```
-
-You can declare listeners at the class level so they are automatically attached to every
-instance of the state machine. This is useful for cross-cutting concerns like logging,
-persistence, or telemetry that should always be present.
-
-The `listeners` class attribute accepts two forms:
-
-- **Callable** (class, `functools.partial`, lambda): acts as a factory — called once per
-  SM instance to produce a fresh listener. Use this for listeners that accumulate state.
-- **Instance** (pre-built object): shared across all SM instances. Use this for stateless
-  listeners like a global logger.
-
-```py
->>> from statemachine import State, StateChart
-
 >>> class AuditListener:
 ...     def __init__(self):
 ...         self.log = []
@@ -122,15 +73,21 @@ The `listeners` class attribute accepts two forms:
 
 >>> sm = OrderMachine()
 >>> sm.send("confirm")
->>> [type(l).__name__ for l in sm.active_listeners]
-['AuditListener']
-
 >>> sm.active_listeners[0].log
 ['confirm: draft -> confirmed']
 
 ```
 
-### Listeners with configuration
+The `listeners` attribute accepts two forms:
+
+- **Callable** (class, `functools.partial`, lambda): acts as a **factory** —
+  called once per instance to produce a fresh listener. Use this for
+  listeners that accumulate state.
+- **Instance** (pre-built object): **shared** across all instances. Use
+  this for stateless listeners like a global logger.
+
+
+### Configuration with `functools.partial`
 
 Use `functools.partial` to pass configuration to listener factories:
 
@@ -161,10 +118,52 @@ Use `functools.partial` to pass configuration to listener factories:
 
 ```
 
-### Runtime listeners merge with class-level
 
-Runtime listeners passed via the `listeners=` constructor parameter are appended after
-class-level listeners:
+### Inheritance
+
+Child class listeners are appended after parent listeners. The full MRO
+chain is respected:
+
+```py
+>>> class SimpleLogListener:
+...     def after_transition(self, event, source, target):
+...         pass
+
+>>> class BaseMachine(StateChart):
+...     listeners = [SimpleLogListener]
+...
+...     s1 = State(initial=True)
+...     s2 = State(final=True)
+...     go = s1.to(s2)
+
+>>> class ChildMachine(BaseMachine):
+...     listeners = [AuditListener]
+
+>>> sm = ChildMachine()
+>>> [type(l).__name__ for l in sm.active_listeners]
+['SimpleLogListener', 'AuditListener']
+
+```
+
+To **replace** parent listeners instead of extending, set
+`listeners_inherit = False`:
+
+```py
+>>> class ReplacedMachine(BaseMachine):
+...     listeners_inherit = False
+...     listeners = [AuditListener]
+
+>>> sm = ReplacedMachine()
+>>> [type(l).__name__ for l in sm.active_listeners]
+['AuditListener']
+
+```
+
+
+## Attaching at construction
+
+Pass listeners to the constructor for instance-specific observers.
+Runtime listeners are appended **after** class-level listeners:
 
 ```py
 >>> runtime_listener = AuditListener()
@@ -178,48 +177,56 @@ class-level listeners:
 
 ```
 
-### Inheritance
 
-Child class listeners are appended after parent listeners. The full MRO chain is respected:
+## Attaching at runtime
+
+Use `add_listener()` to attach listeners to an already running instance.
+This is useful when the listener depends on runtime context or when you
+want to start observing after initialization:
 
 ```py
->>> class LogListener:
-...     pass
-
->>> class BaseMachine(StateChart):
-...     listeners = [LogListener]
+>>> class LedPanel:
+...     def __init__(self, color):
+...         self.color = color
+...         self.is_on = False
 ...
-...     s1 = State(initial=True)
-...     s2 = State(final=True)
-...     go = s1.to(s2)
+...     def on_enter_state(self, target, **kwargs):
+...         if target.id == self.color:
+...             self.is_on = True
+...
+...     def on_exit_state(self, source, **kwargs):
+...         if source.id == self.color:
+...             self.is_on = False
 
->>> class ChildMachine(BaseMachine):
-...     listeners = [AuditListener]
+>>> class TrafficLight(StateChart):
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
+...
+...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
 
->>> sm = ChildMachine()
->>> [type(l).__name__ for l in sm.active_listeners]
-['LogListener', 'AuditListener']
+>>> sm = TrafficLight()
+>>> green_led = LedPanel("green")
+>>> yellow_led = LedPanel("yellow")
+>>> sm.add_listener(green_led, yellow_led)  # doctest: +ELLIPSIS
+TrafficLight...
+
+>>> green_led.is_on, yellow_led.is_on
+(False, False)
+
+>>> sm.send("cycle")
+>>> green_led.is_on, yellow_led.is_on
+(False, True)
 
 ```
 
-To **replace** parent listeners instead of extending, set `listeners_inherit = False`:
 
-```py
->>> class ReplacedMachine(BaseMachine):
-...     listeners_inherit = False
-...     listeners = [AuditListener]
+## The `setup()` protocol
 
->>> sm = ReplacedMachine()
->>> [type(l).__name__ for l in sm.active_listeners]
-['AuditListener']
-
-```
-
-### Listener `setup()` protocol
-
-Listeners that need runtime dependencies (e.g., a database session, Redis client) can
-define a `setup()` method. It is called during SM `__init__` with the SM instance and
-any extra `**kwargs` passed to the constructor. The {ref}`dynamic-dispatch` mechanism
+Listeners that need runtime dependencies (e.g., a database session, a
+Redis client) can define a `setup()` method. It is called during the
+state machine's `__init__` with the instance and any extra `**kwargs`
+passed to the constructor. {ref}`Dependency injection <dependency-injection>`
 ensures each listener receives only the kwargs it declares:
 
 ```py
@@ -230,23 +237,6 @@ ensures each listener receives only the kwargs it declares:
 ...     def setup(self, sm, session=None, **kwargs):
 ...         self.session = session
 
->>> class PersistentMachine(StateChart):
-...     listeners = [DBListener]
-...
-...     s1 = State(initial=True)
-...     s2 = State(final=True)
-...     go = s1.to(s2)
-
->>> sm = PersistentMachine(session="my_db_session")
->>> sm.active_listeners[0].session
-'my_db_session'
-
-```
-
-Multiple listeners with different dependencies compose naturally — each `setup()` picks
-only the kwargs it needs:
-
-```py
 >>> class CacheListener:
 ...     def __init__(self):
 ...         self.redis = None
@@ -254,14 +244,14 @@ only the kwargs it needs:
 ...     def setup(self, sm, redis=None, **kwargs):
 ...         self.redis = redis
 
->>> class FullMachine(StateChart):
+>>> class PersistentMachine(StateChart):
 ...     listeners = [DBListener, CacheListener]
 ...
 ...     s1 = State(initial=True)
 ...     s2 = State(final=True)
 ...     go = s1.to(s2)
 
->>> sm = FullMachine(session="db_conn", redis="redis_conn")
+>>> sm = PersistentMachine(session="db_conn", redis="redis_conn")
 >>> sm.active_listeners[0].session
 'db_conn'
 >>> sm.active_listeners[1].redis
@@ -269,25 +259,19 @@ only the kwargs it needs:
 
 ```
 
+Multiple listeners with different dependencies compose naturally — each
+`setup()` picks only the kwargs it needs.
+
 ```{note}
-The `setup()` method is only called on **factory-created** instances (callable entries).
-Shared instances (pre-built objects) do not receive `setup()` calls — they are assumed
-to be already configured by whoever created them.
-```
-
-```{hint}
-The `StateChart` itself is registered as a listener, so by using `listeners` an
-external object can have the same level of functionalities provided to the built-in class.
-```
-
-```{tip}
-{ref}`domain models` are also registered as a listener.
+The `setup()` method is only called on **factory-created** instances
+(callable entries in the `listeners` list). Shared instances (pre-built
+objects) do not receive `setup()` calls — they are assumed to be already
+configured.
 ```
 
 
 ```{seealso}
-See {ref}`actions`, {ref}`validators and guards` for a list of possible callbacks.
-
-And also {ref}`dynamic-dispatch` to know more about how the lib calls methods to match
-their signature.
+See {ref}`actions` for the full list of callback groups and
+{ref}`dependency injection <dependency-injection>` for how method
+signatures are matched.
 ```

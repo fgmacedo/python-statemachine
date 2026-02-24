@@ -1,36 +1,73 @@
-# Python State Machine
+```{include} ../README.md
+```
 
-Contents:
+---
 
 ```{toctree}
+:caption: Getting started
 :maxdepth: 2
+:hidden:
 
-readme
 installation
+tutorial
+```
+
+```{toctree}
+:caption: Core Concepts
+:maxdepth: 2
+:hidden:
+
+concepts
+statechart
 states
 transitions
+events
 actions
 guards
-models
 listeners
+```
+
+```{toctree}
+:caption: Engine
+:maxdepth: 2
+:hidden:
+
+processing_model
+error_handling
 async
-mixins
+validations
+behaviour
+```
+
+```{toctree}
+:caption: Advanced
+:maxdepth: 2
+:hidden:
+
+invoke
+models
 integrations
 diagram
 weighted_transitions
-processing_model
-invoke
-statecharts
+```
+
+```{toctree}
+:caption: Reference
+:maxdepth: 2
+:hidden:
+
 api
 auto_examples/index
 contributing
 authors
-releases/index
-
 ```
 
-## Indices and tables
+```{toctree}
+:caption: Releases
+:maxdepth: 2
+:hidden:
 
-* {ref}`genindex`
-* {ref}`modindex`
-* {ref}`search`
+releases/3.0.0
+releases/upgrade_2x_to_3
+releases/index
+```

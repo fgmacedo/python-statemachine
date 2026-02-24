@@ -1,178 +1,63 @@
 (validators-and-guards)=
 (validators and guards)=
-# Conditions and Validators
 
-Conditions and Validations are checked before a transition is started. They are meant to prevent or stop a
-transition to occur.
-
-The main difference is that {ref}`validators` raise exceptions to stop the flow, and {ref}`conditions`
-act like predicates that shall resolve to a ``boolean`` value.
+# Conditions
 
 ```{seealso}
-Please see {ref}`dynamic-dispatch` to know more about how this lib supports multiple signatures
-for all the available callbacks, being validators and guards or {ref}`actions`.
+New to statecharts? See [](concepts.md) for an overview of how states,
+transitions, events, and actions fit together.
 ```
+
+Conditions and validators are checked **before** a transition starts — they
+decide whether the transition is allowed to proceed.
+
+The difference is in how they communicate rejection:
+
+| Mechanism | Rejects by | Use when |
+|---|---|---|
+| {ref}`Conditions <conditions>` (`cond` / `unless`) | Returning a falsy value | You want the engine to silently skip the transition and try the next one. |
+| {ref}`Validators <validators>` | Raising an exception | You want the caller to know *why* the transition was rejected. |
+
+Both run in the **transition-selection** phase, before any state changes
+occur. See the {ref}`execution order <actions>` table for where they fit in
+the callback sequence.
+
 
 (guards)=
+(conditions)=
+
 ## Conditions
 
-This feature is also known as a **Conditional Transition**.
+A **condition** (also known as a _guard_) is a boolean predicate attached to a
+transition. When an event arrives, the engine checks each candidate transition
+in {ref}`declaration order <transition-priority>` — the first transition whose
+conditions are all satisfied is selected. If none match, the event is either
+ignored or raises an exception (see `allow_event_without_transition` in the
+{ref}`behaviour reference <behaviour>`).
 
-A conditional transition occurs only if specific conditions or criteria are met. In addition to checking if there is a transition handling the event in the current state, you can register callbacks that are evaluated based on other factors or inputs at runtime.
-
-When a transition is conditional, it includes a condition (also known as a _guard_) that must be satisfied for the transition to take place. If the condition is not met, the transition does not occur, and the state machine remains in its current state or follows an alternative path.
-
-This feature allows for multiple transitions on the same {ref}`event`, with each {ref}`transition` checked in **declaration order** — that is, the order in which the transitions themselves were created using `state.to()`. A condition acts like a predicate (a function that evaluates to true/false) and is checked when a {ref}`statemachine` handles an {ref}`event` with a transition from the current state bound to this event. The first transition that meets the conditions (if any) is executed. If none of the transitions meet the conditions, the state machine either raises an exception or does nothing (see the `allow_event_without_transition` attribute of {ref}`StateChart`).
-
-````{important}
-**Evaluation order is based on declaration order, not composition order.**
-
-When using conditional transitions, the order of evaluation is determined by **when each transition was created** (the order of `state.to()` calls), **not** by the order they appear when combined with the `|` operator.
-
-For example:
-
-```python
-# These are evaluated in DECLARATION ORDER (when state.to() was called):
-created_first = state_a.to(state_x)   # Created FIRST → Checked FIRST
-created_second = state_a.to(state_y)  # Created SECOND → Checked SECOND
-created_third = state_a.to(state_z)   # Created THIRD → Checked THIRD
-
-# The | operator does NOT change evaluation order:
-my_event = created_third | created_second | created_first
-# Evaluation order is still: created_first → created_second → created_third
+```{important}
+A condition must not have side effects. Side effects belong in
+{ref}`actions`.
 ```
 
-To control the evaluation order, declare transitions in the desired order:
+There are two guard clause variants:
 
-```python
-# Declare in the order you want them checked:
-first = state_a.to(state_b, cond="check1")   # Checked FIRST
-second = state_a.to(state_c, cond="check2")  # Checked SECOND
-third = state_a.to(state_d, cond="check3")   # Checked THIRD
+`cond`
+: A list of condition expressions. The transition is allowed only if **all**
+  evaluate to `True`.
+  - Single: `cond="is_valid"`
+  - Multiple: `cond=["is_valid", "has_stock"]`
 
-my_event = first | second | third  # Order matches declaration
-```
-````
-
-When {ref}`transitions` have guards, it is possible to define two or more transitions for the same {ref}`event` from the same {ref}`state`. When the {ref}`event` occurs, the guarded transitions are checked one by one, and the first transition whose guard is true will be executed, while the others will be ignored.
-
-A condition is generally a boolean function, property, or attribute, and must not have any side effects. Side effects are reserved for {ref}`actions`.
-
-There are two variations of Guard clauses available:
-
-cond
-: A list of condition expressions, acting like predicates. A transition is only allowed to occur if
-all conditions evaluate to ``True``.
-* Single condition expression: `cond="condition"` / `cond="<condition expression>"`
-* Multiple condition expressions: `cond=["condition1", "condition2"]`
-
-unless
-: Same as `cond`, but the transition is only allowed if all conditions evaluate to ``False``.
-* Single condition: `unless="condition"` / `unless="<condition expression>"`
-* Multiple conditions: `unless=["condition1", "condition2"]`
-
-### Condition expressions
-
-This library supports a mini-language for boolean expressions in conditions, allowing the definition of guards that control transitions based on specified criteria. It includes basic [boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra) operators, parentheses for controlling precedence, and **names** that refer to attributes on the state machine, its associated model, or registered {ref}`Listeners`.
-
-```{tip}
-All condition expressions are evaluated when the State Machine is instantiated. This is by design to help you catch any invalid definitions early, rather than when your state machine is running.
-```
-
-The mini-language is based on Python's built-in language and the [`ast`](https://docs.python.org/3/library/ast.html) parser, so there are no surprises if you’re familiar with Python. Below is a formal specification to clarify the structure.
-
-#### Syntax elements
-
-1. **Names**:
-   - Names refer to attributes on the state machine instance, its model or listeners, used directly in expressions to evaluate conditions.
-   - Names must consist of alphanumeric characters and underscores (`_`) and cannot begin with a digit (e.g., `is_active`, `count`, `has_permission`).
-   - Any property name used in the expression must exist as an attribute on the state machine, model instance, or listeners, otherwise, an `InvalidDefinition` error is raised.
-   - Names can be pointed to `properties`, `attributes` or `methods`. If pointed to `attributes`, the library will create a
-     wrapper get method so each time the expression is evaluated the current value will be retrieved.
-
-2. **Boolean operators and precedence**:
-   - The following Boolean operators are supported, listed from highest to lowest precedence:
-     1. `not` / `!` — Logical negation
-     2. `and` / `^` — Logical conjunction
-     3. `or` / `v` — Logical disjunction
-     4. `or` / `v` — Logical disjunction
-   - These operators are case-sensitive (e.g., `NOT` and `Not` are not equivalent to `not` and will raise syntax errors).
-   - Both formats can be used interchangeably, so `!sauron_alive` and `not sauron_alive` are equivalent.
-
-2. **Comparisson operators**:
-   - The following comparison operators are supported:
-     1. `>` — Greather than.
-     2. `>=` — Greather than or equal.
-     3. `==` — Equal.
-     4. `!=` — Not equal.
-     5. `<` — Lower than.
-     6. `<=` — Lower than or equal.
-   - All comparison operations in Python have the same priority.
-
-3. **Parentheses for precedence**:
-   - When operators with the same precedence appear in the expression, evaluation proceeds from left to right, unless parentheses specify a different order.
-   - Parentheses `(` and `)` are supported to control the order of evaluation in expressions.
-   - Expressions within parentheses are evaluated first, allowing explicit precedence control (e.g., `(is_admin or is_moderator) and has_permission`).
-
-#### Expression Examples
-
-Examples of valid boolean expressions include:
-- `is_logged_in and has_permission`
-- `not is_active or is_admin`
-- `!(is_guest ^ has_access)`
-- `(is_admin or is_moderator) and !is_banned`
-- `has_account and (verified or trusted)`
-- `frodo_has_ring and gandalf_present or !sauron_alive`
-
-Being used on a transition definition:
-
-```python
-start.to(end, cond="frodo_has_ring and gandalf_present or !sauron_alive")
-```
-
-
-```{seealso}
-See {ref}`sphx_glr_auto_examples_lor_machine.py` for an example of
-using boolean algebra in conditions.
-```
-
-```{seealso}
-See {ref}`sphx_glr_auto_examples_air_conditioner_machine.py` for an example of
-combining multiple transitions to the same event.
-```
-
-```{hint}
-In Python, a boolean value is either `True` or `False`. However, there are also specific values that
-are considered "**falsy**" and will evaluate as `False` when used in a boolean context.
-
-These include:
-
-1. The special value `None`.
-2. Numeric values of `0` or `0.0`.
-3. **Empty** strings, lists, tuples, sets, and dictionaries.
-4. Instances of certain classes that define a `__bool__()` or `__len__()` method that returns
-   `False` or `0`, respectively.
-
-On the other hand, any value that is not considered "**falsy**" is considered "**truthy**" and will evaluate to `True` when used in a boolean context.
-
-So, a condition `s1.to(s2, cond=lambda: [])` will evaluate as `False`, as an empty list is a
-**falsy** value.
-```
-
-### Checking enabled events
-
-The {ref}`StateChart.allowed_events` property returns events reachable from the current state,
-but it does **not** evaluate `cond`/`unless` guards. To check which events actually have their
-conditions satisfied, use {ref}`StateChart.enabled_events`.
-
-```{testsetup}
-
->>> from statemachine import StateChart, State
-
-```
+`unless`
+: Same as `cond`, but the transition is allowed only if **all** evaluate to
+  `False`.
+  - Single: `unless="is_blocked"`
+  - Multiple: `unless=["is_blocked", "is_expired"]`
 
 ```py
->>> class ApprovalMachine(StateChart):
+>>> from statemachine import State, StateChart
+
+>>> class ApprovalFlow(StateChart):
 ...     pending = State(initial=True)
 ...     approved = State(final=True)
 ...     rejected = State(final=True)
@@ -182,24 +67,153 @@ conditions satisfied, use {ref}`StateChart.enabled_events`.
 ...
 ...     is_manager = False
 
->>> sm = ApprovalMachine()
-
->>> [e.id for e in sm.allowed_events]
-['approve', 'reject']
-
->>> [e.id for e in sm.enabled_events()]
-['reject']
+>>> sm = ApprovalFlow()
+>>> sm.send("approve")  # cond is False — no transition
+>>> "pending" in sm.configuration_values
+True
 
 >>> sm.is_manager = True
-
->>> [e.id for e in sm.enabled_events()]
-['approve', 'reject']
+>>> sm.send("approve")
+>>> "approved" in sm.configuration_values
+True
 
 ```
 
-`enabled_events` is a method (not a property) because conditions may depend on runtime
-arguments. Any `*args`/`**kwargs` passed to `enabled_events()` are forwarded to the
-condition callbacks, just like when triggering an event:
+### Multiple conditional transitions
+
+When multiple transitions share the same event, guards let the engine pick the
+right one at runtime. Transitions are checked in **declaration order** (the
+order of `.to()` calls), not the order they appear in the `|` composition:
+
+```py
+>>> class PriorityRouter(StateChart):
+...     inbox = State(initial=True)
+...     urgent = State(final=True)
+...     normal = State(final=True)
+...     low = State(final=True)
+...
+...     # Declaration order = evaluation order
+...     route = (
+...         inbox.to(urgent, cond="is_urgent")
+...         | inbox.to(normal, cond="is_normal")
+...         | inbox.to(low)  # fallback — no condition
+...     )
+...
+...     def is_urgent(self, priority=0, **kwargs):
+...         return priority >= 9
+...
+...     def is_normal(self, priority=0, **kwargs):
+...         return priority >= 5
+
+>>> sm = PriorityRouter()
+>>> sm.send("route", priority=2)
+>>> "low" in sm.configuration_values  # fallback
+True
+
+>>> sm = PriorityRouter()
+>>> sm.send("route", priority=7)
+>>> "normal" in sm.configuration_values
+True
+
+>>> sm = PriorityRouter()
+>>> sm.send("route", priority=10)
+>>> "urgent" in sm.configuration_values  # checked first
+True
+
+```
+
+Condition methods receive the same keyword arguments passed to `send()` via
+{ref}`dependency injection <dependency-injection>` — declare only the
+parameters you need.
+
+```{seealso}
+See {ref}`sphx_glr_auto_examples_air_conditioner_machine.py` for another
+example combining multiple transitions on the same event.
+```
+
+
+(condition expressions)=
+
+### Condition expressions
+
+Conditions support a mini-language for boolean expressions, allowing guards
+to be defined as strings that reference attributes on the state machine, its
+model, or registered {ref}`listeners <listeners>`.
+
+The mini-language is based on Python's built-in
+[`ast`](https://docs.python.org/3/library/ast.html) parser, so the syntax
+is familiar:
+
+```py
+>>> class AccessControl(StateChart):
+...     locked = State(initial=True)
+...     unlocked = State(final=True)
+...
+...     unlock = locked.to(unlocked, cond="has_key and not is_locked_out")
+...
+...     has_key = True
+...     is_locked_out = False
+
+>>> sm = AccessControl()
+>>> sm.send("unlock")
+>>> "unlocked" in sm.configuration_values
+True
+
+```
+
+```{tip}
+All condition expressions are validated when the `StateChart` class is
+created. Invalid attribute names raise `InvalidDefinition` immediately,
+helping you catch typos early.
+```
+
+#### Syntax elements
+
+**Names** refer to attributes on the state machine instance, its model, or
+listeners. They can point to properties, attributes, or methods:
+
+- `is_active` — evaluated as `self.is_active` (property/attribute)
+- `check_stock` — if it's a method, it's called with
+  {ref}`dependency injection <dependency-injection>`
+
+**Boolean operators** (highest to lowest precedence):
+
+1. `not` / `!` — Logical negation
+2. `and` / `^` — Logical conjunction
+3. `or` / `v` — Logical disjunction
+
+**Comparison operators:**
+
+`>`, `>=`, `==`, `!=`, `<`, `<=`
+
+**Parentheses** control evaluation order:
+
+```python
+cond="(is_admin or is_moderator) and not is_banned"
+```
+
+#### Expression examples
+
+- `is_logged_in and has_permission`
+- `not is_active or is_admin`
+- `!(is_guest ^ has_access)`
+- `(is_admin or is_moderator) and !is_banned`
+- `count > 0 and count <= 10`
+
+```{seealso}
+See {ref}`sphx_glr_auto_examples_lor_machine.py` for a complete example
+using boolean algebra in conditions.
+```
+
+
+(checking enabled events)=
+
+### Checking enabled events
+
+The {ref}`allowed_events <querying-events>` property returns events
+reachable from the current state based on topology alone — it does
+**not** evaluate guards. To check which events currently have their
+conditions satisfied, use `enabled_events()`:
 
 ```py
 >>> class TaskMachine(StateChart):
@@ -208,10 +222,13 @@ condition callbacks, just like when triggering an event:
 ...
 ...     start = idle.to(running, cond="has_enough_resources")
 ...
-...     def has_enough_resources(self, cpu=0):
+...     def has_enough_resources(self, cpu=0, **kwargs):
 ...         return cpu >= 4
 
 >>> sm = TaskMachine()
+
+>>> [e.id for e in sm.allowed_events]
+['start']
 
 >>> sm.enabled_events()
 []
@@ -221,57 +238,159 @@ condition callbacks, just like when triggering an event:
 
 ```
 
-```{tip}
-This is useful for UI scenarios where you want to show or hide buttons based on whether
-an event's conditions are currently satisfied.
-```
+`enabled_events()` accepts `*args` / `**kwargs` that are forwarded to the
+condition callbacks, just like when triggering an event. This makes it
+useful for UI scenarios where you want to show or hide buttons based on
+whether an event's conditions are currently satisfied.
 
 ```{note}
-An event is considered **enabled** if at least one of its transitions from the current state
-has all conditions satisfied. If a condition raises an exception, the event is treated as
-enabled (permissive behavior).
+An event is considered **enabled** if at least one of its transitions from
+the current state has all conditions satisfied. If a condition raises an
+exception, the event is treated as enabled (permissive behavior).
 ```
+
+
+(validators)=
 
 ## Validators
 
+Validators are imperative guards that **raise an exception** to reject a
+transition. While conditions silently skip a transition and let the engine
+try the next candidate, validators communicate the rejection reason directly
+to the caller.
 
-Are like {ref}`guards`, but instead of evaluating to boolean, they are expected to raise an
-exception to stop the flow. It may be useful for imperative-style programming when you don't
-want to continue evaluating other possible transitions and exit immediately.
-
-* Single validator: `validators="validator"`
-* Multiple validator: `validators=["validator1", "validator2"]`
-
-Both conditions and validators can also be combined for a single event.
-
-    <event> = <state1>.to(<state2>, cond="condition1", unless="condition2", validators="validator")
-
-Consider this example:
+- Single: `validators="check_stock"`
+- Multiple: `validators=["check_stock", "check_credit"]`
 
 ```py
+>>> class OrderMachine(StateChart):
+...     pending = State(initial=True)
+...     confirmed = State(final=True)
+...
+...     confirm = pending.to(confirmed, validators="check_stock")
+...
+...     def check_stock(self, quantity=0, **kwargs):
+...         if quantity <= 0:
+...             raise ValueError("Quantity must be positive")
 
-class InvoiceStateMachine(StateMachine):
-    unpaid = State(initial=True)
-    paid = State()
-    failed = State()
+>>> sm = OrderMachine()
 
-    paused = False
-    offer_valid = True
+>>> sm.send("confirm", quantity=0)
+Traceback (most recent call last):
+    ...
+ValueError: Quantity must be positive
 
-    pay = (
-        unpaid.to(paid, cond="payment_success") |
-        unpaid.to(failed, validators="validator", unless="paused") |
-        failed.to(paid, cond=["payment_success", "offer_valid"])
-    )
-    def payment_success(self, event_data):
-        return <condition logic goes here>
+>>> "pending" in sm.configuration_values  # state unchanged
+True
 
-    def validator(self):
-        return <validator logic goes here>
+>>> sm.send("confirm", quantity=5)  # retry with valid data
+>>> "confirmed" in sm.configuration_values
+True
+
 ```
+
+
+### Validators always propagate
+
+Validator exceptions **always propagate** to the caller, regardless of the
+`error_on_execution` flag. This is intentional: validators operate in the
+**transition-selection** phase, not the execution phase. A validator that
+rejects is semantically equivalent to a condition that returns `False` —
+the transition simply should not happen. The difference is that the
+validator communicates the reason via an exception.
+
+This means that even when `error_on_execution = True` (the default for
+`StateChart`):
+
+- Validator exceptions are **not** converted to `error.execution` events.
+- Validator exceptions do **not** trigger `error.execution` transitions.
+- The caller receives the exception directly and can handle it with
+  `try`/`except`.
+
+```py
+>>> class GuardedWithErrorHandler(StateChart):
+...     idle = State(initial=True)
+...     active = State()
+...     error_state = State(final=True)
+...
+...     start = idle.to(active, validators="check_input")
+...     do_work = active.to.itself(on="risky_action")
+...     error_execution = active.to(error_state)
+...
+...     def check_input(self, value=None, **kwargs):
+...         if value is None:
+...             raise ValueError("Input required")
+...
+...     def risky_action(self, **kwargs):
+...         raise RuntimeError("Boom")
+
+>>> sm = GuardedWithErrorHandler()
+
+>>> sm.send("start")
+Traceback (most recent call last):
+    ...
+ValueError: Input required
+
+>>> "idle" in sm.configuration_values  # NOT in error_state
+True
+
+>>> sm.send("start", value="ok")
+>>> "active" in sm.configuration_values
+True
+
+>>> sm.send("do_work")  # action error → goes to error_state
+>>> "error_state" in sm.configuration_values
+True
+
+```
+
+The validator rejection propagates directly to the caller, while the action
+error in `risky_action()` is caught by the engine and routed through the
+`error.execution` transition.
+
+
+### Combining validators and conditions
+
+Validators and conditions can be used together on the same transition.
+Validators run **first** — if a validator rejects, conditions are never
+evaluated:
+
+```py
+>>> class CombinedGuards(StateChart):
+...     idle = State(initial=True)
+...     active = State(final=True)
+...
+...     start = idle.to(active, validators="check_auth", cond="has_permission")
+...
+...     has_permission = True
+...
+...     def check_auth(self, token=None, **kwargs):
+...         if token != "valid":
+...             raise PermissionError("Invalid token")
+
+>>> sm = CombinedGuards()
+
+>>> sm.send("start", token="bad")
+Traceback (most recent call last):
+    ...
+PermissionError: Invalid token
+
+>>> sm.send("start", token="valid")
+>>> "active" in sm.configuration_values
+True
+
+```
+
 ```{seealso}
-See the example {ref}`sphx_glr_auto_examples_all_actions_machine.py` for a complete example of
-validators and guards.
+See the example {ref}`sphx_glr_auto_examples_all_actions_machine.py` for
+a complete demonstration of validator and condition resolution order.
 ```
 
-Reference: [Statecharts](https://statecharts.dev/).
+```{hint}
+In Python, specific values are considered **falsy** and evaluate as `False`
+in a boolean context: `None`, `0`, `0.0`, empty strings, lists, tuples,
+sets, and dictionaries, and instances of classes whose `__bool__()` or
+`__len__()` returns `False` or `0`.
+
+So `cond=lambda: []` evaluates as `False`.
+```

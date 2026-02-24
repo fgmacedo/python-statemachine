@@ -20,8 +20,6 @@ from statemachine import StateChart
 
 
 class Issue509SC(StateChart):
-    error_on_execution = False
-
     INITIAL = State(initial=True)
     FINAL = State()
 

@@ -1,97 +1,28 @@
-# Async
-
-```{versionadded} 2.3.0
-Support for async code was added!
-```
-
-The {ref}`StateChart` fully supports asynchronous code. You can write async {ref}`actions`, {ref}`guards`, and {ref}`events` triggers, while maintaining the same external API for both synchronous and asynchronous codebases.
-
-This is achieved through a new concept called **engine**, an internal strategy pattern abstraction that manages transitions and callbacks.
-
-There are two engines, {ref}`SyncEngine` and {ref}`AsyncEngine`.
-
-
-## Sync vs async engines
-
-Engines are internal and are activated automatically by inspecting the registered callbacks in the following scenarios.
-
-
-```{list-table} Sync vs async engines
-:header-rows: 1
-
-*   - Outer scope
-    - Async callbacks?
-    - Engine
-    - Creates internal loop
-    - Reuses external loop
-*   - Sync
-    - No
-    - SyncEngine
-    - No
-    - No
-*   - Sync
-    - Yes
-    - AsyncEngine
-    - Yes
-    - No
-*   - Async
-    - No
-    - SyncEngine
-    - No
-    - No
-*   - Async
-    - Yes
-    - AsyncEngine
-    - No
-    - Yes
-
-```
-
-Outer scope
-: The context in which the state machine **instance** is created.
-
-Async callbacks?
-: Indicates whether the state machine has declared asynchronous callbacks or conditions.
-
-Engine
-: The engine that will be utilized.
-
-Creates internal loop
-: Specifies whether the state machine initiates a new event loop if no [asyncio loop is running](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.get_running_loop).
-
-Reuses external loop
-: Indicates whether the state machine reuses an existing [asyncio loop](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.get_running_loop) if one is already running.
-
-
-
-```{note}
-All handlers will run on the same thread they are called. Therefore, mixing synchronous and asynchronous code is not recommended unless you are confident in your implementation.
-```
-
-### SyncEngine
-Activated if there are no async callbacks. All code runs exactly as it did before version 2.3.0.
-There's no event loop.
-
-### AsyncEngine
-Activated if there is at least one async callback. The code runs asynchronously and requires a running event loop, which it will create if none exists.
-
-
-
-## Asynchronous Support
-
-We support native coroutine callbacks using asyncio, enabling seamless integration with asynchronous code. There is no change in the public API of the library to work with asynchronous codebases.
-
+(async)=
+# Async support
 
 ```{seealso}
-See {ref}`sphx_glr_auto_examples_air_conditioner_machine.py` for an example of
-async code with a state machine.
+New to statecharts? See [](concepts.md) for an overview of how states,
+transitions, events, and actions fit together.
 ```
 
+The public API is the same for synchronous and asynchronous code. If the
+state machine has at least one `async` callback, the engine switches to
+{ref}`AsyncEngine <asyncengine>` automatically — no configuration needed.
+
+All statechart features — compound states, parallel states, history
+pseudo-states, eventless transitions, `done.state` events — work
+identically in both engines.
+
+
+## Writing async callbacks
+
+Declare any callback as `async def` and the engine handles the rest:
 
 ```py
 >>> class AsyncStateMachine(StateChart):
-...     initial = State('Initial', initial=True)
-...     final = State('Final', final=True)
+...     initial = State("Initial", initial=True)
+...     final = State("Final", final=True)
 ...
 ...     keep = initial.to.itself(internal=True)
 ...     advance = initial.to(final)
@@ -111,13 +42,12 @@ Result is 42
 
 ```
 
-## Sync codebase with async callbacks
+### Using from synchronous code
 
-The same state machine with async callbacks can be executed in a synchronous codebase,
-even if the calling context don't have an asyncio loop.
-
-If needed, the state machine will create a loop using `asyncio.new_event_loop()` and callbacks will be awaited using `loop.run_until_complete()`.
-
+The same state machine can be used from a synchronous context — even
+without a running `asyncio` loop. The engine creates one internally
+with `asyncio.new_event_loop()` and awaits callbacks using
+`loop.run_until_complete()`:
 
 ```py
 >>> sm = AsyncStateMachine()
@@ -131,88 +61,63 @@ Result is 42
 
 
 (initial state activation)=
-## Initial State Activation for Async Code
 
+## Initial state activation
 
-If **on async code** you perform checks against the `configuration`, like a loop `while not sm.is_terminated:`, then you must manually
-await for the  [activate initial state](statemachine.StateChart.activate_initial_state) to be able to check the configuration.
-
-```{hint}
-This manual initial state activation on async is because Python don't allow awaiting at class initalization time and the initial state activation may contain async callbacks that must be awaited.
-```
-
-If you don't do any check for configuration externally, just ignore this as the initial state is activated automatically before the first event trigger is handled.
-
-You get an error checking the configuration before the initial state activation:
+In async code, Python cannot `await` during `__init__`, so the initial
+state is **not** activated at instantiation time. If you inspect
+`configuration` immediately after creating the instance, it won't reflect
+the initial state:
 
 ```py
->>> async def initialize_sm():
+>>> async def show_problem():
 ...     sm = AsyncStateMachine()
 ...     print(list(sm.configuration_values))
 
->>> asyncio.run(initialize_sm())
+>>> asyncio.run(show_problem())
 [None]
 
 ```
 
-You can activate the initial state explicitly:
-
+To fix this, explicitly await
+{func}`activate_initial_state() <statemachine.StateChart.activate_initial_state>`
+before inspecting the configuration:
 
 ```py
->>> async def initialize_sm():
+>>> async def correct_init():
 ...     sm = AsyncStateMachine()
 ...     await sm.activate_initial_state()
 ...     print(list(sm.configuration_values))
 
->>> asyncio.run(initialize_sm())
+>>> asyncio.run(correct_init())
 ['initial']
 
 ```
 
-Or just by sending an event. The first event activates the initial state automatically
-before the event is handled:
+```{tip}
+If you don't inspect the configuration before sending the first event,
+you can skip this step — the first `send()` activates the initial state
+automatically.
+```
 
 ```py
->>> async def initialize_sm():
+>>> async def auto_activate():
 ...     sm = AsyncStateMachine()
-...     await sm.keep()  # first event activates the initial state before the event is handled
+...     await sm.keep()  # activates initial state before handling the event
 ...     print(list(sm.configuration_values))
 
->>> asyncio.run(initialize_sm())
+>>> asyncio.run(auto_activate())
 ['initial']
 
 ```
 
-## StateChart async support
 
-```{versionadded} 3.0.0
-```
+## Concurrent event sending
 
-`StateChart` works identically with the async engine. All statechart features —
-compound states, parallel states, history pseudo-states, eventless transitions,
-and `done.state` events — are fully supported in async code. The same
-`activate_initial_state()` pattern applies:
-
-```py
->>> async def run():
-...     sm = AsyncStateMachine()
-...     await sm.activate_initial_state()
-...     result = await sm.send("advance")
-...     return result
-
->>> asyncio.run(run())
-42
-
-```
-
-### Concurrent event sending
-
-```{versionadded} 3.0.0
-```
-
-When multiple coroutines send events concurrently (e.g., via `asyncio.gather`),
-each caller receives its own event's result — even though only one coroutine
-actually runs the processing loop at a time.
+A benefit exclusive to the async engine: when multiple coroutines send
+events concurrently (e.g., via `asyncio.gather`), each caller receives
+its own event's result — even though only one coroutine runs the
+processing loop at a time. The sync engine does not support this pattern.
 
 ```py
 >>> class ConcurrentSC(StateChart):
@@ -246,14 +151,14 @@ actually runs the processing loop at a time.
 
 Under the hood, the async engine attaches an `asyncio.Future` to each
 externally enqueued event. The coroutine that acquires the processing lock
-resolves each event's future as it processes the queue. Callers that couldn't
+resolves each event's future as it processes the queue. Callers that didn't
 acquire the lock simply `await` their future.
 
 ```{note}
 Futures are only created for **external** events sent from outside the
-processing loop. Events triggered from within callbacks (reentrant calls)
-follow the existing run-to-completion (RTC) model — they are enqueued and
-processed within the current macrostep, and the callback receives ``None``.
+processing loop. Events triggered from within callbacks (via `send()` or
+`raise_()`) follow the {ref}`run-to-completion <rtc-model>` model — they
+are enqueued and processed within the current macrostep.
 ```
 
 If an exception occurs during processing (with `error_on_execution=False`),
@@ -261,13 +166,36 @@ the exception is routed to the caller whose event caused it. Other callers
 whose events were still pending will also receive the exception, since the
 processing loop clears the queue on failure.
 
-### Async-specific limitations
 
-- **Initial state activation**: In async code, you must `await sm.activate_initial_state()`
-  before inspecting `sm.configuration`. In sync code this happens
-  automatically at instantiation time.
-- **Delayed events**: Both sync and async engines support `delay=` on `send()`. The async
-  engine uses `asyncio.sleep()` internally, so it integrates naturally with event loops.
-- **Thread safety**: The processing loop uses a non-blocking lock (`_processing.acquire`).
-  All callbacks run on the same thread they are called from — do not share a state machine
-  instance across threads without external synchronization.
+(syncengine)=
+(asyncengine)=
+
+## Engine selection
+
+The engine is selected automatically when the state machine is
+instantiated, based on the registered callbacks:
+
+| Outer scope | Async callbacks? | Engine | Event loop |
+|---|---|---|---|
+| Sync | No | SyncEngine | None |
+| Sync | Yes | AsyncEngine | Creates internal loop |
+| Async | No | SyncEngine | None |
+| Async | Yes | AsyncEngine | Reuses running loop |
+
+**Outer scope** is the context where the state machine instance is created.
+**Async callbacks** means at least one `async def` callback or condition is
+declared on the machine, its model, or its listeners.
+
+```{note}
+All callbacks run on the same thread they are called from. Mixing
+synchronous and asynchronous code is supported but requires care —
+avoid sharing a state machine instance across threads without external
+synchronization.
+```
+
+
+```{seealso}
+See {ref}`processing model <macrostep-microstep>` for how the engine
+processes events, and {ref}`behaviour` for the behavioral attributes
+that affect processing.
+```

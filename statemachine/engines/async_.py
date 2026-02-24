@@ -103,7 +103,7 @@ class AsyncEngine(BaseEngine):
         on_error = self._on_error_handler()
 
         await self.sm._callbacks.async_call(
-            transition.validators.key, *args, on_error=on_error, **kwargs
+            transition.validators.key, *args, on_error=None, **kwargs
         )
         return await self.sm._callbacks.async_all(
             transition.cond.key, *args, on_error=on_error, **kwargs

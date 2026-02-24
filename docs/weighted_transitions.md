@@ -2,41 +2,28 @@
 
 # Weighted transitions
 
-```{versionadded} 3.0.0
+```{seealso}
+See {ref}`conditions` for how the engine selects transitions, and
+{ref}`actions` for callbacks that run during transitions.
 ```
 
-The `weighted_transitions` utility lets you define **probabilistic transitions** — where
-each transition from a state has a relative weight that determines how likely it is to be
-selected when the event fires.
+The `weighted_transitions` utility lets you define **probabilistic
+transitions** — where each transition from a state has a relative weight
+that determines how likely it is to be selected when the event fires.
 
-This is a contrib module that works entirely through the existing {ref}`guards` system.
-No engine modifications are needed.
+This is a contrib module that works entirely through the existing
+{ref}`conditions` system. No engine modifications are needed.
 
-## Installation
-
-The module is included in the `python-statemachine` package. Import it from the contrib
-namespace:
-
-```python
-from statemachine.contrib.weighted import weighted_transitions
-
-# Only needed when passing transition kwargs (cond, on, etc.)
-from statemachine.contrib.weighted import to
-```
 
 ## Basic usage
 
-Pass a **source state** followed by `(target, weight)` tuples. The result is a regular
-{ref}`TransitionList` that you assign to a class attribute as an event:
-
-```{testsetup}
-
->>> from statemachine import State, StateChart
->>> from statemachine.contrib.weighted import to, weighted_transitions
-
-```
+Import `weighted_transitions` and pass a **source state** followed by
+`(target, weight)` tuples. The result is a regular {ref}`TransitionList`
+that you assign to a class attribute as an event:
 
 ```py
+>>> from statemachine.contrib.weighted import to, weighted_transitions
+
 >>> class GameCharacter(StateChart):
 ...     standing = State(initial=True)
 ...     shift_weight = State()
@@ -243,5 +230,5 @@ Under the hood, `weighted_transitions()`:
 5. Only the selected transition's condition returns `True` — the engine picks it.
 
 This means weighted transitions are fully compatible with all engine features:
-{ref}`actions`, {ref}`validators-and-guards`, {ref}`listeners`, async engines,
+{ref}`actions`, {ref}`conditions`, {ref}`listeners`, async engines,
 and {ref}`diagram generation <diagram>`.

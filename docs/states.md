@@ -1,193 +1,102 @@
+(states)=
+(state)=
 
 # States
 
-{ref}`State`, as the name says, holds the representation of a state in a {ref}`StateChart`.
-
-```{eval-rst}
-.. autoclass:: statemachine.state.State
-    :noindex:
+```{seealso}
+New to statecharts? See [](concepts.md) for an overview of how states,
+transitions, events, and actions fit together.
 ```
 
-```{seealso}
-How to define and attach [](actions.md) to {ref}`States`.
+A **state** represents a distinct mode or condition of the system at a given
+point in time. States are the building blocks of a statechart — you define them
+as class attributes, and the library handles initialization, validation, and
+lifecycle management.
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class TrafficLight(StateChart):
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
+...
+...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+>>> sm = TrafficLight()
+>>> "green" in sm.configuration_values
+True
+
+```
+
+
+## State parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `name` | `""` | Human-readable display name. Defaults to the attribute name, capitalized. |
+| `value` | `None` | Custom value for this state, accessible via `configuration_values`. |
+| `initial` | `False` | Marks this as the initial state. Exactly one per machine (or per compound). |
+| `final` | `False` | Marks this as a final (accepting) state. No outgoing transitions allowed. |
+| `enter` | `None` | Callback(s) to run when entering this state. See {ref}`state-actions`. |
+| `exit` | `None` | Callback(s) to run when leaving this state. See {ref}`state-actions`. |
+| `invoke` | `None` | Background work spawned on entry, cancelled on exit. See {ref}`invoke-actions`. |
+
+```py
+>>> class CampaignMachine(StateChart):
+...     draft = State("Draft", value=1, initial=True)
+...     producing = State("Being produced", value=2)
+...     closed = State("Closed", value=3, final=True)
+...
+...     produce = draft.to(producing)
+...     deliver = producing.to(closed)
+
+>>> sm = CampaignMachine()
+>>> sm.send("produce")
+>>> list(sm.configuration_values)
+[2]
+
 ```
 
 
 ## Initial state
 
-A {ref}`StateChart` should have one and only one `initial` {ref}`state`.
-
-
-The initial {ref}`state` is entered when the machine starts and the corresponding entering
-state {ref}`actions` are called if defined.
-
-## State Transitions
-
-All states should have at least one transition to and from another state.
-
-If any states are unreachable from the initial state, an `InvalidDefinition` exception will be thrown.
-
-```py
->>> from statemachine import StateChart, State
-
->>> class TrafficLightMachine(StateChart):
-...     "A workflow machine"
-...     red = State('Red', initial=True, value=1)
-...     green = State('Green', value=2)
-...     orange = State('Orange', value=3)
-...     hazard = State('Hazard', value=4)
-...
-...     cycle = red.to(green) | green.to(orange) | orange.to(red)
-...     blink = hazard.to.itself()
-Traceback (most recent call last):
-...
-InvalidDefinition: There are unreachable states. The statemachine graph should have a single component. Disconnected states: ['hazard']
-```
-
-`StateChart` will also check that all non-final states have an outgoing transition.
-If any non-final state has no outgoing transitions, an `InvalidDefinition` exception is raised.
-
-```py
->>> from statemachine import StateChart, State
-
->>> class TrafficLightMachine(StateChart):
-...     "A workflow machine"
-...     red = State('Red', initial=True, value=1)
-...     green = State('Green', value=2)
-...     orange = State('Orange', value=3)
-...     hazard = State('Hazard', value=4)
-...
-...     cycle = red.to(green) | green.to(orange) | orange.to(red)
-...     fault = red.to(hazard) | green.to(hazard) | orange.to(hazard)
-Traceback (most recent call last):
-...
-InvalidDefinition: All non-final states should have at least one outgoing transition. These states have no outgoing transition: ['hazard']
-```
-
-You can disable this check by setting `validate_trap_states = False` on the class:
-
-```py
->>> class TrafficLightMachine(StateChart):
-...     validate_trap_states = False
-...     red = State('Red', initial=True, value=1)
-...     green = State('Green', value=2)
-...     orange = State('Orange', value=3)
-...     hazard = State('Hazard', value=4)
-...
-...     cycle = red.to(green) | green.to(orange) | orange.to(red)
-...     fault = red.to(hazard) | green.to(hazard) | orange.to(hazard)
-
-```
+A {ref}`StateChart` must have exactly one `initial` state. The initial state is
+entered when the machine starts, and the corresponding {ref}`enter actions
+<state-actions>` are called.
 
 
 (final-state)=
+
 ## Final state
 
-
-You can explicitly set final states.
-Transitions from these states are not allowed and will raise exceptions.
-
-```py
->>> from statemachine import StateChart, State
-
->>> class CampaignMachine(StateChart):
-...     "A workflow machine"
-...     draft = State('Draft', initial=True, value=1)
-...     producing = State('Being produced', value=2)
-...     closed = State('Closed', final=True, value=3)
-...
-...     add_job = draft.to.itself() | producing.to.itself() | closed.to(producing)
-...     produce = draft.to(producing)
-...     deliver = producing.to(closed)
-Traceback (most recent call last):
-...
-InvalidDefinition: Cannot declare transitions from final state. Invalid state(s): ['closed']
-
-```
-
-If you mark any states as final, `StateChart` will check that all non-final states have a path to reach at least one final state.
+A **final** state signals that the machine has completed its work. No outgoing
+transitions are allowed from a final state.
 
 ```py
->>> class CampaignMachine(StateChart):
-...     "A workflow machine"
-...     draft = State('Draft', initial=True, value=1)
-...     producing = State('Being produced', value=2)
-...     abandoned = State('Abandoned', value=3)
-...     closed = State('Closed', final=True, value=4)
-...
-...     add_job = draft.to.itself() | producing.to.itself()
-...     produce = draft.to(producing)
-...     abandon = producing.to(abandoned) | abandoned.to(abandoned)
-...     deliver = producing.to(closed)
-Traceback (most recent call last):
-...
-InvalidDefinition: All non-final states should have at least one path to a final state. These states have no path to a final state: ['abandoned']
-
-```
-
-You can disable this check by setting `validate_final_reachability = False` on the class.
-
-You can query a list of all final states from your statemachine.
-
-```py
->>> class CampaignMachine(StateChart):
-...     "A workflow machine"
-...     draft = State('Draft', initial=True, value=1)
-...     producing = State('Being produced', value=2)
-...     closed = State('Closed', final=True, value=3)
-...
-...     add_job = draft.to.itself() | producing.to.itself()
-...     produce = draft.to(producing)
-...     deliver = producing.to(closed)
-
->>> machine = CampaignMachine()
-
->>> machine.final_states
-[State('Closed', id='closed', value=3, initial=False, final=True, parallel=False)]
-
->>> any(s in machine.final_states for s in machine.configuration)
-False
-
-```
-
-### Checking if the machine has terminated
-
-Use the `is_terminated` property to check whether the state machine has reached a final state
-and the engine is no longer running. This is the recommended way to check for completion,
-especially with compound and parallel states where multiple states can be active at once.
-
-```py
->>> machine.send("produce")
->>> machine.is_terminated
-False
-
->>> machine.send("deliver")
->>> machine.is_terminated
+>>> sm = CampaignMachine()
+>>> sm.send("produce")
+>>> sm.send("deliver")
+>>> sm.is_terminated
 True
 
 ```
 
-```{tip}
-Prefer `sm.is_terminated` over patterns like `sm.current_state.final` or
-`any(s.final for s in sm.configuration)`. It works correctly for all state machine
-topologies -- flat, compound, and parallel.
-```
+You can query the list of all declared final states:
 
-## States from Enum types
+```py
+>>> sm.final_states
+[State('Closed', id='closed', value=3, initial=False, final=True, parallel=False)]
 
-{ref}`States` can also be declared from standard `Enum` classes.
-
-For this, use {ref}`States (class)` to convert your `Enum` type to a list of {ref}`State` objects.
-
-
-```{eval-rst}
-.. automethod:: statemachine.states.States.from_enum
-  :noindex:
 ```
 
 ```{seealso}
-See the example {ref}`sphx_glr_auto_examples_enum_campaign_machine.py`.
+See {ref}`validations` for the checks the library performs at class definition
+time — including final state reachability, unreachable states, and trap states.
 ```
+
+
+(compound-states)=
 
 ## Compound states
 
@@ -218,8 +127,12 @@ Entering a compound activates both the parent and its `initial` child. You can q
 whether a state is compound using the `is_compound` property.
 
 ```{seealso}
-See {ref}`compound-states` for full details, nesting, and `done.state` events.
+See {ref}`done-state-events` for completion events when a compound state's
+final child is reached.
 ```
+
+
+(parallel-states)=
 
 ## Parallel states
 
@@ -250,8 +163,12 @@ True
 ```
 
 ```{seealso}
-See {ref}`parallel-states` for full details and done events.
+See {ref}`done-state-events` for how `done.state` events work with parallel
+states (all regions must reach a final state).
 ```
+
+
+(history-states)=
 
 ## History pseudo-states
 
@@ -287,46 +204,27 @@ True
 Use `HistoryState(type="deep")` for deep history that remembers the exact leaf state
 in nested compounds.
 
+
 ```{seealso}
-See {ref}`history-states` for shallow vs deep history and default transitions.
+See {ref}`querying-configuration` for how to inspect which states are currently
+active at runtime.
 ```
 
-## Configuration
 
-```{versionadded} 3.0.0
+(states from enum types)=
+
+## States from Enum types
+
+{ref}`States` can also be declared from standard `Enum` classes.
+
+For this, use {ref}`States (class)` to convert your `Enum` type to a list of {ref}`State` objects.
+
+
+```{eval-rst}
+.. automethod:: statemachine.states.States.from_enum
+  :noindex:
 ```
 
-The `configuration` property returns the set of currently active states as an
-`OrderedSet[State]`. With compound and parallel states, multiple states can be
-active simultaneously:
-
-```py
->>> from statemachine import State, StateChart
-
->>> class Journey(StateChart):
-...     class shire(State.Compound):
-...         bag_end = State(initial=True)
-...         green_dragon = State()
-...         visit_pub = bag_end.to(green_dragon)
-...     road = State(final=True)
-...     depart = shire.to(road)
-
->>> sm = Journey()
->>> {s.id for s in sm.configuration} == {"shire", "bag_end"}
-True
-
-```
-
-Use `configuration_values` for a set of the active state values (or IDs if no
-custom value is defined):
-
-```py
->>> set(sm.configuration_values) == {"shire", "bag_end"}
-True
-
-```
-
-```{note}
-The older `current_state` property is deprecated. Use `configuration` instead,
-which works consistently for both flat and hierarchical state machines.
+```{seealso}
+See the example {ref}`sphx_glr_auto_examples_enum_campaign_machine.py`.
 ```

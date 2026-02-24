@@ -1,91 +1,27 @@
 (processing-model)=
+(processing model)=
 
 # Processing model
 
-In the literature, it's expected that all state-machine events should execute on a
-[run-to-completion](https://en.wikipedia.org/wiki/UML_state_machine#Run-to-completion_execution_model)
-(RTC) model.
+The engine processes events following the
+[SCXML](https://www.w3.org/TR/scxml/#AlgorithmforSCXMLInterpretation)
+**run-to-completion** (RTC) model: each event is fully processed — all
+callbacks executed, all states entered/exited — before the next event
+starts. This guarantees the system is always in a consistent state when
+a new event arrives.
 
-> All state machine formalisms, including UML state machines, universally assume that a state machine
-> completes processing of each event before it can start processing the next event. This model of
-> execution is called run to completion, or RTC.
+> **Run to completion** — SCXML adheres to a run to completion semantics
+> in the sense that an external event can only be processed when the
+> processing of the previous external event has completed, i.e. when all
+> microsteps (involving all triggered transitions) have been completely
+> taken.
+>
+> — [W3C SCXML Specification](https://www.w3.org/TR/scxml/#AlgorithmforSCXMLInterpretation)
 
-The main point is: What should happen if the state machine triggers nested events while
-processing a parent event?
-
-This library adheres to the {ref}`RTC model <rtc-model>` to be compliant with the specs, where
-the {ref}`event` is put on a queue before processing.
-
-Consider this state machine:
-
-```py
->>> from statemachine import StateChart, State
-
->>> class ServerConnection(StateChart):
-...     disconnected = State(initial=True)
-...     connecting = State()
-...     connected = State(final=True)
-...
-...     connect = disconnected.to(connecting, after="connection_succeed")
-...     connection_succeed = connecting.to(connected)
-...
-...     def on_connect(self):
-...         return "on_connect"
-...
-...     def on_enter_state(self, event: str, state: State, source: State):
-...         print(f"enter '{state.id}' from '{source.id if source else ''}' given '{event}'")
-...
-...     def on_exit_state(self, event: str, state: State, target: State):
-...         print(f"exit '{state.id}' to '{target.id}' given '{event}'")
-...
-...     def on_transition(self, event: str, source: State, target: State):
-...         print(f"on '{event}' from '{source.id}' to '{target.id}'")
-...         return "on_transition"
-...
-...     def after_transition(self, event: str, source: State, target: State):
-...         print(f"after '{event}' from '{source.id}' to '{target.id}'")
-...         return "after_transition"
-
-```
-
-(rtc-model)=
-
-## RTC model
-
-In a run-to-completion (RTC) processing model (**default**), the state machine executes each
-event to completion before processing the next event. This means that the state machine
-completes all the actions associated with an event before moving on to the next event. This
-guarantees that the system is always in a consistent state.
-
-Internally, the events are put on a queue before processing.
-
-```{note}
-While processing the queue items, if other events are generated, they will be processed
-sequentially in FIFO order.
-```
-
-Running the above state machine will give these results:
-
-```py
->>> sm = ServerConnection()
-enter 'disconnected' from '' given '__initial__'
-
->>> sm.send("connect")
-exit 'disconnected' to 'connecting' given 'connect'
-on 'connect' from 'disconnected' to 'connecting'
-enter 'connecting' from 'disconnected' given 'connect'
-after 'connect' from 'disconnected' to 'connecting'
-exit 'connecting' to 'connected' given 'connection_succeed'
-on 'connection_succeed' from 'connecting' to 'connected'
-enter 'connected' from 'connecting' given 'connection_succeed'
-after 'connection_succeed' from 'connecting' to 'connected'
-['on_transition', 'on_connect']
-
-```
-
-```{note}
-Note that the events `connect` and `connection_succeed` are executed sequentially, and the
-`connect.after` runs in the expected order.
+```{seealso}
+See {ref}`actions` for the callback execution order within each step,
+{ref}`sending-events` for how to trigger events, and {ref}`behaviour`
+for customizations that affect how the engine processes transitions.
 ```
 
 
@@ -93,67 +29,73 @@ Note that the events `connect` and `connection_succeed` are executed sequentiall
 
 ## Macrosteps and microsteps
 
-The processing loop is organized into two levels: **macrosteps** and **microsteps**.
-Understanding these concepts is key to predicting how the engine processes events,
-especially with {ref}`eventless transitions <eventless>`, internal events
-({func}`raise_() <StateMachine.raise_>`), and {ref}`error.execution <error-execution>`.
+The processing loop is organized into two levels:
 
 ### Microstep
 
-A **microstep** is the smallest unit of processing. It takes a set of enabled transitions
-and executes them atomically:
+A **microstep** is the smallest unit of processing. It takes a set of
+enabled transitions and walks them through a fixed sequence of
+callback groups defined in the {ref}`execution order <actions>`:
 
-1. Run `before` callbacks.
-2. Exit source states (run `on_exit` callbacks).
-3. Execute transition actions (`on` callbacks).
-4. Enter target states (run `on_enter` callbacks).
-5. Run `after` callbacks.
+1. **Prepare** — enrich event kwargs.
+2. **Validators / Conditions** — check if the transition is allowed.
+3. **Before** — run pre-transition callbacks.
+4. **Exit** — leave source states (innermost first).
+5. **On** — execute transition actions.
+6. **Enter** — enter target states (outermost first).
+7. **Invoke** — spawn background work.
+8. **After** — run post-transition callbacks (always runs, even on error).
 
-If an error occurs during steps 1–4 and `error_on_execution` is enabled, the error is
-caught at the **block level** — meaning remaining actions in that block are skipped, but
-the microstep continues and `after` callbacks still run. Each phase (exit, `on`, enter)
-is an independent block, so an error in the transition `on` action does not prevent target
-states from being entered. See {ref}`block-level error catching <error-execution>` and the
-{ref}`cleanup / finalize pattern <sphx_glr_auto_examples_statechart_cleanup_machine.py>`.
+```{tip}
+If an error occurs during steps 3–6 and `error_on_execution` is enabled,
+the error is caught at the **block level** — remaining actions in that block
+are skipped, but the microstep continues. See
+{ref}`error-execution` and the
+{ref}`cleanup / finalize pattern <error-handling-cleanup-finalize>`.
+```
+
 
 ### Macrostep
 
-A **macrostep** is a complete processing cycle triggered by a single external event. It
-consists of one or more microsteps and only ends when the machine reaches a **stable
-configuration** — a state where no eventless transitions are enabled and the internal
-queue is empty.
+A **macrostep** is a complete processing cycle triggered by a single
+external event. It consists of one or more microsteps and only ends when
+the machine reaches a **stable configuration** — no eventless transitions
+are enabled and the internal queue is empty.
 
 Within a single macrostep, the engine repeats:
 
-1. **Check eventless transitions** — transitions without an event trigger that fire
-   automatically when their guard conditions are met.
-2. **Drain the internal queue** — events placed by {func}`raise_() <StateMachine.raise_>`
-   are processed immediately, before any external events.
+1. **Check eventless transitions** — transitions without an event that
+   fire automatically when their guard conditions are met.
+2. **Drain the internal queue** — events placed by `raise_()` are
+   processed immediately, before any external events.
 3. If neither step produced a transition, the macrostep is **done**.
 
-After the macrostep completes, the engine picks the next event from the **external queue**
-(placed by {func}`send() <StateMachine.send>`) and starts a new macrostep.
+After the macrostep completes, the engine picks the next event from the
+**external queue** (placed by `send()`) and starts a new macrostep.
+
 
 ### Event queues
 
 The engine maintains two separate FIFO queues:
 
-| Queue        | How to enqueue                                                 | When processed                    |
-|--------------|----------------------------------------------------------------|-----------------------------------|
-| **Internal** | {func}`raise_() <StateMachine.raise_>` or `send(..., internal=True)` | Within the current macrostep      |
-| **External** | {func}`send() <StateMachine.send>`                             | After the current macrostep ends  |
+| Queue | How to enqueue | When processed |
+|---|---|---|
+| **Internal** | {func}`raise_() <StateMachine.raise_>` or `send(..., internal=True)` | Within the current macrostep |
+| **External** | {func}`send() <StateMachine.send>` | After the current macrostep ends |
 
-This distinction matters when you trigger events from inside callbacks. Using `raise_()`
-ensures the event is handled as part of the current processing cycle, while `send()` defers
-it to after the machine reaches a stable configuration.
+This distinction matters when you trigger events from inside callbacks.
+Using `raise_()` ensures the event is handled as part of the current
+processing cycle, while `send()` defers it to after the machine reaches
+a stable configuration.
 
 ```{seealso}
-See {ref}`triggering-events` for examples of `send()` vs `raise_()`.
+See {ref}`sending-events` for examples of `send()` vs `raise_()`.
 ```
+
 
 ### Processing loop overview
 
-The following diagram shows the complete processing loop algorithm:
+The following diagram shows the complete processing loop:
 
 ```
     send("event")
@@ -195,20 +137,93 @@ The following diagram shows the complete processing loop algorithm:
   └─────────────────────────────────────┘
 ```
 
+
+(rtc-model)=
+(rtc model)=
+(non-rtc model)=
+
+## Run-to-completion in practice
+
+Consider a state machine where one transition triggers another via an
+`after` callback:
+
+```py
+>>> from statemachine import StateChart, State
+
+>>> class ServerConnection(StateChart):
+...     disconnected = State(initial=True)
+...     connecting = State()
+...     connected = State(final=True)
+...
+...     connect = disconnected.to(connecting, after="connection_succeed")
+...     connection_succeed = connecting.to(connected)
+...
+...     def on_connect(self):
+...         return "on_connect"
+...
+...     def on_enter_state(self, event: str, state: State, source: State):
+...         print(f"enter '{state.id}' from '{source.id if source else ''}' given '{event}'")
+...
+...     def on_exit_state(self, event: str, state: State, target: State):
+...         print(f"exit '{state.id}' to '{target.id}' given '{event}'")
+...
+...     def on_transition(self, event: str, source: State, target: State):
+...         print(f"on '{event}' from '{source.id}' to '{target.id}'")
+...         return "on_transition"
+...
+...     def after_transition(self, event: str, source: State, target: State):
+...         print(f"after '{event}' from '{source.id}' to '{target.id}'")
+...         return "after_transition"
+
+```
+
+When `connect` is sent, the `after` callback triggers `connection_succeed`.
+Under the RTC model, `connection_succeed` is enqueued and processed only
+after `connect` completes:
+
+```py
+>>> sm = ServerConnection()
+enter 'disconnected' from '' given '__initial__'
+
+>>> sm.send("connect")
+exit 'disconnected' to 'connecting' given 'connect'
+on 'connect' from 'disconnected' to 'connecting'
+enter 'connecting' from 'disconnected' given 'connect'
+after 'connect' from 'disconnected' to 'connecting'
+exit 'connecting' to 'connected' given 'connection_succeed'
+on 'connection_succeed' from 'connecting' to 'connected'
+enter 'connected' from 'connecting' given 'connection_succeed'
+after 'connection_succeed' from 'connecting' to 'connected'
+['on_transition', 'on_connect']
+
+```
+
+Notice that `connect` runs all its phases (exit → on → enter → after) before
+`connection_succeed` starts. The `after` callback of `connect` fires while
+the machine is still in `connecting` — and only then does `connection_succeed`
+begin its own microstep.
+
+```{note}
+The `__initial__` event is a synthetic event that the engine fires during
+initialization to enter the initial state. It follows the same RTC model
+as any other event.
+```
+
+
 (continuous-machines)=
 
-## Continuous state machines
+## Chaining transitions
 
-Most state machines are driven by external events — you call `send()` and the machine
-responds. But some use cases require a machine that **processes multiple steps
-automatically** within a single macrostep, driven by eventless transitions and internal
-events rather than external calls.
+Some use cases require a machine that processes multiple steps automatically
+within a single macrostep, driven by internal events or eventless transitions
+rather than external calls.
 
-### Chaining with `raise_()`
 
-Using {func}`raise_() <StateMachine.raise_>` inside callbacks places events on the internal
-queue, so they are processed within the current macrostep. This lets you chain multiple
-transitions from a single `send()` call:
+### With `raise_()`
+
+Using {func}`raise_() <StateMachine.raise_>` inside callbacks places events
+on the **internal queue**, so they are processed within the current macrostep.
+This lets you chain multiple transitions from a single `send()` call:
 
 ```py
 >>> from statemachine import State, StateChart
@@ -245,14 +260,16 @@ transitions from a single `send()` call:
 
 ```
 
-All three steps execute within a single macrostep — the caller receives control back only
-after the pipeline reaches a stable configuration.
+All three steps execute within a single macrostep — the caller receives
+control back only after the pipeline reaches a stable configuration.
 
-### Self-loop with eventless transitions
 
-{ref}`Eventless transitions <eventless>` fire automatically whenever their guard condition
-is satisfied. A self-transition with a guard creates a loop that keeps running within the
-macrostep until the condition becomes false:
+### With eventless transitions
+
+{ref}`Eventless transitions <eventless>` fire automatically whenever their
+guard condition is satisfied. Combined with a self-transition, this creates
+a loop that keeps running within the macrostep until the condition becomes
+false:
 
 ```py
 >>> from statemachine import State, StateChart
@@ -294,6 +311,7 @@ macrostep until the condition becomes false:
 
 ```
 
-The machine starts, enters `trying` (attempt 1), and the eventless self-transition keeps
-firing as long as `can_retry()` returns `True`. Once the limit is reached, the eventless
-`give_up` transition fires — all within a single macrostep triggered by initialization.
+The machine starts, enters `trying` (attempt 1), and the eventless
+self-transition keeps firing as long as `can_retry()` returns `True`. Once
+the limit is reached, the second eventless transition fires — all within a
+single macrostep triggered by initialization.

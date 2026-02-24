@@ -455,7 +455,7 @@ class BaseEngine:
         args, kwargs = self._get_args_kwargs(transition, trigger_data)
         on_error = self._on_error_handler()
 
-        self.sm._callbacks.call(transition.validators.key, *args, on_error=on_error, **kwargs)
+        self.sm._callbacks.call(transition.validators.key, *args, on_error=None, **kwargs)
         return self.sm._callbacks.all(transition.cond.key, *args, on_error=on_error, **kwargs)
 
     def _prepare_exit_states(
