@@ -126,6 +126,18 @@ class MyMachine(StateChart):
         ...
 ```
 
+## MachineMixin
+
+```{seealso}
+{ref}`Integrations <machinemixin>` for usage examples.
+```
+
+```{eval-rst}
+.. autoclass:: statemachine.mixins.MachineMixin
+    :members:
+    :undoc-members:
+```
+
 ## create_machine_class_from_definition
 
 ```{versionadded} 3.0.0
