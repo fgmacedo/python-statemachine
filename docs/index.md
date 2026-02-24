@@ -58,6 +58,14 @@ weighted_transitions
 ```
 
 ```{toctree}
+:caption: How to
+:maxdepth: 2
+:hidden:
+
+how-to/coming_from_transitions
+```
+
+```{toctree}
 :caption: Reference
 :maxdepth: 2
 :hidden:
