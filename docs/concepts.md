@@ -37,6 +37,8 @@ Even in this minimal example, the core concepts appear:
 | {ref}`Condition <conditions>` | A guard that allows/blocks a transition | `cond`, `unless`, `validators` parameters |
 | {ref}`Listener <listeners>` | An external observer of the lifecycle | `listeners = [...]` class attribute |
 
+Each concept below introduces the idea briefly; follow the "See also" links
+for the full reference. Listeners are covered in {ref}`their own page <listeners>`.
 
 (concepts-statechart)=
 
@@ -147,20 +149,4 @@ different guard — the first one that passes wins.
 ```{seealso}
 See [](guards.md) for the full reference: `cond`, `unless`, `validators`,
 boolean expressions, and checking enabled events.
-```
-
-
-(concepts-listeners)=
-
-## Listeners
-
-A {ref}`listener <listeners>` is an external object that observes a state
-machine's lifecycle without modifying its class. Listeners receive the same
-callbacks as the state machine itself — `on_enter_state()`,
-`after_transition()`, and so on — enabling cross-cutting concerns like
-logging, persistence, or telemetry to be attached and removed independently.
-
-```{seealso}
-See [](listeners.md) for the full reference: defining listeners, class-level
-declarations, runtime attachment, the `setup()` protocol, and inheritance.
 ```

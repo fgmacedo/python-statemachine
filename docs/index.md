@@ -18,25 +18,32 @@ tutorial
 :hidden:
 
 concepts
-statechart
 states
 transitions
 events
 actions
 guards
+```
+
+```{toctree}
+:caption: Runtime
+:maxdepth: 2
+:hidden:
+
+statechart
+processing_model
+error_handling
+async
 listeners
 ```
 
 ```{toctree}
-:caption: Engine
+:caption: Configuration
 :maxdepth: 2
 :hidden:
 
-processing_model
-error_handling
-async
-validations
 behaviour
+validations
 ```
 
 ```{toctree}
@@ -47,7 +54,6 @@ behaviour
 invoke
 models
 integrations
-diagram
 weighted_transitions
 ```
 
@@ -57,6 +63,7 @@ weighted_transitions
 :hidden:
 
 api
+diagram
 auto_examples/index
 contributing
 authors
