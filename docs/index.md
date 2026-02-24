@@ -63,6 +63,7 @@ weighted_transitions
 :hidden:
 
 how-to/coming_from_transitions
+how-to/coming_from_state_pattern
 ```
 
 ```{toctree}
