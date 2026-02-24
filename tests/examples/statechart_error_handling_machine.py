@@ -4,7 +4,7 @@ Error handling -- Quest Recovery
 
 This example demonstrates **error.execution** handling using ``StateChart``.
 
-When ``error_on_execution=True`` (the ``StateChart`` default), runtime errors in
+When ``catch_errors_as_events=True`` (the ``StateChart`` default), runtime errors in
 callbacks are caught and dispatched as ``error.execution`` events instead of
 propagating as exceptions. This lets you define error-recovery transitions.
 
@@ -78,15 +78,15 @@ assert "safe" in sm.configuration_values
 
 
 # %%
-# Comparison with error_on_execution=False (error propagation)
+# Comparison with catch_errors_as_events=False (error propagation)
 # --------------------------------------------------------------
 #
-# With ``error_on_execution=False``, the same error
+# With ``catch_errors_as_events=False``, the same error
 # would propagate as an exception instead of being caught.
 
 
 class QuestNoCatch(StateChart):
-    error_on_execution = False
+    catch_errors_as_events = False
 
     safe = State("Safe", initial=True)
     danger_zone = State("Danger Zone", final=True)

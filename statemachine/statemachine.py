@@ -94,7 +94,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     execute the enter callbacks.
     """
 
-    error_on_execution: bool = True
+    catch_errors_as_events: bool = True
     """If ``True`` (default), runtime exceptions in callbacks (guards, actions, entry/exit)
     produce an ``error.execution`` internal event instead of propagating, as mandated by the
     SCXML specification. If ``False``, exceptions propagate normally."""
@@ -544,4 +544,4 @@ class StateMachine(StateChart):
     allow_event_without_transition: bool = False
     enable_self_transition_entries: bool = False
     atomic_configuration_update: bool = True
-    error_on_execution: bool = False
+    catch_errors_as_events: bool = False

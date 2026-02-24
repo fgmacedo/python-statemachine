@@ -41,9 +41,9 @@ The engine follows the SCXML run-to-completion (RTC) model with two processing l
 - `send()` → **external queue** (processed after current macrostep ends).
 - `raise_()` → **internal queue** (processed within the current macrostep, before external events).
 
-### Error handling (`error_on_execution`)
+### Error handling (`catch_errors_as_events`)
 
-- `StateChart` has `error_on_execution=True` by default; `StateMachine` has `False`.
+- `StateChart` has `catch_errors_as_events=True` by default; `StateMachine` has `False`.
 - Errors are caught at the **block level** (per onentry/onexit/transition `on` block), not per
   microstep. This means `after` callbacks still run even when an action raises — making
   `after_<event>()` a natural **finalize** hook (runs on both success and failure paths).

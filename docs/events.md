@@ -305,7 +305,7 @@ on a non-final state raises `InvalidDefinition`.
 ### `error.execution` events
 
 When a callback raises during a macrostep and
-{ref}`error_on_execution <behaviour>` is enabled, the engine dispatches an
+{ref}`catch_errors_as_events <behaviour>` is enabled, the engine dispatches an
 `error.execution` internal event. Define a transition for this event to
 recover from errors within the statechart:
 

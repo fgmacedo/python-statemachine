@@ -72,7 +72,7 @@ def test_do_not_transition_if_multiple_targets_with_guard():
         "A workflow"
 
         allow_event_without_transition = False
-        error_on_execution = False
+        catch_errors_as_events = False
 
         requested = State(initial=True)
         accepted = State(final=True)
@@ -102,7 +102,7 @@ def test_check_invalid_reference_to_conditions():
     class ApprovalMachine(StateChart):
         "A workflow"
 
-        error_on_execution = False
+        catch_errors_as_events = False
 
         requested = State(initial=True)
         accepted = State(final=True)
@@ -119,7 +119,7 @@ def test_should_change_to_returned_state_on_multiple_target_with_combined_transi
         "A workflow"
 
         allow_event_without_transition = False
-        error_on_execution = False
+        catch_errors_as_events = False
 
         requested = State(initial=True)
         accepted = State()
@@ -210,7 +210,7 @@ def test_multiple_values_returned_with_multiple_targets():
 )
 def test_multiple_targets_using_or_starting_from_same_origin(payment_failed, expected_state):
     class InvoiceStateMachine(StateChart):
-        error_on_execution = False
+        catch_errors_as_events = False
 
         unpaid = State(initial=True)
         paid = State(final=True)

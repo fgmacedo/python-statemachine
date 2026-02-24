@@ -280,7 +280,7 @@ class TestIssue417:
     def sm_class(self, model_class, mock_calls):
         class ExampleStateMachine(StateChart):
             allow_event_without_transition = False
-            error_on_execution = False
+            catch_errors_as_events = False
 
             created = State(initial=True)
             started = State(final=True)
@@ -341,7 +341,7 @@ class TestIssue417:
                 return True
 
         class ExampleStateMachine(StateChart):
-            error_on_execution = False
+            catch_errors_as_events = False
 
             created = State(initial=True)
             started = State(final=True)

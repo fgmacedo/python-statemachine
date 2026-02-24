@@ -334,7 +334,7 @@ def create_if_action_callable(action: IfAction) -> Callable:
                 cond_result = not cond or cond(*args, **kwargs)
             except Exception as e:
                 # SCXML spec: condition error → treat as false, queue error.execution.
-                if machine.error_on_execution:
+                if machine.catch_errors_as_events:
                     machine.send("error.execution", error=e, internal=True)
                     cond_result = False
                 else:

@@ -366,7 +366,7 @@ class TestTransitionFromAny:
     def account_sm(self):
         class AccountStateMachine(StateChart):
             allow_event_without_transition = False
-            error_on_execution = False
+            catch_errors_as_events = False
 
             active = State("Active", initial=True)
             suspended = State("Suspended")
@@ -414,7 +414,7 @@ class TestTransitionFromAny:
 
     def test_any_can_be_used_as_decorator(self):
         class AccountStateMachine(StateChart):
-            error_on_execution = False
+            catch_errors_as_events = False
 
             active = State("Active", initial=True)
             suspended = State("Suspended")

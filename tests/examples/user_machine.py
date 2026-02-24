@@ -64,7 +64,7 @@ class MachineChangeListenter:
 
 
 class UserStatusMachine(StateChart):
-    error_on_execution = False
+    catch_errors_as_events = False
     _states = States.from_enum(
         UserStatus,
         initial=UserStatus.signup_incomplete,

@@ -13,7 +13,7 @@ from statemachine import StateChart
 
 
 class MyStateMachine(StateChart):
-    error_on_execution = False
+    catch_errors_as_events = False
     startup = State(initial=True)
     test = State()
 

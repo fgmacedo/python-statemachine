@@ -15,7 +15,7 @@ failures by transitioning to an error state, retrying, or recovering. This
 follows the [SCXML error handling specification](https://www.w3.org/TR/scxml/#errorsAndEvents).
 
 ```{tip}
-`error_on_execution` is a class attribute that controls this behavior.
+`catch_errors_as_events` is a class attribute that controls this behavior.
 `StateChart` uses `True` by default (SCXML-compliant); set it to `False`
 to let exceptions propagate to the caller instead. See {ref}`behaviour`
 for the full comparison of behavioral attributes and how to customize them.
@@ -226,7 +226,7 @@ more detailed version of this pattern with annotated output.
 {ref}`Validators <validators>` operate in the **transition-selection** phase,
 before any state changes occur. Their exceptions **always propagate** to the
 caller — they are never caught by the engine and never converted to
-`error.execution` events, regardless of the `error_on_execution` setting.
+`error.execution` events, regardless of the `catch_errors_as_events` setting.
 
 This is intentional: a validator rejection means the transition should not
 happen at all. It is semantically equivalent to a condition returning
@@ -240,7 +240,7 @@ propagation.
 
 ```{seealso}
 See {ref}`behaviour` for the full comparison of behavioral attributes
-and how to customize `error_on_execution` and other settings.
+and how to customize `catch_errors_as_events` and other settings.
 See {ref}`actions` for the callback execution order within each
 microstep.
 ```

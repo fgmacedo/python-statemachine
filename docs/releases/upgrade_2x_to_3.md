@@ -56,7 +56,7 @@ now a subclass of `StateChart` with defaults that preserve 2.x behavior:
 | `allow_event_without_transition`  | `True`       | `False`        |
 | `enable_self_transition_entries`  | `True`       | `False`        |
 | `atomic_configuration_update`     | `False`      | `True`         |
-| `error_on_execution`              | `True`       | `False`        |
+| `catch_errors_as_events`              | `True`       | `False`        |
 
 **Recommendation:** Use `StateChart` for new code. It follows the
 [SCXML specification](https://www.w3.org/TR/scxml/) defaults — structured error handling,
@@ -77,7 +77,7 @@ class MyMachine(StateMachine):
 ```python
 # Adopt SCXML error handling without switching to StateChart
 class MyMachine(StateMachine):
-    error_on_execution = True
+    catch_errors_as_events = True
     # ... rest of your definition unchanged
 ```
 
@@ -247,7 +247,7 @@ except TransitionNotAllowed as e:
 
 ```{tip}
 If you are migrating to `StateChart`, consider handling errors as events instead of
-catching exceptions. With `error_on_execution=True` (the default in `StateChart`),
+catching exceptions. With `catch_errors_as_events=True` (the default in `StateChart`),
 runtime errors are dispatched as `error.execution` events that you can handle with
 transitions. See {ref}`error-execution`.
 ```

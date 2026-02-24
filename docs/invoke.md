@@ -343,7 +343,7 @@ True
 ## Error handling
 
 If an invoke handler raises an exception, `error.execution` is sent to the machine's
-internal queue (when `error_on_execution=True`, the default for `StateChart`). You can
+internal queue (when `catch_errors_as_events=True`, the default for `StateChart`). You can
 handle it with a transition for `error.execution`:
 
 ```py

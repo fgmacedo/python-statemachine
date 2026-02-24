@@ -220,7 +220,7 @@ class TestSCXMLForeachArrayError:
         processor = SCXMLProcessor()
         processor.parse_scxml("test_foreach_error", scxml)
         sm = processor.start()
-        # The foreach array eval raises, which gets caught by error_on_execution
+        # The foreach array eval raises, which gets caught by catch_errors_as_events
         assert sm.configuration == {sm.states_map["error"]}
 
 
@@ -284,10 +284,10 @@ class TestEventDataWrapperMultipleArgs:
 
 
 class TestIfActionRaisesWithoutErrorOnExecution:
-    """SCXML <if> condition error raises when error_on_execution is False."""
+    """SCXML <if> condition error raises when catch_errors_as_events is False."""
 
-    def test_if_condition_error_propagates_without_error_on_execution(self):
-        """<if> with failing condition raises when machine.error_on_execution is False."""
+    def test_if_condition_error_propagates_without_catch_errors_as_events(self):
+        """<if> with failing condition raises when machine.catch_errors_as_events is False."""
         from statemachine.io.scxml.actions import create_if_action_callable
         from statemachine.io.scxml.schema import IfAction
         from statemachine.io.scxml.schema import IfBranch
@@ -296,7 +296,7 @@ class TestIfActionRaisesWithoutErrorOnExecution:
         if_callable = create_if_action_callable(action)
 
         machine = Mock()
-        machine.error_on_execution = False
+        machine.catch_errors_as_events = False
         machine.model.__dict__ = {}
 
         with pytest.raises(NameError, match="undefined_var"):

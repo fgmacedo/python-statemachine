@@ -367,7 +367,7 @@ class AIShell(StateChart):
 
     """
 
-    error_on_execution = True
+    catch_errors_as_events = True
 
     # --- Top-level parallel state: two independent regions ---
 

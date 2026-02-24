@@ -90,11 +90,11 @@ class TestExceptionRouting:
 
     @pytest.mark.asyncio()
     async def test_exception_reaches_caller(self):
-        """When error_on_execution=False (not default for StateChart), the
+        """When catch_errors_as_events=False (not default for StateChart), the
         exception propagates to the caller of that event."""
 
         class FailingSC(StateChart):
-            error_on_execution = False
+            catch_errors_as_events = False
             s1 = State(initial=True)
             s2 = State(final=True)
             go = s1.to(s2)
@@ -192,17 +192,17 @@ class TestFutureEdgeCases:
         assert r2 == "result_2"
 
     @pytest.mark.asyncio()
-    async def test_concurrent_sends_exception_with_error_on_execution_off(self):
-        """When error_on_execution=False and one event raises, the exception
+    async def test_concurrent_sends_exception_with_catch_errors_as_events_off(self):
+        """When catch_errors_as_events=False and one event raises, the exception
         is routed to that caller's future; the other caller is unaffected.
 
-        With error_on_execution=False, the exception propagates and the
+        With catch_errors_as_events=False, the exception propagates and the
         processing loop clears the external queue, so the second event is
         never processed.
         """
 
         class ConcurrentFailMachine(StateChart):
-            error_on_execution = False
+            catch_errors_as_events = False
             s1 = State(initial=True)
             s2 = State()
             s3 = State(final=True)
@@ -287,7 +287,7 @@ class TestFutureEdgeCases:
         """
 
         class ValidatorSC(StateChart):
-            error_on_execution = False
+            catch_errors_as_events = False
             s1 = State(initial=True)
             s2 = State()
 

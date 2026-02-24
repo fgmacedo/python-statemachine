@@ -8,7 +8,7 @@ from statemachine import StateChart
 
 class OrderControl(StateChart):
     allow_event_without_transition = False
-    error_on_execution = False
+    catch_errors_as_events = False
 
     waiting_for_payment = State(initial=True)
     processing = State()

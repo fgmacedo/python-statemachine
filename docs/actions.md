@@ -69,7 +69,7 @@ The `state` column shows what the `state` parameter resolves to when
 
 ```{tip}
 `after` callbacks run even when an earlier group raises and
-`error_on_execution` is enabled — making them a natural **finalize** hook.
+`catch_errors_as_events` is enabled — making them a natural **finalize** hook.
 See {ref}`error-handling-cleanup-finalize` for the full pattern.
 ```
 

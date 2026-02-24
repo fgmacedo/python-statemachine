@@ -151,7 +151,7 @@ class TestSearchProperty:
                 return False
 
         class StartMachine(StateChart):
-            error_on_execution = False
+            catch_errors_as_events = False
 
             created = State(initial=True)
             started = State(final=True)
