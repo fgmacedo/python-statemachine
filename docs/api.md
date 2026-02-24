@@ -146,3 +146,16 @@ class MyMachine(StateChart):
 ```{eval-rst}
 .. autofunction:: statemachine.io.create_machine_class_from_definition
 ```
+
+## timeout
+
+```{versionadded} 3.0.0
+```
+
+```{seealso}
+{ref}`timeout` how-to guide.
+```
+
+```{eval-rst}
+.. autofunction:: statemachine.contrib.timeout.timeout
+```
