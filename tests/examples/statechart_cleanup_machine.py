@@ -5,7 +5,7 @@ Cleanup / finalize pattern
 This example demonstrates how to guarantee cleanup code runs after a transition
 **regardless of success or failure** — similar to a ``try/finally`` block.
 
-With ``StateChart`` (where ``error_on_execution=True`` by default), errors in
+With ``StateChart`` (where ``catch_errors_as_events=True`` by default), errors in
 callbacks are caught at the **block level** — meaning the microstep continues
 and ``after_<event>()`` callbacks still run. This makes ``after_<event>()`` a
 natural **finalize** hook.

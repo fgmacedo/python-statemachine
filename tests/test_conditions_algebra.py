@@ -7,7 +7,7 @@ from statemachine import StateChart
 
 class AnyConditionSM(StateChart):
     allow_event_without_transition = False
-    error_on_execution = False
+    catch_errors_as_events = False
 
     start = State(initial=True)
     end = State(final=True)

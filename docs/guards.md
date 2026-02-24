@@ -293,13 +293,13 @@ True
 ### Validators always propagate
 
 Validator exceptions **always propagate** to the caller, regardless of the
-`error_on_execution` flag. This is intentional: validators operate in the
+`catch_errors_as_events` flag. This is intentional: validators operate in the
 **transition-selection** phase, not the execution phase. A validator that
 rejects is semantically equivalent to a condition that returns `False` —
 the transition simply should not happen. The difference is that the
 validator communicates the reason via an exception.
 
-This means that even when `error_on_execution = True` (the default for
+This means that even when `catch_errors_as_events = True` (the default for
 `StateChart`):
 
 - Validator exceptions are **not** converted to `error.execution` events.

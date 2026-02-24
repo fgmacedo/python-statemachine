@@ -161,7 +161,7 @@ processing loop. Events triggered from within callbacks (via `send()` or
 are enqueued and processed within the current macrostep.
 ```
 
-If an exception occurs during processing (with `error_on_execution=False`),
+If an exception occurs during processing (with `catch_errors_as_events=False`),
 the exception is routed to the caller whose event caused it. Other callers
 whose events were still pending will also receive the exception, since the
 processing loop clears the queue on failure.

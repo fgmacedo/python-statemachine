@@ -7,7 +7,7 @@ behaviour that differs from ``StateChart`` defaults:
 - ``allow_event_without_transition = False``  → ``TransitionNotAllowed``
 - ``enable_self_transition_entries = False``
 - ``atomic_configuration_update = True``
-- ``error_on_execution = False``  → exceptions propagate directly
+- ``catch_errors_as_events = False``  → exceptions propagate directly
 - ``current_state`` deprecated property
 """
 
@@ -36,8 +36,8 @@ class TestStateMachineDefaults:
     def test_atomic_configuration_update(self):
         assert StateMachine.atomic_configuration_update is True
 
-    def test_error_on_execution(self):
-        assert StateMachine.error_on_execution is False
+    def test_catch_errors_as_events(self):
+        assert StateMachine.catch_errors_as_events is False
 
 
 # ---------------------------------------------------------------------------
@@ -219,12 +219,12 @@ class TestTransitionNotAllowedAsync:
 
 
 # ---------------------------------------------------------------------------
-# error_on_execution = False (exceptions propagate directly)
+# catch_errors_as_events = False (exceptions propagate directly)
 # ---------------------------------------------------------------------------
 
 
 class TestErrorOnExecutionFalse:
-    """With error_on_execution=False, exceptions propagate without being caught."""
+    """With catch_errors_as_events=False, exceptions propagate without being caught."""
 
     def test_runtime_error_in_action_propagates(self):
         class SM(StateMachine):

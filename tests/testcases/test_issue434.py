@@ -12,7 +12,7 @@ class Model:
 
 
 class DataCheckerMachine(StateChart):
-    error_on_execution = False
+    catch_errors_as_events = False
 
     check_data = State(initial=True)
     data_good = State(final=True)

@@ -33,7 +33,7 @@ SCXML-compliant behavior provides more predictable semantics.
 | `allow_event_without_transition` | `True` | `False` | Tolerate events that don't match any transition |
 | `enable_self_transition_entries` | `True` | `False` | Execute entry/exit actions on self-transitions |
 | `atomic_configuration_update` | `False` | `True` | When to update {ref}`configuration <querying-configuration>` during a microstep |
-| `error_on_execution` | `True` | `False` | Catch action errors as `error.execution` events |
+| `catch_errors_as_events` | `True` | `False` | Catch action errors as `error.execution` events |
 
 Each attribute is described below, with cross-references to the pages that
 cover the topic in depth.
@@ -142,7 +142,7 @@ in callbacks.
 ```
 
 
-## `error_on_execution`
+## `catch_errors_as_events`
 
 When `True` (SCXML default), runtime exceptions in action callbacks
 (entry/exit, transition `on`) are caught by the engine and dispatched as
@@ -152,7 +152,7 @@ propagate normally to the caller.
 ```{note}
 {ref}`Validators <validators>` are **not** affected by this flag — they
 always propagate exceptions to the caller, regardless of the
-`error_on_execution` setting. See {ref}`validators` for details.
+`catch_errors_as_events` setting. See {ref}`validators` for details.
 ```
 
 ```{seealso}
@@ -168,7 +168,7 @@ adopt SCXML semantics incrementally in an existing `StateMachine`:
 
 ```python
 class MyMachine(StateMachine):
-    error_on_execution = True
+    catch_errors_as_events = True
     # ... everything else behaves as before ...
 ```
 

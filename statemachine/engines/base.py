@@ -145,11 +145,11 @@ class BaseEngine:
     def _on_error_handler(self) -> "Callable[[Exception], None] | None":
         """Return a per-block error handler, or ``None``.
 
-        When ``error_on_execution`` is enabled, returns a callable that queues
+        When ``catch_errors_as_events`` is enabled, returns a callable that queues
         ``error.execution`` on the internal queue.  Otherwise returns ``None``
         so that exceptions propagate normally.
         """
-        if not self.sm.error_on_execution:
+        if not self.sm.catch_errors_as_events:
             return None
 
         def handler(error: Exception) -> None:
@@ -167,10 +167,10 @@ class BaseEngine:
     def _handle_error(self, error: Exception, trigger_data: TriggerData):
         """Handle an execution error: send ``error.execution`` or re-raise.
 
-        Centralises the ``if error_on_execution`` check so callers don't need
+        Centralises the ``if catch_errors_as_events`` check so callers don't need
         to know about the variation.
         """
-        if self.sm.error_on_execution:
+        if self.sm.catch_errors_as_events:
             self._send_error_execution(error, trigger_data)
         else:
             raise error

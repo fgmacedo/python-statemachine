@@ -5,7 +5,7 @@ Unlike conditions (cond/unless), which return booleans and silently skip
 transitions, validators communicate *why* a transition was rejected.
 
 Key behavior (since v3): validator exceptions always propagate to the caller,
-regardless of the ``error_on_execution`` flag. They are NOT converted to
+regardless of the ``catch_errors_as_events`` flag. They are NOT converted to
 ``error.execution`` events — they operate in the transition-selection phase,
 not the execution phase.
 """
@@ -21,7 +21,7 @@ from statemachine import StateChart
 
 
 class OrderValidation(StateChart):
-    """StateChart with error_on_execution=True (the default)."""
+    """StateChart with catch_errors_as_events=True (the default)."""
 
     pending = State(initial=True)
     confirmed = State()
@@ -36,9 +36,9 @@ class OrderValidation(StateChart):
 
 
 class OrderValidationNoErrorEvents(StateChart):
-    """Same machine but with error_on_execution=False."""
+    """Same machine but with catch_errors_as_events=False."""
 
-    error_on_execution = False
+    catch_errors_as_events = False
 
     pending = State(initial=True)
     confirmed = State()
@@ -133,8 +133,8 @@ class ValidatorFallthrough(StateChart):
 class TestValidatorPropagation:
     """Validator exceptions always propagate to the caller."""
 
-    async def test_validator_rejects_with_error_on_execution_true(self, sm_runner):
-        """With error_on_execution=True (default), validator exceptions still
+    async def test_validator_rejects_with_catch_errors_as_events_true(self, sm_runner):
+        """With catch_errors_as_events=True (default), validator exceptions still
         propagate — they are NOT converted to error.execution events."""
         sm = await sm_runner.start(OrderValidation)
 
@@ -143,8 +143,8 @@ class TestValidatorPropagation:
 
         assert "pending" in sm.configuration_values
 
-    async def test_validator_rejects_with_error_on_execution_false(self, sm_runner):
-        """With error_on_execution=False, validator exceptions propagate
+    async def test_validator_rejects_with_catch_errors_as_events_false(self, sm_runner):
+        """With catch_errors_as_events=False, validator exceptions propagate
         (same behavior as True — validators always propagate)."""
         sm = await sm_runner.start(OrderValidationNoErrorEvents)
 
@@ -231,7 +231,7 @@ class TestValidatorWithConditions:
 class TestValidatorDoesNotTriggerErrorExecution:
     """The key semantic: validator rejection is NOT an execution error.
 
-    Even when error_on_execution=True and an error.execution transition
+    Even when catch_errors_as_events=True and an error.execution transition
     exists, a validator raising should propagate to the caller — not
     be routed through the error.execution mechanism.
     """

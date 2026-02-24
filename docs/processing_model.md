@@ -47,7 +47,7 @@ callback groups defined in the {ref}`execution order <actions>`:
 8. **After** — run post-transition callbacks (always runs, even on error).
 
 ```{tip}
-If an error occurs during steps 3–6 and `error_on_execution` is enabled,
+If an error occurs during steps 3–6 and `catch_errors_as_events` is enabled,
 the error is caught at the **block level** — remaining actions in that block
 are skipped, but the microstep continues. See
 {ref}`error-execution` and the

@@ -211,8 +211,8 @@ async def test_async_state_should_be_initialized(async_order_control_machine):
 
 
 @pytest.mark.timeout(5)
-async def test_async_error_on_execution_in_condition():
-    """Async engine catches errors in conditions with error_on_execution."""
+async def test_async_catch_errors_as_events_in_condition():
+    """Async engine catches errors in conditions with catch_errors_as_events."""
 
     class SM(StateChart):
         s1 = State(initial=True)
@@ -231,8 +231,8 @@ async def test_async_error_on_execution_in_condition():
 
 
 @pytest.mark.timeout(5)
-async def test_async_error_on_execution_in_transition():
-    """Async engine catches errors in transition callbacks with error_on_execution."""
+async def test_async_catch_errors_as_events_in_transition():
+    """Async engine catches errors in transition callbacks with catch_errors_as_events."""
 
     class SM(StateChart):
         s1 = State(initial=True)
@@ -254,8 +254,8 @@ async def test_async_error_on_execution_in_transition():
 
 
 @pytest.mark.timeout(5)
-async def test_async_error_on_execution_in_after():
-    """Async engine catches errors in after callbacks with error_on_execution."""
+async def test_async_catch_errors_as_events_in_after():
+    """Async engine catches errors in after callbacks with catch_errors_as_events."""
 
     class SM(StateChart):
         s1 = State(initial=True)
@@ -274,8 +274,8 @@ async def test_async_error_on_execution_in_after():
 
 
 @pytest.mark.timeout(5)
-async def test_async_error_on_execution_in_before():
-    """Async engine catches errors in before callbacks with error_on_execution."""
+async def test_async_catch_errors_as_events_in_before():
+    """Async engine catches errors in before callbacks with catch_errors_as_events."""
 
     class SM(StateChart):
         s1 = State(initial=True)
@@ -333,11 +333,11 @@ async def test_async_invalid_definition_in_after_propagates():
 
 
 @pytest.mark.timeout(5)
-async def test_async_runtime_error_in_after_without_error_on_execution():
-    """RuntimeError in async after callback without error_on_execution propagates."""
+async def test_async_runtime_error_in_after_without_catch_errors_as_events():
+    """RuntimeError in async after callback without catch_errors_as_events propagates."""
 
     class SM(StateChart):
-        error_on_execution = False
+        catch_errors_as_events = False
 
         s1 = State(initial=True)
         s2 = State(final=True)
@@ -353,7 +353,7 @@ async def test_async_runtime_error_in_after_without_error_on_execution():
 
 
 # --- Actual async engine tests (async callbacks trigger AsyncEngine) ---
-# Note: async engine error_on_execution with async callbacks has a known limitation:
+# Note: async engine catch_errors_as_events with async callbacks has a known limitation:
 # _send_error_execution calls sm.send() which returns an unawaited coroutine.
 # The tests below cover the paths that DO work in the async engine.
 
@@ -416,11 +416,11 @@ async def test_async_engine_invalid_definition_in_after_propagates():
 
 
 @pytest.mark.timeout(5)
-async def test_async_engine_runtime_error_in_after_without_error_on_execution_propagates():
-    """AsyncEngine: RuntimeError in async after callback without error_on_execution raises."""
+async def test_async_engine_runtime_error_in_after_without_catch_errors_as_events_propagates():
+    """AsyncEngine: RuntimeError in async after callback without catch_errors_as_events raises."""
 
     class SM(StateChart):
-        error_on_execution = False
+        catch_errors_as_events = False
 
         s1 = State(initial=True)
         s2 = State(final=True)
