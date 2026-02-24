@@ -7,8 +7,7 @@
 [![Documentation Status](https://readthedocs.org/projects/python-statemachine/badge/?version=latest)](https://python-statemachine.readthedocs.io/en/latest/?badge=latest)
 [![GitHub commits since last release (main)](https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/main/develop)](https://github.com/fgmacedo/python-statemachine/compare/main...develop)
 
-
-Python [finite-state machines](https://en.wikipedia.org/wiki/Finite-state_machine) and [statecharts](https://statecharts.dev/) made easy.
+Expressive [statecharts](https://statecharts.dev/) and [FSMs](https://en.wikipedia.org/wiki/Finite-state_machine) for modern Python.
 
 <div align="center">
 
