@@ -24,6 +24,7 @@ class DotRendererConfig:
     """Configuration for the DOT renderer, matching DotGraphMachine's class attributes."""
 
     graph_rankdir: str = "LR"
+    graph_dpi: int = 200
     font_name: str = "Helvetica"
     state_font_size: str = "12"
     state_active_penwidth: int = 2
@@ -72,6 +73,7 @@ class DotRenderer:
             "compound": "true",
             "nodesep": "0.3",
             "ranksep": "0.1",
+            "dpi": str(cfg.graph_dpi),
         }
         graph_attrs.update(cfg.graph_attrs)
 

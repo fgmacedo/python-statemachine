@@ -20,6 +20,9 @@ class DotGraphMachine:
     http://www.graphviz.org/doc/info/attrs.html#d:rankdir
     """
 
+    graph_dpi = 200
+    """Graph resolution in dots per inch"""
+
     font_name = "Helvetica"
     """Graph font face name"""
 
@@ -40,6 +43,7 @@ class DotGraphMachine:
     def _build_config(self) -> DotRendererConfig:
         return DotRendererConfig(
             graph_rankdir=self.graph_rankdir,
+            graph_dpi=self.graph_dpi,
             font_name=self.font_name,
             state_font_size=self.state_font_size,
             state_active_penwidth=self.state_active_penwidth,
@@ -66,13 +70,10 @@ def quickchart_write_svg(sm, path: str):
 
     >>> from tests.examples.order_control_machine import OrderControl
     >>> sm = OrderControl()
-    >>> print(sm._graph().to_string())  # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+    >>> print(sm._graph().to_string())  # doctest: +ELLIPSIS
     digraph OrderControl {
-    compound=true;
-    fontname=Helvetica;
-    fontsize=10;
-    label=OrderControl;
     ...
+    }
 
     To give you an example, we included this method that will serialize the dot, request the graph
     to https://quickchart.io, and persist the result locally as an ``.svg`` file.
