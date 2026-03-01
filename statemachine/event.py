@@ -88,6 +88,15 @@ class Event(AddCallbacksMixin, str):
             id = transitions
             transitions = None
 
+        if id is not None and not isinstance(id, str):
+            raise InvalidDefinition(
+                _(
+                    "Event() received a non-string 'id' ({cls_name}). "
+                    "To combine multiple transitions under one event, "
+                    "use the | operator: t1 | t2."
+                ).format(cls_name=type(id).__name__)
+            )
+
         _has_real_id = id is not None
         id = str(id) if _has_real_id else f"__event__{uuid4().hex}"
 

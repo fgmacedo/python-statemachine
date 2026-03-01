@@ -330,3 +330,18 @@ def test_events_match_none_with_empty():
 
     events = Events()
     assert events.match(None) is True
+
+
+def test_event_raises_on_non_string_id():
+    """Event() should raise InvalidDefinition when id is not a string.
+
+    This catches a common mistake where users pass multiple transitions as
+    positional args (e.g. Event(t1, t2)) instead of combining them with |.
+    """
+    s1 = State(initial=True)
+    s2 = State(final=True)
+    t1 = s1.to(s2)
+    t2 = s2.to(s1)
+
+    with pytest.raises(InvalidDefinition, match="non-string 'id'.*use the \\| operator"):
+        Event(t1, t2)
