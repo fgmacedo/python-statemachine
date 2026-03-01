@@ -368,7 +368,7 @@ def test_multi_target_transition_diagram():
     assert edges[0].obj_dict["points"] == ("source", "target1")
     assert edges[1].obj_dict["points"] == ("source", "target2")
     # Only the first edge gets a label
-    assert edges[0].obj_dict["attributes"]["label"] == "go"
+    assert "go" in edges[0].obj_dict["attributes"]["label"]
     assert edges[1].obj_dict["attributes"]["label"] == ""
 
 

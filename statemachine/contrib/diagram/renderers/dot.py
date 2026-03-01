@@ -72,7 +72,8 @@ class DotRenderer:
             "ordering": "out",
             "compound": "true",
             "nodesep": "0.3",
-            "ranksep": "0.1",
+            "ranksep": "0.3",
+            "forcelabels": "true",
             "dpi": str(cfg.graph_dpi),
         }
         graph_attrs.update(cfg.graph_attrs)
@@ -98,6 +99,7 @@ class DotRenderer:
         edge_defaults = {
             "fontname": cfg.font_name,
             "fontsize": cfg.transition_font_size,
+            "labeldistance": "1.5",
         }
         edge_defaults.update(cfg.edge_attrs)
         dot.set_edge_defaults(**edge_defaults)
@@ -205,9 +207,10 @@ class DotRenderer:
     def _create_atomic_node(self, state: DiagramState) -> pydot.Node:
         """Create a node for an atomic state.
 
-        States without actions use a native rounded rectangle.
-        States with actions use an HTML TABLE label with UML compartments
-        (name + separator + actions), inspired by state-machine-cat.
+        All states use a native ``shape="rectangle"`` with ``style="rounded, filled"``
+        so that Graphviz clips edges at the actual rounded border.  States with
+        entry/exit actions embed an HTML TABLE (``border="0"``) inside the native
+        shape to render UML-style compartments (name + separator + actions).
         """
         actions = [a for a in state.actions if a.type != "internal" or a.body]
         fillcolor = self.config.state_active_fillcolor if state.is_active else "white"
@@ -227,14 +230,21 @@ class DotRenderer:
                 peripheries=2 if state.type == StateType.FINAL else 1,
             )
         else:
-            # State with actions: HTML TABLE with UML compartments
-            label = self._build_html_table_label(state, actions, fillcolor, penwidth)
+            # State with actions: native shape + HTML TABLE label (border=0).
+            # The native shape handles edge clipping; the TABLE provides
+            # UML compartment layout with <hr/> separator.
+            label = self._build_html_table_label(state, actions)
             node = pydot.Node(
                 state.id,
                 label=f"<{label}>",
-                shape="plaintext",
+                shape="rectangle",
+                style="rounded, filled",
                 fontname=self.config.font_name,
                 fontsize=self.config.state_font_size,
+                fillcolor=fillcolor,
+                penwidth=penwidth,
+                margin="0",
+                peripheries=2 if state.type == StateType.FINAL else 1,
             )
 
         return node
@@ -243,41 +253,31 @@ class DotRenderer:
         self,
         state: DiagramState,
         actions: List[DiagramAction],
-        fillcolor: str,
-        penwidth: int,
     ) -> str:
-        """Build an HTML TABLE label with UML compartments (name | actions)."""
+        """Build an HTML TABLE label with UML compartments (name | actions).
+
+        The TABLE has ``border="0"`` because the visible border is drawn by
+        the native Graphviz shape, ensuring edges are clipped correctly.
+        """
         name = _escape_html(state.name)
         font_size = self.config.state_font_size
         action_font_size = self.config.transition_font_size
 
-        peripheries_border = (
-            '<table align="center" cellborder="0" cellspacing="0" border="0"'
-            ' cellpadding="2" style="rounded"><tr><td>'
-            if state.type == StateType.FINAL
-            else ""
-        )
-        peripheries_border_close = "</td></tr></table>" if state.type == StateType.FINAL else ""
-
-        action_rows = "".join(
-            f'<tr><td align="left" cellpadding="2">'
-            f'<font point-size="{action_font_size}">'
-            f"{_escape_html(self._format_action(a))}"
-            f"</font></td></tr>"
+        action_lines = "<br/>".join(
+            f'<font point-size="{action_font_size}">{_escape_html(self._format_action(a))}</font>'
             for a in actions
         )
 
         return (
-            f"{peripheries_border}"
-            f'<table align="center" cellborder="0" cellspacing="0"'
-            f' border="{penwidth}" style="rounded" bgcolor="{fillcolor}">'
-            f'<tr><td cellpadding="7">'
+            f'<table border="0" cellborder="0" cellspacing="0" cellpadding="0">'
+            f'<tr><td cellpadding="4">'
             f'<font point-size="{font_size}">{name}</font>'
             f"</td></tr>"
             f"<hr/>"
-            f"{action_rows}"
+            f'<tr><td align="left" cellpadding="6">'
+            f"{action_lines}"
+            f"</td></tr>"
             f"</table>"
-            f"{peripheries_border_close}"
         )
 
     @staticmethod
@@ -371,8 +371,7 @@ class DotRenderer:
         )
 
         cond = ", ".join(transition.guards)
-        if cond:
-            cond = f"\n[{cond}]"
+        cond_html = f"<br/>[{_escape_html(cond)}]" if cond else ""
 
         edges = []
         for i, target_id in enumerate(target_ids):
@@ -386,18 +385,32 @@ class DotRenderer:
                 extra["lhead"] = f"cluster_{target_id}"
 
             has_substates = source_is_compound or target_is_compound
-            label = f"{transition.event}{cond}" if i == 0 else ""
+            event_text = _escape_html(transition.event) if i == 0 else ""
 
             if target_id is not None:
                 dst = self._state_node_id(target_id)
             else:
                 dst = self._state_node_id(transition.source)
 
+            if event_text or (cond_html and i == 0):
+                label_content = f"{event_text}{cond_html}" if i == 0 else ""
+                font_size = self.config.transition_font_size
+                html_label = (
+                    f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="0">'
+                    f'<tr><td cellpadding="4">'
+                    f'<font point-size="{font_size}">{label_content}</font>'
+                    f"</td></tr>"
+                    f'<tr><td cellpadding="1"></td></tr>'
+                    f"</table>>"
+                )
+            else:
+                html_label = ""
+
             edges.append(
                 pydot.Edge(
                     self._state_node_id(transition.source),
                     dst,
-                    label=label,
+                    label=html_label,
                     minlen=2 if has_substates else 1,
                     **extra,
                 )
