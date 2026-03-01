@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 from typing import List
+from typing import Union
 
 from .model import DiagramAction
 from .model import DiagramGraph
@@ -10,6 +11,9 @@ from .model import StateType
 if TYPE_CHECKING:
     from statemachine.state import State
     from statemachine.statemachine import StateChart
+
+    # A StateChart class or instance — both expose the same structural metadata.
+    MachineRef = Union["StateChart", "type[StateChart]"]
 
 
 def _determine_state_type(state: "State") -> StateType:
@@ -27,7 +31,7 @@ def _determine_state_type(state: "State") -> StateType:
     return StateType.REGULAR
 
 
-def _actions_getter(machine: "StateChart"):
+def _actions_getter(machine: "MachineRef"):
     from statemachine.statemachine import StateChart
 
     if isinstance(machine, StateChart):
@@ -67,7 +71,7 @@ def _extract_state_actions(state: "State", getter) -> List[DiagramAction]:
 
 def _extract_state(
     state: "State",
-    machine: "StateChart",
+    machine: "MachineRef",
     getter,
     active_values: set,
 ) -> DiagramState:
@@ -131,8 +135,13 @@ def _extract_all_transitions(states, getter) -> List[DiagramTransition]:
     return result
 
 
-def extract(machine_or_class: "StateChart | type") -> DiagramGraph:
+def extract(machine_or_class: "MachineRef") -> DiagramGraph:
     """Extract a DiagramGraph IR from a state machine instance or class.
+
+    Accepts either a class or an instance.  The class is **never** instantiated
+    — all structural metadata (states, transitions, name) is available on the
+    class itself thanks to the metaclass.  Active-state highlighting is only
+    produced when an *instance* is passed.
 
     Args:
         machine_or_class: A StateMachine/StateChart instance or class.
@@ -142,17 +151,17 @@ def extract(machine_or_class: "StateChart | type") -> DiagramGraph:
     """
     from statemachine.statemachine import StateChart
 
-    is_class = isinstance(machine_or_class, type)
-    if is_class and issubclass(machine_or_class, StateChart):  # type: ignore[arg-type]
-        machine = machine_or_class()  # type: ignore[operator]
-    elif isinstance(machine_or_class, StateChart):
+    if isinstance(machine_or_class, StateChart):
+        machine: "MachineRef" = machine_or_class
+    elif isinstance(machine_or_class, type) and issubclass(machine_or_class, StateChart):
         machine = machine_or_class
     else:
         raise TypeError(f"Expected a StateChart instance or class, got {type(machine_or_class)}")
 
     getter = _actions_getter(machine)
+
     active_values: set = set()
-    if not is_class and hasattr(machine, "configuration_values"):
+    if isinstance(machine, StateChart) and hasattr(machine, "configuration_values"):
         active_values = set(machine.configuration_values)
 
     states: List[DiagramState] = []
