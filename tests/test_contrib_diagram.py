@@ -1,17 +1,63 @@
+import re
 from contextlib import contextmanager
 from unittest import mock
+from xml.etree import ElementTree
 
 import pytest
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
-from statemachine.transition import Transition
+from statemachine.contrib.diagram.model import StateType
+from statemachine.contrib.diagram.renderers.dot import DotRenderer
 
-from statemachine import HistoryState
 from statemachine import State
 from statemachine import StateChart
 
 pytestmark = pytest.mark.usefixtures("requires_dot_installed")
+
+SVG_NS = {"svg": "http://www.w3.org/2000/svg"}
+
+
+def _parse_svg(graph):
+    """Generate SVG from a pydot graph and parse it as XML."""
+    svg_bytes = graph.create_svg()
+    return ElementTree.fromstring(svg_bytes)
+
+
+def _find_state_node(svg_root, state_id):
+    """Find the SVG <g> element for a state node by its title text."""
+    for g in svg_root.iter("{http://www.w3.org/2000/svg}g"):
+        if g.get("class") != "node":
+            continue
+        title = g.find("{http://www.w3.org/2000/svg}title")
+        if title is not None and title.text == state_id:
+            return g
+    return None
+
+
+def _has_rectangular_fill(node_g):
+    """Check if a node group has a <polygon> with a colored fill.
+
+    A <polygon> fill inside a state node means the background is rectangular
+    (no rounded corners), which is a visual regression — state backgrounds
+    should use <path> with curves to match the rounded border.
+
+    Ignores white fills and arrow-related polygons (which are in edge groups).
+    """
+    for polygon in node_g.findall("{http://www.w3.org/2000/svg}polygon"):
+        fill = polygon.get("fill", "none")
+        if fill not in ("none", "white", "black", "#ffffff"):
+            return True
+    return False
+
+
+def _path_has_curves(d_attr):
+    """Check if an SVG path `d` attribute contains curve commands (C, c, Q, q, A, a).
+
+    Rounded corners are drawn with cubic Bezier curves (C command).
+    A rectangular shape only has M (move) and L (line) commands.
+    """
+    return bool(re.search(r"[CcQqAa]", d_attr))
 
 
 @pytest.fixture(
@@ -186,28 +232,34 @@ def test_nested_compound_state_diagram():
 
 def test_subgraph_dashed_style_for_parallel_parent():
     """Subgraph uses dashed border when parent state is parallel."""
-    child = State("child", initial=True)
-    child._set_id("child")
-    parent = State("parent", parallel=True, states=[child])
-    parent._set_id("parent")
 
-    graph_maker = DotGraphMachine.__new__(DotGraphMachine)
-    subgraph = graph_maker._get_subgraph(child)
-    assert "dashed" in subgraph.obj_dict["attributes"].get("style", "")
+    class SM(StateChart):
+        class p(State.Parallel, name="p"):
+            class r1(State.Compound, name="r1"):
+                a = State(initial=True)
+
+        start = State(initial=True)
+        begin = start.to(p)
+
+    dot = DotGraphMachine(SM)().to_string()
+    # The region subgraph inside a parallel state should have dashed style
+    assert "dashed" in dot
 
 
 def test_initial_edge_with_compound_state_has_lhead():
     """Initial edge to a compound state sets lhead cluster attribute."""
-    inner = State("inner", initial=True)
-    inner._set_id("inner")
-    compound = State("compound", states=[inner], initial=True)
-    compound._set_id("compound")
 
-    graph_maker = DotGraphMachine.__new__(DotGraphMachine)
-    initial_node = graph_maker._initial_node(compound)
-    edge = graph_maker._initial_edge(initial_node, compound)
-    attrs = edge.obj_dict["attributes"]
-    assert attrs.get("lhead") == f"cluster_{compound.id}"
+    class SM(StateChart):
+        class parent(State.Compound, name="Parent"):
+            child1 = State(initial=True)
+            child2 = State(final=True)
+            go = child1.to(child2)
+
+        start = State(initial=True)
+        enter = start.to(parent)
+
+    dot = DotGraphMachine(SM)().to_string()
+    assert "lhead=cluster_parent" in dot
 
 
 def test_initial_edge_inside_compound_subgraph():
@@ -237,12 +289,11 @@ def test_initial_edge_inside_compound_subgraph():
 
 def test_history_state_shallow_diagram():
     """DOT output contains an 'H' circle node for shallow history state."""
-    h = HistoryState(name="H")
-    h._set_id("h_shallow")
+    from statemachine.contrib.diagram.model import DiagramState
 
-    graph_maker = DotGraphMachine.__new__(DotGraphMachine)
-    graph_maker.font_name = "Arial"
-    node = graph_maker._history_node(h)
+    state = DiagramState(id="h_shallow", name="H", type=StateType.HISTORY_SHALLOW)
+    renderer = DotRenderer()
+    node = renderer._create_history_node(state)
     attrs = node.obj_dict["attributes"]
     assert attrs["label"] in ("H", '"H"')
     assert attrs["shape"] == "circle"
@@ -250,13 +301,11 @@ def test_history_state_shallow_diagram():
 
 def test_history_state_deep_diagram():
     """DOT output contains an 'H*' circle node for deep history state."""
-    h = HistoryState(name="H*", type="deep")
-    h._set_id("h_deep")
+    from statemachine.contrib.diagram.model import DiagramState
 
-    graph_maker = DotGraphMachine.__new__(DotGraphMachine)
-    graph_maker.font_name = "Arial"
-    node = graph_maker._history_node(h)
-    # Verify the node renders correctly in DOT output
+    state = DiagramState(id="h_deep", name="H*", type=StateType.HISTORY_DEEP)
+    renderer = DotRenderer()
+    node = renderer._create_history_node(state)
     dot_str = node.to_string()
     assert "H*" in dot_str
     assert "circle" in dot_str
@@ -264,25 +313,12 @@ def test_history_state_deep_diagram():
 
 def test_history_state_default_transition():
     """History state's default transition appears as an edge in the diagram."""
-    child1 = State("child1", initial=True)
-    child1._set_id("child1")
-    child2 = State("child2")
-    child2._set_id("child2")
+    from statemachine.contrib.diagram.model import DiagramTransition
 
-    h = HistoryState(name="H")
-    h._set_id("hist")
-    # Add a default transition from history to child1
-    t = Transition(source=h, target=child1, initial=True)
-    h.transitions.add_transitions(t)
-
-    parent = State("parent", states=[child1, child2], history=[h])
-    parent._set_id("parent")
-
-    graph_maker = DotGraphMachine.__new__(DotGraphMachine)
-    graph_maker.font_name = "Arial"
-    graph_maker.transition_font_size = "9pt"
-
-    edges = graph_maker._transition_as_edges(t)
+    transition = DiagramTransition(source="hist", target="child1", targets=["child1"], event="")
+    renderer = DotRenderer()
+    renderer._compound_ids = set()
+    edges = renderer._create_edges(transition)
     assert len(edges) == 1
     edge = edges[0]
     assert edge.obj_dict["points"] == ("hist", "child1")
@@ -320,21 +356,14 @@ def test_history_state_in_graph_states():
 
 def test_multi_target_transition_diagram():
     """Edges are created for all targets of a multi-target transition."""
-    source = State("source", initial=True)
-    source._set_id("source")
-    target1 = State("target1")
-    target1._set_id("target1")
-    target2 = State("target2")
-    target2._set_id("target2")
+    from statemachine.contrib.diagram.model import DiagramTransition
 
-    t = Transition(source=source, target=[target1, target2])
-    t._events.add("go")
-
-    graph_maker = DotGraphMachine.__new__(DotGraphMachine)
-    graph_maker.font_name = "Arial"
-    graph_maker.transition_font_size = "9pt"
-
-    edges = graph_maker._transition_as_edges(t)
+    transition = DiagramTransition(
+        source="source", target="target1", targets=["target1", "target2"], event="go"
+    )
+    renderer = DotRenderer()
+    renderer._compound_ids = set()
+    edges = renderer._create_edges(transition)
     assert len(edges) == 2
     assert edges[0].obj_dict["points"] == ("source", "target1")
     assert edges[1].obj_dict["points"] == ("source", "target2")
@@ -375,3 +404,82 @@ def test_compound_and_parallel_mixed():
     assert "&#9783;" in dot
     # Verify initial edges exist for compound states (top and regions)
     assert "top_anchor -> entry" in dot
+
+
+class TestSVGShapeConsistency:
+    """Verify that active and inactive states render with the same shape in SVG.
+
+    These tests parse the generated SVG to catch visual regressions that are
+    hard to spot by inspecting DOT source alone. For example, using `bgcolor`
+    on a `<td>` instead of a `<table>` causes Graphviz to render a rectangular
+    `<polygon>` behind a rounded `<path>` border — the DOT looks fine but the
+    visual result is broken.
+    """
+
+    def test_active_state_has_no_rectangular_fill(self):
+        """Active state background must use rounded <path>, not rectangular <polygon>."""
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()  # starts in Green
+        graph = DotGraphMachine(sm).get_graph()
+        svg = _parse_svg(graph)
+
+        green_node = _find_state_node(svg, "green")
+        assert green_node is not None, "Could not find 'green' node in SVG"
+        assert not _has_rectangular_fill(green_node), (
+            "Active state 'green' has a rectangular <polygon> fill — "
+            "expected a rounded <path> fill to match the border shape"
+        )
+
+    def test_active_and_inactive_states_use_same_svg_element_type(self):
+        """Active and inactive states must both render as rounded <path> elements.
+
+        With ``shape=rectangle`` + ``style="rounded, filled"``, Graphviz renders
+        each state as a single ``<path>`` with cubic Bezier curves (``C`` commands)
+        for rounded corners. Both the fill and stroke are in the same ``<path>``.
+
+        A regression would be if the active state rendered differently — e.g., a
+        rectangular ``<polygon>`` for the fill behind a rounded ``<path>`` border.
+        """
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        graph = DotGraphMachine(sm).get_graph()
+        svg = _parse_svg(graph)
+
+        for state_id in ("green", "yellow", "red"):
+            node = _find_state_node(svg, state_id)
+            assert node is not None, f"Could not find '{state_id}' node in SVG"
+
+            # Each state should have at least one <path> with rounded curves
+            paths = node.findall("{http://www.w3.org/2000/svg}path")
+            assert len(paths) >= 1, (
+                f"State '{state_id}' should have at least 1 <path>, found {len(paths)}"
+            )
+            for p in paths:
+                assert _path_has_curves(p.get("d", "")), (
+                    f"State '{state_id}' has a <path> without curves — not rounded"
+                )
+
+    def test_no_state_node_has_rectangular_colored_fill(self):
+        """No state in the diagram should have a rectangular <polygon> colored fill."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State()
+            s3 = State(final=True)
+            go = s1.to(s2)
+            finish = s2.to(s3)
+
+        sm = SM()
+        sm.go()  # move to s2
+        graph = DotGraphMachine(sm).get_graph()
+        svg = _parse_svg(graph)
+
+        for state_id in ("s1", "s2", "s3"):
+            node = _find_state_node(svg, state_id)
+            if node is None:
+                continue
+            assert not _has_rectangular_fill(node), (
+                f"State '{state_id}' has a rectangular <polygon> colored fill"
+            )
