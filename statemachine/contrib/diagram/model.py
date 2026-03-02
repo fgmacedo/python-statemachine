@@ -34,6 +34,7 @@ class DiagramState:
     children: List["DiagramState"] = field(default_factory=list)
     is_active: bool = False
     is_parallel_area: bool = False
+    is_initial: bool = False
 
 
 @dataclass

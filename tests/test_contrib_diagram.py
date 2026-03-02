@@ -283,8 +283,11 @@ def test_initial_edge_inside_compound_subgraph():
     # The compound subgraph should contain an initial point node and an edge to child1
     assert "parent_anchor" in dot
     assert "child1" in dot
-    # Verify the initial edge exists (from parent's initial node to child1)
-    assert "parent_anchor -> child1" in dot
+    # Verify the initial edge exists (from the black-dot initial node to child1)
+    # The implicit initial transition from the compound state itself is NOT rendered
+    # as an edge — it is represented only by the black-dot initial node inside the cluster.
+    assert "parent_anchor -> child1" not in dot
+    assert "-> child1" in dot
 
 
 def test_history_state_shallow_diagram():
@@ -402,8 +405,10 @@ def test_compound_and_parallel_mixed():
     assert "cluster_region2" in dot
     # Parallel indicator
     assert "&#9783;" in dot
-    # Verify initial edges exist for compound states (top and regions)
-    assert "top_anchor -> entry" in dot
+    # Implicit initial transitions from compound states are NOT rendered as edges —
+    # they are represented by the black-dot initial node inside each cluster.
+    assert "top_anchor -> entry" not in dot
+    assert "-> entry" in dot
 
 
 class TestSVGShapeConsistency:

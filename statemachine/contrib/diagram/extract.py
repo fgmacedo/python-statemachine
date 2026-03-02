@@ -95,6 +95,7 @@ def _extract_state(
         children=children,
         is_active=is_active,
         is_parallel_area=is_parallel_area,
+        is_initial=getattr(state, "initial", False),
     )
 
 

@@ -179,15 +179,18 @@ class DotRenderer:
 
     def _is_initial_candidate(self, state: DiagramState, siblings: List[DiagramState]) -> bool:
         """Check if this state should get an initial arrow."""
-        # History states and parallel areas don't get initial arrows at this level
+        # History states don't get initial arrows at this level
         if state.type in (StateType.HISTORY_SHALLOW, StateType.HISTORY_DEEP):
             return False
-        # For parallel states, don't show initial arrows
-        parent_is_parallel = any(s.type == StateType.PARALLEL for s in siblings if s is not state)
-        if parent_is_parallel:
+        # All children of a parallel state are auto-initial; skip initial arrows
+        if state.is_parallel_area:
             return False
-        # Check if any state in the list is marked as initial
-        # We rely on document order (first state) as a fallback
+        # Use the is_initial flag from the model; fall back to document order
+        if state.is_initial:
+            return True
+        has_explicit_initial = any(s.is_initial for s in siblings)
+        if has_explicit_initial:
+            return False
         return state is siblings[0] if siblings else False
 
     def _create_initial_node(self, node_id: str) -> pydot.Node:
@@ -360,6 +363,14 @@ class DotRenderer:
         """Add edges for all non-internal transitions originating from this state."""
         for transition in all_transitions:
             if transition.source != state.id or transition.is_internal:
+                continue
+            # Skip implicit initial transitions from a compound/parallel state to its
+            # initial child — these are already represented by the black-dot initial node.
+            if (
+                transition.source in self._compound_ids
+                and not transition.event
+                and transition.targets
+            ):
                 continue
             for edge in self._create_edges(transition):
                 graph.add_edge(edge)
