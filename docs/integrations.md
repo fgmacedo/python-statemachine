@@ -39,6 +39,11 @@ You can attach it to a model by inheriting from `MachineMixin` and setting
 `state_machine_name` to the fully qualified class name:
 
 ``` py
+>>> from statemachine import registry
+>>> registry.register(CampaignMachine)  # register for lookup by qualname
+<class '...CampaignMachine'>
+>>> registry._initialized = True  # skip Django autodiscovery in doctest
+
 >>> class Workflow(MachineMixin):
 ...     state_machine_name = '__main__.CampaignMachine'
 ...     state_machine_attr = 'sm'
@@ -47,13 +52,6 @@ You can attach it to a model by inheriting from `MachineMixin` and setting
 ...
 ...     workflow_step = 1
 
-```
-
-When a `Workflow` instance is created, it automatically receives a `CampaignMachine`
-instance at the `state_machine_attr` attribute. The state value is read from and
-written to the `state_field_name` field:
-
-``` py
 >>> model = Workflow()
 
 >>> isinstance(model.sm, CampaignMachine)
@@ -70,6 +68,7 @@ True
 With `bind_events_as_methods = True`, events become methods on the model itself:
 
 ``` py
+>>> model = Workflow()
 >>> model.produce()
 >>> model.workflow_step
 2

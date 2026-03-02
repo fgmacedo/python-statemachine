@@ -20,9 +20,6 @@ class DotGraphMachine:
     http://www.graphviz.org/doc/info/attrs.html#d:rankdir
     """
 
-    graph_dpi = 200
-    """Graph resolution in dots per inch"""
-
     font_name = "Helvetica"
     """Graph font face name"""
 
@@ -43,7 +40,6 @@ class DotGraphMachine:
     def _build_config(self) -> DotRendererConfig:
         return DotRendererConfig(
             graph_rankdir=self.graph_rankdir,
-            graph_dpi=self.graph_dpi,
             font_name=self.font_name,
             state_font_size=self.state_font_size,
             state_active_penwidth=self.state_active_penwidth,

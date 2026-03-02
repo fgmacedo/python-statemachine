@@ -24,7 +24,6 @@ class DotRendererConfig:
     """Configuration for the DOT renderer, matching DotGraphMachine's class attributes."""
 
     graph_rankdir: str = "LR"
-    graph_dpi: int = 200
     font_name: str = "Helvetica"
     state_font_size: str = "12"
     state_active_penwidth: int = 2
@@ -96,7 +95,6 @@ class DotRenderer:
             "nodesep": "0.3",
             "ranksep": "0.3",
             "forcelabels": "true",
-            "dpi": str(cfg.graph_dpi),
         }
         graph_attrs.update(cfg.graph_attrs)
 
@@ -158,8 +156,6 @@ class DotRenderer:
         # The atomic subgraph groups all non-compound states and the inner
         # initial dot (when inside a compound cluster) so Graphviz places them
         # in the same rank region, keeping the initial arrow short.
-        # Anchor nodes for the parent compound cluster are also added here so
-        # they don't create an extra layout row outside the content area.
         atomic_subgraph = pydot.Subgraph(
             graph_name=f"cluster___atomic_{id(parent_graph)}",
             label="",
@@ -168,13 +164,6 @@ class DotRenderer:
             cluster="true",
         )
         has_atomic = False
-
-        # Inject parent compound's anchor nodes into this atomic cluster so
-        # they co-locate with the real states instead of creating blank space.
-        if extra_nodes:
-            for node in extra_nodes:
-                atomic_subgraph.add_node(node)
-            has_atomic = True
 
         if initial_state:
             has_atomic = (
@@ -198,6 +187,16 @@ class DotRenderer:
             else:
                 atomic_subgraph.add_node(self._create_atomic_node(state))
                 has_atomic = True
+
+        # Anchor nodes from the parent compound are co-located with real states
+        # when possible. If there are no atomic states at this level (e.g. a
+        # parallel state with only compound children), add them directly to the
+        # parent graph to avoid creating an empty cluster that wastes space.
+        if extra_nodes:
+            target = atomic_subgraph if has_atomic else parent_graph
+            for node in extra_nodes:
+                target.add_node(node)
+            has_atomic = has_atomic or (target is atomic_subgraph)
 
         if has_atomic:
             parent_graph.add_subgraph(atomic_subgraph)
@@ -435,6 +434,7 @@ class DotRenderer:
             penwidth="2.0",
             fontname=self.config.font_name,
             fontsize=self.config.state_font_size,
+            margin="4",
         )
 
     def _build_compound_label(self, state: DiagramState) -> str:
