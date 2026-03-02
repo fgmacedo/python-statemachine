@@ -47,13 +47,35 @@ class DotRenderer:
     def __init__(self, config: Optional[DotRendererConfig] = None):
         self.config = config or DotRendererConfig()
         self._compound_ids: Set[str] = set()
+        self._compound_bidir_ids: Set[str] = set()
 
     def render(self, graph: DiagramGraph) -> pydot.Dot:
         """Render a DiagramGraph to a pydot.Dot object."""
         self._collect_compound_ids(graph.states)
+        self._compound_bidir_ids = self._collect_compound_bidir_ids(graph.transitions)
         dot = self._create_graph(graph.name)
         self._render_states(graph.states, graph.transitions, dot)
         return dot
+
+    def _collect_compound_bidir_ids(self, transitions: List[DiagramTransition]) -> Set[str]:
+        """Find compound states that have both outgoing and incoming explicit edges.
+
+        Returns the set of compound state IDs that participate in at least one
+        bidirectional pair, so we can give them separate in/out anchor nodes.
+        """
+        outgoing: Set[str] = set()
+        incoming: Set[str] = set()
+        for t in transitions:
+            if t.is_internal:
+                continue
+            if t.source in self._compound_ids and not t.event and t.targets:
+                continue
+            if t.source in self._compound_ids:
+                outgoing.add(t.source)
+            for target_id in t.targets:
+                if target_id in self._compound_ids:
+                    incoming.add(target_id)
+        return outgoing & incoming
 
     def _collect_compound_ids(self, states: List[DiagramState]) -> None:
         """Pre-collect IDs of states that have children (compound/parallel)."""
@@ -112,56 +134,64 @@ class DotRenderer:
             return f"{state_id}_anchor"
         return state_id
 
+    def _compound_edge_anchor(self, state_id: str, direction: str) -> str:
+        """Return the appropriate anchor node ID for a compound ↔ other edge.
+
+        Compound states that have both incoming and outgoing explicit transitions
+        get separate ``_anchor_out`` / ``_anchor_in`` nodes so Graphviz can route
+        the two directions through physically distinct points, avoiding overlap.
+        """
+        if state_id in self._compound_bidir_ids:
+            return f"{state_id}_anchor_{direction}"
+        return f"{state_id}_anchor"
+
     def _render_states(
         self,
         states: List[DiagramState],
         transitions: List[DiagramTransition],
         parent_graph: "pydot.Dot | pydot.Subgraph",
+        extra_nodes: Optional[List[pydot.Node]] = None,
     ) -> None:
         """Render states and transitions into the parent graph."""
-        # Create initial node for this level
         initial_state = next((s for s in states if self._is_initial_candidate(s, states)), None)
 
-        if initial_state:
-            initial_node_id = f"__initial_{id(parent_graph)}"
-            initial_node = self._create_initial_node(initial_node_id)
-            initial_subgraph = pydot.Subgraph(
-                graph_name=f"{initial_node_id}_sg",
-                label="",
-                peripheries=0,
-                margin=0,
-            )
-            initial_subgraph.add_node(initial_node)
-            parent_graph.add_subgraph(initial_subgraph)
-
-            extra = {}
-            if initial_state.children:
-                extra["lhead"] = f"cluster_{initial_state.id}"
-            parent_graph.add_edge(
-                pydot.Edge(
-                    initial_node_id,
-                    self._state_node_id(initial_state.id),
-                    label="",
-                    **extra,
-                )
-            )
-
-        # Separate compound vs atomic states
+        # The atomic subgraph groups all non-compound states and the inner
+        # initial dot (when inside a compound cluster) so Graphviz places them
+        # in the same rank region, keeping the initial arrow short.
+        # Anchor nodes for the parent compound cluster are also added here so
+        # they don't create an extra layout row outside the content area.
         atomic_subgraph = pydot.Subgraph(
             graph_name=f"cluster___atomic_{id(parent_graph)}",
             label="",
             peripheries=0,
+            margin=0,
             cluster="true",
         )
-
         has_atomic = False
+
+        # Inject parent compound's anchor nodes into this atomic cluster so
+        # they co-locate with the real states instead of creating blank space.
+        if extra_nodes:
+            for node in extra_nodes:
+                atomic_subgraph.add_node(node)
+            has_atomic = True
+
+        if initial_state:
+            has_atomic = (
+                self._render_initial_arrow(initial_state, parent_graph, atomic_subgraph)
+                or has_atomic
+            )
+
         for state in states:
             if state.type in (StateType.HISTORY_SHALLOW, StateType.HISTORY_DEEP):
                 atomic_subgraph.add_node(self._create_history_node(state))
                 has_atomic = True
             elif state.children:
                 subgraph = self._create_compound_subgraph(state)
-                self._render_states(state.children, transitions, subgraph)
+                anchor_nodes = self._create_compound_anchor_nodes(state)
+                self._render_states(
+                    state.children, transitions, subgraph, extra_nodes=anchor_nodes
+                )
                 parent_graph.add_subgraph(subgraph)
                 # Add transitions originating from this compound state
                 self._add_transitions_for_state(state, transitions, parent_graph)
@@ -176,6 +206,55 @@ class DotRenderer:
         for state in states:
             if not state.children:
                 self._add_transitions_for_state(state, transitions, parent_graph)
+
+    def _render_initial_arrow(
+        self,
+        initial_state: DiagramState,
+        parent_graph: "pydot.Dot | pydot.Subgraph",
+        atomic_subgraph: pydot.Subgraph,
+    ) -> bool:
+        """Render the black-dot initial arrow pointing to ``initial_state``.
+
+        Returns True if nodes were added to ``atomic_subgraph``.
+        """
+        initial_node_id = f"__initial_{id(parent_graph)}"
+        initial_node = self._create_initial_node(initial_node_id)
+        added_to_atomic = False
+
+        extra = {}
+        if initial_state.children:
+            extra["lhead"] = f"cluster_{initial_state.id}"
+
+        if initial_state.children or isinstance(parent_graph, pydot.Dot):
+            # Compound initial state, or top-level atomic initial state:
+            # keep the dot in a plain wrapper subgraph attached to parent.
+            wrapper = pydot.Subgraph(
+                graph_name=f"{initial_node_id}_sg",
+                label="",
+                peripheries=0,
+                margin=0,
+            )
+            wrapper.add_node(initial_node)
+            parent_graph.add_subgraph(wrapper)
+        else:
+            # Inner (compound parent) with atomic initial state: add the
+            # dot directly into the atomic cluster so it shares the same
+            # rank region as the target state, avoiding a long arrow caused
+            # by the compound cluster's anchor nodes pushing step1 further.
+            atomic_subgraph.add_node(initial_node)
+            added_to_atomic = True
+
+        parent_graph.add_edge(
+            pydot.Edge(
+                initial_node_id,
+                self._state_node_id(initial_state.id),
+                label="",
+                minlen=1,
+                weight=100,
+                **extra,
+            )
+        )
+        return added_to_atomic
 
     def _is_initial_candidate(self, state: DiagramState, siblings: List[DiagramState]) -> bool:
         """Check if this state should get an initial arrow."""
@@ -304,6 +383,42 @@ class DotRenderer:
             height=0.3,
         )
 
+    def _create_compound_anchor_nodes(self, state: DiagramState) -> List[pydot.Node]:
+        """Create invisible anchor nodes for edge routing inside a compound cluster.
+
+        These nodes are injected into the children's atomic_subgraph so they
+        share the same layout row as the real states, avoiding blank space at
+        the top of the compound cluster.
+        """
+        # For bidirectional compounds, all edges route through _anchor_in/_anchor_out;
+        # the generic _anchor node is never used and would become an orphan that
+        # Graphviz places arbitrarily, creating blank vertical space in the cluster.
+        if state.id not in self._compound_bidir_ids:
+            nodes = [
+                pydot.Node(
+                    f"{state.id}_anchor",
+                    shape="point",
+                    style="invis",
+                    width=0,
+                    height=0,
+                    fixedsize="true",
+                )
+            ]
+        else:
+            nodes = []
+            for direction in ("in", "out"):
+                nodes.append(
+                    pydot.Node(
+                        f"{state.id}_anchor_{direction}",
+                        shape="point",
+                        style="invis",
+                        width=0,
+                        height=0,
+                        fixedsize="true",
+                    )
+                )
+        return nodes
+
     def _create_compound_subgraph(self, state: DiagramState) -> pydot.Subgraph:
         """Create a cluster subgraph for a compound/parallel state."""
         style = "rounded, solid"
@@ -312,7 +427,7 @@ class DotRenderer:
 
         label = self._build_compound_label(state)
 
-        subgraph = pydot.Subgraph(
+        return pydot.Subgraph(
             graph_name=f"cluster_{state.id}",
             label=f"<{label}>",
             style=style,
@@ -321,20 +436,6 @@ class DotRenderer:
             fontname=self.config.font_name,
             fontsize=self.config.state_font_size,
         )
-
-        # Add invisible anchor node for edge routing
-        subgraph.add_node(
-            pydot.Node(
-                f"{state.id}_anchor",
-                shape="point",
-                style="invis",
-                width=0,
-                height=0,
-                fixedsize="true",
-            )
-        )
-
-        return subgraph
 
     def _build_compound_label(self, state: DiagramState) -> str:
         """Build HTML label for a compound/parallel subgraph."""
@@ -403,6 +504,18 @@ class DotRenderer:
             else:
                 dst = self._state_node_id(transition.source)
 
+            src = self._state_node_id(transition.source)
+
+            # For compound states in bidirectional pairs, route outgoing edges
+            # through _anchor_out and incoming through _anchor_in so Graphviz
+            # places them at different physical positions inside the cluster.
+            if source_is_compound and transition.source in self._compound_bidir_ids:
+                src = self._compound_edge_anchor(transition.source, "out")
+                extra["ltail"] = f"cluster_{transition.source}"
+            if target_is_compound and target_id in self._compound_bidir_ids:
+                dst = self._compound_edge_anchor(target_id, "in")
+                extra["lhead"] = f"cluster_{target_id}"
+
             if event_text or (cond_html and i == 0):
                 label_content = f"{event_text}{cond_html}" if i == 0 else ""
                 font_size = self.config.transition_font_size
@@ -417,11 +530,17 @@ class DotRenderer:
             else:
                 html_label = ""
 
+            # With dedicated anchor nodes placed inside compound clusters,
+            # the midpoint of anchor→dst falls outside the cluster boundary,
+            # so the standard label position is correct along the visible edge.
+            # Use label for all edges (xlabel causes floating/displaced labels).
+            label_key = "label"
+
             edges.append(
                 pydot.Edge(
-                    self._state_node_id(transition.source),
+                    src,
                     dst,
-                    label=html_label,
+                    **{label_key: html_label},
                     minlen=2 if has_substates else 1,
                     **extra,
                 )
