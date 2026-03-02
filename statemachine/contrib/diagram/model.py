@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from enum import Enum
 from typing import List
-from typing import Optional
+from typing import Set
 
 
 class StateType(Enum):
@@ -19,9 +19,15 @@ class StateType(Enum):
     TERMINATE = "terminate"
 
 
+class ActionType(Enum):
+    ENTRY = "entry"
+    EXIT = "exit"
+    INTERNAL = "internal"
+
+
 @dataclass
 class DiagramAction:
-    type: str  # "entry", "exit", "internal"
+    type: ActionType
     body: str
 
 
@@ -40,12 +46,12 @@ class DiagramState:
 @dataclass
 class DiagramTransition:
     source: str
-    target: Optional[str]
     targets: List[str] = field(default_factory=list)
     event: str = ""
     guards: List[str] = field(default_factory=list)
     actions: List[str] = field(default_factory=list)
     is_internal: bool = False
+    is_initial: bool = False
 
 
 @dataclass
@@ -53,3 +59,5 @@ class DiagramGraph:
     name: str
     states: List[DiagramState] = field(default_factory=list)
     transitions: List[DiagramTransition] = field(default_factory=list)
+    compound_state_ids: Set[str] = field(default_factory=set)
+    bidirectional_compound_ids: Set[str] = field(default_factory=set)

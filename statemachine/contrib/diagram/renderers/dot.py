@@ -7,6 +7,7 @@ from typing import Set
 
 import pydot
 
+from ..model import ActionType
 from ..model import DiagramAction
 from ..model import DiagramGraph
 from ..model import DiagramState
@@ -50,38 +51,11 @@ class DotRenderer:
 
     def render(self, graph: DiagramGraph) -> pydot.Dot:
         """Render a DiagramGraph to a pydot.Dot object."""
-        self._collect_compound_ids(graph.states)
-        self._compound_bidir_ids = self._collect_compound_bidir_ids(graph.transitions)
+        self._compound_ids = graph.compound_state_ids
+        self._compound_bidir_ids = graph.bidirectional_compound_ids
         dot = self._create_graph(graph.name)
         self._render_states(graph.states, graph.transitions, dot)
         return dot
-
-    def _collect_compound_bidir_ids(self, transitions: List[DiagramTransition]) -> Set[str]:
-        """Find compound states that have both outgoing and incoming explicit edges.
-
-        Returns the set of compound state IDs that participate in at least one
-        bidirectional pair, so we can give them separate in/out anchor nodes.
-        """
-        outgoing: Set[str] = set()
-        incoming: Set[str] = set()
-        for t in transitions:
-            if t.is_internal:
-                continue
-            if t.source in self._compound_ids and not t.event and t.targets:
-                continue
-            if t.source in self._compound_ids:
-                outgoing.add(t.source)
-            for target_id in t.targets:
-                if target_id in self._compound_ids:
-                    incoming.add(target_id)
-        return outgoing & incoming
-
-    def _collect_compound_ids(self, states: List[DiagramState]) -> None:
-        """Pre-collect IDs of states that have children (compound/parallel)."""
-        for state in states:
-            if state.children:
-                self._compound_ids.add(state.id)
-            self._collect_compound_ids(state.children)
 
     def _create_graph(self, name: str) -> pydot.Dot:
         cfg = self.config
@@ -151,7 +125,7 @@ class DotRenderer:
         extra_nodes: Optional[List[pydot.Node]] = None,
     ) -> None:
         """Render states and transitions into the parent graph."""
-        initial_state = next((s for s in states if self._is_initial_candidate(s, states)), None)
+        initial_state = next((s for s in states if s.is_initial), None)
 
         # The atomic subgraph groups all non-compound states and the inner
         # initial dot (when inside a compound cluster) so Graphviz places them
@@ -255,22 +229,6 @@ class DotRenderer:
         )
         return added_to_atomic
 
-    def _is_initial_candidate(self, state: DiagramState, siblings: List[DiagramState]) -> bool:
-        """Check if this state should get an initial arrow."""
-        # History states don't get initial arrows at this level
-        if state.type in (StateType.HISTORY_SHALLOW, StateType.HISTORY_DEEP):
-            return False
-        # All children of a parallel state are auto-initial; skip initial arrows
-        if state.is_parallel_area:
-            return False
-        # Use the is_initial flag from the model; fall back to document order
-        if state.is_initial:
-            return True
-        has_explicit_initial = any(s.is_initial for s in siblings)
-        if has_explicit_initial:
-            return False
-        return state is siblings[0] if siblings else False
-
     def _create_initial_node(self, node_id: str) -> pydot.Node:
         return pydot.Node(
             node_id,
@@ -293,7 +251,7 @@ class DotRenderer:
         entry/exit actions embed an HTML TABLE (``border="0"``) inside the native
         shape to render UML-style compartments (name + separator + actions).
         """
-        actions = [a for a in state.actions if a.type != "internal" or a.body]
+        actions = [a for a in state.actions if a.type != ActionType.INTERNAL or a.body]
         fillcolor = self.config.state_active_fillcolor if state.is_active else "white"
         penwidth = self.config.state_active_penwidth if state.is_active else 2
 
@@ -363,9 +321,9 @@ class DotRenderer:
 
     @staticmethod
     def _format_action(action: DiagramAction) -> str:
-        if action.type == "internal":
+        if action.type == ActionType.INTERNAL:
             return action.body
-        return f"{action.type} / {action.body}"
+        return f"{action.type.value} / {action.body}"
 
     def _create_history_node(self, state: DiagramState) -> pydot.Node:
         label = "H*" if state.type == StateType.HISTORY_DEEP else "H"
@@ -443,7 +401,7 @@ class DotRenderer:
         if state.type == StateType.PARALLEL:
             return f"<b>{name}</b> &#9783;"
 
-        actions = [a for a in state.actions if a.type != "internal" or a.body]
+        actions = [a for a in state.actions if a.type != ActionType.INTERNAL or a.body]
         if not actions:
             return f"<b>{name}</b>"
 
@@ -465,13 +423,8 @@ class DotRenderer:
         for transition in all_transitions:
             if transition.source != state.id or transition.is_internal:
                 continue
-            # Skip implicit initial transitions from a compound/parallel state to its
-            # initial child — these are already represented by the black-dot initial node.
-            if (
-                transition.source in self._compound_ids
-                and not transition.event
-                and transition.targets
-            ):
+            # Skip implicit initial transitions — represented by the black-dot initial node.
+            if transition.is_initial:
                 continue
             for edge in self._create_edges(transition):
                 graph.add_edge(edge)

@@ -318,7 +318,7 @@ def test_history_state_default_transition():
     """History state's default transition appears as an edge in the diagram."""
     from statemachine.contrib.diagram.model import DiagramTransition
 
-    transition = DiagramTransition(source="hist", target="child1", targets=["child1"], event="")
+    transition = DiagramTransition(source="hist", targets=["child1"], event="")
     renderer = DotRenderer()
     renderer._compound_ids = set()
     edges = renderer._create_edges(transition)
@@ -361,9 +361,7 @@ def test_multi_target_transition_diagram():
     """Edges are created for all targets of a multi-target transition."""
     from statemachine.contrib.diagram.model import DiagramTransition
 
-    transition = DiagramTransition(
-        source="source", target="target1", targets=["target1", "target2"], event="go"
-    )
+    transition = DiagramTransition(source="source", targets=["target1", "target2"], event="go")
     renderer = DotRenderer()
     renderer._compound_ids = set()
     edges = renderer._create_edges(transition)

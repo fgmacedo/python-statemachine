@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING
 from typing import List
+from typing import Set
 from typing import Union
 
+from .model import ActionType
 from .model import DiagramAction
 from .model import DiagramGraph
 from .model import DiagramState
@@ -54,16 +56,16 @@ def _extract_state_actions(state: "State", getter) -> List[DiagramAction]:
     exit_ = str(getter(state.exit))
 
     if entry:
-        actions.append(DiagramAction(type="entry", body=entry))
+        actions.append(DiagramAction(type=ActionType.ENTRY, body=entry))
     if exit_:
-        actions.append(DiagramAction(type="exit", body=exit_))
+        actions.append(DiagramAction(type=ActionType.EXIT, body=exit_))
 
     for transition in state.transitions:
         if transition.internal:
             on_text = str(getter(transition.on))
             if on_text:
                 actions.append(
-                    DiagramAction(type="internal", body=f"{transition.event} / {on_text}")
+                    DiagramAction(type=ActionType.INTERNAL, body=f"{transition.event} / {on_text}")
                 )
 
     return actions
@@ -105,14 +107,12 @@ def _extract_transitions_from_state(state: "State", getter) -> List[DiagramTrans
     for transition in state.transitions:
         targets = transition.targets if transition.targets else []
         target_ids = [t.id for t in targets]
-        primary_target = target_ids[0] if target_ids else None
 
         cond_strs = [str(c) for c in transition.cond]
 
         result.append(
             DiagramTransition(
                 source=transition.source.id,
-                target=primary_target,
                 targets=target_ids,
                 event=transition.event,
                 guards=cond_strs,
@@ -134,6 +134,79 @@ def _extract_all_transitions(states, getter) -> List[DiagramTransition]:
             if history_state.states:
                 result.extend(_extract_all_transitions(history_state.states, getter))
     return result
+
+
+def _collect_compound_ids(states: List[DiagramState]) -> Set[str]:
+    """Collect IDs of states that have children (compound/parallel)."""
+    result: Set[str] = set()
+    for state in states:
+        if state.children:
+            result.add(state.id)
+        result.update(_collect_compound_ids(state.children))
+    return result
+
+
+def _collect_bidirectional_compound_ids(
+    transitions: List[DiagramTransition],
+    compound_ids: Set[str],
+) -> Set[str]:
+    """Find compound states that have both outgoing and incoming explicit edges."""
+    outgoing: Set[str] = set()
+    incoming: Set[str] = set()
+    for t in transitions:
+        if t.is_internal:
+            continue
+        # Skip implicit initial transitions
+        if t.source in compound_ids and not t.event and t.targets:
+            continue
+        if t.source in compound_ids:
+            outgoing.add(t.source)
+        for target_id in t.targets:
+            if target_id in compound_ids:
+                incoming.add(target_id)
+    return outgoing & incoming
+
+
+def _mark_initial_transitions(
+    transitions: List[DiagramTransition],
+    compound_ids: Set[str],
+) -> None:
+    """Mark implicit initial transitions (compound state → child, no event)."""
+    for t in transitions:
+        if t.source in compound_ids and not t.event and t.targets and not t.is_internal:
+            t.is_initial = True
+
+
+def _resolve_initial_states(states: List[DiagramState]) -> None:
+    """Ensure exactly one state per level has is_initial=True.
+
+    Skips parallel areas and history states. Falls back to document order
+    (first non-history, non-parallel-area state) when no explicit initial exists.
+    Recurses into children.
+
+    Parallel areas (children of a parallel state) have their is_initial flag
+    cleared: all regions are auto-activated, so no initial arrow is needed.
+    """
+    # Clear is_initial on parallel areas — all children of a parallel state
+    # are simultaneously active; initial arrows would be misleading.
+    for s in states:
+        if s.is_parallel_area:
+            s.is_initial = False
+
+    candidates = [
+        s
+        for s in states
+        if s.type not in (StateType.HISTORY_SHALLOW, StateType.HISTORY_DEEP)
+        and not s.is_parallel_area
+    ]
+
+    has_explicit_initial = any(s.is_initial for s in candidates)
+    if not has_explicit_initial and candidates:
+        candidates[0].is_initial = True
+
+    for state in states:
+        if state.children:
+            _resolve_initial_states(state.children)
 
 
 def extract(machine_or_class: "MachineRef") -> DiagramGraph:
@@ -171,8 +244,15 @@ def extract(machine_or_class: "MachineRef") -> DiagramGraph:
 
     transitions = _extract_all_transitions(machine.states, getter)
 
+    compound_ids = _collect_compound_ids(states)
+    bidir_ids = _collect_bidirectional_compound_ids(transitions, compound_ids)
+    _mark_initial_transitions(transitions, compound_ids)
+    _resolve_initial_states(states)
+
     return DiagramGraph(
         name=machine.name,
         states=states,
         transitions=transitions,
+        compound_state_ids=compound_ids,
+        bidirectional_compound_ids=bidir_ids,
     )
