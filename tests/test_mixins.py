@@ -5,7 +5,7 @@ from tests.models import MyModel
 
 
 class MyMixedModel(MyModel, MachineMixin):
-    state_machine_name = "tests.conftest.CampaignMachine"
+    state_machine_name = "tests.machines.workflow.campaign_machine.CampaignMachine"
 
 
 def test_mixin_should_instantiate_a_machine(campaign_machine):

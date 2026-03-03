@@ -4,101 +4,15 @@ from statemachine.exceptions import InvalidDefinition
 from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
-
-
-class ErrorInGuardSC(StateChart):
-    initial = State("initial", initial=True)
-    error_state = State("error_state", final=True)
-
-    go = initial.to(initial, cond="bad_guard") | initial.to(initial)
-    error_execution = Event(initial.to(error_state), id="error.execution")
-
-    def bad_guard(self):
-        raise RuntimeError("guard failed")
-
-
-class ErrorInOnEnterSC(StateChart):
-    s1 = State("s1", initial=True)
-    s2 = State("s2")
-    error_state = State("error_state", final=True)
-
-    go = s1.to(s2)
-    error_execution = Event(s1.to(error_state) | s2.to(error_state), id="error.execution")
-
-    def on_enter_s2(self):
-        raise RuntimeError("on_enter failed")
-
-
-class ErrorInActionSC(StateChart):
-    s1 = State("s1", initial=True)
-    s2 = State("s2")
-    error_state = State("error_state", final=True)
-
-    go = s1.to(s2, on="bad_action")
-    error_execution = Event(s1.to(error_state) | s2.to(error_state), id="error.execution")
-
-    def bad_action(self):
-        raise RuntimeError("action failed")
-
-
-class ErrorInAfterSC(StateChart):
-    s1 = State("s1", initial=True)
-    s2 = State("s2")
-    error_state = State("error_state", final=True)
-
-    go = s1.to(s2, after="bad_after")
-    error_execution = Event(s2.to(error_state), id="error.execution")
-
-    def bad_after(self):
-        raise RuntimeError("after failed")
-
-
-class ErrorInGuardSM(StateChart):
-    """StateChart subclass with catch_errors_as_events=False: exceptions should propagate."""
-
-    catch_errors_as_events = False
-
-    initial = State("initial", initial=True)
-
-    go = initial.to(initial, cond="bad_guard") | initial.to(initial)
-
-    def bad_guard(self):
-        raise RuntimeError("guard failed")
-
-
-class ErrorInActionSMWithFlag(StateChart):
-    """StateChart subclass (catch_errors_as_events = True by default)."""
-
-    s1 = State("s1", initial=True)
-    s2 = State("s2")
-    error_state = State("error_state", final=True)
-
-    go = s1.to(s2, on="bad_action")
-    error_execution = Event(s1.to(error_state) | s2.to(error_state), id="error.execution")
-
-    def bad_action(self):
-        raise RuntimeError("action failed")
-
-
-class ErrorInErrorHandlerSC(StateChart):
-    """Error in error.execution handler should not cause infinite loop."""
-
-    s1 = State("s1", initial=True)
-    s2 = State("s2")
-    s3 = State("s3", final=True)
-
-    go = s1.to(s2, on="bad_action")
-    finish = s2.to(s3)
-    error_execution = Event(
-        s1.to(s1, on="bad_error_handler") | s2.to(s2, on="bad_error_handler"),
-        id="error.execution",
-    )
-
-    def bad_action(self):
-        raise RuntimeError("action failed")
-
-    def bad_error_handler(self):
-        raise RuntimeError("error handler also failed")
+from tests.machines.error.error_convention_event import ErrorConventionEventSC
+from tests.machines.error.error_convention_transition_list import ErrorConventionTransitionListSC
+from tests.machines.error.error_in_action_sc import ErrorInActionSC
+from tests.machines.error.error_in_action_sm_with_flag import ErrorInActionSMWithFlag
+from tests.machines.error.error_in_after_sc import ErrorInAfterSC
+from tests.machines.error.error_in_error_handler_sc import ErrorInErrorHandlerSC
+from tests.machines.error.error_in_guard_sc import ErrorInGuardSC
+from tests.machines.error.error_in_guard_sm import ErrorInGuardSM
+from tests.machines.error.error_in_on_enter_sc import ErrorInOnEnterSC
 
 
 def test_exception_in_guard_sends_error_execution():
@@ -227,32 +141,6 @@ def test_error_data_available_in_error_execution_handler():
 
 
 # --- Tests for error_ naming convention ---
-
-
-class ErrorConventionTransitionListSC(StateChart):
-    """Using bare TransitionList with error_ prefix auto-registers dot notation."""
-
-    s1 = State("s1", initial=True)
-    error_state = State("error_state", final=True)
-
-    go = s1.to(s1, on="bad_action")
-    error_execution = s1.to(error_state)
-
-    def bad_action(self):
-        raise RuntimeError("action failed")
-
-
-class ErrorConventionEventSC(StateChart):
-    """Using Event without explicit id with error_ prefix auto-registers dot notation."""
-
-    s1 = State("s1", initial=True)
-    error_state = State("error_state", final=True)
-
-    go = s1.to(s1, on="bad_action")
-    error_execution = Event(s1.to(error_state))
-
-    def bad_action(self):
-        raise RuntimeError("action failed")
 
 
 def test_error_convention_with_transition_list():

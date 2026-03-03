@@ -9,29 +9,17 @@ Theme: Gollum's dual personality — remembers which was active.
 
 import pytest
 
-from statemachine import HistoryState
-from statemachine import State
-from statemachine import StateChart
+from tests.machines.history.deep_memory_of_moria import DeepMemoryOfMoria
+from tests.machines.history.gollum_personality import GollumPersonality
+from tests.machines.history.gollum_personality_default_gollum import GollumPersonalityDefaultGollum
+from tests.machines.history.gollum_personality_with_default import GollumPersonalityWithDefault
+from tests.machines.history.shallow_moria import ShallowMoria
 
 
 @pytest.mark.timeout(5)
 class TestHistoryStates:
     async def test_shallow_history_remembers_last_child(self, sm_runner):
         """Exit compound, re-enter via history -> restores last active child."""
-
-        class GollumPersonality(StateChart):
-            class personality(State.Compound):
-                smeagol = State(initial=True)
-                gollum = State()
-                h = HistoryState()
-
-                dark_side = smeagol.to(gollum)
-                light_side = gollum.to(smeagol)
-
-            outside = State()
-            leave = personality.to(outside)
-            return_via_history = outside.to(personality.h)
-
         sm = await sm_runner.start(GollumPersonality)
         await sm_runner.send(sm, "dark_side")
         assert "gollum" in sm.configuration_values
@@ -45,21 +33,7 @@ class TestHistoryStates:
 
     async def test_shallow_history_default_on_first_visit(self, sm_runner):
         """No prior visit -> history uses default transition target."""
-
-        class GollumPersonality(StateChart):
-            class personality(State.Compound):
-                smeagol = State(initial=True)
-                gollum = State()
-                h = HistoryState()
-
-                dark_side = smeagol.to(gollum)
-                _ = h.to(smeagol)  # default: smeagol
-
-            outside = State(initial=True)
-            enter_via_history = outside.to(personality.h)
-            leave = personality.to(outside)
-
-        sm = await sm_runner.start(GollumPersonality)
+        sm = await sm_runner.start(GollumPersonalityWithDefault)
         assert {"outside"} == set(sm.configuration_values)
 
         await sm_runner.send(sm, "enter_via_history")
@@ -67,24 +41,6 @@ class TestHistoryStates:
 
     async def test_deep_history_remembers_full_descendant(self, sm_runner):
         """Deep history restores the exact leaf in a nested compound."""
-
-        class DeepMemoryOfMoria(StateChart):
-            class moria(State.Compound):
-                class halls(State.Compound):
-                    entrance = State(initial=True)
-                    chamber = State()
-
-                    explore = entrance.to(chamber)
-
-                assert isinstance(halls, State)
-                h = HistoryState(type="deep")
-                bridge = State(final=True)
-                flee = halls.to(bridge)
-
-            outside = State()
-            escape = moria.to(outside)
-            return_deep = outside.to(moria.h)
-
         sm = await sm_runner.start(DeepMemoryOfMoria)
         await sm_runner.send(sm, "explore")
         assert "chamber" in sm.configuration_values
@@ -99,20 +55,6 @@ class TestHistoryStates:
 
     async def test_multiple_exits_and_reentries(self, sm_runner):
         """History updates each time we exit the compound."""
-
-        class GollumPersonality(StateChart):
-            class personality(State.Compound):
-                smeagol = State(initial=True)
-                gollum = State()
-                h = HistoryState()
-
-                dark_side = smeagol.to(gollum)
-                light_side = gollum.to(smeagol)
-
-            outside = State()
-            leave = personality.to(outside)
-            return_via_history = outside.to(personality.h)
-
         sm = await sm_runner.start(GollumPersonality)
         await sm_runner.send(sm, "leave")
         await sm_runner.send(sm, "return_via_history")
@@ -130,19 +72,6 @@ class TestHistoryStates:
 
     async def test_history_after_state_change(self, sm_runner):
         """Change state within compound, exit, re-enter -> new state restored."""
-
-        class GollumPersonality(StateChart):
-            class personality(State.Compound):
-                smeagol = State(initial=True)
-                gollum = State()
-                h = HistoryState()
-
-                dark_side = smeagol.to(gollum)
-
-            outside = State()
-            leave = personality.to(outside)
-            return_via_history = outside.to(personality.h)
-
         sm = await sm_runner.start(GollumPersonality)
         await sm_runner.send(sm, "dark_side")
         await sm_runner.send(sm, "leave")
@@ -151,24 +80,6 @@ class TestHistoryStates:
 
     async def test_shallow_only_remembers_immediate_child(self, sm_runner):
         """Shallow history in nested compound restores direct child, not grandchild."""
-
-        class ShallowMoria(StateChart):
-            class moria(State.Compound):
-                class halls(State.Compound):
-                    entrance = State(initial=True)
-                    chamber = State()
-
-                    explore = entrance.to(chamber)
-
-                assert isinstance(halls, State)
-                h = HistoryState()
-                bridge = State(final=True)
-                flee = halls.to(bridge)
-
-            outside = State()
-            escape = moria.to(outside)
-            return_shallow = outside.to(moria.h)
-
         sm = await sm_runner.start(ShallowMoria)
         await sm_runner.send(sm, "explore")
         assert "chamber" in sm.configuration_values
@@ -182,19 +93,6 @@ class TestHistoryStates:
 
     async def test_history_values_dict_populated(self, sm_runner):
         """sm.history_values[history_id] has saved states after exit."""
-
-        class GollumPersonality(StateChart):
-            class personality(State.Compound):
-                smeagol = State(initial=True)
-                gollum = State()
-                h = HistoryState()
-
-                dark_side = smeagol.to(gollum)
-
-            outside = State()
-            leave = personality.to(outside)
-            return_via_history = outside.to(personality.h)
-
         sm = await sm_runner.start(GollumPersonality)
         await sm_runner.send(sm, "dark_side")
         await sm_runner.send(sm, "leave")
@@ -205,20 +103,6 @@ class TestHistoryStates:
 
     async def test_history_with_default_transition(self, sm_runner):
         """HistoryState with explicit default .to() transition."""
-
-        class GollumPersonality(StateChart):
-            class personality(State.Compound):
-                smeagol = State(initial=True)
-                gollum = State()
-                h = HistoryState()
-
-                dark_side = smeagol.to(gollum)
-                _ = h.to(gollum)  # default: gollum (not the initial smeagol)
-
-            outside = State(initial=True)
-            enter_via_history = outside.to(personality.h)
-            leave = personality.to(outside)
-
-        sm = await sm_runner.start(GollumPersonality)
+        sm = await sm_runner.start(GollumPersonalityDefaultGollum)
         await sm_runner.send(sm, "enter_via_history")
         assert "gollum" in sm.configuration_values
