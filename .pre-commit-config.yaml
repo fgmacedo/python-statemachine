@@ -31,6 +31,17 @@ repos:
     types: [python]
     language: system
     pass_filenames: false
+  - id: generate-images
+    name: Generate README images
+    entry: >-
+      uv run python -m statemachine.contrib.diagram
+      tests.examples.traffic_light_machine.TrafficLightMachine
+      docs/images/readme_trafficlightmachine.png
+    language: system
+    pass_filenames: false
+    files: >-
+      (statemachine/contrib/diagram/
+      |tests/examples/traffic_light_machine\.py)
   - id: pytest
     name: Pytest
     entry: uv run pytest -n auto --cov-fail-under=100
