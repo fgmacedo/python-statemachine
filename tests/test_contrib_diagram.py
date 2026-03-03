@@ -4,6 +4,7 @@ from unittest import mock
 from xml.etree import ElementTree
 
 import pytest
+from docutils import nodes
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
@@ -530,3 +531,483 @@ class TestSphinxDirective:
 
         with pytest.raises((ValueError, ModuleNotFoundError)):
             import_sm("nonexistent.module.SomeMachine")
+
+
+class TestSplitLength:
+    """Tests for the _split_length helper."""
+
+    def test_split_pt(self):
+        from statemachine.contrib.diagram.sphinx_ext import _split_length
+
+        value, unit = _split_length("702pt")
+        assert value == 702.0
+        assert unit == "pt"
+
+    def test_split_px(self):
+        from statemachine.contrib.diagram.sphinx_ext import _split_length
+
+        value, unit = _split_length("100px")
+        assert value == 100.0
+        assert unit == "px"
+
+    def test_split_float(self):
+        from statemachine.contrib.diagram.sphinx_ext import _split_length
+
+        value, unit = _split_length("12.5em")
+        assert value == 12.5
+        assert unit == "em"
+
+    def test_split_no_match(self):
+        from statemachine.contrib.diagram.sphinx_ext import _split_length
+
+        value, unit = _split_length("auto")
+        assert value == 0.0
+        assert unit == "auto"
+
+
+class TestAlignSpec:
+    """Tests for _align_spec option validator."""
+
+    def test_valid_values(self):
+        from statemachine.contrib.diagram.sphinx_ext import _align_spec
+
+        assert _align_spec("left") == "left"
+        assert _align_spec("center") == "center"
+        assert _align_spec("right") == "right"
+
+    def test_invalid_value(self):
+        from statemachine.contrib.diagram.sphinx_ext import _align_spec
+
+        with pytest.raises(ValueError, match="top"):
+            _align_spec("top")
+
+
+class TestSetup:
+    """Tests for the Sphinx extension setup function."""
+
+    def test_setup_returns_metadata(self):
+        from statemachine.contrib.diagram.sphinx_ext import setup
+
+        app = mock.MagicMock()
+        result = setup(app)
+        assert result["version"] == "0.1"
+        assert result["parallel_read_safe"] is True
+        assert result["parallel_write_safe"] is True
+        app.add_directive.assert_called_once_with("statemachine-diagram", mock.ANY)
+
+
+class TestPrepareSvg:
+    """Tests for StateMachineDiagram._prepare_svg."""
+
+    def _make_directive(self, options=None):
+        from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
+
+        directive = StateMachineDiagram.__new__(StateMachineDiagram)
+        directive.options = options or {}
+        directive.arguments = ["test.Module"]
+        return directive
+
+    def test_strips_xml_prologue(self):
+        svg_bytes = (
+            b'<?xml version="1.0"?>\n<!DOCTYPE svg>\n'
+            b'<svg width="100pt" height="50pt" viewBox="0 0 100 50">'
+            b"<circle/></svg>"
+        )
+        directive = self._make_directive()
+        svg_tag, w, h = directive._prepare_svg(svg_bytes)
+
+        assert not svg_tag.startswith("<?xml")
+        assert svg_tag.startswith("<svg")
+        assert "</svg>" in svg_tag
+
+    def test_extracts_intrinsic_dimensions(self):
+        svg_bytes = b'<svg width="702pt" height="170pt"><rect/></svg>'
+        directive = self._make_directive()
+        _, w, h = directive._prepare_svg(svg_bytes)
+
+        assert w == "702pt"
+        assert h == "170pt"
+
+    def test_removes_fixed_dimensions(self):
+        svg_bytes = b'<svg width="702pt" height="170pt" viewBox="0 0 702 170"><rect/></svg>'
+        directive = self._make_directive()
+        svg_tag, _, _ = directive._prepare_svg(svg_bytes)
+
+        assert 'width="702pt"' not in svg_tag
+        assert 'height="170pt"' not in svg_tag
+        assert "viewBox" in svg_tag
+
+    def test_handles_no_dimensions(self):
+        svg_bytes = b'<svg viewBox="0 0 100 50"><rect/></svg>'
+        directive = self._make_directive()
+        svg_tag, w, h = directive._prepare_svg(svg_bytes)
+
+        assert w == ""
+        assert h == ""
+
+    def test_handles_px_dimensions(self):
+        svg_bytes = b'<svg width="200px" height="100px"><rect/></svg>'
+        directive = self._make_directive()
+        _, w, h = directive._prepare_svg(svg_bytes)
+
+        assert w == "200px"
+        assert h == "100px"
+
+
+class TestBuildSvgStyles:
+    """Tests for StateMachineDiagram._build_svg_styles."""
+
+    def _make_directive(self, options=None):
+        from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
+
+        directive = StateMachineDiagram.__new__(StateMachineDiagram)
+        directive.options = options or {}
+        return directive
+
+    def test_intrinsic_width_as_max_width(self):
+        directive = self._make_directive()
+        result = directive._build_svg_styles("702pt", "170pt")
+        assert "max-width: 702pt" in result
+        assert "height: auto" in result
+
+    def test_explicit_width(self):
+        directive = self._make_directive({"width": "400px"})
+        result = directive._build_svg_styles("702pt", "170pt")
+        assert "width: 400px" in result
+        assert "max-width" not in result
+
+    def test_explicit_height(self):
+        directive = self._make_directive({"height": "200px"})
+        result = directive._build_svg_styles("702pt", "170pt")
+        assert "height: 200px" in result
+        assert "height: auto" not in result
+
+    def test_scale(self):
+        directive = self._make_directive({"scale": "50%"})
+        result = directive._build_svg_styles("702pt", "170pt")
+        assert "width: 351.0pt" in result
+        assert "height: 85.0pt" in result
+
+    def test_scale_without_intrinsic(self):
+        directive = self._make_directive({"scale": "50%"})
+        result = directive._build_svg_styles("", "")
+        # No width/height when no intrinsic dimensions to scale
+        assert "max-width" not in result
+        assert "height: auto" in result
+
+    def test_no_dimensions(self):
+        directive = self._make_directive()
+        result = directive._build_svg_styles("", "")
+        assert "height: auto" in result
+
+    def test_explicit_width_overrides_scale(self):
+        directive = self._make_directive({"width": "300px", "scale": "50%"})
+        result = directive._build_svg_styles("702pt", "170pt")
+        assert "width: 300px" in result
+        assert "351" not in result
+
+
+class TestBuildWrapperClasses:
+    """Tests for StateMachineDiagram._build_wrapper_classes."""
+
+    def _make_directive(self, options=None):
+        from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
+
+        directive = StateMachineDiagram.__new__(StateMachineDiagram)
+        directive.options = options or {}
+        return directive
+
+    def test_default_center_align(self):
+        directive = self._make_directive()
+        classes = directive._build_wrapper_classes()
+        assert classes == ["statemachine-diagram", "align-center"]
+
+    def test_custom_align(self):
+        directive = self._make_directive({"align": "left"})
+        classes = directive._build_wrapper_classes()
+        assert classes == ["statemachine-diagram", "align-left"]
+
+    def test_extra_css_classes(self):
+        directive = self._make_directive({"class": ["my-class", "another"]})
+        classes = directive._build_wrapper_classes()
+        assert classes == ["statemachine-diagram", "align-center", "my-class", "another"]
+
+
+class TestResolveTarget:
+    """Tests for StateMachineDiagram._resolve_target."""
+
+    def _make_directive(self, options=None, tmp_path=None):
+        from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
+
+        directive = StateMachineDiagram.__new__(StateMachineDiagram)
+        directive.options = options or {}
+        directive.arguments = ["my.module.MyMachine"]
+        if tmp_path is not None:
+            directive.state = mock.MagicMock()
+            directive.state.document.settings.env.app.outdir = str(tmp_path)
+        return directive
+
+    def test_no_target_option(self):
+        directive = self._make_directive()
+        assert directive._resolve_target(b"<svg/>") == ""
+
+    def test_explicit_target_url(self):
+        directive = self._make_directive({"target": "https://example.com/diagram.svg"})
+        assert directive._resolve_target(b"<svg/>") == "https://example.com/diagram.svg"
+
+    def test_empty_target_generates_file(self, tmp_path):
+        directive = self._make_directive({"target": ""}, tmp_path=tmp_path)
+        svg_data = b"<svg><rect/></svg>"
+        result = directive._resolve_target(svg_data)
+
+        assert result.startswith("/_images/statemachine-")
+        assert result.endswith(".svg")
+
+        # Verify the file was written
+        images_dir = tmp_path / "_images"
+        svg_files = list(images_dir.glob("statemachine-*.svg"))
+        assert len(svg_files) == 1
+        assert svg_files[0].read_bytes() == svg_data
+
+    def test_empty_target_deterministic_filename(self, tmp_path):
+        """Same qualname + events produces the same filename."""
+        directive1 = self._make_directive({"target": "", "events": "go"}, tmp_path=tmp_path)
+        directive2 = self._make_directive({"target": "", "events": "go"}, tmp_path=tmp_path)
+        result1 = directive1._resolve_target(b"<svg>1</svg>")
+        result2 = directive2._resolve_target(b"<svg>2</svg>")
+        assert result1 == result2
+
+    def test_different_events_different_filename(self, tmp_path):
+        """Different events produce different filenames."""
+        d1 = self._make_directive({"target": "", "events": "a"}, tmp_path=tmp_path)
+        d2 = self._make_directive({"target": "", "events": "b"}, tmp_path=tmp_path)
+        assert d1._resolve_target(b"<svg/>") != d2._resolve_target(b"<svg/>")
+
+
+class TestDirectiveRun:
+    """Integration tests for StateMachineDiagram.run()."""
+
+    def _make_directive(self, qualname, options=None, tmp_path=None):
+        from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
+
+        directive = StateMachineDiagram.__new__(StateMachineDiagram)
+        directive.arguments = [qualname]
+        directive.options = options or {}
+        directive.lineno = 1
+        directive.state_machine = mock.MagicMock()
+        directive.state = mock.MagicMock()
+        outdir = str(tmp_path) if tmp_path else "/tmp"
+        directive.state.document.settings.env.app.outdir = outdir
+        directive.content_offset = 0
+        return directive
+
+    def test_render_class_diagram(self, tmp_path):
+        """Renders a class diagram (no events) as inline SVG."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        assert len(result) == 1
+        node = result[0]
+        assert isinstance(node, nodes.raw)
+        assert node["format"] == "html"
+        html = node.astext()
+        assert "<svg" in html
+        assert "statemachine-diagram" in html
+        assert "align-center" in html
+
+    def test_render_with_events(self, tmp_path):
+        """Renders a diagram after sending events."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"events": "cycle"},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        assert len(result) == 1
+        assert isinstance(result[0], nodes.raw)
+        html = result[0].astext()
+        assert "<svg" in html
+
+    def test_render_with_empty_events(self, tmp_path):
+        """Empty :events: instantiates the machine (highlights initial state)."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"events": ""},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+        assert len(result) == 1
+        assert isinstance(result[0], nodes.raw)
+
+    def test_render_with_caption(self, tmp_path):
+        """Caption wraps the diagram in a <figure> element."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"caption": "My caption"},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert "<figure" in html
+        assert "<figcaption>My caption</figcaption>" in html
+
+    def test_render_with_figclass(self, tmp_path):
+        """figclass adds extra CSS classes to the figure wrapper."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"caption": "Test", "figclass": ["extra-fig"]},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert "extra-fig" in html
+
+    def test_render_with_alt(self, tmp_path):
+        """Custom alt text appears in aria-label."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"alt": "Traffic light diagram"},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert 'aria-label="Traffic light diagram"' in html
+
+    def test_render_default_alt(self, tmp_path):
+        """Default alt text uses the class name from the qualname."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert 'aria-label="TrafficLightMachine"' in html
+
+    def test_render_with_explicit_target(self, tmp_path):
+        """Explicit target wraps diagram in a link."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"target": "https://example.com"},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert 'href="https://example.com"' in html
+        assert 'target="_blank"' in html
+
+    def test_render_with_empty_target(self, tmp_path):
+        """Empty target auto-generates a zoom SVG file."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"target": ""},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert 'href="/_images/statemachine-' in html
+
+        # Verify SVG file was written
+        images_dir = tmp_path / "_images"
+        assert any(images_dir.glob("statemachine-*.svg"))
+
+    def test_render_with_align(self, tmp_path):
+        """Align option controls CSS class."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"align": "left"},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert "align-left" in html
+
+    def test_render_with_width(self, tmp_path):
+        """Width option is applied as inline style."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"width": "400px"},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert "width: 400px" in html
+
+    def test_render_with_name(self, tmp_path):
+        """Name option calls add_name for cross-referencing."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"name": "my-diagram"},
+            tmp_path=tmp_path,
+        )
+        # add_name needs document and state attributes
+        directive.state = mock.MagicMock()
+        result = directive.run()
+
+        assert len(result) == 1
+
+    def test_render_with_class(self, tmp_path):
+        """Custom CSS classes appear in the wrapper."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            options={"class": ["custom-class"]},
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert "custom-class" in html
+
+    def test_invalid_qualname_returns_warning(self, tmp_path):
+        """Invalid qualname returns a warning node."""
+        directive = self._make_directive(
+            "nonexistent.module.BadMachine",
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        assert len(result) == 1
+        # The warning is created via state_machine.reporter.warning mock
+        directive.state_machine.reporter.warning.assert_called_once()
+        call_args = directive.state_machine.reporter.warning.call_args
+        assert "could not import" in call_args[0][0]
+
+    def test_render_failure_returns_warning(self, tmp_path):
+        """Diagram generation failure returns a warning node."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            tmp_path=tmp_path,
+        )
+        with mock.patch(
+            "statemachine.contrib.diagram.DotGraphMachine",
+            side_effect=RuntimeError("render failed"),
+        ):
+            result = directive.run()
+
+        assert len(result) == 1
+        directive.state_machine.reporter.warning.assert_called_once()
+        call_args = directive.state_machine.reporter.warning.call_args
+        assert "failed to generate" in call_args[0][0]
+
+    def test_render_without_caption_uses_div(self, tmp_path):
+        """Without caption, the wrapper is a plain <div>."""
+        directive = self._make_directive(
+            "tests.examples.traffic_light_machine.TrafficLightMachine",
+            tmp_path=tmp_path,
+        )
+        result = directive.run()
+
+        html = result[0].astext()
+        assert "<figure" not in html
+        assert "<div" in html
