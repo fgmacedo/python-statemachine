@@ -700,28 +700,28 @@ class TestSplitLength:
         from statemachine.contrib.diagram.sphinx_ext import _split_length
 
         value, unit = _split_length("702pt")
-        assert value == 702.0
+        assert value == pytest.approx(702.0)
         assert unit == "pt"
 
     def test_split_px(self):
         from statemachine.contrib.diagram.sphinx_ext import _split_length
 
         value, unit = _split_length("100px")
-        assert value == 100.0
+        assert value == pytest.approx(100.0)
         assert unit == "px"
 
     def test_split_float(self):
         from statemachine.contrib.diagram.sphinx_ext import _split_length
 
         value, unit = _split_length("12.5em")
-        assert value == 12.5
+        assert value == pytest.approx(12.5)
         assert unit == "em"
 
     def test_split_no_match(self):
         from statemachine.contrib.diagram.sphinx_ext import _split_length
 
         value, unit = _split_length("auto")
-        assert value == 0.0
+        assert value == pytest.approx(0.0)
         assert unit == "auto"
 
 
@@ -774,7 +774,7 @@ class TestPrepareSvg:
             b"<circle/></svg>"
         )
         directive = self._make_directive()
-        svg_tag, w, h = directive._prepare_svg(svg_bytes)
+        svg_tag, _, _ = directive._prepare_svg(svg_bytes)
 
         assert not svg_tag.startswith("<?xml")
         assert svg_tag.startswith("<svg")
@@ -800,7 +800,7 @@ class TestPrepareSvg:
     def test_handles_no_dimensions(self):
         svg_bytes = b'<svg viewBox="0 0 100 50"><rect/></svg>'
         directive = self._make_directive()
-        svg_tag, w, h = directive._prepare_svg(svg_bytes)
+        _, w, h = directive._prepare_svg(svg_bytes)
 
         assert w == ""
         assert h == ""

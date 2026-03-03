@@ -101,7 +101,7 @@ def _extract_state(
     )
 
 
-def _extract_transitions_from_state(state: "State", getter) -> List[DiagramTransition]:
+def _extract_transitions_from_state(state: "State") -> List[DiagramTransition]:
     """Extract transitions from a single state (non-recursive)."""
     result: List[DiagramTransition] = []
     for transition in state.transitions:
@@ -122,17 +122,17 @@ def _extract_transitions_from_state(state: "State", getter) -> List[DiagramTrans
     return result
 
 
-def _extract_all_transitions(states, getter) -> List[DiagramTransition]:
+def _extract_all_transitions(states) -> List[DiagramTransition]:
     """Recursively extract transitions from all states."""
     result: List[DiagramTransition] = []
     for state in states:
-        result.extend(_extract_transitions_from_state(state, getter))
+        result.extend(_extract_transitions_from_state(state))
         if state.states:
-            result.extend(_extract_all_transitions(state.states, getter))
+            result.extend(_extract_all_transitions(state.states))
         for history_state in getattr(state, "history", []):
-            result.extend(_extract_transitions_from_state(history_state, getter))
+            result.extend(_extract_transitions_from_state(history_state))
             if history_state.states:  # pragma: no cover
-                result.extend(_extract_all_transitions(history_state.states, getter))
+                result.extend(_extract_all_transitions(history_state.states))
     return result
 
 
@@ -242,7 +242,7 @@ def extract(machine_or_class: "MachineRef") -> DiagramGraph:
     for state in machine.states:
         states.append(_extract_state(state, machine, getter, active_values))
 
-    transitions = _extract_all_transitions(machine.states, getter)
+    transitions = _extract_all_transitions(machine.states)
 
     compound_ids = _collect_compound_ids(states)
     bidir_ids = _collect_bidirectional_compound_ids(transitions, compound_ids)

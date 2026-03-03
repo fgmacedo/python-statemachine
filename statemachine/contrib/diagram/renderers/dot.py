@@ -162,15 +162,9 @@ class DotRenderer:
                 atomic_subgraph.add_node(self._create_atomic_node(state))
                 has_atomic = True
 
-        # Anchor nodes from the parent compound are co-located with real states
-        # when possible. If there are no atomic states at this level (e.g. a
-        # parallel state with only compound children), add them directly to the
-        # parent graph to avoid creating an empty cluster that wastes space.
-        if extra_nodes:
-            target = atomic_subgraph if has_atomic else parent_graph
-            for node in extra_nodes:
-                target.add_node(node)
-            has_atomic = has_atomic or (target is atomic_subgraph)
+        has_atomic = self._place_extra_nodes(
+            extra_nodes, atomic_subgraph, parent_graph, has_atomic
+        )
 
         if has_atomic:
             parent_graph.add_subgraph(atomic_subgraph)
@@ -179,6 +173,28 @@ class DotRenderer:
         for state in states:
             if not state.children:
                 self._add_transitions_for_state(state, transitions, parent_graph)
+
+    @staticmethod
+    def _place_extra_nodes(
+        extra_nodes: Optional[List[pydot.Node]],
+        atomic_subgraph: pydot.Subgraph,
+        parent_graph: "pydot.Dot | pydot.Subgraph",
+        has_atomic: bool,
+    ) -> bool:
+        """Place anchor nodes from the parent compound into the graph.
+
+        Co-locates them with real states when possible. If there are no atomic
+        states at this level (e.g. a parallel state with only compound children),
+        adds them directly to the parent graph to avoid an empty cluster.
+
+        Returns the updated ``has_atomic`` flag.
+        """
+        if not extra_nodes:
+            return has_atomic
+        target = atomic_subgraph if has_atomic else parent_graph
+        for node in extra_nodes:
+            target.add_node(node)
+        return has_atomic or (target is atomic_subgraph)
 
     def _render_initial_arrow(
         self,
@@ -438,65 +454,78 @@ class DotRenderer:
         cond = ", ".join(transition.guards)
         cond_html = f"<br/>[{_escape_html(cond)}]" if cond else ""
 
-        edges = []
-        for i, target_id in enumerate(target_ids):
-            extra: Dict[str, str] = {}
-            source_is_compound = transition.source in self._compound_ids
-            target_is_compound = target_id is not None and target_id in self._compound_ids
+        return [
+            self._create_single_edge(transition, target_id, i, cond_html)
+            for i, target_id in enumerate(target_ids)
+        ]
 
-            if source_is_compound:
-                extra["ltail"] = f"cluster_{transition.source}"
-            if target_is_compound:
-                extra["lhead"] = f"cluster_{target_id}"
+    def _create_single_edge(
+        self,
+        transition: DiagramTransition,
+        target_id: Optional[str],
+        index: int,
+        cond_html: str,
+    ) -> pydot.Edge:
+        """Create a single pydot.Edge for one target of a transition."""
+        src, dst, extra = self._resolve_edge_endpoints(transition, target_id)
+        has_substates = bool(extra)
+        html_label = self._build_edge_label(transition.event, cond_html, index)
 
-            has_substates = source_is_compound or target_is_compound
-            event_text = _escape_html(transition.event) if i == 0 else ""
+        return pydot.Edge(
+            src,
+            dst,
+            label=html_label,
+            minlen=2 if has_substates else 1,
+            **extra,
+        )
 
-            if target_id is not None:
-                dst = self._state_node_id(target_id)
-            else:
-                dst = self._state_node_id(transition.source)
+    def _resolve_edge_endpoints(
+        self,
+        transition: DiagramTransition,
+        target_id: Optional[str],
+    ) -> "tuple[str, str, Dict[str, str]]":
+        """Resolve source/destination node IDs and cluster attributes for an edge."""
+        extra: Dict[str, str] = {}
+        source_is_compound = transition.source in self._compound_ids
+        target_is_compound = target_id is not None and target_id in self._compound_ids
 
-            src = self._state_node_id(transition.source)
+        if source_is_compound:
+            extra["ltail"] = f"cluster_{transition.source}"
+        if target_is_compound:
+            extra["lhead"] = f"cluster_{target_id}"
 
-            # For compound states in bidirectional pairs, route outgoing edges
-            # through _anchor_out and incoming through _anchor_in so Graphviz
-            # places them at different physical positions inside the cluster.
-            if source_is_compound and transition.source in self._compound_bidir_ids:
-                src = self._compound_edge_anchor(transition.source, "out")
-                extra["ltail"] = f"cluster_{transition.source}"
-            if target_is_compound and target_id in self._compound_bidir_ids:
-                dst = self._compound_edge_anchor(target_id, "in")
-                extra["lhead"] = f"cluster_{target_id}"
+        dst = (
+            self._state_node_id(target_id)
+            if target_id is not None
+            else self._state_node_id(transition.source)
+        )
+        src = self._state_node_id(transition.source)
 
-            if event_text or (cond_html and i == 0):
-                label_content = f"{event_text}{cond_html}" if i == 0 else ""
-                font_size = self.config.transition_font_size
-                html_label = (
-                    f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="0">'
-                    f'<tr><td cellpadding="4">'
-                    f'<font point-size="{font_size}">{label_content}</font>'
-                    f"</td></tr>"
-                    f'<tr><td cellpadding="1"></td></tr>'
-                    f"</table>>"
-                )
-            else:
-                html_label = ""
+        # For compound states in bidirectional pairs, route outgoing edges
+        # through _anchor_out and incoming through _anchor_in so Graphviz
+        # places them at different physical positions inside the cluster.
+        if source_is_compound and transition.source in self._compound_bidir_ids:
+            src = self._compound_edge_anchor(transition.source, "out")
+            extra["ltail"] = f"cluster_{transition.source}"
+        if target_is_compound and target_id in self._compound_bidir_ids:
+            dst = self._compound_edge_anchor(target_id, "in")
+            extra["lhead"] = f"cluster_{target_id}"
 
-            # With dedicated anchor nodes placed inside compound clusters,
-            # the midpoint of anchor→dst falls outside the cluster boundary,
-            # so the standard label position is correct along the visible edge.
-            # Use label for all edges (xlabel causes floating/displaced labels).
-            label_key = "label"
+        return src, dst, extra
 
-            edges.append(
-                pydot.Edge(
-                    src,
-                    dst,
-                    **{label_key: html_label},
-                    minlen=2 if has_substates else 1,
-                    **extra,
-                )
-            )
+    def _build_edge_label(self, event: str, cond_html: str, index: int) -> str:
+        """Build the HTML label for a transition edge."""
+        event_text = _escape_html(event) if index == 0 else ""
+        if not event_text and not (cond_html and index == 0):
+            return ""
 
-        return edges
+        label_content = f"{event_text}{cond_html}" if index == 0 else ""
+        font_size = self.config.transition_font_size
+        return (
+            f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="0">'
+            f'<tr><td cellpadding="4">'
+            f'<font point-size="{font_size}">{label_content}</font>'
+            f"</td></tr>"
+            f'<tr><td cellpadding="1"></td></tr>'
+            f"</table>>"
+        )
