@@ -79,12 +79,8 @@ True
 
 Generate a diagram:
 
-```py
->>> # This example will only run on automated tests if dot is present
->>> getfixture("requires_dot_installed")
->>> img_path = "docs/images/readme_trafficlightmachine.png"
->>> sm._graph().write_png(img_path)
-
+```python
+sm._graph().write_png("traffic_light.png")
 ```
 
 ![](https://raw.githubusercontent.com/fgmacedo/python-statemachine/develop/docs/images/readme_trafficlightmachine.png)

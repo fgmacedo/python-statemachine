@@ -1091,3 +1091,25 @@ class TestDirectiveRun:
         html = result[0].astext()
         assert "<figure" not in html
         assert "<div" in html
+
+
+class TestGraphMethod:
+    """Test the ``_graph()`` convenience method on state machine instances."""
+
+    def test_graph_returns_pydot_dot(self):
+        import pydot
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        graph = sm._graph()
+        assert isinstance(graph, pydot.Dot)
+
+    def test_graph_reflects_active_state(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        sm.send("cycle")
+        svg_root = _parse_svg(sm._graph())
+        yellow_node = _find_state_node(svg_root, "yellow")
+        assert yellow_node is not None

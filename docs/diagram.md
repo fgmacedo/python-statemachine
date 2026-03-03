@@ -33,14 +33,11 @@ For other systems, see the [Graphviz downloads page](https://graphviz.org/downlo
 Every state machine instance exposes a `_graph()` method that returns a
 [pydot.Dot](https://github.com/pydot/pydot) graph object:
 
-```py
->>> from tests.examples.order_control_machine import OrderControl
+```python
+from tests.examples.order_control_machine import OrderControl
 
->>> sm = OrderControl()
-
->>> sm._graph()  # doctest: +ELLIPSIS
-<pydot.core.Dot ...
-
+sm = OrderControl()
+graph = sm._graph()  # returns a pydot.Dot object
 ```
 
 ### Highlighting the current state
@@ -48,22 +45,18 @@ Every state machine instance exposes a `_graph()` method that returns a
 The diagram automatically highlights the current state of the instance.
 Send events to advance the machine and see the active state change:
 
-``` py
->>> # This example will only run on automated tests if dot is present
->>> getfixture("requires_dot_installed")
+```python
+from tests.examples.traffic_light_machine import TrafficLightMachine
 
->>> from tests.examples.order_control_machine import OrderControl
-
->>> sm = OrderControl()
-
->>> sm.receive_payment(10)
-[10]
-
->>> sm._graph().write_png("docs/images/order_control_machine_processing.png")
-
+sm = TrafficLightMachine()
+sm.send("cycle")
+sm._graph().write_png("traffic_light_yellow.png")
 ```
 
-![OrderControl after receiving payment](images/order_control_machine_processing.png)
+```{statemachine-diagram} tests.examples.traffic_light_machine.TrafficLightMachine
+:events: cycle
+:caption: TrafficLightMachine after one cycle
+```
 
 
 ### Exporting to a file
@@ -71,24 +64,21 @@ Send events to advance the machine and see the active state change:
 The `pydot.Dot` object supports writing to many formats — use
 `write_png()`, `write_svg()`, `write_pdf()`, etc.:
 
-```py
->>> from tests.examples.order_control_machine import OrderControl
-
->>> sm = OrderControl()
-
->>> sm._graph().write_png("docs/images/order_control_machine_initial.png")
-
+```python
+sm = OrderControl()
+sm._graph().write_png("order_control.png")
 ```
 
-![OrderControl](images/order_control_machine_initial.png)
+```{statemachine-diagram} tests.examples.order_control_machine.OrderControl
+:caption: OrderControl
+```
 
 For higher resolution PNGs, set the DPI before exporting:
 
-```py
->>> sm._graph().set_dpi(300)
-
->>> sm._graph().write_png("docs/images/order_control_machine_initial_300dpi.png")
-
+```python
+graph = sm._graph()
+graph.set_dpi(300)
+graph.write_png("order_control_300dpi.png")
 ```
 
 ```{note}
@@ -258,11 +248,9 @@ The `DotGraphMachine` class gives you control over the diagram's visual
 properties. Subclass it and override the class attributes to customize
 fonts, colors, and layout:
 
-```py
->>> from statemachine.contrib.diagram import DotGraphMachine
-
->>> from tests.examples.order_control_machine import OrderControl
-
+```python
+from statemachine.contrib.diagram import DotGraphMachine
+from tests.examples.order_control_machine import OrderControl
 ```
 
 Available attributes:
@@ -279,34 +267,25 @@ Available attributes:
 For example, to generate a top-to-bottom diagram with a custom active
 state color:
 
-```py
->>> class CustomDiagram(DotGraphMachine):
-...     graph_rankdir = "TB"
-...     state_active_fillcolor = "lightyellow"
+```python
+class CustomDiagram(DotGraphMachine):
+    graph_rankdir = "TB"
+    state_active_fillcolor = "lightyellow"
 
->>> sm = OrderControl()
+sm = OrderControl()
+sm.receive_payment(10)
 
->>> sm.receive_payment(10)
-[10]
-
->>> graph = CustomDiagram(sm)
-
->>> dot = graph()
-
->>> dot.to_string()  # doctest: +ELLIPSIS
-'digraph OrderControl {...
-
+graph = CustomDiagram(sm)
+dot = graph()
+dot.write_svg("order_control_custom.svg")
 ```
 
 `DotGraphMachine` also works with **classes** (not just instances) to
 generate diagrams without an active state:
 
-```py
->>> dot = DotGraphMachine(OrderControl)()
-
->>> dot.to_string()  # doctest: +ELLIPSIS
-'digraph OrderControl {...
-
+```python
+dot = DotGraphMachine(OrderControl)()
+dot.write_png("order_control_class.png")
 ```
 
 
