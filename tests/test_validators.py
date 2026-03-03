@@ -12,122 +12,12 @@ not the execution phase.
 
 import pytest
 
-from statemachine import State
-from statemachine import StateChart
-
-# ---------------------------------------------------------------------------
-# State machine definitions used across tests
-# ---------------------------------------------------------------------------
-
-
-class OrderValidation(StateChart):
-    """StateChart with catch_errors_as_events=True (the default)."""
-
-    pending = State(initial=True)
-    confirmed = State()
-    cancelled = State(final=True)
-
-    confirm = pending.to(confirmed, validators="check_stock")
-    cancel = confirmed.to(cancelled)
-
-    def check_stock(self, quantity=0, **kwargs):
-        if quantity <= 0:
-            raise ValueError("Quantity must be positive")
-
-
-class OrderValidationNoErrorEvents(StateChart):
-    """Same machine but with catch_errors_as_events=False."""
-
-    catch_errors_as_events = False
-
-    pending = State(initial=True)
-    confirmed = State()
-    cancelled = State(final=True)
-
-    confirm = pending.to(confirmed, validators="check_stock")
-    cancel = confirmed.to(cancelled)
-
-    def check_stock(self, quantity=0, **kwargs):
-        if quantity <= 0:
-            raise ValueError("Quantity must be positive")
-
-
-class MultiValidator(StateChart):
-    """Machine with multiple validators — first failure stops the chain."""
-
-    idle = State(initial=True)
-    active = State(final=True)
-
-    start = idle.to(active, validators=["check_a", "check_b"])
-
-    def check_a(self, **kwargs):
-        if not kwargs.get("a_ok"):
-            raise ValueError("A failed")
-
-    def check_b(self, **kwargs):
-        if not kwargs.get("b_ok"):
-            raise ValueError("B failed")
-
-
-class ValidatorWithCond(StateChart):
-    """Machine that combines validators and conditions on the same transition."""
-
-    idle = State(initial=True)
-    active = State(final=True)
-
-    start = idle.to(active, validators="check_auth", cond="has_permission")
-
-    has_permission = False
-
-    def check_auth(self, token=None, **kwargs):
-        if token != "valid":
-            raise PermissionError("Invalid token")
-
-
-class ValidatorWithErrorTransition(StateChart):
-    """Machine with both a validator and an error.execution transition.
-
-    The error.execution transition should NOT be triggered by validator
-    rejection — only by actual execution errors in actions.
-    """
-
-    idle = State(initial=True)
-    active = State()
-    error_state = State(final=True)
-
-    start = idle.to(active, validators="check_input")
-    do_work = active.to.itself(on="risky_action")
-    error_execution = active.to(error_state)
-
-    def check_input(self, value=None, **kwargs):
-        if value is None:
-            raise ValueError("Input required")
-
-    def risky_action(self, **kwargs):
-        raise RuntimeError("Boom")
-
-
-class ValidatorFallthrough(StateChart):
-    """Machine with multiple transitions for the same event.
-
-    When the first transition's validator rejects, the exception propagates
-    immediately — the engine does NOT fall through to the next transition.
-    """
-
-    idle = State(initial=True)
-    path_a = State(final=True)
-    path_b = State(final=True)
-
-    go = idle.to(path_a, validators="must_be_premium") | idle.to(path_b)
-
-    def must_be_premium(self, **kwargs):
-        if not kwargs.get("premium"):
-            raise PermissionError("Premium required")
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
+from tests.machines.validators.multi_validator import MultiValidator
+from tests.machines.validators.order_validation import OrderValidation
+from tests.machines.validators.order_validation_no_error_events import OrderValidationNoErrorEvents
+from tests.machines.validators.validator_fallthrough import ValidatorFallthrough
+from tests.machines.validators.validator_with_cond import ValidatorWithCond
+from tests.machines.validators.validator_with_error_transition import ValidatorWithErrorTransition
 
 
 class TestValidatorPropagation:

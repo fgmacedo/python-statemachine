@@ -11,39 +11,26 @@ import pytest
 
 from statemachine import State
 from statemachine import StateChart
+from tests.machines.compound.middle_earth_journey import MiddleEarthJourney
+from tests.machines.compound.middle_earth_journey_two_compounds import (
+    MiddleEarthJourneyTwoCompounds,
+)
+from tests.machines.compound.middle_earth_journey_with_finals import MiddleEarthJourneyWithFinals
+from tests.machines.compound.moria_expedition import MoriaExpedition
+from tests.machines.compound.moria_expedition_with_escape import MoriaExpeditionWithEscape
+from tests.machines.compound.quest_for_erebor import QuestForErebor
+from tests.machines.compound.shire_to_rivendell import ShireToRivendell
 
 
 @pytest.mark.timeout(5)
 class TestCompoundStates:
     async def test_enter_compound_activates_initial_child(self, sm_runner):
         """Entering a compound activates both parent and the initial child."""
-
-        class ShireToRivendell(StateChart):
-            class shire(State.Compound):
-                bag_end = State(initial=True)
-                green_dragon = State()
-
-                visit_pub = bag_end.to(green_dragon)
-
-            road = State(final=True)
-            depart = shire.to(road)
-
         sm = await sm_runner.start(ShireToRivendell)
         assert {"shire", "bag_end"} == set(sm.configuration_values)
 
     async def test_transition_within_compound(self, sm_runner):
         """Inner state changes while parent stays active."""
-
-        class ShireToRivendell(StateChart):
-            class shire(State.Compound):
-                bag_end = State(initial=True)
-                green_dragon = State()
-
-                visit_pub = bag_end.to(green_dragon)
-
-            road = State(final=True)
-            depart = shire.to(road)
-
         sm = await sm_runner.start(ShireToRivendell)
         await sm_runner.send(sm, "visit_pub")
         assert "shire" in sm.configuration_values
@@ -52,86 +39,23 @@ class TestCompoundStates:
 
     async def test_exit_compound_removes_all_descendants(self, sm_runner):
         """Leaving a compound removes the parent and all children."""
-
-        class ShireToRivendell(StateChart):
-            class shire(State.Compound):
-                bag_end = State(initial=True)
-                green_dragon = State()
-
-                visit_pub = bag_end.to(green_dragon)
-
-            road = State(final=True)
-            depart = shire.to(road)
-
         sm = await sm_runner.start(ShireToRivendell)
         await sm_runner.send(sm, "depart")
         assert {"road"} == set(sm.configuration_values)
 
     async def test_nested_compound_two_levels(self, sm_runner):
         """Three-level nesting: outer > middle > leaf."""
-
-        class MoriaExpedition(StateChart):
-            class moria(State.Compound):
-                class upper_halls(State.Compound):
-                    entrance = State(initial=True)
-                    bridge = State(final=True)
-
-                    cross = entrance.to(bridge)
-
-                assert isinstance(upper_halls, State)
-                depths = State(final=True)
-                descend = upper_halls.to(depths)
-
         sm = await sm_runner.start(MoriaExpedition)
         assert {"moria", "upper_halls", "entrance"} == set(sm.configuration_values)
 
     async def test_transition_from_inner_to_outer(self, sm_runner):
         """A deep child can transition to an outer state."""
-
-        class MoriaExpedition(StateChart):
-            class moria(State.Compound):
-                class upper_halls(State.Compound):
-                    entrance = State(initial=True)
-                    bridge = State()
-
-                    cross = entrance.to(bridge)
-
-                assert isinstance(upper_halls, State)
-                depths = State(final=True)
-                descend = upper_halls.to(depths)
-
-            daylight = State(final=True)
-            escape = moria.to(daylight)
-
-        sm = await sm_runner.start(MoriaExpedition)
+        sm = await sm_runner.start(MoriaExpeditionWithEscape)
         await sm_runner.send(sm, "escape")
         assert {"daylight"} == set(sm.configuration_values)
 
     async def test_cross_compound_transition(self, sm_runner):
         """Transition from one compound to another removes old children."""
-
-        class MiddleEarthJourney(StateChart):
-            class rivendell(State.Compound):
-                council = State(initial=True)
-                preparing = State()
-
-                get_ready = council.to(preparing)
-
-            class moria(State.Compound):
-                gates = State(initial=True)
-                bridge = State(final=True)
-
-                cross = gates.to(bridge)
-
-            class lothlorien(State.Compound):
-                mirror = State(initial=True)
-                departure = State(final=True)
-
-                leave = mirror.to(departure)
-
-            march_to_moria = rivendell.to(moria)
-            march_to_lorien = moria.to(lothlorien)
-
         sm = await sm_runner.start(MiddleEarthJourney)
         assert "rivendell" in sm.configuration_values
         assert "council" in sm.configuration_values
@@ -144,40 +68,13 @@ class TestCompoundStates:
 
     async def test_enter_compound_lands_on_initial(self, sm_runner):
         """Entering a compound from outside lands on the initial child."""
-
-        class MiddleEarthJourney(StateChart):
-            class rivendell(State.Compound):
-                council = State(initial=True)
-                preparing = State()
-
-                get_ready = council.to(preparing)
-
-            class moria(State.Compound):
-                gates = State(initial=True)
-                bridge = State(final=True)
-
-                cross = gates.to(bridge)
-
-            march_to_moria = rivendell.to(moria)
-
-        sm = await sm_runner.start(MiddleEarthJourney)
+        sm = await sm_runner.start(MiddleEarthJourneyTwoCompounds)
         await sm_runner.send(sm, "march_to_moria")
         assert "gates" in sm.configuration_values
         assert "moria" in sm.configuration_values
 
     async def test_final_child_fires_done_state(self, sm_runner):
         """Reaching a final child triggers done.state.{parent_id}."""
-
-        class QuestForErebor(StateChart):
-            class lonely_mountain(State.Compound):
-                approach = State(initial=True)
-                inside = State(final=True)
-
-                enter_mountain = approach.to(inside)
-
-            victory = State(final=True)
-            done_state_lonely_mountain = lonely_mountain.to(victory)
-
         sm = await sm_runner.start(QuestForErebor)
         assert "approach" in sm.configuration_values
 
@@ -186,30 +83,7 @@ class TestCompoundStates:
 
     async def test_multiple_compound_sequential_traversal(self, sm_runner):
         """Traverse all three compounds sequentially."""
-
-        class MiddleEarthJourney(StateChart):
-            class rivendell(State.Compound):
-                council = State(initial=True)
-                preparing = State(final=True)
-
-                get_ready = council.to(preparing)
-
-            class moria(State.Compound):
-                gates = State(initial=True)
-                bridge = State(final=True)
-
-                cross = gates.to(bridge)
-
-            class lothlorien(State.Compound):
-                mirror = State(initial=True)
-                departure = State(final=True)
-
-                leave = mirror.to(departure)
-
-            march_to_moria = rivendell.to(moria)
-            march_to_lorien = moria.to(lothlorien)
-
-        sm = await sm_runner.start(MiddleEarthJourney)
+        sm = await sm_runner.start(MiddleEarthJourneyWithFinals)
         await sm_runner.send(sm, "march_to_moria")
         assert "moria" in sm.configuration_values
 
