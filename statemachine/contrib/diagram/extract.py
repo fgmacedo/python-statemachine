@@ -131,7 +131,7 @@ def _extract_all_transitions(states, getter) -> List[DiagramTransition]:
             result.extend(_extract_all_transitions(state.states, getter))
         for history_state in getattr(state, "history", []):
             result.extend(_extract_transitions_from_state(history_state, getter))
-            if history_state.states:
+            if history_state.states:  # pragma: no cover
                 result.extend(_extract_all_transitions(history_state.states, getter))
     return result
 

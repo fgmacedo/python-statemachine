@@ -8,6 +8,7 @@ from docutils import nodes
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
+from statemachine.contrib.diagram.model import ActionType
 from statemachine.contrib.diagram.model import StateType
 from statemachine.contrib.diagram.renderers.dot import DotRenderer
 
@@ -489,6 +490,165 @@ class TestSVGShapeConsistency:
             )
 
 
+class TestExtract:
+    """Tests for extract.py edge cases."""
+
+    def test_deep_history_state_type(self):
+        """Deep history state is correctly typed in the extracted graph."""
+        from statemachine.contrib.diagram.extract import extract
+
+        from tests.machines.showcase_deep_history import DeepHistorySC
+
+        graph = extract(DeepHistorySC)
+        # Find the history state in the outer compound's children
+        outer = next(s for s in graph.states if s.id == "outer")
+        h_state = next(s for s in outer.children if s.type == StateType.HISTORY_DEEP)
+        assert h_state is not None
+
+    def test_internal_transition_actions_extracted(self):
+        """Internal transitions with actions are extracted into state actions."""
+        from statemachine.contrib.diagram.extract import extract
+
+        from tests.machines.showcase_internal import InternalSC
+
+        graph = extract(InternalSC)
+        monitoring = next(s for s in graph.states if s.id == "monitoring")
+        internal_actions = [a for a in monitoring.actions if a.type == ActionType.INTERNAL]
+        assert len(internal_actions) >= 1
+        assert any("check" in a.body for a in internal_actions)
+
+    def test_internal_transition_skipped_in_bidirectional(self):
+        """Internal transitions are skipped in _collect_bidirectional_compound_ids."""
+        from statemachine.contrib.diagram.extract import extract
+
+        class SM(StateChart):
+            class parent(State.Compound, name="Parent"):
+                child1 = State(initial=True)
+                child2 = State(final=True)
+
+                def log(self): ...
+
+                check = child1.to.itself(internal=True, on="log")
+                go = child1.to(child2)
+
+            start = State(initial=True)
+            end = State(final=True)
+
+            enter = start.to(parent)
+            finish = parent.to(end)
+
+        graph = extract(SM)
+        # parent has both incoming and outgoing, so it should be bidirectional
+        assert "parent" in graph.bidirectional_compound_ids
+
+    def test_internal_transition_without_action(self):
+        """Internal transition without on action has no internal action in diagram."""
+        from statemachine.contrib.diagram.extract import extract
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            noop = s1.to.itself(internal=True)
+            go = s1.to(s2)
+
+        graph = extract(SM)
+        s1 = next(s for s in graph.states if s.id == "s1")
+        internal_actions = [a for a in s1.actions if a.type == ActionType.INTERNAL]
+        assert internal_actions == []
+
+    def test_extract_invalid_type_raises(self):
+        """extract() raises TypeError for invalid input."""
+        from statemachine.contrib.diagram.extract import extract
+
+        with pytest.raises(TypeError, match="Expected a StateChart"):
+            extract("not a machine")  # type: ignore[arg-type]
+
+    def test_resolve_initial_fallback(self):
+        """When no explicit initial, first candidate gets is_initial=True."""
+        from statemachine.contrib.diagram.extract import _resolve_initial_states
+        from statemachine.contrib.diagram.model import DiagramState
+
+        states = [
+            DiagramState(id="a", name="A", type=StateType.REGULAR),
+            DiagramState(id="b", name="B", type=StateType.REGULAR),
+        ]
+        _resolve_initial_states(states)
+        assert states[0].is_initial is True
+
+
+class TestDotRendererEdgeCases:
+    """Tests for dot.py edge cases."""
+
+    def test_compound_state_with_actions_label(self):
+        """Compound state with entry/exit actions renders action rows in label."""
+
+        class SM(StateChart):
+            class parent(State.Compound, name="Parent"):
+                child = State(initial=True)
+
+                def on_enter_parent(self): ...
+
+            start = State(initial=True)
+            enter = start.to(parent)
+
+        dot = DotGraphMachine(SM)().to_string()
+        # The compound label should contain the entry action
+        assert "entry" in dot.lower() or "on_enter_parent" in dot
+
+    def test_internal_action_format(self):
+        """Internal action uses body directly (no 'entry /' prefix)."""
+        renderer = DotRenderer()
+        from statemachine.contrib.diagram.model import DiagramAction
+
+        action = DiagramAction(type=ActionType.INTERNAL, body="check / log_status")
+        result = renderer._format_action(action)
+        assert result == "check / log_status"
+
+    def test_targetless_transition_self_loop(self):
+        """Transition with no target falls back to source as destination."""
+        from statemachine.contrib.diagram.model import DiagramTransition
+
+        transition = DiagramTransition(source="s1", targets=[], event="tick")
+        renderer = DotRenderer()
+        renderer._compound_ids = set()
+        edges = renderer._create_edges(transition)
+        assert len(edges) == 1
+        # With no targets, target_ids becomes [None], and dst becomes source
+        assert edges[0].obj_dict["points"][1] == "s1"
+
+    def test_compound_edge_anchor_non_bidirectional(self):
+        """Non-bidirectional compound state uses generic _anchor node."""
+        renderer = DotRenderer()
+        renderer._compound_bidir_ids = {"other"}
+        result = renderer._compound_edge_anchor("my_state", "out")
+        assert result == "my_state_anchor"
+
+
+class TestDiagramMainModule:
+    """Tests for __main__.py."""
+
+    def test_main_module_execution(self, tmp_path):
+        """python -m statemachine.contrib.diagram works."""
+        import runpy
+
+        out = tmp_path / "sm.svg"
+        with mock.patch(
+            "sys.argv",
+            [
+                "statemachine.contrib.diagram",
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                str(out),
+            ],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                runpy.run_module(
+                    "statemachine.contrib.diagram", run_name="__main__", alter_sys=True
+                )
+            assert exc_info.value.code is None
+        assert out.exists()
+
+
 class TestSphinxDirective:
     """Unit tests for the statemachine-diagram Sphinx directive."""
 
@@ -787,27 +947,28 @@ class TestResolveTarget:
 class TestDirectiveRun:
     """Integration tests for StateMachineDiagram.run()."""
 
-    def _make_directive(self, qualname, options=None, tmp_path=None):
+    _QUALNAME = "tests.examples.traffic_light_machine.TrafficLightMachine"
+
+    def _make_directive(self, tmp_path, options=None):
         from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
 
         directive = StateMachineDiagram.__new__(StateMachineDiagram)
-        directive.arguments = [qualname]
         directive.options = options or {}
         directive.lineno = 1
         directive.state_machine = mock.MagicMock()
         directive.state = mock.MagicMock()
-        outdir = str(tmp_path) if tmp_path else "/tmp"
-        directive.state.document.settings.env.app.outdir = outdir
+        directive.state.document.settings.env.app.outdir = str(tmp_path)
         directive.content_offset = 0
         return directive
 
+    def _run(self, tmp_path, qualname=None, options=None):
+        directive = self._make_directive(tmp_path, options=options)
+        directive.arguments = [qualname or self._QUALNAME]
+        return directive, directive.run()
+
     def test_render_class_diagram(self, tmp_path):
         """Renders a class diagram (no events) as inline SVG."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path)
 
         assert len(result) == 1
         node = result[0]
@@ -820,37 +981,22 @@ class TestDirectiveRun:
 
     def test_render_with_events(self, tmp_path):
         """Renders a diagram after sending events."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"events": "cycle"},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"events": "cycle"})
 
         assert len(result) == 1
         assert isinstance(result[0], nodes.raw)
-        html = result[0].astext()
-        assert "<svg" in html
+        assert "<svg" in result[0].astext()
 
     def test_render_with_empty_events(self, tmp_path):
         """Empty :events: instantiates the machine (highlights initial state)."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"events": ""},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"events": ""})
+
         assert len(result) == 1
         assert isinstance(result[0], nodes.raw)
 
     def test_render_with_caption(self, tmp_path):
         """Caption wraps the diagram in a <figure> element."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"caption": "My caption"},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"caption": "My caption"})
 
         html = result[0].astext()
         assert "<figure" in html
@@ -858,47 +1004,25 @@ class TestDirectiveRun:
 
     def test_render_with_figclass(self, tmp_path):
         """figclass adds extra CSS classes to the figure wrapper."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"caption": "Test", "figclass": ["extra-fig"]},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"caption": "Test", "figclass": ["extra-fig"]})
 
-        html = result[0].astext()
-        assert "extra-fig" in html
+        assert "extra-fig" in result[0].astext()
 
     def test_render_with_alt(self, tmp_path):
         """Custom alt text appears in aria-label."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"alt": "Traffic light diagram"},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"alt": "Traffic light diagram"})
 
-        html = result[0].astext()
-        assert 'aria-label="Traffic light diagram"' in html
+        assert 'aria-label="Traffic light diagram"' in result[0].astext()
 
     def test_render_default_alt(self, tmp_path):
         """Default alt text uses the class name from the qualname."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path)
 
-        html = result[0].astext()
-        assert 'aria-label="TrafficLightMachine"' in html
+        assert 'aria-label="TrafficLightMachine"' in result[0].astext()
 
     def test_render_with_explicit_target(self, tmp_path):
         """Explicit target wraps diagram in a link."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"target": "https://example.com"},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"target": "https://example.com"})
 
         html = result[0].astext()
         assert 'href="https://example.com"' in html
@@ -906,94 +1030,54 @@ class TestDirectiveRun:
 
     def test_render_with_empty_target(self, tmp_path):
         """Empty target auto-generates a zoom SVG file."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"target": ""},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"target": ""})
 
-        html = result[0].astext()
-        assert 'href="/_images/statemachine-' in html
-
-        # Verify SVG file was written
+        assert 'href="/_images/statemachine-' in result[0].astext()
         images_dir = tmp_path / "_images"
         assert any(images_dir.glob("statemachine-*.svg"))
 
     def test_render_with_align(self, tmp_path):
         """Align option controls CSS class."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"align": "left"},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"align": "left"})
 
-        html = result[0].astext()
-        assert "align-left" in html
+        assert "align-left" in result[0].astext()
 
     def test_render_with_width(self, tmp_path):
         """Width option is applied as inline style."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"width": "400px"},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"width": "400px"})
 
-        html = result[0].astext()
-        assert "width: 400px" in html
+        assert "width: 400px" in result[0].astext()
 
     def test_render_with_name(self, tmp_path):
         """Name option calls add_name for cross-referencing."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"name": "my-diagram"},
-            tmp_path=tmp_path,
-        )
-        # add_name needs document and state attributes
-        directive.state = mock.MagicMock()
+        directive = self._make_directive(tmp_path, options={"name": "my-diagram"})
+        directive.arguments = [self._QUALNAME]
         result = directive.run()
 
         assert len(result) == 1
 
     def test_render_with_class(self, tmp_path):
         """Custom CSS classes appear in the wrapper."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            options={"class": ["custom-class"]},
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path, options={"class": ["custom-class"]})
 
-        html = result[0].astext()
-        assert "custom-class" in html
+        assert "custom-class" in result[0].astext()
 
     def test_invalid_qualname_returns_warning(self, tmp_path):
         """Invalid qualname returns a warning node."""
-        directive = self._make_directive(
-            "nonexistent.module.BadMachine",
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        directive, result = self._run(tmp_path, qualname="nonexistent.module.BadMachine")
 
         assert len(result) == 1
-        # The warning is created via state_machine.reporter.warning mock
         directive.state_machine.reporter.warning.assert_called_once()
         call_args = directive.state_machine.reporter.warning.call_args
         assert "could not import" in call_args[0][0]
 
     def test_render_failure_returns_warning(self, tmp_path):
         """Diagram generation failure returns a warning node."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            tmp_path=tmp_path,
-        )
         with mock.patch(
             "statemachine.contrib.diagram.DotGraphMachine",
             side_effect=RuntimeError("render failed"),
         ):
-            result = directive.run()
+            directive, result = self._run(tmp_path)
 
         assert len(result) == 1
         directive.state_machine.reporter.warning.assert_called_once()
@@ -1002,11 +1086,7 @@ class TestDirectiveRun:
 
     def test_render_without_caption_uses_div(self, tmp_path):
         """Without caption, the wrapper is a plain <div>."""
-        directive = self._make_directive(
-            "tests.examples.traffic_light_machine.TrafficLightMachine",
-            tmp_path=tmp_path,
-        )
-        result = directive.run()
+        _, result = self._run(tmp_path)
 
         html = result[0].astext()
         assert "<figure" not in html
