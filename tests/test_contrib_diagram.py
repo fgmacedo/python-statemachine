@@ -486,3 +486,47 @@ class TestSVGShapeConsistency:
             assert not _has_rectangular_fill(node), (
                 f"State '{state_id}' has a rectangular <polygon> colored fill"
             )
+
+
+class TestSphinxDirective:
+    """Unit tests for the statemachine-diagram Sphinx directive."""
+
+    def test_parse_events(self):
+        from statemachine.contrib.diagram.sphinx_ext import _parse_events
+
+        assert _parse_events("start, ship") == ["start", "ship"]
+        assert _parse_events("single") == ["single"]
+        assert _parse_events(" a , b , c ") == ["a", "b", "c"]
+        assert _parse_events("") == []
+
+    def test_import_and_render_class(self, tmp_path):
+        """Directive logic: import a class and generate SVG."""
+        from statemachine.contrib.diagram import DotGraphMachine
+        from statemachine.contrib.diagram import import_sm
+
+        sm_class = import_sm("tests.examples.order_control_machine.OrderControl")
+        graph = DotGraphMachine(sm_class).get_graph()
+        svg_bytes = graph.create_svg()
+        assert svg_bytes.startswith(b"<?xml")
+
+    def test_import_and_render_with_events(self, tmp_path):
+        """Directive logic: import, instantiate, send events, render SVG."""
+        from statemachine.contrib.diagram import DotGraphMachine
+        from statemachine.contrib.diagram import import_sm
+        from statemachine.contrib.diagram.sphinx_ext import _parse_events
+
+        sm_class = import_sm("tests.examples.traffic_light_machine.TrafficLightMachine")
+        machine = sm_class()
+        for event_name in _parse_events("cycle"):
+            machine.send(event_name)
+
+        graph = DotGraphMachine(machine).get_graph()
+        svg_bytes = graph.create_svg()
+        assert svg_bytes.startswith(b"<?xml")
+
+    def test_import_invalid_qualname(self):
+        """import_sm raises for invalid class paths."""
+        from statemachine.contrib.diagram import import_sm
+
+        with pytest.raises((ValueError, ModuleNotFoundError)):
+            import_sm("nonexistent.module.SomeMachine")

@@ -130,7 +130,7 @@ disable_error_code = "annotation-unchecked"
 mypy_path = "$MYPY_CONFIG_FILE_DIR/tests/django_project"
 
 [[tool.mypy.overrides]]
-module = ['django.*', 'pytest.*', 'pydot.*', 'sphinx_gallery.*']
+module = ['django.*', 'pytest.*', 'pydot.*', 'sphinx_gallery.*', 'docutils.*', 'sphinx.*']
 ignore_missing_imports = true
 
 [tool.ruff]
