@@ -171,16 +171,14 @@ True
 Compare the diagrams — both model the same behavior, but the compound version
 makes the "cancellable" grouping explicit in the hierarchy:
 
-```py
->>> getfixture("requires_dot_installed")
->>> OrderWorkflow()._graph().write_png("docs/images/transition_from_any.png")
->>> OrderWorkflowCompound()._graph().write_png("docs/images/transition_compound_cancel.png")
-
+```{statemachine-diagram} tests.machines.transition_from_any.OrderWorkflow
+:caption: from_.any()
 ```
 
-| `from_.any()` | Compound |
-|---|---|
-| ![from_.any()](images/transition_from_any.png) | ![Compound](images/transition_compound_cancel.png) |
+```{statemachine-diagram} tests.machines.transition_from_any.OrderWorkflowCompound
+:caption: Compound
+:target:
+```
 
 The compound approach scales better as you add more states — no need to
 remember to include each new state in a `from_()` list.

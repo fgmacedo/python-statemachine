@@ -345,36 +345,18 @@ factories, and the full list of listener callbacks.
 
 ## Generating diagrams
 
-Visualize any state machine as a diagram. Install the `diagrams` extra
-first:
+Visualize any state machine as a diagram:
 
-```
-pip install python-statemachine[diagrams]
-```
-
-Then generate an image at runtime:
-
-```py
->>> getfixture("requires_dot_installed")
-
->>> from statemachine import StateChart, State
-
->>> class CoffeeOrder(StateChart):
-...     pending = State(initial=True)
-...     preparing = State()
-...     ready = State()
-...     picked_up = State(final=True)
-...
-...     start = pending.to(preparing)
-...     finish = preparing.to(ready)
-...     pick_up = ready.to(picked_up)
-
->>> order = CoffeeOrder()
->>> order._graph().write_png("docs/images/tutorial_coffeeorder.png")
-
+```{statemachine-diagram} tests.machines.tutorial_coffee_order.CoffeeOrder
+:alt: CoffeeOrder diagram
 ```
 
-![CoffeeOrder](images/tutorial_coffeeorder.png)
+Generate diagrams programmatically with `_graph()`:
+
+```python
+order = CoffeeOrder()
+order._graph().write_png("order.png")
+```
 
 Or from the command line:
 
@@ -382,9 +364,17 @@ Or from the command line:
 python -m statemachine.contrib.diagram my_module.CoffeeOrder order.png
 ```
 
+```{tip}
+Diagram generation requires [Graphviz](https://graphviz.org/) (`dot` command)
+and the `diagrams` extra:
+
+    pip install python-statemachine[diagrams]
+```
+
 ```{seealso}
-See [](diagram.md) for Jupyter integration, SVG output, DPI settings, and
-the `quickchart_write_svg` alternative that doesn't require Graphviz.
+See [](diagram.md) for highlighting active states, Jupyter integration,
+SVG output, DPI settings, Sphinx directive, and the `quickchart_write_svg`
+alternative that doesn't require Graphviz.
 ```
 
 
