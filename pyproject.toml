@@ -88,7 +88,11 @@ markers = [
 ]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 xfail_strict = true
-log_cli_level = "DEBUG"
+# Log level WARNING by default; the engine caches a no-op for logger.debug at
+# init time, so DEBUG here would bypass that optimization and slow benchmarks.
+# To enable DEBUG logging for a specific test run:
+#   uv run pytest -o log_cli_level=DEBUG
+log_cli_level = "WARNING"
 log_cli_format = "%(relativeCreated)6.0fms %(threadName)-18s %(name)-35s %(message)s"
 log_cli_date_format = "%H:%M:%S"
 asyncio_default_fixture_loop_scope = "module"

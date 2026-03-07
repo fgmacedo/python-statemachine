@@ -127,6 +127,16 @@ timeout 120 uv run pytest -n 4
 
 Testes normally run under 60s (~40s on average), so take a closer look if they take longer, it can be a regression.
 
+### Debug logging
+
+`log_cli_level` defaults to `WARNING` in `pyproject.toml`. The engine caches a no-op
+for `logger.debug` at init time — running tests with `DEBUG` would bypass this
+optimization and inflate benchmark numbers. To enable debug logs for a specific run:
+
+```bash
+uv run pytest -o log_cli_level=DEBUG tests/test_something.py
+```
+
 When analyzing warnings or extensive output, run the tests **once** saving the output to a file
 (`> /tmp/pytest-output.txt 2>&1`), then analyze the file — instead of running the suite
 repeatedly with different greps.
