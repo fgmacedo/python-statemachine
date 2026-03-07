@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Generator
 from typing import List
 from typing import cast
@@ -12,7 +11,6 @@ from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .event import _expand_event_id
 from .exceptions import InvalidDefinition
-from .exceptions import StateMachineError
 from .i18n import _
 from .invoke import normalize_invoke_callbacks
 from .transition import Transition
@@ -294,22 +292,6 @@ class State:
 
     def __str__(self):
         return self.name
-
-    def __get__(self, machine, owner):
-        if machine is None:
-            return self
-        return self.for_instance(machine=machine, cache=machine._config._for_instance)
-
-    def __set__(self, instance, value):
-        raise StateMachineError(
-            _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
-        )
-
-    def for_instance(self, machine: "StateChart", cache: Dict["State", "State"]) -> "State":
-        if self not in cache:
-            cache[self] = InstanceState(self, machine)
-
-        return cache[self]
 
     @property
     def id(self) -> str:

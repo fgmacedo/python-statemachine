@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Mapping
 from typing import MutableSet
-from weakref import ref
 
 from .exceptions import InvalidStateValue
 from .i18n import _
@@ -12,7 +12,6 @@ _SENTINEL = object()
 
 if TYPE_CHECKING:
     from .state import State
-    from .statemachine import StateChart
 
 
 class Configuration:
@@ -25,28 +24,25 @@ class Configuration:
     """
 
     __slots__ = (
-        "_machine_ref",
+        "_instance_states",
         "_model",
         "_state_field",
         "_states_map",
-        "_for_instance",
         "_cached",
         "_cached_value",
     )
 
     def __init__(
         self,
-        machine: "StateChart",
+        instance_states: "Mapping[str, State]",
         model: Any,
         state_field: str,
         states_map: "Dict[Any, State]",
-        for_instance_cache: "Dict[State, State]",
     ):
-        self._machine_ref: "ref[StateChart]" = ref(machine)
+        self._instance_states = instance_states
         self._model = model
         self._state_field = state_field
         self._states_map = states_map
-        self._for_instance = for_instance_cache
         self._cached: "OrderedSet[State] | None" = None
         self._cached_value: Any = _SENTINEL
 
@@ -83,20 +79,11 @@ class Configuration:
         if csv is None:
             return OrderedSet()
 
-        machine = self._machine_ref()
-        assert machine is not None
-
+        instance_states = self._instance_states
         if not isinstance(csv, MutableSet):
-            result = OrderedSet(
-                [self._states_map[csv].for_instance(machine=machine, cache=self._for_instance)]
-            )
+            result = OrderedSet([instance_states[self._states_map[csv].id]])
         else:
-            result = OrderedSet(
-                [
-                    self._states_map[v].for_instance(machine=machine, cache=self._for_instance)
-                    for v in csv
-                ]
-            )
+            result = OrderedSet([instance_states[self._states_map[v].id] for v in csv])
 
         self._cached = result
         self._cached_value = csv

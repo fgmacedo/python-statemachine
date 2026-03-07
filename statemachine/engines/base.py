@@ -804,7 +804,8 @@ class BaseEngine:
                 )
 
                 for transition in state.transitions:
-                    info_history = StateTransition(transition=transition, state=transition.target)
+                    target = cast(State, transition.target)
+                    info_history = StateTransition(transition=transition, state=target)
                     default_history_content[parent_id].append(info_history)
                     self.add_descendant_states_to_enter(
                         info_history,
@@ -813,7 +814,8 @@ class BaseEngine:
                         default_history_content,
                     )  # noqa: E501
                 for transition in state.transitions:
-                    info_history = StateTransition(transition=transition, state=transition.target)
+                    target = cast(State, transition.target)
+                    info_history = StateTransition(transition=transition, state=target)
 
                     self.add_ancestor_states_to_enter(
                         info_history,

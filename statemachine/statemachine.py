@@ -25,12 +25,14 @@ from .event import BoundEvent
 from .event_data import TriggerData
 from .exceptions import InvalidDefinition
 from .exceptions import InvalidStateValue
+from .exceptions import StateMachineError
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .graph import iterate_states_and_transitions
 from .i18n import _
 from .model import Model
 from .signature import SignatureAdapter
+from .state import InstanceState
 from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
@@ -151,12 +153,18 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             [start_value] if start_value is not None else list(self.start_configuration_values)
         )
         self._callbacks = CallbacksRegistry()
+        instance_states: Dict[str, Any] = {}
+        events = self.__class__._events
+        for state in self.states_map.values():
+            ist = InstanceState(state, self)
+            instance_states[state.id] = ist
+            if state.id not in events:
+                vars(self)[state.id] = ist
         self._config = Configuration(
-            machine=self,
+            instance_states=instance_states,
             model=self.model,
             state_field=self.state_field,
             states_map=self.states_map,
-            for_instance_cache={},
         )
         self._listeners: Dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
@@ -212,6 +220,17 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             return result
         return run_async_from_sync(result)
 
+    def __setattr__(self, name, value):
+        # Fast path: internal/private attributes are never state IDs.
+        if not name.startswith("_") and name in self.__class__.states_map:
+            if not isinstance(value, InstanceState):
+                raise StateMachineError(
+                    _("State overriding is not allowed. Trying to add '{}' to {}").format(
+                        value, name
+                    )
+                )
+        super().__setattr__(name, value)
+
     def __repr__(self):
         configuration_ids = [s.id for s in self.configuration]
         return (
@@ -220,7 +239,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         )
 
     def __getstate__(self):
-        state = self.__dict__.copy()
+        state = {k: v for k, v in self.__dict__.items() if not isinstance(v, InstanceState)}
         del state["_callbacks"]
         del state["_config"]
         del state["_engine"]
@@ -230,12 +249,18 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         listeners = state.pop("_listeners")
         self.__dict__.update(state)  # type: ignore[attr-defined]
         self._callbacks = CallbacksRegistry()
+        instance_states: Dict[str, Any] = {}
+        events = self.__class__._events
+        for sm_state in self.states_map.values():
+            ist = InstanceState(sm_state, self)
+            instance_states[sm_state.id] = ist
+            if sm_state.id not in events:
+                vars(self)[sm_state.id] = ist
         self._config = Configuration(
-            machine=self,
+            instance_states=instance_states,
             model=self.model,
             state_field=self.state_field,
             states_map=self.states_map,
-            for_instance_cache={},
         )
         self._listeners = {}
 

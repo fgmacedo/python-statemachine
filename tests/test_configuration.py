@@ -33,8 +33,8 @@ class TestConfigurationStatesSetter:
 
     def test_set_multi_element_configuration(self):
         sm = ParallelSM()
-        s1_inst = ParallelSM.s1.for_instance(machine=sm, cache=sm._config._for_instance)
-        s2_inst = ParallelSM.s2.for_instance(machine=sm, cache=sm._config._for_instance)
+        s1_inst = sm.s1
+        s2_inst = sm.s2
 
         sm.configuration = OrderedSet([s1_inst, s2_inst])
         assert isinstance(sm.current_state_value, OrderedSet)
@@ -55,8 +55,8 @@ class TestConfigurationDiscard:
 class TestConfigurationCurrentState:
     def test_current_state_with_multiple_active_states(self):
         sm = ParallelSM()
-        s1_inst = ParallelSM.s1.for_instance(machine=sm, cache=sm._config._for_instance)
-        s2_inst = ParallelSM.s2.for_instance(machine=sm, cache=sm._config._for_instance)
+        s1_inst = sm.s1
+        s2_inst = sm.s2
         sm.configuration = OrderedSet([s1_inst, s2_inst])
 
         with warnings.catch_warnings():
