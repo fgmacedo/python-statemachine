@@ -1,6 +1,5 @@
 import asyncio
 import contextvars
-import logging
 from itertools import chain
 from time import time
 from typing import TYPE_CHECKING
@@ -19,9 +18,6 @@ from .base import BaseEngine
 if TYPE_CHECKING:
     from ..event import Event
     from ..transition import Transition
-
-logger = logging.getLogger(__name__)
-
 
 # ContextVar to distinguish reentrant calls (from within callbacks) from
 # concurrent external calls. asyncio propagates context to child tasks
@@ -179,7 +175,7 @@ class AsyncEngine(BaseEngine):
             args, kwargs = await self._get_args_kwargs(info.transition, trigger_data)
 
             if info.state is not None:  # pragma: no branch
-                logger.debug("%s Exiting state: %s", self._log_id, info.state)
+                self._debug("%s Exiting state: %s", self._log_id, info.state)
                 await self.sm._callbacks.async_call(
                     info.state.exit.key, *args, on_error=on_error, **kwargs
                 )
@@ -234,7 +230,7 @@ class AsyncEngine(BaseEngine):
                 target=target,
             )
 
-            logger.debug("%s Entering state: %s", self._log_id, target)
+            self._debug("%s Entering state: %s", self._log_id, target)
             self._add_state_to_configuration(target)
 
             on_entry_result = await self.sm._callbacks.async_call(
@@ -274,7 +270,7 @@ class AsyncEngine(BaseEngine):
 
     async def microstep(self, transitions: "List[Transition]", trigger_data: TriggerData):
         self._microstep_count += 1
-        logger.debug(
+        self._debug(
             "%s macro:%d micro:%d transitions: %s",
             self._log_id,
             self._macrostep_count,
@@ -366,7 +362,7 @@ class AsyncEngine(BaseEngine):
             return None
 
         _ctx_token = _in_processing_loop.set(True)
-        logger.debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
+        self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
         try:
             took_events = True
@@ -378,7 +374,7 @@ class AsyncEngine(BaseEngine):
                 # Phase 1: eventless transitions and internal events
                 while not macrostep_done:
                     self._microstep_count = 0
-                    logger.debug(
+                    self._debug(
                         "%s Macrostep %d: eventless/internal queue",
                         self._log_id,
                         self._macrostep_count,
@@ -394,7 +390,7 @@ class AsyncEngine(BaseEngine):
                             internal_event = self.internal_queue.pop()
                             enabled_transitions = await self.select_transitions(internal_event)
                     if enabled_transitions:
-                        logger.debug(
+                        self._debug(
                             "%s Enabled transitions: %s", self._log_id, enabled_transitions
                         )
                         took_events = True
@@ -412,9 +408,7 @@ class AsyncEngine(BaseEngine):
                         await self._run_microstep(enabled_transitions, internal_event)
 
                 # Phase 3: external events
-                logger.debug(
-                    "%s Macrostep %d: external queue", self._log_id, self._macrostep_count
-                )
+                self._debug("%s Macrostep %d: external queue", self._log_id, self._macrostep_count)
                 while not self.external_queue.is_empty():
                     self.clear_cache()
                     took_events = True
@@ -429,7 +423,7 @@ class AsyncEngine(BaseEngine):
 
                     self._macrostep_count += 1
                     self._microstep_count = 0
-                    logger.debug(
+                    self._debug(
                         "%s macrostep %d: event=%s",
                         self._log_id,
                         self._macrostep_count,
@@ -453,7 +447,7 @@ class AsyncEngine(BaseEngine):
                     event_future = external_event.future
                     try:
                         enabled_transitions = await self.select_transitions(external_event)
-                        logger.debug(
+                        self._debug(
                             "%s Enabled transitions: %s", self._log_id, enabled_transitions
                         )
                         if enabled_transitions:
@@ -494,7 +488,7 @@ class AsyncEngine(BaseEngine):
             _in_processing_loop.reset(_ctx_token)
             self._processing.release()
 
-        logger.debug("%s Processing loop ended", self._log_id)
+        self._debug("%s Processing loop ended", self._log_id)
         result = first_result if first_result is not self._sentinel else None
         # If the caller has a future, await it (already resolved by now).
         if caller_future is not None:
