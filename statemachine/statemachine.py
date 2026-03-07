@@ -153,19 +153,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             [start_value] if start_value is not None else list(self.start_configuration_values)
         )
         self._callbacks = CallbacksRegistry()
-        instance_states: Dict[str, Any] = {}
-        events = self.__class__._events
-        for state in self.states_map.values():
-            ist = InstanceState(state, self)
-            instance_states[state.id] = ist
-            if state.id not in events:
-                vars(self)[state.id] = ist
-        self._config = Configuration(
-            instance_states=instance_states,
-            model=self.model,
-            state_field=self.state_field,
-            states_map=self.states_map,
-        )
+        self._config = self._build_configuration()
         self._listeners: Dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
 
@@ -208,6 +196,22 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             resolved.append(instance)
         return resolved
 
+    def _build_configuration(self) -> Configuration:
+        """Create InstanceState entries and return a new Configuration."""
+        instance_states: Dict[str, Any] = {}
+        events = self.__class__._events
+        for state in self.states_map.values():
+            ist = InstanceState(state, self)
+            instance_states[state.id] = ist
+            if state.id not in events:
+                vars(self)[state.id] = ist
+        return Configuration(
+            instance_states=instance_states,
+            model=self.model,
+            state_field=self.state_field,
+            states_map=self.states_map,
+        )
+
     def activate_initial_state(self) -> Any:
         result = self._engine.activate_initial_state()
         if not isawaitable(result):
@@ -249,19 +253,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         listeners = state.pop("_listeners")
         self.__dict__.update(state)  # type: ignore[attr-defined]
         self._callbacks = CallbacksRegistry()
-        instance_states: Dict[str, Any] = {}
-        events = self.__class__._events
-        for sm_state in self.states_map.values():
-            ist = InstanceState(sm_state, self)
-            instance_states[sm_state.id] = ist
-            if sm_state.id not in events:
-                vars(self)[sm_state.id] = ist
-        self._config = Configuration(
-            instance_states=instance_states,
-            model=self.model,
-            state_field=self.state_field,
-            states_map=self.states_map,
-        )
+        self._config = self._build_configuration()
         self._listeners = {}
 
         # _listeners already contained both class-level and runtime listeners
