@@ -246,6 +246,7 @@ class State:
                 raise InvalidDefinition(_("'donedata' can only be specified on final states."))
             self.enter.add(donedata, priority=CallbackPriority.INLINE)
         self.document_order = 0
+        self._hash = id(self)
         self._init_states()
 
     def _init_states(self):
@@ -267,7 +268,7 @@ class State:
         )
 
     def __hash__(self):
-        return hash(repr(self))
+        return self._hash
 
     def _setup(self):
         self.enter.add("on_enter_state", priority=CallbackPriority.GENERIC, is_convention=True)
@@ -320,6 +321,7 @@ class State:
             self.value = id
         if not self.name:
             self.name = self._id.replace("_", " ").capitalize()
+        self._hash = hash((self.name, self._id))
 
         return self
 
@@ -375,6 +377,7 @@ class InstanceState(State):
     ):
         self._state = ref(state)
         self._machine = ref(machine)
+        self._hash = hash(state)
         self._init_states()
 
     def _ref(self) -> State:
@@ -411,7 +414,7 @@ class InstanceState(State):
         return self._ref() == other
 
     def __hash__(self):
-        return hash(repr(self._ref()))
+        return self._hash
 
     def __repr__(self):
         return repr(self._ref())
