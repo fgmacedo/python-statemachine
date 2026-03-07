@@ -16,6 +16,7 @@ from .callbacks import CallbackSpecList
 from .callbacks import CallbacksRegistry
 from .callbacks import SpecListGrouper
 from .callbacks import SpecReference
+from .configuration import Configuration
 from .dispatcher import Listener
 from .dispatcher import Listeners
 from .engines.async_ import AsyncEngine
@@ -150,7 +151,13 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             [start_value] if start_value is not None else list(self.start_configuration_values)
         )
         self._callbacks = CallbacksRegistry()
-        self._states_for_instance: Dict[State, State] = {}
+        self._config = Configuration(
+            machine=self,
+            model=self.model,
+            state_field=self.state_field,
+            states_map=self.states_map,
+            for_instance_cache={},
+        )
         self._listeners: Dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
 
@@ -215,7 +222,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     def __getstate__(self):
         state = self.__dict__.copy()
         del state["_callbacks"]
-        del state["_states_for_instance"]
+        del state["_config"]
         del state["_engine"]
         return state
 
@@ -223,7 +230,13 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         listeners = state.pop("_listeners")
         self.__dict__.update(state)  # type: ignore[attr-defined]
         self._callbacks = CallbacksRegistry()
-        self._states_for_instance = {}
+        self._config = Configuration(
+            machine=self,
+            model=self.model,
+            state_field=self.state_field,
+            states_map=self.states_map,
+            for_instance_cache={},
+        )
         self._listeners = {}
 
         # _listeners already contained both class-level and runtime listeners
@@ -335,44 +348,16 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     def configuration_values(self) -> OrderedSet[Any]:
         """The state configuration values is the set of currently active states's values
         (or ids if no custom value is defined)."""
-        if isinstance(self.current_state_value, OrderedSet):
-            return self.current_state_value
-        return OrderedSet([self.current_state_value])
+        return self._config.values
 
     @property
     def configuration(self) -> OrderedSet["State"]:
         """The set of currently active states."""
-        if self.current_state_value is None:
-            return OrderedSet()
-
-        if not isinstance(self.current_state_value, MutableSet):
-            return OrderedSet(
-                [
-                    self.states_map[self.current_state_value].for_instance(
-                        machine=self,
-                        cache=self._states_for_instance,
-                    )
-                ]
-            )
-
-        return OrderedSet(
-            [
-                self.states_map[value].for_instance(
-                    machine=self,
-                    cache=self._states_for_instance,
-                )
-                for value in self.current_state_value
-            ]
-        )
+        return self._config.states
 
     @configuration.setter
     def configuration(self, new_configuration: OrderedSet["State"]):
-        if len(new_configuration) == 0:
-            self.current_state_value = None
-        elif len(new_configuration) == 1:
-            self.current_state_value = new_configuration.pop().value
-        else:
-            self.current_state_value = OrderedSet(s.value for s in new_configuration)
+        self._config.states = new_configuration
 
     @property
     def current_state_value(self):
@@ -381,17 +366,11 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         This is a low level API, that can be used to assign any valid state value
         completely bypassing all the hooks and validations.
         """
-        return getattr(self.model, self.state_field, None)
+        return self._config.value
 
     @current_state_value.setter
     def current_state_value(self, value):
-        if (
-            value is not None
-            and not isinstance(value, MutableSet)
-            and value not in self.states_map
-        ):
-            raise InvalidStateValue(value)
-        setattr(self.model, self.state_field, value)
+        self._config.value = value
 
     @property
     def current_state(self) -> "State | MutableSet[State]":
@@ -405,36 +384,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             DeprecationWarning,
             stacklevel=2,
         )
-        current_value = self.current_state_value
-
-        try:
-            if isinstance(current_value, list):
-                return OrderedSet(
-                    [
-                        self.states_map[value].for_instance(
-                            machine=self,
-                            cache=self._states_for_instance,
-                        )
-                        for value in current_value
-                    ]
-                )
-
-            state: State = self.states_map[current_value].for_instance(
-                machine=self,
-                cache=self._states_for_instance,
-            )
-            return state
-        except KeyError as err:
-            if self.current_state_value is None:
-                raise InvalidStateValue(
-                    self.current_state_value,
-                    _(
-                        "There's no current state set. In async code, "
-                        "did you activate the initial state? "
-                        "(e.g., `await sm.activate_initial_state()`)"
-                    ),
-                ) from err
-            raise InvalidStateValue(self.current_state_value) from err
+        return self._config.current_state
 
     @current_state.setter
     def current_state(self, value):  # pragma: no cover

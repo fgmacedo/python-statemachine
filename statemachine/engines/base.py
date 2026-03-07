@@ -494,7 +494,7 @@ class BaseEngine:
     def _remove_state_from_configuration(self, state: State):
         """Remove a state from the configuration if not using atomic updates."""
         if not self.sm.atomic_configuration_update:
-            self.sm.configuration -= {state}
+            self.sm._config.discard(state)
 
     def _exit_states(
         self, enabled_transitions: List[Transition], trigger_data: TriggerData
@@ -576,7 +576,7 @@ class BaseEngine:
     def _add_state_to_configuration(self, target: State):
         """Add a state to the configuration if not using atomic updates."""
         if not self.sm.atomic_configuration_update:
-            self.sm.configuration |= {target}
+            self.sm._config.add(target)
 
     def __del__(self):
         try:

@@ -298,7 +298,7 @@ class State:
     def __get__(self, machine, owner):
         if machine is None:
             return self
-        return self.for_instance(machine=machine, cache=machine._states_for_instance)
+        return self.for_instance(machine=machine, cache=machine._config._for_instance)
 
     def __set__(self, instance, value):
         raise StateMachineError(
