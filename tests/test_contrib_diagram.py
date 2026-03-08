@@ -136,6 +136,24 @@ class TestDiagramCmdLine:
                 ]
             )
 
+    def test_generate_image_with_events(self, tmp_path):
+        """CLI --events instantiates the machine and sends events before rendering."""
+        out = tmp_path / "sm.png"
+
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                str(out),
+                "--events",
+                "cycle",
+                "cycle",
+                "cycle",
+            ]
+        )
+
+        assert out.exists()
+        assert out.stat().st_size > 0
+
     def test_generate_complain_about_module_without_sm(self, tmp_path):
         out = tmp_path / "sm.svg"
 

@@ -103,6 +103,13 @@ The output format is inferred from the file extension:
 python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png
 ```
 
+To highlight the current state, use `--events` to instantiate the machine and
+send events before rendering:
+
+```bash
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png --events cycle cycle cycle
+```
+
 
 ## Sphinx directive
 

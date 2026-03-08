@@ -135,7 +135,7 @@ def import_sm(qualname):
     return smclass
 
 
-def write_image(qualname, out):
+def write_image(qualname, out, events=None):
     """
     Given a `qualname`, that is the fully qualified dotted path to a StateMachine
     classes, imports the class and generates a dot graph using the `pydot` lib.
@@ -143,10 +143,20 @@ def write_image(qualname, out):
     open/create and truncate such file and write on it a representation of
     the graph defined by the statemachine, in the format specified by
     the extension contained in the out path (out.ext).
+
+    If `events` is provided, the machine is instantiated and each event is sent
+    before rendering, so the diagram highlights the current active state.
     """
     smclass = import_sm(qualname)
 
-    graph = DotGraphMachine(smclass).get_graph()
+    if events:
+        machine = smclass()
+        for event_name in events:
+            machine.send(event_name)
+    else:
+        machine = smclass
+
+    graph = DotGraphMachine(machine).get_graph()
     out_extension = out.rsplit(".", 1)[1]
     graph.write(out, format=out_extension)
 
@@ -165,6 +175,11 @@ def main(argv=None):
         "out",
         help="File to generate the image using extension as the output format.",
     )
+    parser.add_argument(
+        "--events",
+        nargs="+",
+        help="Instantiate the machine and send these events before rendering.",
+    )
 
     args = parser.parse_args(argv)
-    write_image(qualname=args.class_path, out=args.out)
+    write_image(qualname=args.class_path, out=args.out, events=args.events)
