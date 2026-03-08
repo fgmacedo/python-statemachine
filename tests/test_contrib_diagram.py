@@ -8,6 +8,7 @@ from docutils import nodes
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
+from statemachine.contrib.diagram.extract import _format_event_names
 from statemachine.contrib.diagram.model import ActionType
 from statemachine.contrib.diagram.model import StateType
 from statemachine.contrib.diagram.renderers.dot import DotRenderer
@@ -160,6 +161,109 @@ class TestDiagramCmdLine:
         expected_error = "No StateMachine subclass found in module"
         with pytest.raises(ValueError, match=expected_error):
             main(["tests.examples", str(out)])
+
+    def test_format_mermaid(self, tmp_path):
+        out = tmp_path / "sm.mmd"
+
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                str(out),
+                "--format",
+                "mermaid",
+            ]
+        )
+
+        content = out.read_text()
+        assert "stateDiagram-v2" in content
+        assert "green --> yellow : cycle" in content
+
+    def test_format_md(self, tmp_path):
+        out = tmp_path / "sm.md"
+
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                str(out),
+                "--format",
+                "md",
+            ]
+        )
+
+        content = out.read_text()
+        assert "| State" in content
+        assert "cycle" in content
+
+    def test_format_rst(self, tmp_path):
+        out = tmp_path / "sm.rst"
+
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                str(out),
+                "--format",
+                "rst",
+            ]
+        )
+
+        content = out.read_text()
+        assert "+---" in content
+        assert "cycle" in content
+
+    def test_format_mermaid_stdout(self, capsys):
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                "-",
+                "--format",
+                "mermaid",
+            ]
+        )
+
+        captured = capsys.readouterr()
+        assert "stateDiagram-v2" in captured.out
+
+    def test_format_md_stdout(self, capsys):
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                "-",
+                "--format",
+                "md",
+            ]
+        )
+
+        captured = capsys.readouterr()
+        assert "| State" in captured.out
+
+    def test_stdout_default_svg(self, capsys):
+        """Default format to stdout writes SVG bytes."""
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                "-",
+            ]
+        )
+
+        captured = capsys.readouterr()
+        assert "<svg" in captured.out or b"<svg" in captured.out.encode()
+
+    def test_format_mermaid_with_events(self, tmp_path):
+        out = tmp_path / "sm.mmd"
+
+        main(
+            [
+                "tests.examples.traffic_light_machine.TrafficLightMachine",
+                str(out),
+                "--format",
+                "mermaid",
+                "--events",
+                "cycle",
+            ]
+        )
+
+        content = out.read_text()
+        assert "yellow:::active" in content
 
 
 class TestQuickChart:
@@ -595,6 +699,108 @@ class TestExtract:
         assert states[0].is_initial is True
 
 
+class TestFormatEventNames:
+    """Tests for _format_event_names — alias filtering for diagram display."""
+
+    def test_simple_event_unchanged(self):
+        """A plain event with no aliases is returned as-is."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            go = s1.to(s2)
+
+        t = SM.s1.transitions[0]
+        assert _format_event_names(t) == "go"
+
+    def test_done_state_alias_filtered(self):
+        """done_state_X registers both underscore and dot forms; only underscore is shown."""
+
+        class SM(StateChart):
+            class parent(State.Compound):
+                child = State(initial=True)
+                done = State(final=True)
+                finish = child.to(done)
+
+            end = State(final=True)
+            done_state_parent = parent.to(end)
+
+        t = next(t for t in SM.parent.transitions if t.event and "done_state" in t.event)
+        result = _format_event_names(t)
+        assert result == "done_state_parent"
+        assert "done.state" not in result
+
+    def test_done_invoke_alias_filtered(self):
+        """done_invoke_X alias filtering works the same as done_state_X."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            done_invoke_child = s1.to(s2)
+
+        t = SM.s1.transitions[0]
+        result = _format_event_names(t)
+        assert result == "done_invoke_child"
+        assert "done.invoke" not in result
+
+    def test_error_alias_filtered(self):
+        """error_X registers both error_X and error.X; only underscore is shown."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            error_execution = s1.to(s2)
+
+        t = SM.s1.transitions[0]
+        result = _format_event_names(t)
+        assert result == "error_execution"
+        assert "error.execution" not in result
+
+    def test_multiple_distinct_events_preserved(self):
+        """Multiple distinct events on one transition are all preserved."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            go = s1.to(s2)
+            also = s1.to(s2)
+
+        # Add a second event to the first transition
+        t = SM.s1.transitions[0]
+        t.add_event("also")
+        result = _format_event_names(t)
+        assert "go" in result
+        assert "also" in result
+
+    def test_eventless_transition_returns_empty(self):
+        """A transition with no events returns an empty string."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            s1.to(s2, cond="always_true")
+
+            def always_true(self):
+                return True
+
+        # Find the eventless transition
+        t = next(t for t in SM.s1.transitions if not list(t.events))
+        assert _format_event_names(t) == ""
+
+    def test_dot_only_event_preserved(self):
+        """An event whose ID contains dots but has no underscore alias is preserved."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            go = s1.to(s2)
+
+        from statemachine.transition import Transition
+
+        t = Transition(source=SM.s1, target=SM.s2, event="custom.event")
+        assert _format_event_names(t) == "custom.event"
+
+
 class TestDotRendererEdgeCases:
     """Tests for dot.py edge cases."""
 
@@ -786,47 +992,47 @@ class TestPrepareSvg:
         return directive
 
     def test_strips_xml_prologue(self):
-        svg_bytes = (
-            b'<?xml version="1.0"?>\n<!DOCTYPE svg>\n'
-            b'<svg width="100pt" height="50pt" viewBox="0 0 100 50">'
-            b"<circle/></svg>"
+        svg_text = (
+            '<?xml version="1.0"?>\n<!DOCTYPE svg>\n'
+            '<svg width="100pt" height="50pt" viewBox="0 0 100 50">'
+            "<circle/></svg>"
         )
         directive = self._make_directive()
-        svg_tag, _, _ = directive._prepare_svg(svg_bytes)
+        svg_tag, _, _ = directive._prepare_svg(svg_text)
 
         assert not svg_tag.startswith("<?xml")
         assert svg_tag.startswith("<svg")
         assert "</svg>" in svg_tag
 
     def test_extracts_intrinsic_dimensions(self):
-        svg_bytes = b'<svg width="702pt" height="170pt"><rect/></svg>'
+        svg_text = '<svg width="702pt" height="170pt"><rect/></svg>'
         directive = self._make_directive()
-        _, w, h = directive._prepare_svg(svg_bytes)
+        _, w, h = directive._prepare_svg(svg_text)
 
         assert w == "702pt"
         assert h == "170pt"
 
     def test_removes_fixed_dimensions(self):
-        svg_bytes = b'<svg width="702pt" height="170pt" viewBox="0 0 702 170"><rect/></svg>'
+        svg_text = '<svg width="702pt" height="170pt" viewBox="0 0 702 170"><rect/></svg>'
         directive = self._make_directive()
-        svg_tag, _, _ = directive._prepare_svg(svg_bytes)
+        svg_tag, _, _ = directive._prepare_svg(svg_text)
 
         assert 'width="702pt"' not in svg_tag
         assert 'height="170pt"' not in svg_tag
         assert "viewBox" in svg_tag
 
     def test_handles_no_dimensions(self):
-        svg_bytes = b'<svg viewBox="0 0 100 50"><rect/></svg>'
+        svg_text = '<svg viewBox="0 0 100 50"><rect/></svg>'
         directive = self._make_directive()
-        _, w, h = directive._prepare_svg(svg_bytes)
+        _, w, h = directive._prepare_svg(svg_text)
 
         assert w == ""
         assert h == ""
 
     def test_handles_px_dimensions(self):
-        svg_bytes = b'<svg width="200px" height="100px"><rect/></svg>'
+        svg_text = '<svg width="200px" height="100px"><rect/></svg>'
         directive = self._make_directive()
-        _, w, h = directive._prepare_svg(svg_bytes)
+        _, w, h = directive._prepare_svg(svg_text)
 
         assert w == "200px"
         assert h == "100px"
@@ -927,15 +1133,15 @@ class TestResolveTarget:
 
     def test_no_target_option(self):
         directive = self._make_directive()
-        assert directive._resolve_target(b"<svg/>") == ""
+        assert directive._resolve_target("<svg/>") == ""
 
     def test_explicit_target_url(self):
         directive = self._make_directive({"target": "https://example.com/diagram.svg"})
-        assert directive._resolve_target(b"<svg/>") == "https://example.com/diagram.svg"
+        assert directive._resolve_target("<svg/>") == "https://example.com/diagram.svg"
 
     def test_empty_target_generates_file(self, tmp_path):
         directive = self._make_directive({"target": ""}, tmp_path=tmp_path)
-        svg_data = b"<svg><rect/></svg>"
+        svg_data = "<svg><rect/></svg>"
         result = directive._resolve_target(svg_data)
 
         assert result.startswith("/_images/statemachine-")
@@ -945,21 +1151,21 @@ class TestResolveTarget:
         images_dir = tmp_path / "_images"
         svg_files = list(images_dir.glob("statemachine-*.svg"))
         assert len(svg_files) == 1
-        assert svg_files[0].read_bytes() == svg_data
+        assert svg_files[0].read_text(encoding="utf-8") == svg_data
 
     def test_empty_target_deterministic_filename(self, tmp_path):
         """Same qualname + events produces the same filename."""
         directive1 = self._make_directive({"target": "", "events": "go"}, tmp_path=tmp_path)
         directive2 = self._make_directive({"target": "", "events": "go"}, tmp_path=tmp_path)
-        result1 = directive1._resolve_target(b"<svg>1</svg>")
-        result2 = directive2._resolve_target(b"<svg>2</svg>")
+        result1 = directive1._resolve_target("<svg>1</svg>")
+        result2 = directive2._resolve_target("<svg>2</svg>")
         assert result1 == result2
 
     def test_different_events_different_filename(self, tmp_path):
         """Different events produce different filenames."""
         d1 = self._make_directive({"target": "", "events": "a"}, tmp_path=tmp_path)
         d2 = self._make_directive({"target": "", "events": "b"}, tmp_path=tmp_path)
-        assert d1._resolve_target(b"<svg/>") != d2._resolve_target(b"<svg/>")
+        assert d1._resolve_target("<svg/>") != d2._resolve_target("<svg/>")
 
 
 class TestDirectiveRun:
@@ -1131,3 +1337,450 @@ class TestGraphMethod:
         svg_root = _parse_svg(sm._graph())
         yellow_node = _find_state_node(svg_root, "yellow")
         assert yellow_node is not None
+
+
+class TestFormat:
+    """Tests for StateChart.__format__ (instance and class)."""
+
+    def test_format_mermaid_instance(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        result = f"{sm:mermaid}"
+        assert "stateDiagram-v2" in result
+        assert "green:::active" in result
+
+    def test_format_mermaid_class(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = f"{TrafficLightMachine:mermaid}"
+        assert "stateDiagram-v2" in result
+        assert "green --> yellow : cycle" in result
+
+    def test_format_md_instance(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        result = f"{sm:md}"
+        assert "| State" in result
+        assert "cycle" in result
+
+    def test_format_md_class(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = f"{TrafficLightMachine:md}"
+        assert "| State" in result
+
+    def test_format_markdown_alias(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = format(TrafficLightMachine, "markdown")
+        assert "| State" in result
+
+    def test_format_rst_instance(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        result = f"{sm:rst}"
+        assert "+---" in result
+
+    def test_format_rst_class(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = f"{TrafficLightMachine:rst}"
+        assert "+---" in result
+
+    def test_format_dot_instance(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        result = f"{sm:dot}"
+        assert result.startswith("digraph TrafficLightMachine {")
+        assert "green" in result
+
+    def test_format_dot_class(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = f"{TrafficLightMachine:dot}"
+        assert result.startswith("digraph TrafficLightMachine {")
+
+    def test_format_empty_falls_back_to_repr(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        result = f"{sm:}"
+        assert "TrafficLightMachine(" in result
+
+    def test_format_empty_class(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = f"{TrafficLightMachine:}"
+        assert "TrafficLightMachine" in result
+
+    def test_format_invalid_raises(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        with pytest.raises(ValueError, match="Unsupported format"):
+            f"{sm:invalid}"
+
+    def test_format_invalid_class_raises(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        with pytest.raises(ValueError, match="Unsupported format"):
+            f"{TrafficLightMachine:invalid}"
+
+
+class TestDocstringExpansion:
+    """Tests for {statechart:FORMAT} placeholder expansion in docstrings."""
+
+    def test_md_placeholder(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """Machine.
+
+            {statechart:md}
+            """
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "| State" in MyMachine.__doc__
+        assert "{statechart:md}" not in MyMachine.__doc__
+
+    def test_rst_placeholder(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """Machine.
+
+            {statechart:rst}
+            """
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "+---" in MyMachine.__doc__
+        assert "{statechart:rst}" not in MyMachine.__doc__
+
+    def test_mermaid_placeholder(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """{statechart:mermaid}"""
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "stateDiagram-v2" in MyMachine.__doc__
+
+    def test_no_placeholder_unchanged(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """Just a plain docstring."""
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert MyMachine.__doc__ == "Just a plain docstring."
+
+    def test_no_docstring(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert MyMachine.__doc__ is None
+
+    def test_indentation_preserved(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            __doc__ = "Doc.\n\n    Table:\n\n    {statechart:md}\n\n    End.\n"
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        lines = MyMachine.__doc__.split("\n")
+        table_lines = [line for line in lines if "|" in line]
+        for line in table_lines:
+            assert line.startswith("    |")
+        assert "End." in MyMachine.__doc__
+
+    def test_multiple_placeholders(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """MD: {statechart:md}
+
+            Mermaid: {statechart:mermaid}
+            """
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "| State" in MyMachine.__doc__
+        assert "stateDiagram-v2" in MyMachine.__doc__
+
+
+class TestFormatter:
+    """Tests for the Formatter facade (render, register_format, supported_formats)."""
+
+    def test_render_mermaid(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "mermaid")
+        assert "stateDiagram-v2" in result
+
+    def test_render_dot(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "dot")
+        assert result.startswith("digraph TrafficLightMachine {")
+
+    def test_render_svg(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "svg")
+        assert isinstance(result, str)
+        assert "<svg" in result
+        assert "green" in result
+
+    def test_render_svg_instance(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        result = formatter.render(sm, "svg")
+        assert "<svg" in result
+        # Active state should be highlighted
+        assert "turquoise" in result
+
+    def test_format_svg(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = f"{TrafficLightMachine:svg}"
+        assert "<svg" in result
+
+    def test_render_md(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "md")
+        assert "| State" in result
+
+    def test_render_markdown_alias(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        assert formatter.render(TrafficLightMachine, "markdown") == formatter.render(
+            TrafficLightMachine, "md"
+        )
+
+    def test_render_rst(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "rst")
+        assert "+---" in result
+
+    def test_render_empty_repr_instance(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        assert formatter.render(sm, "") == repr(sm)
+
+    def test_render_empty_repr_class(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        assert formatter.render(TrafficLightMachine, "") == repr(TrafficLightMachine)
+
+    def test_render_invalid_raises(self):
+        from statemachine.contrib.diagram import formatter
+
+        with pytest.raises(ValueError, match="Unsupported format"):
+            formatter.render(object(), "invalid")
+
+    def test_supported_formats(self):
+        from statemachine.contrib.diagram import formatter
+
+        fmts = formatter.supported_formats()
+        assert "dot" in fmts
+        assert "svg" in fmts
+        assert "mermaid" in fmts
+        assert "md" in fmts
+        assert "markdown" in fmts
+        assert "rst" in fmts
+
+    def test_register_custom_format(self):
+        from statemachine.contrib.diagram import formatter
+
+        @formatter.register_format("_test_custom")
+        def _render_custom(machine_or_class):
+            return "custom output"
+
+        try:
+            assert formatter.render(object(), "_test_custom") == "custom output"
+        finally:
+            formatter._formats.pop("_test_custom", None)
+
+    def test_register_format_with_aliases(self):
+        from statemachine.contrib.diagram import formatter
+
+        @formatter.register_format("_test_alias", "_test_alias2")
+        def _render_alias_test(machine_or_class):
+            return "alias output"
+
+        try:
+            assert formatter.render(object(), "_test_alias") == "alias output"
+            assert formatter.render(object(), "_test_alias2") == "alias output"
+        finally:
+            formatter._formats.pop("_test_alias", None)
+            formatter._formats.pop("_test_alias2", None)
+
+    def test_error_message_lists_primary_formats(self):
+        from statemachine.contrib.diagram import formatter
+
+        with pytest.raises(ValueError, match="'dot'") as exc_info:
+            formatter.render(object(), "nonexistent")
+        msg = str(exc_info.value)
+        # Should list primary names, not aliases
+        assert "'mermaid'" in msg
+        assert "'md'" in msg
+        assert "'rst'" in msg
+        # "markdown" is an alias, should not appear in error message
+        assert "'markdown'" not in msg
+
+
+class TestDirectiveMermaidFormat:
+    """Tests for the :format: mermaid Sphinx directive option."""
+
+    _QUALNAME = "tests.examples.traffic_light_machine.TrafficLightMachine"
+
+    def _make_directive(self, tmp_path, options=None):
+        from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
+
+        directive = StateMachineDiagram.__new__(StateMachineDiagram)
+        directive.options = options or {}
+        directive.lineno = 1
+        directive.state_machine = mock.MagicMock()
+        directive.state = mock.MagicMock()
+        directive.state.document.settings.env.app.outdir = str(tmp_path)
+        directive.content_offset = 0
+        return directive
+
+    def _run(self, tmp_path, qualname=None, options=None):
+        directive = self._make_directive(tmp_path, options=options)
+        directive.arguments = [qualname or self._QUALNAME]
+        return directive, directive.run()
+
+    def test_mermaid_format_with_sphinxcontrib(self, tmp_path):
+        """When sphinxcontrib-mermaid is available, emits a mermaid node."""
+        from sphinxcontrib.mermaid import mermaid as MermaidNode  # type: ignore[import-untyped]
+
+        _, result = self._run(tmp_path, options={"format": "mermaid"})
+        assert len(result) == 1
+        node = result[0]
+        assert isinstance(node, MermaidNode)
+        assert "stateDiagram-v2" in node["code"]
+
+    def test_mermaid_format_with_caption(self, tmp_path):
+        """Mermaid format with caption wraps in figure node."""
+        from sphinxcontrib.mermaid import mermaid as MermaidNode  # type: ignore[import-untyped]
+
+        _, result = self._run(tmp_path, options={"format": "mermaid", "caption": "My Diagram"})
+        assert len(result) == 1
+        node = result[0]
+        assert isinstance(node, nodes.figure)
+        # Figure should contain a mermaid node and a caption
+        mermaid_children = [c for c in node.children if isinstance(c, MermaidNode)]
+        assert len(mermaid_children) == 1
+        caption_children = [c for c in node.children if isinstance(c, nodes.caption)]
+        assert len(caption_children) == 1
+        assert caption_children[0].astext() == "My Diagram"
+
+    def test_mermaid_format_with_caption_and_name(self, tmp_path):
+        """Mermaid format with caption and :name: calls add_name on the figure."""
+        _, result = self._run(
+            tmp_path, options={"format": "mermaid", "caption": "My Diagram", "name": "fig-sm"}
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], nodes.figure)
+
+    def test_mermaid_format_with_name_no_caption(self, tmp_path):
+        """Mermaid format with :name: but no caption calls add_name on the mermaid node."""
+        from sphinxcontrib.mermaid import mermaid as MermaidNode  # type: ignore[import-untyped]
+
+        _, result = self._run(tmp_path, options={"format": "mermaid", "name": "fig-sm"})
+        assert len(result) == 1
+        assert isinstance(result[0], MermaidNode)
+
+    def test_mermaid_format_fallback_no_sphinxcontrib(self, tmp_path):
+        """When sphinxcontrib-mermaid is not available, falls back to code block."""
+        import sys
+
+        saved = sys.modules.get("sphinxcontrib.mermaid")
+        sys.modules["sphinxcontrib.mermaid"] = None  # type: ignore[assignment]
+        try:
+            _, result = self._run(tmp_path, options={"format": "mermaid"})
+        finally:
+            if saved is not None:
+                sys.modules["sphinxcontrib.mermaid"] = saved
+            else:
+                sys.modules.pop("sphinxcontrib.mermaid", None)
+
+        assert len(result) == 1
+        node = result[0]
+        assert isinstance(node, nodes.literal_block)
+        assert "stateDiagram-v2" in node.astext()
+
+    def test_mermaid_render_failure_returns_warning(self, tmp_path):
+        """Mermaid generation failure returns a warning node."""
+        with mock.patch(
+            "statemachine.contrib.diagram.MermaidGraphMachine",
+            side_effect=RuntimeError("render failed"),
+        ):
+            directive, result = self._run(tmp_path, options={"format": "mermaid"})
+
+        assert len(result) == 1
+        directive.state_machine.reporter.warning.assert_called_once()
+        call_args = directive.state_machine.reporter.warning.call_args
+        assert "failed to generate mermaid" in call_args[0][0]

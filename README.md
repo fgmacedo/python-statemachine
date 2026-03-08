@@ -77,7 +77,17 @@ True
 
 ```
 
-Generate a diagram:
+Generate a diagram or get a text representation with f-strings:
+
+```py
+>>> print(f"{sm:md}")
+| State  | Event | Guard | Target |
+| ------ | ----- | ----- | ------ |
+| Green  | cycle |       | Yellow |
+| Yellow | cycle |       | Red    |
+| Red    | cycle |       | Green  |
+
+```
 
 ```python
 sm._graph().write_png("traffic_light.png")
@@ -341,7 +351,7 @@ There's a lot more to explore:
 - **`prepare_event`** callback — inject custom data into all callbacks
 - **Observer pattern** — register external listeners to watch events and state changes
 - **Django integration** — auto-discover state machines in Django apps with `MachineMixin`
-- **Diagram generation** — from the CLI, at runtime, or in Jupyter notebooks
+- **Diagram generation** — via f-strings (`f"{sm:mermaid}"`), CLI, Sphinx directive, or Jupyter
 - **Dictionary-based definitions** — create state machines from data structures
 - **Internationalization** — error messages in multiple languages
 

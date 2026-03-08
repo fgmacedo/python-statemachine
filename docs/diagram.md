@@ -27,7 +27,6 @@ sudo apt install graphviz
 
 For other systems, see the [Graphviz downloads page](https://graphviz.org/download/).
 
-
 ## Generating diagrams
 
 Every state machine instance exposes a `_graph()` method that returns a
@@ -77,8 +76,7 @@ For higher resolution PNGs, set the DPI before exporting:
 
 ```python
 graph = sm._graph()
-graph.set_dpi(300)
-graph.write_png("order_control_300dpi.png")
+graph.set_dpi(300).write_png("order_control_300dpi.png")
 ```
 
 ```{note}
@@ -89,7 +87,144 @@ complete list.
 ```
 
 
-## Command line
+## Text representations
+
+State machines support multiple text-based output formats, all accessible
+through Python's built-in `format()` protocol, the `formatter` API, or
+the command line.
+
+| Format | Aliases | Description | Dependencies |
+|--------|---------|-------------|--------------|
+| `mermaid` | | [Mermaid stateDiagram-v2](https://mermaid.js.org/syntax/stateDiagram.html) source | None [^mermaid] |
+| `md` | `markdown` | Transition table (pipe-delimited Markdown) | None |
+| `rst` | | Transition table (RST grid table) | None |
+| `dot` | | [Graphviz DOT](https://graphviz.org/doc/info/lang.html) language source | pydot |
+| `svg` | | SVG markup (generated via DOT) | pydot, Graphviz |
+
+[^mermaid]: Mermaid has a known rendering bug
+    ([mermaid-js/mermaid#4052](https://github.com/mermaid-js/mermaid/issues/4052))
+    where transitions targeting or originating from a compound state inside a
+    parallel region crash the renderer.  As a workaround, the `MermaidRenderer`
+    redirects such transitions to the compound's initial child state.  The
+    visual result is equivalent — Mermaid draws the arrow crossing into the
+    compound boundary — but the arrow points to the child rather than the
+    compound border.  This workaround will be revisited when the upstream bug
+    is resolved.
+
+
+### Using `format()`
+
+Use f-strings or the built-in `format()` function — no diagram imports needed:
+
+```py
+>>> from tests.examples.traffic_light_machine import TrafficLightMachine
+>>> sm = TrafficLightMachine()
+>>> print(f"{sm:mermaid}")
+stateDiagram-v2
+    direction LR
+    state "Green" as green
+    state "Yellow" as yellow
+    state "Red" as red
+    [*] --> green
+    green --> yellow : cycle
+    yellow --> red : cycle
+    red --> green : cycle
+<BLANKLINE>
+    classDef active fill:#40E0D0,stroke:#333
+    green:::active
+<BLANKLINE>
+
+>>> print(f"{sm:md}")
+| State  | Event | Guard | Target |
+| ------ | ----- | ----- | ------ |
+| Green  | cycle |       | Yellow |
+| Yellow | cycle |       | Red    |
+| Red    | cycle |       | Green  |
+<BLANKLINE>
+
+```
+
+Works on **classes** too (no active-state highlighting):
+
+```py
+>>> print(f"{TrafficLightMachine:mermaid}")
+stateDiagram-v2
+    direction LR
+    state "Green" as green
+    state "Yellow" as yellow
+    state "Red" as red
+    [*] --> green
+    green --> yellow : cycle
+    yellow --> red : cycle
+    red --> green : cycle
+<BLANKLINE>
+
+```
+
+The `dot` format returns the Graphviz DOT language source:
+
+```py
+>>> print(f"{sm:dot}")  # doctest: +ELLIPSIS
+digraph TrafficLightMachine {
+...
+}
+
+```
+
+An empty format spec (e.g., `f"{sm:}"`) falls back to `repr()`.
+
+
+(formatter-api)=
+### Using the `formatter` API
+
+The `formatter` object is the programmatic entry point for rendering
+state machines in any registered text format:
+
+```py
+>>> from statemachine.contrib.diagram import formatter
+>>> from tests.examples.traffic_light_machine import TrafficLightMachine
+
+>>> print(formatter.render(TrafficLightMachine, "mermaid"))
+stateDiagram-v2
+    direction LR
+    state "Green" as green
+    state "Yellow" as yellow
+    state "Red" as red
+    [*] --> green
+    green --> yellow : cycle
+    yellow --> red : cycle
+    red --> green : cycle
+<BLANKLINE>
+
+>>> formatter.supported_formats()
+['dot', 'markdown', 'md', 'mermaid', 'rst', 'svg']
+
+```
+
+Both `format()` and the Sphinx directive delegate to this same `formatter`
+under the hood.
+
+
+#### Registering custom formats
+
+The `formatter` is extensible — register your own format with a
+decorator and it becomes available everywhere (`format()`, CLI,
+Sphinx directive):
+
+```python
+from statemachine.contrib.diagram import formatter
+
+@formatter.register_format("plantuml", "puml")
+def _render_plantuml(machine_or_class):
+    # your PlantUML renderer here
+    ...
+```
+
+After registration, `f"{sm:plantuml}"` and `--format plantuml` work
+immediately.
+
+
+### Command line
 
 You can generate diagrams without writing Python code:
 
@@ -108,6 +243,93 @@ send events before rendering:
 
 ```bash
 python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png --events cycle cycle cycle
+```
+
+Use `--format` to produce a text format instead of a Graphviz image:
+
+```bash
+# Mermaid stateDiagram-v2
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.mmd --format mermaid
+
+# DOT source
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.dot --format dot
+
+# Markdown transition table
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.md --format md
+
+# RST transition table
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.rst --format rst
+```
+
+Use `-` as the output file to write to stdout (handy for piping):
+
+```bash
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine - --format mermaid
+```
+
+
+## Auto-expanding docstrings
+
+Use `{statechart:FORMAT}` placeholders in your class docstring to embed
+a live representation of the state machine. The placeholder is replaced
+at class definition time, so the docstring always reflects the actual
+states and transitions:
+
+```py
+>>> from statemachine.statemachine import StateChart
+>>> from statemachine.state import State
+
+>>> class TrafficLight(StateChart):
+...     """A traffic light.
+...
+...     {statechart:md}
+...     """
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
+...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+>>> print(TrafficLight.__doc__)
+A traffic light.
+<BLANKLINE>
+| State  | Event | Guard | Target |
+| ------ | ----- | ----- | ------ |
+| Green  | cycle |       | Yellow |
+| Yellow | cycle |       | Red    |
+| Red    | cycle |       | Green  |
+<BLANKLINE>
+<BLANKLINE>
+
+```
+
+Any registered format works: `{statechart:rst}`, `{statechart:mermaid}`,
+`{statechart:dot}`, etc.
+
+### Choosing the right format
+
+| Context | Recommended format |
+|---------|-------------------|
+| Sphinx with RST (autodoc default) | `{statechart:rst}` |
+| Sphinx with MyST Markdown | `{statechart:md}` |
+| `help()` in terminal / IDE | Either works; `md` reads more cleanly |
+
+### Sphinx autodoc integration
+
+Since the placeholder is expanded at class definition time, Sphinx `autodoc`
+sees the final rendered text — no extra configuration needed.
+
+For example, this class uses `{statechart:rst}` in its docstring:
+
+```{literalinclude} ../tests/machines/showcase_simple.py
+:pyobject: SimpleSC
+:language: python
+```
+
+And here is the rendered autodoc output:
+
+```{eval-rst}
+.. autoclass:: tests.machines.showcase_simple.SimpleSC
+   :noindex:
 ```
 
 
@@ -179,6 +401,26 @@ zoom and pan freely:
 :align: center
 ```
 
+### Mermaid format
+
+Use `:format: mermaid` to render via
+[sphinxcontrib-mermaid](https://github.com/mgaitan/sphinxcontrib-mermaid)
+instead of Graphviz SVG — useful when you don't want to install Graphviz
+in your docs build environment:
+
+````markdown
+```{statemachine-diagram} myproject.machines.TrafficLight
+:format: mermaid
+:caption: Rendered as Mermaid
+```
+````
+
+```{statemachine-diagram} tests.examples.traffic_light_machine.TrafficLightMachine
+:format: mermaid
+:caption: TrafficLightMachine (Mermaid)
+:align: center
+```
+
 ### Directive options
 
 The directive supports the same layout options as the standard `image` and
@@ -189,6 +431,10 @@ The directive supports the same layout options as the standard `image` and
 `:events:` *(comma-separated string)*
 : Events to send in sequence. When present, the machine is instantiated and
   each event is sent before rendering.
+
+`:format:` *(string)*
+: Output format. Use `mermaid` to render via sphinxcontrib-mermaid
+  instead of Graphviz SVG. Default: DOT/SVG.
 
 **Image/figure options:**
 
@@ -299,9 +545,9 @@ dot.write_png("order_control_class.png")
 ## Visual showcase
 
 This section shows how each state machine feature is rendered in diagrams.
-Each example includes the class definition, the **class** diagram (no
-active state), and **instance** diagrams (with the current state
-highlighted after sending events).
+Each example includes the class definition, diagrams in both **Graphviz**
+and **Mermaid** formats, and **instance** diagrams with the current state
+highlighted after sending events.
 
 
 ### Simple states
@@ -314,7 +560,12 @@ A minimal state machine with three atomic states and linear transitions.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_simple.SimpleSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_simple.SimpleSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_simple.SimpleSC
@@ -343,7 +594,12 @@ States can declare `entry` / `exit` callbacks, shown in the state label.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_actions.ActionsSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_actions.ActionsSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_actions.ActionsSC
@@ -362,7 +618,12 @@ Transitions can have `cond` guards, shown in brackets on the edge label.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_guards.GuardSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_guards.GuardSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_guards.GuardSC
@@ -381,7 +642,12 @@ A transition from a state back to itself.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_self_transition.SelfTransitionSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_self_transition.SelfTransitionSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_self_transition.SelfTransitionSC
@@ -400,7 +666,12 @@ Internal transitions execute actions without exiting/entering the state.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_internal.InternalSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_internal.InternalSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_internal.InternalSC
@@ -420,8 +691,13 @@ its initial child.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_compound.CompoundSC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_compound.CompoundSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_compound.CompoundSC
@@ -453,8 +729,13 @@ A parallel state activates all its regions simultaneously.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_parallel.ParallelSC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel.ParallelSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_parallel.ParallelSC
@@ -470,6 +751,41 @@ A parallel state activates all its regions simultaneously.
 ```
 
 
+### Parallel with cross-boundary transitions
+
+A transition targeting a compound state **inside** a parallel region triggers a
+rendering bug in Mermaid (`mermaid-js/mermaid#4052`).  The Mermaid renderer works
+around this by redirecting the arrow to the compound's initial child — compare the
+``rebuild`` arrow in both diagrams below.
+
+```{literalinclude} ../tests/machines/showcase_parallel_compound.py
+:pyobject: ParallelCompoundSC
+:language: python
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:caption: Class (Graphviz) — ``rebuild`` points to the Build compound border
+:target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:format: mermaid
+:caption: Class (Mermaid) — ``rebuild`` is redirected to Compile (initial child of Build)
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:events: start, do_build
+:caption: Build done
+:target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:events: start, do_build, do_test
+:caption: Pipeline done → Review
+:target:
+```
+
+
 ### History states (shallow)
 
 A history pseudo-state remembers the last active child of a compound state.
@@ -480,8 +796,13 @@ A history pseudo-state remembers the last active child of a compound state.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_history.HistorySC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_history.HistorySC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_history.HistorySC
@@ -513,8 +834,13 @@ Deep history remembers the exact leaf state across nested compounds.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_deep_history.DeepHistorySC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_deep_history.DeepHistorySC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_deep_history.DeepHistorySC

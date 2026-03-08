@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from typing import Dict
 from typing import List
@@ -91,6 +92,42 @@ class StateMachineMetaclass(type):
 
         cls._check()
         cls._setup()
+        cls._expand_docstring()
+
+    _STATECHART_RE = re.compile(r"\{statechart:(\w+)\}")
+
+    def _expand_docstring(cls) -> None:
+        """Replace ``{statechart:FORMAT}`` placeholders in the class docstring."""
+        doc = cls.__doc__
+        if not doc:
+            return
+
+        from .contrib.diagram.formatter import formatter
+
+        def _replace(match: "re.Match[str]") -> str:
+            fmt = match.group(1)
+            rendered = formatter.render(cls, fmt)  # type: ignore[arg-type]
+
+            # Respect the indentation of the placeholder line.
+            line_start = doc.rfind("\n", 0, match.start())
+            if line_start == -1:
+                indent = ""
+            else:
+                indent_match = re.match(r"[ \t]*", doc[line_start + 1 : match.start()])
+                indent = indent_match.group() if indent_match else ""
+
+            if indent:
+                lines = rendered.split("\n")
+                rendered = lines[0] + "\n" + "\n".join(indent + line for line in lines[1:])
+
+            return rendered
+
+        cls.__doc__ = cls._STATECHART_RE.sub(_replace, doc)
+
+    def __format__(cls, fmt: str) -> str:
+        from .contrib.diagram.formatter import formatter
+
+        return formatter.render(cls, fmt)  # type: ignore[arg-type]
 
     def _initials_by_document_order(  # noqa: C901
         cls, states: List[State], parent: "State | None" = None, order: int = 1

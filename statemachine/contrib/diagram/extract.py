@@ -13,6 +13,7 @@ from .model import StateType
 if TYPE_CHECKING:
     from statemachine.state import State
     from statemachine.statemachine import StateChart
+    from statemachine.transition import Transition
 
     # A StateChart class or instance — both expose the same structural metadata.
     MachineRef = Union["StateChart", "type[StateChart]"]
@@ -101,6 +102,33 @@ def _extract_state(
     )
 
 
+def _format_event_names(transition: "Transition") -> str:
+    """Build a display string for the events that trigger a transition.
+
+    ``_expand_event_id`` registers both the Python attribute name
+    (``done_invoke_X``) and the SCXML dot form (``done.invoke.X``) under the
+    same transition.  For diagram display we only want unique *semantic* events,
+    keeping the Python attribute name when an alias pair exists.
+    """
+    events = list(transition.events)
+    if not events:
+        return ""
+
+    all_ids = {str(e) for e in events}
+
+    display: List[str] = []
+    for event in events:
+        eid = str(event)
+        # Skip dot-form aliases (e.g. "done.invoke.X") when the underscore
+        # form ("done_invoke_X") is also registered on this transition.
+        if "." in eid and eid.replace(".", "_") in all_ids:
+            continue
+        if eid not in display:  # pragma: no branch
+            display.append(eid)
+
+    return " ".join(display)
+
+
 def _extract_transitions_from_state(state: "State") -> List[DiagramTransition]:
     """Extract transitions from a single state (non-recursive)."""
     result: List[DiagramTransition] = []
@@ -114,7 +142,7 @@ def _extract_transitions_from_state(state: "State") -> List[DiagramTransition]:
             DiagramTransition(
                 source=transition.source.id,
                 targets=target_ids,
-                event=transition.event,
+                event=_format_event_names(transition),
                 guards=cond_strs,
                 is_internal=transition.internal,
             )

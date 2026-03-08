@@ -239,6 +239,11 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             f"configuration={configuration_ids!r})"
         )
 
+    def __format__(self, fmt: str) -> str:
+        from .contrib.diagram.formatter import formatter
+
+        return formatter.render(self, fmt)
+
     def __getstate__(self):
         state = {k: v for k, v in self.__dict__.items() if not isinstance(v, InstanceState)}
         del state["_callbacks"]
