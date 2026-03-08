@@ -95,11 +95,21 @@ the command line.
 
 | Format | Aliases | Description | Dependencies |
 |--------|---------|-------------|--------------|
-| `mermaid` | | [Mermaid stateDiagram-v2](https://mermaid.js.org/syntax/stateDiagram.html) source | None |
+| `mermaid` | | [Mermaid stateDiagram-v2](https://mermaid.js.org/syntax/stateDiagram.html) source | None [^mermaid] |
 | `md` | `markdown` | Transition table (pipe-delimited Markdown) | None |
 | `rst` | | Transition table (RST grid table) | None |
 | `dot` | | [Graphviz DOT](https://graphviz.org/doc/info/lang.html) language source | pydot |
 | `svg` | | SVG markup (generated via DOT) | pydot, Graphviz |
+
+[^mermaid]: Mermaid has a known rendering bug
+    ([mermaid-js/mermaid#4052](https://github.com/mermaid-js/mermaid/issues/4052))
+    where transitions targeting or originating from a compound state inside a
+    parallel region crash the renderer.  As a workaround, the `MermaidRenderer`
+    redirects such transitions to the compound's initial child state.  The
+    visual result is equivalent — Mermaid draws the arrow crossing into the
+    compound boundary — but the arrow points to the child rather than the
+    compound border.  This workaround will be revisited when the upstream bug
+    is resolved.
 
 
 ### Using `format()`

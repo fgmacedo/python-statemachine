@@ -8,6 +8,7 @@ from docutils import nodes
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
+from statemachine.contrib.diagram.extract import _format_event_names
 from statemachine.contrib.diagram.model import ActionType
 from statemachine.contrib.diagram.model import StateType
 from statemachine.contrib.diagram.renderers.dot import DotRenderer
@@ -696,6 +697,108 @@ class TestExtract:
         ]
         _resolve_initial_states(states)
         assert states[0].is_initial is True
+
+
+class TestFormatEventNames:
+    """Tests for _format_event_names — alias filtering for diagram display."""
+
+    def test_simple_event_unchanged(self):
+        """A plain event with no aliases is returned as-is."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            go = s1.to(s2)
+
+        t = SM.s1.transitions[0]
+        assert _format_event_names(t) == "go"
+
+    def test_done_state_alias_filtered(self):
+        """done_state_X registers both underscore and dot forms; only underscore is shown."""
+
+        class SM(StateChart):
+            class parent(State.Compound):
+                child = State(initial=True)
+                done = State(final=True)
+                finish = child.to(done)
+
+            end = State(final=True)
+            done_state_parent = parent.to(end)
+
+        t = next(t for t in SM.parent.transitions if t.event and "done_state" in t.event)
+        result = _format_event_names(t)
+        assert result == "done_state_parent"
+        assert "done.state" not in result
+
+    def test_done_invoke_alias_filtered(self):
+        """done_invoke_X alias filtering works the same as done_state_X."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            done_invoke_child = s1.to(s2)
+
+        t = SM.s1.transitions[0]
+        result = _format_event_names(t)
+        assert result == "done_invoke_child"
+        assert "done.invoke" not in result
+
+    def test_error_alias_filtered(self):
+        """error_X registers both error_X and error.X; only underscore is shown."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            error_execution = s1.to(s2)
+
+        t = SM.s1.transitions[0]
+        result = _format_event_names(t)
+        assert result == "error_execution"
+        assert "error.execution" not in result
+
+    def test_multiple_distinct_events_preserved(self):
+        """Multiple distinct events on one transition are all preserved."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            go = s1.to(s2)
+            also = s1.to(s2)
+
+        # Add a second event to the first transition
+        t = SM.s1.transitions[0]
+        t.add_event("also")
+        result = _format_event_names(t)
+        assert "go" in result
+        assert "also" in result
+
+    def test_eventless_transition_returns_empty(self):
+        """A transition with no events returns an empty string."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            s1.to(s2, cond="always_true")
+
+            def always_true(self):
+                return True
+
+        # Find the eventless transition
+        t = next(t for t in SM.s1.transitions if not list(t.events))
+        assert _format_event_names(t) == ""
+
+    def test_dot_only_event_preserved(self):
+        """An event whose ID contains dots but has no underscore alias is preserved."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            go = s1.to(s2)
+
+        from statemachine.transition import Transition
+
+        t = Transition(source=SM.s1, target=SM.s2, event="custom.event")
+        assert _format_event_names(t) == "custom.event"
 
 
 class TestDotRendererEdgeCases:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Set
@@ -21,17 +22,34 @@ class MermaidRendererConfig:
 
 
 class MermaidRenderer:
-    """Renders a DiagramGraph into a Mermaid stateDiagram-v2 source string."""
+    """Renders a DiagramGraph into a Mermaid stateDiagram-v2 source string.
+
+    Mermaid's stateDiagram-v2 has a rendering bug where transitions whose source
+    or target is a compound state (``state X { ... }``) inside a parallel region
+    crash with ``Cannot set properties of undefined (setting 'rank')``.  To work
+    around this, the renderer rewrites compound-state endpoints to cross the
+    boundary:
+
+    - Transition **to** a compound → redirected to its initial child.
+    - Transition **from** a compound → redirected from its initial child.
+
+    This is applied universally (not only inside parallel regions) for simplicity
+    and consistency — the visual effect is equivalent.
+    """
 
     def __init__(self, config: Optional[MermaidRendererConfig] = None):
         self.config = config or MermaidRendererConfig()
         self._active_ids: List[str] = []
         self._rendered_transitions: Set[tuple] = set()
+        self._compound_ids: Set[str] = set()
+        self._initial_child_map: Dict[str, str] = {}
 
     def render(self, graph: DiagramGraph) -> str:
         """Render a DiagramGraph to a Mermaid stateDiagram-v2 string."""
         self._active_ids = []
         self._rendered_transitions = set()
+        self._compound_ids = graph.compound_state_ids
+        self._initial_child_map = self._build_initial_child_map(graph.states)
 
         lines: List[str] = []
         lines.append("stateDiagram-v2")
@@ -50,6 +68,23 @@ class MermaidRenderer:
                 lines.append(f"    {sid}:::active")
 
         return "\n".join(lines) + "\n"
+
+    def _build_initial_child_map(self, states: List[DiagramState]) -> Dict[str, str]:
+        """Build a map from compound state ID to its initial child ID (recursive)."""
+        result: Dict[str, str] = {}
+        for state in states:
+            if state.children:
+                initial = next((c for c in state.children if c.is_initial), None)
+                if initial:
+                    result[state.id] = initial.id
+                result.update(self._build_initial_child_map(state.children))
+        return result
+
+    def _resolve_endpoint(self, state_id: str) -> str:
+        """Resolve a transition endpoint, redirecting compound states to their initial child."""
+        if state_id in self._compound_ids and state_id in self._initial_child_map:
+            return self._initial_child_map[state_id]
+        return state_id
 
     def _render_states(
         self,
@@ -162,29 +197,42 @@ class MermaidRenderer:
         lines: List[str],
         indent: int,
     ) -> None:
-        """Render transitions where both source and all targets are in scope_ids."""
+        """Render transitions where both source and all targets are in scope_ids.
+
+        Mermaid does not support transitions where the source or target is a
+        compound state rendered with ``state X { ... }`` inside a parallel region.
+        To work around this, endpoints that reference compound states are
+        redirected to the compound's initial child.  Scope membership is checked
+        on the **original** IDs (which belong to this scope level), while the
+        rendered arrow uses the **resolved** (possibly redirected) IDs.
+        """
         for t in transitions:
             if t.is_initial or t.is_internal:
                 continue
 
             targets = t.targets if t.targets else [t.source]
-            # Only render if source is in scope
+
+            # Check scope membership with original IDs
             if t.source not in scope_ids:
                 continue
-            # Only render if all targets are in scope
             if not all(target in scope_ids for target in targets):
                 continue
 
-            for target in targets:
-                key = (t.source, target, t.event)
+            # Resolve endpoints for rendering (redirect compound → initial child)
+            source = self._resolve_endpoint(t.source)
+            resolved_targets = [self._resolve_endpoint(tid) for tid in targets]
+
+            for target in resolved_targets:
+                key = (source, target, t.event)
                 if key in self._rendered_transitions:
                     continue
                 self._rendered_transitions.add(key)
-                self._render_single_transition(t, target, lines, indent)
+                self._render_single_transition(t, source, target, lines, indent)
 
     def _render_single_transition(
         self,
         transition: DiagramTransition,
+        source: str,
         target: str,
         lines: List[str],
         indent: int,
@@ -198,9 +246,9 @@ class MermaidRenderer:
 
         label = " ".join(label_parts)
         if label:
-            lines.append(f"{pad}{transition.source} --> {target} : {label}")
+            lines.append(f"{pad}{source} --> {target} : {label}")
         else:
-            lines.append(f"{pad}{transition.source} --> {target}")
+            lines.append(f"{pad}{source} --> {target}")
 
     @staticmethod
     def _format_action(action: DiagramAction) -> str:

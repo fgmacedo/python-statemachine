@@ -249,8 +249,9 @@ class TestMermaidRendererCompound:
         assert "[*] --> child1" in result
         assert "child1 --> child2 : go" in result
         assert "child2 --> [*]" in result
-        assert "start --> parent : enter" in result
-        assert "parent --> end : finish" in result
+        # Compound endpoints are redirected to the initial child (Mermaid workaround)
+        assert "start --> child1 : enter" in result
+        assert "child1 --> end : finish" in result
 
     def test_compound_no_duplicate_transitions(self):
         """Transitions inside compound states must not also appear at top level."""
