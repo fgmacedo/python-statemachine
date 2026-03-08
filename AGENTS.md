@@ -77,6 +77,16 @@ current event.
 - `on_error_execution()` works via naming convention but **only** when a transition for
   `error.execution` is declared — it is NOT a generic callback.
 
+### Thread safety
+
+- The sync engine is **thread-safe**: multiple threads can send events to the same SM instance
+  concurrently. The processing loop uses a `threading.Lock` so at most one thread executes
+  transitions at a time. Event queues use `PriorityQueue` (stdlib, thread-safe).
+- **Do not replace `PriorityQueue`** with non-thread-safe alternatives (e.g., `collections.deque`,
+  plain `list`) — this would break concurrent access guarantees.
+- Stress tests in `tests/test_threading.py::TestThreadSafety` exercise real contention with
+  barriers and multiple sender threads. Any change to queue or locking internals must pass these.
+
 ### Invoke (`<invoke>`)
 
 - `invoke.py` — `InvokeManager` on the engine manages the lifecycle: `mark_for_invoke()`,
