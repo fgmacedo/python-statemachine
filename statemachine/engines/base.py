@@ -11,11 +11,8 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import cast
-from weakref import ReferenceType
-from weakref import ref
 
 from ..event import BoundEvent
-from ..event import Event
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
@@ -88,7 +85,7 @@ _ERROR_EXECUTION = "error.execution"
 
 class BaseEngine:
     def __init__(self, sm: "StateChart"):
-        self._sm: ReferenceType["StateChart"] = ref(sm)
+        self.sm: "StateChart" = sm
         self.external_queue = EventQueue()
         self.internal_queue = EventQueue()
         self._sentinel = object()
@@ -99,16 +96,11 @@ class BaseEngine:
         self._macrostep_count: int = 0
         self._microstep_count: int = 0
         self._log_id = f"[{type(sm).__name__}]"
+        self._debug = logger.debug if logger.isEnabledFor(logging.DEBUG) else lambda *a, **k: None
         self._root_parallel_final_pending: "State | None" = None
 
     def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
-
-    @property
-    def sm(self) -> "StateChart":
-        sm = self._sm()
-        assert sm, "StateMachine has been destroyed"
-        return sm
 
     def clear_cache(self):
         """Clears the cache. Should be called at the start of each processing loop."""
@@ -125,7 +117,7 @@ class BaseEngine:
             self.external_queue.put(trigger_data)
 
         if not _delayed:
-            logger.debug(
+            self._debug(
                 "%s New event '%s' put on the '%s' queue",
                 self._log_id,
                 trigger_data.event,
@@ -180,7 +172,7 @@ class BaseEngine:
 
         If already processing an error.execution event, ignore to avoid infinite loops.
         """
-        logger.debug(
+        self._debug(
             "%s Error %s captured while executing event=%s",
             self._log_id,
             error,
@@ -346,6 +338,23 @@ class BaseEngine:
         """
         return self._select_transitions(trigger_data, lambda t, e: t.match(e))
 
+    def _first_transition_that_matches(
+        self,
+        state: State,
+        trigger_data: TriggerData,
+        predicate: Callable,
+    ) -> "Transition | None":
+        for s in chain([state], state.ancestors()):
+            transition: Transition
+            for transition in s.transitions:
+                if (
+                    not transition.initial
+                    and predicate(transition, trigger_data.event)
+                    and self._conditions_match(transition, trigger_data)
+                ):
+                    return transition
+        return None
+
     def _select_transitions(
         self, trigger_data: TriggerData, predicate: Callable
     ) -> OrderedSet[Transition]:
@@ -355,23 +364,8 @@ class BaseEngine:
         # Get atomic states, TODO: sorted by document order
         atomic_states = (state for state in self.sm.configuration if state.is_atomic)
 
-        def first_transition_that_matches(
-            state: State, event: "Event | None"
-        ) -> "Transition | None":
-            for s in chain([state], state.ancestors()):
-                transition: Transition
-                for transition in s.transitions:
-                    if (
-                        not transition.initial
-                        and predicate(transition, event)
-                        and self._conditions_match(transition, trigger_data)
-                    ):
-                        return transition
-
-            return None
-
         for state in atomic_states:
-            transition = first_transition_that_matches(state, trigger_data.event)
+            transition = self._first_transition_that_matches(state, trigger_data, predicate)
             if transition is not None:
                 enabled_transitions.add(transition)
 
@@ -382,7 +376,7 @@ class BaseEngine:
         This includes exiting states, executing transition content, and entering states.
         """
         self._microstep_count += 1
-        logger.debug(
+        self._debug(
             "%s macro:%d micro:%d transitions: %s",
             self._log_id,
             self._macrostep_count,
@@ -469,7 +463,7 @@ class BaseEngine:
             states_to_exit, key=lambda x: x.state and x.state.document_order or 0, reverse=True
         )
         result = OrderedSet([info.state for info in ordered_states if info.state])
-        logger.debug("%s States to exit: %s", self._log_id, result)
+        self._debug("%s States to exit: %s", self._log_id, result)
 
         # Update history
         for info in ordered_states:
@@ -480,7 +474,7 @@ class BaseEngine:
                 else:  # shallow history
                     history_value = [s for s in self.sm.configuration if s.parent == state]
 
-                logger.debug(
+                self._debug(
                     "%s Saving '%s.%s' history state: '%s'",
                     self._log_id,
                     state,
@@ -494,7 +488,7 @@ class BaseEngine:
     def _remove_state_from_configuration(self, state: State):
         """Remove a state from the configuration if not using atomic updates."""
         if not self.sm.atomic_configuration_update:
-            self.sm.configuration -= {state}
+            self.sm._config.discard(state)
 
     def _exit_states(
         self, enabled_transitions: List[Transition], trigger_data: TriggerData
@@ -512,7 +506,7 @@ class BaseEngine:
 
             # Execute `onexit` handlers — same per-block error isolation as onentry.
             if info.state is not None:  # pragma: no branch
-                logger.debug("%s Exiting state: %s", self._log_id, info.state)
+                self._debug("%s Exiting state: %s", self._log_id, info.state)
                 self.sm._callbacks.call(info.state.exit.key, *args, on_error=on_error, **kwargs)
 
             self._remove_state_from_configuration(info.state)
@@ -566,17 +560,29 @@ class BaseEngine:
 
         states_targets_to_enter = OrderedSet(info.state for info in ordered_states if info.state)
 
-        new_configuration = cast(
-            OrderedSet[State], (previous_configuration - states_to_exit) | states_targets_to_enter
+        # Build new configuration in a single pass instead of two set operations
+        # (- and |) that each allocate an intermediate OrderedSet.
+        new_configuration = OrderedSet(
+            s for s in previous_configuration if s not in states_to_exit
         )
-        logger.debug("%s States to enter: %s", self._log_id, states_targets_to_enter)
+        new_configuration.update(states_targets_to_enter)
+        self._debug("%s States to enter: %s", self._log_id, states_targets_to_enter)
 
         return ordered_states, states_for_default_entry, default_history_content, new_configuration
 
     def _add_state_to_configuration(self, target: State):
         """Add a state to the configuration if not using atomic updates."""
         if not self.sm.atomic_configuration_update:
-            self.sm.configuration |= {target}
+            self.sm._config.add(target)
+
+    def stop(self):
+        """Stop this engine externally (e.g. when a parent cancels a child invocation)."""
+        self._debug("%s Stopping engine", self._log_id)
+        self.running = False
+        try:
+            self._invoke_manager.cancel_all()
+        except Exception:  # pragma: no cover
+            self._debug("%s Error stopping engine", self._log_id, exc_info=True)
 
     def __del__(self):
         try:
@@ -586,7 +592,7 @@ class BaseEngine:
 
     def _handle_final_state(self, target: State, on_entry_result: list):
         """Handle final state entry: queue done events. No direct callback dispatch."""
-        logger.debug("%s Reached final state: %s", self._log_id, target)
+        self._debug("%s Reached final state: %s", self._log_id, target)
         if target.parent is None:
             self._invoke_manager.cancel_all()
             self.running = False
@@ -665,7 +671,7 @@ class BaseEngine:
                 target=target,
             )
 
-            logger.debug("%s Entering state: %s", self._log_id, target)
+            self._debug("%s Entering state: %s", self._log_id, target)
             self._add_state_to_configuration(target)
 
             # Execute `onentry` handlers — each handler is a separate block per
@@ -765,7 +771,7 @@ class BaseEngine:
             parent_id = state.parent and state.parent.id
             default_history_content[parent_id] = [info]
             if state.id in self.sm.history_values:
-                logger.debug(
+                self._debug(
                     "%s History state '%s.%s' %s restoring: '%s'",
                     self._log_id,
                     state.parent,
@@ -795,7 +801,7 @@ class BaseEngine:
                     )
             else:
                 # Handle default history content
-                logger.debug(
+                self._debug(
                     "%s History state '%s.%s' default content: %s",
                     self._log_id,
                     state.parent,
@@ -804,7 +810,8 @@ class BaseEngine:
                 )
 
                 for transition in state.transitions:
-                    info_history = StateTransition(transition=transition, state=transition.target)
+                    target = cast(State, transition.target)
+                    info_history = StateTransition(transition=transition, state=target)
                     default_history_content[parent_id].append(info_history)
                     self.add_descendant_states_to_enter(
                         info_history,
@@ -813,7 +820,8 @@ class BaseEngine:
                         default_history_content,
                     )  # noqa: E501
                 for transition in state.transitions:
-                    info_history = StateTransition(transition=transition, state=transition.target)
+                    target = cast(State, transition.target)
+                    info_history = StateTransition(transition=transition, state=target)
 
                     self.add_ancestor_states_to_enter(
                         info_history,

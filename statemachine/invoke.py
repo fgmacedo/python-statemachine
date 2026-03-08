@@ -7,7 +7,6 @@ decorators (``@state.invoke``), and inline callables all work out of the box.
 """
 
 import asyncio
-import logging
 import threading
 import uuid
 from concurrent.futures import Future
@@ -33,8 +32,6 @@ if TYPE_CHECKING:
     from .state import State
     from .statemachine import StateChart
 
-logger = logging.getLogger(__name__)
-
 
 @runtime_checkable
 class IInvoke(Protocol):
@@ -51,12 +48,7 @@ def _stop_child_machine(child: "StateChart | None") -> None:
     """Stop a child state machine and cancel all its invocations."""
     if child is None:
         return
-    logger.debug("invoke: stopping child machine %s", type(child).__name__)
-    try:
-        child._engine.running = False
-        child._engine._invoke_manager.cancel_all()
-    except Exception:
-        logger.debug("Error stopping child machine", exc_info=True)
+    child._engine.stop()
 
 
 class _InvokeCallableWrapper:
@@ -283,6 +275,14 @@ class InvokeManager:
         self._pending: "List[Tuple[State, dict]]" = []
 
     @property
+    def _debug(self):
+        return self._engine._debug
+
+    @property
+    def _log_id(self):
+        return self._engine._log_id
+
+    @property
     def sm(self) -> "StateChart":
         return self._engine.sm
 
@@ -302,7 +302,7 @@ class InvokeManager:
 
     def cancel_for_state(self, state: "State"):
         """Called by ``_exit_states()`` before exiting a state."""
-        logger.debug("invoke cancel_for_state: %s", state.id)
+        self._debug("%s invoke cancel_for_state: %s", self._log_id, state.id)
         for inv_id, inv in list(self._active.items()):
             if inv.state_id == state.id and not inv.ctx.cancelled.is_set():
                 self._cancel(inv_id)
@@ -313,7 +313,7 @@ class InvokeManager:
 
     def cancel_all(self):
         """Cancel all active invocations."""
-        logger.debug("invoke cancel_all: %d active", len(self._active))
+        self._debug("%s invoke cancel_all: %d active", self._log_id, len(self._active))
         for inv_id in list(self._active.keys()):
             self._cancel(inv_id)
         self._cleanup_terminated()
@@ -362,7 +362,7 @@ class InvokeManager:
 
         invocation._handler = handler
         self._active[ctx.invokeid] = invocation
-        logger.debug("invoke spawn sync: %s on state %s", ctx.invokeid, state.id)
+        self._debug("%s invoke spawn sync: %s on state %s", self._log_id, ctx.invokeid, state.id)
 
         thread = threading.Thread(
             target=self._run_sync_handler,
@@ -400,8 +400,11 @@ class InvokeManager:
                 self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
-            logger.debug(
-                "invoke %s: completed (cancelled=%s)", ctx.invokeid, ctx.cancelled.is_set()
+            self._debug(
+                "%s invoke %s: completed (cancelled=%s)",
+                self._log_id,
+                ctx.invokeid,
+                ctx.cancelled.is_set(),
             )
 
     # --- Async spawning ---
@@ -431,7 +434,7 @@ class InvokeManager:
 
         invocation._handler = handler
         self._active[ctx.invokeid] = invocation
-        logger.debug("invoke spawn async: %s on state %s", ctx.invokeid, state.id)
+        self._debug("%s invoke spawn async: %s on state %s", self._log_id, ctx.invokeid, state.id)
 
         loop = asyncio.get_running_loop()
         task = loop.create_task(self._run_async_handler(callback, handler, ctx, invocation))
@@ -469,8 +472,11 @@ class InvokeManager:
                 await self.sm.send("error.execution", error=e)
         finally:
             invocation.terminated = True
-            logger.debug(
-                "invoke %s: completed (cancelled=%s)", ctx.invokeid, ctx.cancelled.is_set()
+            self._debug(
+                "%s invoke %s: completed (cancelled=%s)",
+                self._log_id,
+                ctx.invokeid,
+                ctx.cancelled.is_set(),
             )
 
     # --- Cancel ---
@@ -480,7 +486,7 @@ class InvokeManager:
         if not invocation or invocation.ctx.cancelled.is_set():
             return
 
-        logger.debug("invoke cancel: %s", invokeid)
+        self._debug("%s invoke cancel: %s", self._log_id, invokeid)
         # 1) Signal cancellation so the handler can check and stop early.
         invocation.ctx.cancelled.set()
 
@@ -490,7 +496,7 @@ class InvokeManager:
             try:
                 handler.on_cancel()
             except Exception:
-                logger.debug("Error in on_cancel for %s", invokeid, exc_info=True)
+                self._debug("%s Error in on_cancel for %s", self._log_id, invokeid, exc_info=True)
 
         # 3) Cancel the async task (raises CancelledError at next await).
         if invocation.task is not None and not invocation.task.done():
@@ -564,7 +570,9 @@ class InvokeManager:
                 and handler.autoforward
                 and hasattr(handler, "on_event")
             ):
-                logger.debug("invoke autoforward: %s -> %s", event_name, inv.invokeid)
+                self._debug(
+                    "%s invoke autoforward: %s -> %s", self._log_id, event_name, inv.invokeid
+                )
                 handler.on_event(event_name, **trigger_data.kwargs)
 
     def _make_context(

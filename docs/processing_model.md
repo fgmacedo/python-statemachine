@@ -315,3 +315,50 @@ The machine starts, enters `trying` (attempt 1), and the eventless
 self-transition keeps firing as long as `can_retry()` returns `True`. Once
 the limit is reached, the second eventless transition fires — all within a
 single macrostep triggered by initialization.
+
+
+(thread-safety)=
+
+## Thread safety
+
+State machines are **thread-safe** for concurrent event sending. Multiple threads
+can call `send()` or trigger events on the **same state machine instance**
+simultaneously — the engine guarantees correct behavior through its internal
+locking mechanism.
+
+### How it works
+
+The processing loop uses a non-blocking lock (`threading.Lock`). When a thread
+sends an event:
+
+1. The event is placed on the **external queue** (backed by a thread-safe
+   `PriorityQueue` from the standard library).
+2. If no other thread is currently running the processing loop, the sending
+   thread acquires the lock and processes all queued events.
+3. If another thread is already processing, the event is simply enqueued and
+   will be processed by the thread that holds the lock — no event is lost.
+
+This means that **at most one thread executes transitions at any time**, preserving
+the run-to-completion (RTC) guarantee while allowing safe concurrent access.
+
+### What is safe
+
+- **Multiple threads sending events** to the same state machine instance.
+- **Reading state** (`current_state_value`, `configuration`) from any thread
+  while events are being processed. Note that transient `None` values may be
+  observed for `current_state_value` during configuration updates when using
+  [`atomic_configuration_update`](behaviour.md#atomic_configuration_update) `= False`
+  (the default on `StateChart`, SCXML-compliant). With `atomic_configuration_update = True`
+  (the default on `StateMachine`), the configuration is updated atomically at
+  the end of the microstep, so `None` is not observed.
+- **Invoke handlers** running in background threads or thread executors
+  communicate with the parent machine via the thread-safe event queue.
+
+### What to avoid
+
+- **Do not share a state machine instance across threads with the async engine**
+  unless you ensure only one event loop drives the machine. The async engine is
+  designed for `asyncio` concurrency, not thread-based concurrency.
+- **Callbacks execute in the processing thread**, not in the thread that sent
+  the event. Design callbacks accordingly (e.g., use locks if they access
+  shared external state).

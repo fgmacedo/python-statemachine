@@ -77,6 +77,16 @@ current event.
 - `on_error_execution()` works via naming convention but **only** when a transition for
   `error.execution` is declared — it is NOT a generic callback.
 
+### Thread safety
+
+- The sync engine is **thread-safe**: multiple threads can send events to the same SM instance
+  concurrently. The processing loop uses a `threading.Lock` so at most one thread executes
+  transitions at a time. Event queues use `PriorityQueue` (stdlib, thread-safe).
+- **Do not replace `PriorityQueue`** with non-thread-safe alternatives (e.g., `collections.deque`,
+  plain `list`) — this would break concurrent access guarantees.
+- Stress tests in `tests/test_threading.py::TestThreadSafety` exercise real contention with
+  barriers and multiple sender threads. Any change to queue or locking internals must pass these.
+
 ### Invoke (`<invoke>`)
 
 - `invoke.py` — `InvokeManager` on the engine manages the lifecycle: `mark_for_invoke()`,
@@ -126,6 +136,16 @@ timeout 120 uv run pytest -n 4
 ```
 
 Testes normally run under 60s (~40s on average), so take a closer look if they take longer, it can be a regression.
+
+### Debug logging
+
+`log_cli_level` defaults to `WARNING` in `pyproject.toml`. The engine caches a no-op
+for `logger.debug` at init time — running tests with `DEBUG` would bypass this
+optimization and inflate benchmark numbers. To enable debug logs for a specific run:
+
+```bash
+uv run pytest -o log_cli_level=DEBUG tests/test_something.py
+```
 
 When analyzing warnings or extensive output, run the tests **once** saving the output to a file
 (`> /tmp/pytest-output.txt 2>&1`), then analyze the file — instead of running the suite
