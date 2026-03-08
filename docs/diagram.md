@@ -27,7 +27,6 @@ sudo apt install graphviz
 
 For other systems, see the [Graphviz downloads page](https://graphviz.org/download/).
 
-
 ## Generating diagrams
 
 Every state machine instance exposes a `_graph()` method that returns a
@@ -77,8 +76,7 @@ For higher resolution PNGs, set the DPI before exporting:
 
 ```python
 graph = sm._graph()
-graph.set_dpi(300)
-graph.write_png("order_control_300dpi.png")
+graph.set_dpi(300).write_png("order_control_300dpi.png")
 ```
 
 ```{note}
@@ -89,52 +87,24 @@ complete list.
 ```
 
 
-## Command line
+## Text representations
 
-You can generate diagrams without writing Python code:
+State machines support multiple text-based output formats, all accessible
+through Python's built-in `format()` protocol, the `formatter` API, or
+the command line.
 
-```bash
-python -m statemachine.contrib.diagram <classpath> <output_file>
-```
-
-The output format is inferred from the file extension:
-
-```bash
-python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png
-```
-
-To highlight the current state, use `--events` to instantiate the machine and
-send events before rendering:
-
-```bash
-python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png --events cycle cycle cycle
-```
-
-Use `--format` to produce **Mermaid source** or a **transition table** instead
-of a Graphviz image:
-
-```bash
-# Mermaid stateDiagram-v2
-python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.mmd --format mermaid
-
-# Markdown transition table
-python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.md --format md
-
-# RST transition table
-python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.rst --format rst
-```
-
-Use `-` as the output file to write to stdout (handy for piping):
-
-```bash
-python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine - --format mermaid
-```
+| Format | Aliases | Description | Dependencies |
+|--------|---------|-------------|--------------|
+| `mermaid` | | [Mermaid stateDiagram-v2](https://mermaid.js.org/syntax/stateDiagram.html) source | None |
+| `md` | `markdown` | Transition table (pipe-delimited Markdown) | None |
+| `rst` | | Transition table (RST grid table) | None |
+| `dot` | | [Graphviz DOT](https://graphviz.org/doc/info/lang.html) language source | pydot |
+| `svg` | | SVG markup (generated via DOT) | pydot, Graphviz |
 
 
-## Text representations with `format()`
+### Using `format()`
 
-State machines support Python's built-in `format()` protocol for quick text
-output — no diagram imports needed:
+Use f-strings or the built-in `format()` function — no diagram imports needed:
 
 ```py
 >>> from tests.examples.traffic_light_machine import TrafficLightMachine
@@ -181,11 +151,7 @@ stateDiagram-v2
 
 ```
 
-Supported format specs: `dot`, `svg`, `mermaid`, `md` (or `markdown`), `rst`.
-An empty spec falls back to `repr()`.
-
-The `dot` format returns the Graphviz DOT language source (same output as
-`sm._graph().to_string()`):
+The `dot` format returns the Graphviz DOT language source:
 
 ```py
 >>> print(f"{sm:dot}")  # doctest: +ELLIPSIS
@@ -193,6 +159,101 @@ digraph TrafficLightMachine {
 ...
 }
 
+```
+
+An empty format spec (e.g., `f"{sm:}"`) falls back to `repr()`.
+
+
+### Using the `formatter` API
+
+The `formatter` object is the programmatic entry point for rendering
+state machines in any registered text format:
+
+```py
+>>> from statemachine.contrib.diagram import formatter
+>>> from tests.examples.traffic_light_machine import TrafficLightMachine
+
+>>> print(formatter.render(TrafficLightMachine, "mermaid"))
+stateDiagram-v2
+    direction LR
+    state "Green" as green
+    state "Yellow" as yellow
+    state "Red" as red
+    [*] --> green
+    green --> yellow : cycle
+    yellow --> red : cycle
+    red --> green : cycle
+<BLANKLINE>
+
+>>> formatter.supported_formats()
+['dot', 'markdown', 'md', 'mermaid', 'rst', 'svg']
+
+```
+
+Both `format()` and the Sphinx directive delegate to this same `formatter`
+under the hood.
+
+
+#### Registering custom formats
+
+The `formatter` is extensible — register your own format with a
+decorator and it becomes available everywhere (`format()`, CLI,
+Sphinx directive):
+
+```python
+from statemachine.contrib.diagram import formatter
+
+@formatter.register_format("plantuml", "puml")
+def _render_plantuml(machine_or_class):
+    # your PlantUML renderer here
+    ...
+```
+
+After registration, `f"{sm:plantuml}"` and `--format plantuml` work
+immediately.
+
+
+### Command line
+
+You can generate diagrams without writing Python code:
+
+```bash
+python -m statemachine.contrib.diagram <classpath> <output_file>
+```
+
+The output format is inferred from the file extension:
+
+```bash
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png
+```
+
+To highlight the current state, use `--events` to instantiate the machine and
+send events before rendering:
+
+```bash
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png --events cycle cycle cycle
+```
+
+Use `--format` to produce a text format instead of a Graphviz image:
+
+```bash
+# Mermaid stateDiagram-v2
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.mmd --format mermaid
+
+# DOT source
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.dot --format dot
+
+# Markdown transition table
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.md --format md
+
+# RST transition table
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.rst --format rst
+```
+
+Use `-` as the output file to write to stdout (handy for piping):
+
+```bash
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine - --format mermaid
 ```
 
 
@@ -259,33 +320,6 @@ And here is the rendered autodoc output:
 .. autoclass:: tests.machines.showcase_simple.SimpleSC
    :noindex:
 ```
-
-
-## Mermaid output
-
-The `MermaidGraphMachine` facade generates
-[Mermaid `stateDiagram-v2`](https://mermaid.js.org/syntax/stateDiagram.html)
-source text from any state machine — no external dependencies required:
-
-```py
->>> from statemachine.contrib.diagram import MermaidGraphMachine
->>> from tests.examples.traffic_light_machine import TrafficLightMachine
->>> print(MermaidGraphMachine(TrafficLightMachine).get_mermaid())
-stateDiagram-v2
-    direction LR
-    state "Green" as green
-    state "Yellow" as yellow
-    state "Red" as red
-    [*] --> green
-    green --> yellow : cycle
-    yellow --> red : cycle
-    red --> green : cycle
-<BLANKLINE>
-
-```
-
-Compound states, parallel regions, history pseudo-states, guards, and
-active-state highlighting are all supported.
 
 
 ## Sphinx directive
@@ -356,6 +390,26 @@ zoom and pan freely:
 :align: center
 ```
 
+### Mermaid format
+
+Use `:format: mermaid` to render via
+[sphinxcontrib-mermaid](https://github.com/mgaitan/sphinxcontrib-mermaid)
+instead of Graphviz SVG — useful when you don't want to install Graphviz
+in your docs build environment:
+
+````markdown
+```{statemachine-diagram} myproject.machines.TrafficLight
+:format: mermaid
+:caption: Rendered as Mermaid
+```
+````
+
+```{statemachine-diagram} tests.examples.traffic_light_machine.TrafficLightMachine
+:format: mermaid
+:caption: TrafficLightMachine (Mermaid)
+:align: center
+```
+
 ### Directive options
 
 The directive supports the same layout options as the standard `image` and
@@ -368,8 +422,7 @@ The directive supports the same layout options as the standard `image` and
   each event is sent before rendering.
 
 `:format:` *(string)*
-: Output format. Use `mermaid` to render via
-  [sphinxcontrib-mermaid](https://github.com/mgaitan/sphinxcontrib-mermaid)
+: Output format. Use `mermaid` to render via sphinxcontrib-mermaid
   instead of Graphviz SVG. Default: DOT/SVG.
 
 **Image/figure options:**
