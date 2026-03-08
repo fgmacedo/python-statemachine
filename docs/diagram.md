@@ -545,9 +545,9 @@ dot.write_png("order_control_class.png")
 ## Visual showcase
 
 This section shows how each state machine feature is rendered in diagrams.
-Each example includes the class definition, the **class** diagram (no
-active state), and **instance** diagrams (with the current state
-highlighted after sending events).
+Each example includes the class definition, diagrams in both **Graphviz**
+and **Mermaid** formats, and **instance** diagrams with the current state
+highlighted after sending events.
 
 
 ### Simple states
@@ -560,7 +560,12 @@ A minimal state machine with three atomic states and linear transitions.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_simple.SimpleSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_simple.SimpleSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_simple.SimpleSC
@@ -589,7 +594,12 @@ States can declare `entry` / `exit` callbacks, shown in the state label.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_actions.ActionsSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_actions.ActionsSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_actions.ActionsSC
@@ -608,7 +618,12 @@ Transitions can have `cond` guards, shown in brackets on the edge label.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_guards.GuardSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_guards.GuardSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_guards.GuardSC
@@ -627,7 +642,12 @@ A transition from a state back to itself.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_self_transition.SelfTransitionSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_self_transition.SelfTransitionSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_self_transition.SelfTransitionSC
@@ -646,7 +666,12 @@ Internal transitions execute actions without exiting/entering the state.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_internal.InternalSC
-:caption: Class
+:caption: Class (Graphviz)
+```
+
+```{statemachine-diagram} tests.machines.showcase_internal.InternalSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_internal.InternalSC
@@ -666,8 +691,13 @@ its initial child.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_compound.CompoundSC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_compound.CompoundSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_compound.CompoundSC
@@ -699,8 +729,13 @@ A parallel state activates all its regions simultaneously.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_parallel.ParallelSC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel.ParallelSC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_parallel.ParallelSC
@@ -716,6 +751,41 @@ A parallel state activates all its regions simultaneously.
 ```
 
 
+### Parallel with cross-boundary transitions
+
+A transition targeting a compound state **inside** a parallel region triggers a
+rendering bug in Mermaid (`mermaid-js/mermaid#4052`).  The Mermaid renderer works
+around this by redirecting the arrow to the compound's initial child — compare the
+``rebuild`` arrow in both diagrams below.
+
+```{literalinclude} ../tests/machines/showcase_parallel_compound.py
+:pyobject: ParallelCompoundSC
+:language: python
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:caption: Class (Graphviz) — ``rebuild`` points to the Build compound border
+:target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:format: mermaid
+:caption: Class (Mermaid) — ``rebuild`` is redirected to Compile (initial child of Build)
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:events: start, do_build
+:caption: Build done
+:target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_parallel_compound.ParallelCompoundSC
+:events: start, do_build, do_test
+:caption: Pipeline done → Review
+:target:
+```
+
+
 ### History states (shallow)
 
 A history pseudo-state remembers the last active child of a compound state.
@@ -726,8 +796,13 @@ A history pseudo-state remembers the last active child of a compound state.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_history.HistorySC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_history.HistorySC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_history.HistorySC
@@ -759,8 +834,13 @@ Deep history remembers the exact leaf state across nested compounds.
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_deep_history.DeepHistorySC
-:caption: Class
+:caption: Class (Graphviz)
 :target:
+```
+
+```{statemachine-diagram} tests.machines.showcase_deep_history.DeepHistorySC
+:format: mermaid
+:caption: Class (Mermaid)
 ```
 
 ```{statemachine-diagram} tests.machines.showcase_deep_history.DeepHistorySC

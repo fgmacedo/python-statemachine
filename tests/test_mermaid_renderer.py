@@ -249,9 +249,8 @@ class TestMermaidRendererCompound:
         assert "[*] --> child1" in result
         assert "child1 --> child2 : go" in result
         assert "child2 --> [*]" in result
-        # Compound endpoints are redirected to the initial child (Mermaid workaround)
-        assert "start --> child1 : enter" in result
-        assert "child1 --> end : finish" in result
+        assert "start --> parent : enter" in result
+        assert "parent --> end : finish" in result
 
     def test_compound_no_duplicate_transitions(self):
         """Transitions inside compound states must not also appear at top level."""
@@ -288,6 +287,47 @@ class TestMermaidRendererCompound:
         result = MermaidGraphMachine(SM).get_mermaid()
         assert 'state "Parallel" as p {' in result
         assert "--" in result  # parallel separator
+
+    def test_parallel_redirects_compound_endpoints(self):
+        """Transitions to/from compound states inside parallel regions are redirected
+        to the initial child (Mermaid workaround for mermaid-js/mermaid#4052)."""
+
+        class SM(StateChart):
+            class p(State.Parallel, name="Parallel"):
+                class region1(State.Compound, name="Region1"):
+                    idle = State(initial=True)
+
+                    class inner(State.Compound, name="Inner"):
+                        working = State(initial=True)
+
+                    start = idle.to(inner)
+
+                class region2(State.Compound, name="Region2"):
+                    x = State(initial=True)
+
+            begin = State(initial=True)
+            enter = begin.to(p)
+
+        result = MermaidGraphMachine(SM).get_mermaid()
+        # Inside parallel: compound endpoint redirected to initial child
+        assert "idle --> working : start" in result
+        assert "idle --> inner" not in result
+
+    def test_compound_outside_parallel_not_redirected(self):
+        """Compound states outside parallel regions keep direct transitions."""
+
+        class SM(StateChart):
+            class parent(State.Compound, name="Parent"):
+                child = State(initial=True)
+
+            start = State(initial=True)
+            end = State(final=True)
+            enter = start.to(parent)
+            leave = parent.to(end)
+
+        result = MermaidGraphMachine(SM).get_mermaid()
+        assert "start --> parent : enter" in result
+        assert "parent --> end : leave" in result
 
     def test_nested_compound(self):
         class SM(StateChart):
@@ -523,8 +563,8 @@ class TestMermaidRendererEdgeCases:
         result = MermaidRenderer().render(graph)
         assert "comp:::active" in result
 
-    def test_cross_scope_transition_not_in_compound(self):
-        """Transition crossing compound boundaries is not rendered inside the compound."""
+    def test_cross_scope_transition_rendered_at_parent(self):
+        """Transition crossing compound boundaries is rendered at the parent scope."""
         graph = DiagramGraph(
             name="CrossScope",
             states=[
@@ -546,9 +586,50 @@ class TestMermaidRendererEdgeCases:
         )
         result = MermaidRenderer().render(graph)
         # c1 is inside comp, outside is at top level — the transition
-        # can't be rendered at either scope since source/target span scopes.
-        # This is expected: Mermaid doesn't support cross-scope transitions natively.
-        assert "c1 --> outside" not in result
+        # crosses the compound boundary and is rendered at the top scope.
+        assert "c1 --> outside : leave" in result
+        # It should NOT appear inside the compound block
+        lines = result.split("\n")
+        for line in lines:
+            if "c1 --> outside" in line:
+                # Should be at indent level 1 (top scope), not deeper
+                assert line.startswith("    c1"), f"Expected top-level indent, got: {line!r}"
+
+    def test_cross_scope_to_history_state(self):
+        """Transition from outside a compound to a history state inside it is rendered."""
+        graph = DiagramGraph(
+            name="HistoryCross",
+            states=[
+                DiagramState(
+                    id="process",
+                    name="Process",
+                    type=StateType.REGULAR,
+                    children=[
+                        DiagramState(
+                            id="step1", name="Step1", type=StateType.REGULAR, is_initial=True
+                        ),
+                        DiagramState(id="step2", name="Step2", type=StateType.REGULAR),
+                        DiagramState(id="h", name="H", type=StateType.HISTORY_SHALLOW),
+                    ],
+                ),
+                DiagramState(id="paused", name="Paused", type=StateType.REGULAR, is_initial=True),
+            ],
+            transitions=[
+                DiagramTransition(source="step1", targets=["step2"], event="advance"),
+                DiagramTransition(source="process", targets=["paused"], event="pause"),
+                DiagramTransition(source="paused", targets=["h"], event="resume"),
+                DiagramTransition(source="paused", targets=["process"], event="begin"),
+            ],
+            compound_state_ids={"process"},
+        )
+        result = MermaidRenderer().render(graph)
+        # The resume transition crosses the compound boundary
+        assert "paused --> h : resume" in result
+        # advance stays inside the compound
+        assert "step1 --> step2 : advance" in result
+        # pause and begin are at top level (both endpoints are top-level)
+        assert "process --> paused : pause" in result
+        assert "paused --> process : begin" in result
 
     def test_no_initial_state(self):
         """Graph with no initial state omits [*] arrow."""
