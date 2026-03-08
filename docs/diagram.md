@@ -110,6 +110,118 @@ send events before rendering:
 python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine diagram.png --events cycle cycle cycle
 ```
 
+Use `--format` to produce **Mermaid source** or a **transition table** instead
+of a Graphviz image:
+
+```bash
+# Mermaid stateDiagram-v2
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.mmd --format mermaid
+
+# Markdown transition table
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.md --format md
+
+# RST transition table
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine output.rst --format rst
+```
+
+Use `-` as the output file to write to stdout (handy for piping):
+
+```bash
+python -m statemachine.contrib.diagram tests.examples.traffic_light_machine.TrafficLightMachine - --format mermaid
+```
+
+
+## Text representations with `format()`
+
+State machines support Python's built-in `format()` protocol for quick text
+output — no diagram imports needed:
+
+```py
+>>> from tests.examples.traffic_light_machine import TrafficLightMachine
+>>> sm = TrafficLightMachine()
+>>> print(f"{sm:mermaid}")
+stateDiagram-v2
+    direction LR
+    state "Green" as green
+    state "Yellow" as yellow
+    state "Red" as red
+    [*] --> green
+    green --> yellow : cycle
+    yellow --> red : cycle
+    red --> green : cycle
+<BLANKLINE>
+    classDef active fill:#40E0D0,stroke:#333
+    green:::active
+<BLANKLINE>
+
+>>> print(f"{sm:md}")
+| State  | Event | Guard | Target |
+| ------ | ----- | ----- | ------ |
+| Green  | cycle |       | Yellow |
+| Yellow | cycle |       | Red    |
+| Red    | cycle |       | Green  |
+<BLANKLINE>
+
+```
+
+Works on **classes** too (no active-state highlighting):
+
+```py
+>>> print(f"{TrafficLightMachine:mermaid}")
+stateDiagram-v2
+    direction LR
+    state "Green" as green
+    state "Yellow" as yellow
+    state "Red" as red
+    [*] --> green
+    green --> yellow : cycle
+    yellow --> red : cycle
+    red --> green : cycle
+<BLANKLINE>
+
+```
+
+Supported format specs: `dot`, `mermaid`, `md` (or `markdown`), `rst`.
+An empty spec falls back to `repr()`.
+
+The `dot` format returns the Graphviz DOT language source (same output as
+`sm._graph().to_string()`):
+
+```py
+>>> print(f"{sm:dot}")  # doctest: +ELLIPSIS
+digraph TrafficLightMachine {
+...
+}
+
+```
+
+
+## Mermaid output
+
+The `MermaidGraphMachine` facade generates
+[Mermaid `stateDiagram-v2`](https://mermaid.js.org/syntax/stateDiagram.html)
+source text from any state machine — no external dependencies required:
+
+```py
+>>> from statemachine.contrib.diagram import MermaidGraphMachine
+>>> from tests.examples.traffic_light_machine import TrafficLightMachine
+>>> print(MermaidGraphMachine(TrafficLightMachine).get_mermaid())
+stateDiagram-v2
+    direction LR
+    state "Green" as green
+    state "Yellow" as yellow
+    state "Red" as red
+    [*] --> green
+    green --> yellow : cycle
+    yellow --> red : cycle
+    red --> green : cycle
+<BLANKLINE>
+
+```
+
+Compound states, parallel regions, history pseudo-states, guards, and
+active-state highlighting are all supported.
+
 
 ## Sphinx directive
 
@@ -189,6 +301,11 @@ The directive supports the same layout options as the standard `image` and
 `:events:` *(comma-separated string)*
 : Events to send in sequence. When present, the machine is instantiated and
   each event is sent before rendering.
+
+`:format:` *(string)*
+: Output format. Use `mermaid` to render via
+  [sphinxcontrib-mermaid](https://github.com/mgaitan/sphinxcontrib-mermaid)
+  instead of Graphviz SVG. Default: DOT/SVG.
 
 **Image/figure options:**
 

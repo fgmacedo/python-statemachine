@@ -5,6 +5,8 @@ from urllib.request import urlopen
 from .extract import extract
 from .renderers.dot import DotRenderer
 from .renderers.dot import DotRendererConfig
+from .renderers.mermaid import MermaidRenderer
+from .renderers.mermaid import MermaidRendererConfig
 
 
 class DotGraphMachine:
@@ -54,6 +56,32 @@ class DotGraphMachine:
 
     def __call__(self):
         return self.get_graph()
+
+
+class MermaidGraphMachine:
+    """Facade for generating Mermaid stateDiagram-v2 source from a state machine."""
+
+    direction = "LR"
+    active_fill = "#40E0D0"
+    active_stroke = "#333"
+
+    def __init__(self, machine):
+        self.machine = machine
+
+    def _build_config(self) -> MermaidRendererConfig:
+        return MermaidRendererConfig(
+            direction=self.direction,
+            active_fill=self.active_fill,
+            active_stroke=self.active_stroke,
+        )
+
+    def get_mermaid(self) -> str:
+        ir = extract(self.machine)
+        renderer = MermaidRenderer(config=self._build_config())
+        return renderer.render(ir)
+
+    def __call__(self) -> str:
+        return self.get_mermaid()
 
 
 def quickchart_write_svg(sm, path: str):
@@ -135,7 +163,7 @@ def import_sm(qualname):
     return smclass
 
 
-def write_image(qualname, out, events=None):
+def write_image(qualname, out, events=None, fmt=None):
     """
     Given a `qualname`, that is the fully qualified dotted path to a StateMachine
     classes, imports the class and generates a dot graph using the `pydot` lib.
@@ -146,7 +174,13 @@ def write_image(qualname, out, events=None):
 
     If `events` is provided, the machine is instantiated and each event is sent
     before rendering, so the diagram highlights the current active state.
+
+    If `fmt` is provided, it overrides the output format: ``"mermaid"`` writes
+    Mermaid source text, ``"md"``/``"rst"`` write a transition table.
+    Use ``out="-"`` to write to stdout.
     """
+    import sys
+
     smclass = import_sm(qualname)
 
     if events:
@@ -156,9 +190,27 @@ def write_image(qualname, out, events=None):
     else:
         machine = smclass
 
-    graph = DotGraphMachine(machine).get_graph()
-    out_extension = out.rsplit(".", 1)[1]
-    graph.write(out, format=out_extension)
+    if fmt in ("mermaid", "md", "rst"):
+        if fmt == "mermaid":
+            text = MermaidGraphMachine(machine).get_mermaid()
+        else:
+            from .renderers.table import TransitionTableRenderer
+
+            ir = extract(machine)
+            text = TransitionTableRenderer().render(ir, fmt=fmt)
+
+        if out == "-":
+            sys.stdout.write(text)
+        else:
+            with open(out, "w") as f:
+                f.write(text)
+    else:
+        graph = DotGraphMachine(machine).get_graph()
+        if out == "-":
+            sys.stdout.buffer.write(graph.create_svg())  # type: ignore[attr-defined]
+        else:
+            out_extension = out.rsplit(".", 1)[1]
+            graph.write(out, format=out_extension)
 
 
 def main(argv=None):
@@ -180,6 +232,12 @@ def main(argv=None):
         nargs="+",
         help="Instantiate the machine and send these events before rendering.",
     )
+    parser.add_argument(
+        "--format",
+        choices=["mermaid", "md", "rst"],
+        default=None,
+        help="Output format: mermaid source, markdown table, or RST table.",
+    )
 
     args = parser.parse_args(argv)
-    write_image(qualname=args.class_path, out=args.out, events=args.events)
+    write_image(qualname=args.class_path, out=args.out, events=args.events, fmt=args.format)

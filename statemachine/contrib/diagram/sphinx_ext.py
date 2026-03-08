@@ -61,6 +61,7 @@ class StateMachineDiagram(SphinxDirective):
     option_spec: ClassVar[dict[str, Any]] = {
         # State-machine options
         "events": directives.unchanged,
+        "format": directives.unchanged,
         # Standard image/figure options
         "caption": directives.unchanged,
         "alt": directives.unchanged,
@@ -96,6 +97,11 @@ class StateMachineDiagram(SphinxDirective):
                 machine.send(event_name)
         else:
             machine = sm_class
+
+        output_format = self.options.get("format", "").strip().lower()
+
+        if output_format == "mermaid":
+            return self._run_mermaid(machine, qualname)
 
         try:
             graph = DotGraphMachine(machine).get_graph()
@@ -142,6 +148,47 @@ class StateMachineDiagram(SphinxDirective):
             self.add_name(raw_node)
 
         return [raw_node]
+
+    def _run_mermaid(self, machine: object, qualname: str) -> list[nodes.Node]:
+        """Render a Mermaid diagram using sphinxcontrib-mermaid's node type."""
+        try:
+            from statemachine.contrib.diagram import MermaidGraphMachine
+
+            mermaid_src = MermaidGraphMachine(machine).get_mermaid()
+        except Exception as exc:
+            return [
+                self.state_machine.reporter.warning(
+                    f"statemachine-diagram: failed to generate mermaid for {qualname!r}: {exc}",
+                    line=self.lineno,
+                )
+            ]
+
+        try:
+            from sphinxcontrib.mermaid import (  # type: ignore[import-untyped]
+                mermaid as MermaidNode,
+            )
+        except ImportError:
+            # Fallback: emit a raw code block if sphinxcontrib-mermaid is not installed
+            code_node = nodes.literal_block(mermaid_src, mermaid_src)
+            code_node["language"] = "mermaid"
+            return [code_node]
+
+        node = MermaidNode()
+        node["code"] = mermaid_src
+        node["options"] = {}
+
+        caption = self.options.get("caption")
+        if caption:
+            figure_node = nodes.figure()
+            figure_node += node
+            figure_node += nodes.caption(caption, caption)
+            if "name" in self.options:
+                self.add_name(figure_node)
+            return [figure_node]
+
+        if "name" in self.options:
+            self.add_name(node)
+        return [node]
 
     def _prepare_svg(self, svg_bytes: bytes) -> tuple[str, str, str]:
         """Extract the ``<svg>`` element and its intrinsic dimensions."""
