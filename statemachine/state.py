@@ -350,102 +350,58 @@ class State:
 
 
 class InstanceState(State):
-    """ """
+    """Per-instance proxy for a State, delegating attribute access to the underlying State.
+
+    Uses ``__getattr__`` for automatic delegation of instance attributes (name, value,
+    transitions, etc.) and explicit property overrides for attributes that access private
+    fields or have custom logic (id, initial, final, parallel, is_active).
+    """
 
     def __init__(
         self,
         state: State,
         machine: "StateChart",
     ):
-        self._state = ref(state)
+        self._state = state
         self._machine = ref(machine)
         self._hash = hash(state)
         self._init_states()
 
-    def _ref(self) -> State:
-        """Dereference the weakref, raising if the referent has been collected."""
-        state = self._state()
-        assert state is not None
-        return state
-
-    @property
-    def name(self):
-        return self._ref().name
-
-    @property
-    def value(self):
-        return self._ref().value
-
-    @property
-    def transitions(self):
-        return self._ref().transitions
-
-    @property
-    def enter(self):
-        return self._ref().enter
-
-    @property
-    def exit(self):
-        return self._ref().exit
-
-    @property
-    def invoke(self):
-        return self._ref().invoke
+    def __getattr__(self, name: str):
+        value = getattr(self._state, name)
+        self.__dict__[name] = value
+        return value
 
     def __eq__(self, other):
-        return self._ref() == other
+        return self._state == other
 
     def __hash__(self):
         return self._hash
 
     def __repr__(self):
-        return repr(self._ref())
-
-    @property
-    def initial(self):
-        return self._ref()._initial
-
-    @property
-    def final(self):
-        return self._ref()._final
+        return repr(self._state)
 
     @property
     def id(self) -> str:
-        return (self._state() or self)._id  # type: ignore[union-attr]
+        return self._state._id
+
+    @property
+    def initial(self):
+        return self._state._initial
+
+    @property
+    def final(self):
+        return self._state._final
+
+    @property
+    def parallel(self):
+        return self._state._parallel
 
     @property
     def is_active(self):
         machine = self._machine()
         assert machine is not None
         return self.value in machine.configuration_values
-
-    @property
-    def is_atomic(self):
-        return self._ref().is_atomic
-
-    @property
-    def parent(self):
-        return self._ref().parent
-
-    @property
-    def states(self):
-        return self._ref().states
-
-    @property
-    def history(self):
-        return self._ref().history
-
-    @property
-    def parallel(self):
-        return self._ref().parallel
-
-    @property
-    def is_compound(self):
-        return self._ref().is_compound
-
-    @property
-    def document_order(self):
-        return self._ref().document_order
 
 
 class AnyState(State):
