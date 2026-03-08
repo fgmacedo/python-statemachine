@@ -181,7 +181,7 @@ stateDiagram-v2
 
 ```
 
-Supported format specs: `dot`, `mermaid`, `md` (or `markdown`), `rst`.
+Supported format specs: `dot`, `svg`, `mermaid`, `md` (or `markdown`), `rst`.
 An empty spec falls back to `repr()`.
 
 The `dot` format returns the Graphviz DOT language source (same output as
@@ -193,6 +193,71 @@ digraph TrafficLightMachine {
 ...
 }
 
+```
+
+
+## Auto-expanding docstrings
+
+Use `{statechart:FORMAT}` placeholders in your class docstring to embed
+a live representation of the state machine. The placeholder is replaced
+at class definition time, so the docstring always reflects the actual
+states and transitions:
+
+```py
+>>> from statemachine.statemachine import StateChart
+>>> from statemachine.state import State
+
+>>> class TrafficLight(StateChart):
+...     """A traffic light.
+...
+...     {statechart:md}
+...     """
+...     green = State(initial=True)
+...     yellow = State()
+...     red = State()
+...     cycle = green.to(yellow) | yellow.to(red) | red.to(green)
+
+>>> print(TrafficLight.__doc__)
+A traffic light.
+<BLANKLINE>
+| State  | Event | Guard | Target |
+| ------ | ----- | ----- | ------ |
+| Green  | cycle |       | Yellow |
+| Yellow | cycle |       | Red    |
+| Red    | cycle |       | Green  |
+<BLANKLINE>
+<BLANKLINE>
+
+```
+
+Any registered format works: `{statechart:rst}`, `{statechart:mermaid}`,
+`{statechart:dot}`, etc.
+
+### Choosing the right format
+
+| Context | Recommended format |
+|---------|-------------------|
+| Sphinx with RST (autodoc default) | `{statechart:rst}` |
+| Sphinx with MyST Markdown | `{statechart:md}` |
+| `help()` in terminal / IDE | Either works; `md` reads more cleanly |
+
+### Sphinx autodoc integration
+
+Since the placeholder is expanded at class definition time, Sphinx `autodoc`
+sees the final rendered text — no extra configuration needed.
+
+For example, this class uses `{statechart:rst}` in its docstring:
+
+```{literalinclude} ../tests/machines/showcase_simple.py
+:pyobject: SimpleSC
+:language: python
+```
+
+And here is the rendered autodoc output:
+
+```{eval-rst}
+.. autoclass:: tests.machines.showcase_simple.SimpleSC
+   :noindex:
 ```
 
 

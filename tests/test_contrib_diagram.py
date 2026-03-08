@@ -1328,6 +1328,122 @@ class TestFormat:
             f"{TrafficLightMachine:invalid}"
 
 
+class TestDocstringExpansion:
+    """Tests for {statechart:FORMAT} placeholder expansion in docstrings."""
+
+    def test_md_placeholder(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """Machine.
+
+            {statechart:md}
+            """
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "| State" in MyMachine.__doc__
+        assert "{statechart:md}" not in MyMachine.__doc__
+
+    def test_rst_placeholder(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """Machine.
+
+            {statechart:rst}
+            """
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "+---" in MyMachine.__doc__
+        assert "{statechart:rst}" not in MyMachine.__doc__
+
+    def test_mermaid_placeholder(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """{statechart:mermaid}"""
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "stateDiagram-v2" in MyMachine.__doc__
+
+    def test_no_placeholder_unchanged(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """Just a plain docstring."""
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert MyMachine.__doc__ == "Just a plain docstring."
+
+    def test_no_docstring(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert MyMachine.__doc__ is None
+
+    def test_indentation_preserved(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            __doc__ = "Doc.\n\n    Table:\n\n    {statechart:md}\n\n    End.\n"
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        lines = MyMachine.__doc__.split("\n")
+        table_lines = [line for line in lines if "|" in line]
+        for line in table_lines:
+            assert line.startswith("    |")
+        assert "End." in MyMachine.__doc__
+
+    def test_multiple_placeholders(self):
+        from statemachine.state import State
+        from statemachine.statemachine import StateChart
+
+        class MyMachine(StateChart):
+            """MD: {statechart:md}
+
+            Mermaid: {statechart:mermaid}
+            """
+
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        assert "| State" in MyMachine.__doc__
+        assert "stateDiagram-v2" in MyMachine.__doc__
+
+
 class TestFormatter:
     """Tests for the Formatter facade (render, register_format, supported_formats)."""
 
