@@ -364,16 +364,55 @@ Or from the command line:
 python -m statemachine.contrib.diagram my_module.CoffeeOrder order.png
 ```
 
+### Text representations with `format()`
+
+You can also get text representations of any state machine using Python's built-in
+`format()` or f-strings — no Graphviz needed:
+
+```py
+>>> from tests.machines.tutorial_coffee_order import CoffeeOrder
+
+>>> print(f"{CoffeeOrder:md}")
+| State     | Event   | Guard | Target    |
+| --------- | ------- | ----- | --------- |
+| Pending   | start   |       | Preparing |
+| Preparing | finish  |       | Ready     |
+| Ready     | pick_up |       | Picked up |
+
+```
+
+Supported formats include `mermaid`, `md` (markdown table), `rst`, `dot`, and `svg`.
+Works on both classes and instances:
+
+```py
+>>> print(f"{CoffeeOrder:mermaid}")
+stateDiagram-v2
+    direction LR
+    state "Pending" as pending
+    state "Preparing" as preparing
+    state "Ready" as ready
+    state "Picked up" as picked_up
+    [*] --> pending
+    picked_up --> [*]
+    pending --> preparing : start
+    preparing --> ready : finish
+    ready --> picked_up : pick_up
+<BLANKLINE>
+
+```
+
 ```{tip}
-Diagram generation requires [Graphviz](https://graphviz.org/) (`dot` command)
+Graphviz diagram generation requires [Graphviz](https://graphviz.org/) (`dot` command)
 and the `diagrams` extra:
 
     pip install python-statemachine[diagrams]
+
+Text formats (`md`, `rst`, `mermaid`) work without any extra dependencies.
 ```
 
 ```{seealso}
-See [](diagram.md) for highlighting active states, Jupyter integration,
-SVG output, DPI settings, Sphinx directive, and the `quickchart_write_svg`
+See [](diagram.md) for all formats, highlighting active states, auto-expanding
+docstrings, Jupyter integration, Sphinx directive, and the `quickchart_write_svg`
 alternative that doesn't require Graphviz.
 ```
 
