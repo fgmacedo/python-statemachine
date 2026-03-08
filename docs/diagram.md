@@ -164,6 +164,7 @@ digraph TrafficLightMachine {
 An empty format spec (e.g., `f"{sm:}"`) falls back to `repr()`.
 
 
+(formatter-api)=
 ### Using the `formatter` API
 
 The `formatter` object is the programmatic entry point for rendering
