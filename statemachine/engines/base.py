@@ -560,9 +560,12 @@ class BaseEngine:
 
         states_targets_to_enter = OrderedSet(info.state for info in ordered_states if info.state)
 
-        new_configuration = cast(
-            OrderedSet[State], (previous_configuration - states_to_exit) | states_targets_to_enter
+        # Build new configuration in a single pass instead of two set operations
+        # (- and |) that each allocate an intermediate OrderedSet.
+        new_configuration = OrderedSet(
+            s for s in previous_configuration if s not in states_to_exit
         )
+        new_configuration.update(states_targets_to_enter)
         self._debug("%s States to enter: %s", self._log_id, states_targets_to_enter)
 
         return ordered_states, states_for_default_entry, default_history_content, new_configuration
