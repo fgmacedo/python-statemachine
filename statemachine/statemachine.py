@@ -227,12 +227,9 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     def __setattr__(self, name, value):
         # Fast path: internal/private attributes are never state IDs.
         if not name.startswith("_") and name in self.__class__.states_map:
-            if not isinstance(value, InstanceState):
-                raise StateMachineError(
-                    _("State overriding is not allowed. Trying to add '{}' to {}").format(
-                        value, name
-                    )
-                )
+            raise StateMachineError(
+                _("State overriding is not allowed. Trying to add '{}' to {}").format(value, name)
+            )
         super().__setattr__(name, value)
 
     def __repr__(self):
