@@ -11,11 +11,8 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import cast
-from weakref import ReferenceType
-from weakref import ref
 
 from ..event import BoundEvent
-from ..event import Event
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
@@ -88,7 +85,7 @@ _ERROR_EXECUTION = "error.execution"
 
 class BaseEngine:
     def __init__(self, sm: "StateChart"):
-        self._sm: ReferenceType["StateChart"] = ref(sm)
+        self.sm: "StateChart" = sm
         self.external_queue = EventQueue()
         self.internal_queue = EventQueue()
         self._sentinel = object()
@@ -104,12 +101,6 @@ class BaseEngine:
 
     def empty(self):  # pragma: no cover
         return self.external_queue.is_empty()
-
-    @property
-    def sm(self) -> "StateChart":
-        sm = self._sm()
-        assert sm, "StateMachine has been destroyed"
-        return sm
 
     def clear_cache(self):
         """Clears the cache. Should be called at the start of each processing loop."""
@@ -347,6 +338,23 @@ class BaseEngine:
         """
         return self._select_transitions(trigger_data, lambda t, e: t.match(e))
 
+    def _first_transition_that_matches(
+        self,
+        state: State,
+        trigger_data: TriggerData,
+        predicate: Callable,
+    ) -> "Transition | None":
+        for s in chain([state], state.ancestors()):
+            transition: Transition
+            for transition in s.transitions:
+                if (
+                    not transition.initial
+                    and predicate(transition, trigger_data.event)
+                    and self._conditions_match(transition, trigger_data)
+                ):
+                    return transition
+        return None
+
     def _select_transitions(
         self, trigger_data: TriggerData, predicate: Callable
     ) -> OrderedSet[Transition]:
@@ -356,23 +364,8 @@ class BaseEngine:
         # Get atomic states, TODO: sorted by document order
         atomic_states = (state for state in self.sm.configuration if state.is_atomic)
 
-        def first_transition_that_matches(
-            state: State, event: "Event | None"
-        ) -> "Transition | None":
-            for s in chain([state], state.ancestors()):
-                transition: Transition
-                for transition in s.transitions:
-                    if (
-                        not transition.initial
-                        and predicate(transition, event)
-                        and self._conditions_match(transition, trigger_data)
-                    ):
-                        return transition
-
-            return None
-
         for state in atomic_states:
-            transition = first_transition_that_matches(state, trigger_data.event)
+            transition = self._first_transition_that_matches(state, trigger_data, predicate)
             if transition is not None:
                 enabled_transitions.add(transition)
 
