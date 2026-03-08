@@ -1737,6 +1737,22 @@ class TestDirectiveMermaidFormat:
         assert len(caption_children) == 1
         assert caption_children[0].astext() == "My Diagram"
 
+    def test_mermaid_format_with_caption_and_name(self, tmp_path):
+        """Mermaid format with caption and :name: calls add_name on the figure."""
+        _, result = self._run(
+            tmp_path, options={"format": "mermaid", "caption": "My Diagram", "name": "fig-sm"}
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], nodes.figure)
+
+    def test_mermaid_format_with_name_no_caption(self, tmp_path):
+        """Mermaid format with :name: but no caption calls add_name on the mermaid node."""
+        from sphinxcontrib.mermaid import mermaid as MermaidNode  # type: ignore[import-untyped]
+
+        _, result = self._run(tmp_path, options={"format": "mermaid", "name": "fig-sm"})
+        assert len(result) == 1
+        assert isinstance(result[0], MermaidNode)
+
     def test_mermaid_format_fallback_no_sphinxcontrib(self, tmp_path):
         """When sphinxcontrib-mermaid is not available, falls back to code block."""
         import sys

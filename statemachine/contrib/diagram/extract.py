@@ -123,7 +123,7 @@ def _format_event_names(transition: "Transition") -> str:
         # form ("done_invoke_X") is also registered on this transition.
         if "." in eid and eid.replace(".", "_") in all_ids:
             continue
-        if eid not in display:
+        if eid not in display:  # pragma: no branch
             display.append(eid)
 
     return " ".join(display)
