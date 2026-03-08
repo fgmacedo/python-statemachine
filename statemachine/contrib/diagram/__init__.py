@@ -3,6 +3,7 @@ from urllib.parse import quote
 from urllib.request import urlopen
 
 from .extract import extract
+from .formatter import formatter as formatter
 from .renderers.dot import DotRenderer
 from .renderers.dot import DotRendererConfig
 from .renderers.mermaid import MermaidRenderer
@@ -175,8 +176,8 @@ def write_image(qualname, out, events=None, fmt=None):
     If `events` is provided, the machine is instantiated and each event is sent
     before rendering, so the diagram highlights the current active state.
 
-    If `fmt` is provided, it overrides the output format: ``"mermaid"`` writes
-    Mermaid source text, ``"md"``/``"rst"`` write a transition table.
+    If `fmt` is provided, it overrides the output format (any registered text
+    format such as ``"mermaid"``, ``"dot"``, ``"md"``, ``"rst"``).
     Use ``out="-"`` to write to stdout.
     """
     import sys
@@ -190,15 +191,8 @@ def write_image(qualname, out, events=None, fmt=None):
     else:
         machine = smclass
 
-    if fmt in ("mermaid", "md", "rst"):
-        if fmt == "mermaid":
-            text = MermaidGraphMachine(machine).get_mermaid()
-        else:
-            from .renderers.table import TransitionTableRenderer
-
-            ir = extract(machine)
-            text = TransitionTableRenderer().render(ir, fmt=fmt)
-
+    if fmt is not None:
+        text = formatter.render(machine, fmt)
         if out == "-":
             sys.stdout.write(text)
         else:
@@ -234,9 +228,9 @@ def main(argv=None):
     )
     parser.add_argument(
         "--format",
-        choices=["mermaid", "md", "rst"],
+        choices=formatter.supported_formats(),
         default=None,
-        help="Output format: mermaid source, markdown table, or RST table.",
+        help="Output as text format instead of Graphviz image.",
     )
 
     args = parser.parse_args(argv)

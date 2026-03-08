@@ -1328,6 +1328,121 @@ class TestFormat:
             f"{TrafficLightMachine:invalid}"
 
 
+class TestFormatter:
+    """Tests for the Formatter facade (render, register_format, supported_formats)."""
+
+    def test_render_mermaid(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "mermaid")
+        assert "stateDiagram-v2" in result
+
+    def test_render_dot(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "dot")
+        assert result.startswith("digraph TrafficLightMachine {")
+
+    def test_render_md(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "md")
+        assert "| State" in result
+
+    def test_render_markdown_alias(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        assert formatter.render(TrafficLightMachine, "markdown") == formatter.render(
+            TrafficLightMachine, "md"
+        )
+
+    def test_render_rst(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "rst")
+        assert "+---" in result
+
+    def test_render_empty_repr_instance(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        assert formatter.render(sm, "") == repr(sm)
+
+    def test_render_empty_repr_class(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        assert formatter.render(TrafficLightMachine, "") == repr(TrafficLightMachine)
+
+    def test_render_invalid_raises(self):
+        from statemachine.contrib.diagram import formatter
+
+        with pytest.raises(ValueError, match="Unsupported format"):
+            formatter.render(object(), "invalid")
+
+    def test_supported_formats(self):
+        from statemachine.contrib.diagram import formatter
+
+        fmts = formatter.supported_formats()
+        assert "dot" in fmts
+        assert "mermaid" in fmts
+        assert "md" in fmts
+        assert "markdown" in fmts
+        assert "rst" in fmts
+
+    def test_register_custom_format(self):
+        from statemachine.contrib.diagram import formatter
+
+        @formatter.register_format("_test_custom")
+        def _render_custom(machine_or_class):
+            return "custom output"
+
+        try:
+            assert formatter.render(object(), "_test_custom") == "custom output"
+        finally:
+            formatter._formats.pop("_test_custom", None)
+
+    def test_register_format_with_aliases(self):
+        from statemachine.contrib.diagram import formatter
+
+        @formatter.register_format("_test_alias", "_test_alias2")
+        def _render_alias_test(machine_or_class):
+            return "alias output"
+
+        try:
+            assert formatter.render(object(), "_test_alias") == "alias output"
+            assert formatter.render(object(), "_test_alias2") == "alias output"
+        finally:
+            formatter._formats.pop("_test_alias", None)
+            formatter._formats.pop("_test_alias2", None)
+
+    def test_error_message_lists_primary_formats(self):
+        from statemachine.contrib.diagram import formatter
+
+        with pytest.raises(ValueError, match="'dot'") as exc_info:
+            formatter.render(object(), "nonexistent")
+        msg = str(exc_info.value)
+        # Should list primary names, not aliases
+        assert "'mermaid'" in msg
+        assert "'md'" in msg
+        assert "'rst'" in msg
+        # "markdown" is an alias, should not appear in error message
+        assert "'markdown'" not in msg
+
+
 class TestDirectiveMermaidFormat:
     """Tests for the :format: mermaid Sphinx directive option."""
 

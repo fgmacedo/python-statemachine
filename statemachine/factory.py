@@ -93,28 +93,9 @@ class StateMachineMetaclass(type):
         cls._setup()
 
     def __format__(cls, fmt: str) -> str:
-        if fmt == "mermaid":
-            from .contrib.diagram import MermaidGraphMachine
+        from .contrib.diagram.formatter import formatter
 
-            return MermaidGraphMachine(cls).get_mermaid()
-        elif fmt == "dot":
-            from .contrib.diagram import DotGraphMachine
-
-            return DotGraphMachine(cls).get_graph().to_string()  # type: ignore[no-any-return]
-        elif fmt in ("md", "markdown"):
-            from .contrib.diagram.extract import extract
-            from .contrib.diagram.renderers.table import TransitionTableRenderer
-
-            return TransitionTableRenderer().render(extract(cls), fmt="md")  # type: ignore[arg-type]
-        elif fmt == "rst":
-            from .contrib.diagram.extract import extract
-            from .contrib.diagram.renderers.table import TransitionTableRenderer
-
-            return TransitionTableRenderer().render(extract(cls), fmt="rst")  # type: ignore[arg-type]
-        elif fmt == "":
-            return repr(cls)
-        else:
-            raise ValueError(f"Unsupported format: {fmt!r}. Use 'dot', 'mermaid', 'md', or 'rst'.")
+        return formatter.render(cls, fmt)  # type: ignore[arg-type]
 
     def _initials_by_document_order(  # noqa: C901
         cls, states: List[State], parent: "State | None" = None, order: int = 1

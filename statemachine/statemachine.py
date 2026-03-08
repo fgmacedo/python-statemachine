@@ -240,28 +240,9 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         )
 
     def __format__(self, fmt: str) -> str:
-        if fmt == "mermaid":
-            from .contrib.diagram import MermaidGraphMachine
+        from .contrib.diagram.formatter import formatter
 
-            return MermaidGraphMachine(self).get_mermaid()
-        elif fmt == "dot":
-            from .contrib.diagram import DotGraphMachine
-
-            return DotGraphMachine(self).get_graph().to_string()  # type: ignore[no-any-return]
-        elif fmt in ("md", "markdown"):
-            from .contrib.diagram.extract import extract
-            from .contrib.diagram.renderers.table import TransitionTableRenderer
-
-            return TransitionTableRenderer().render(extract(self), fmt="md")
-        elif fmt == "rst":
-            from .contrib.diagram.extract import extract
-            from .contrib.diagram.renderers.table import TransitionTableRenderer
-
-            return TransitionTableRenderer().render(extract(self), fmt="rst")
-        elif fmt == "":
-            return repr(self)
-        else:
-            raise ValueError(f"Unsupported format: {fmt!r}. Use 'dot', 'mermaid', 'md', or 'rst'.")
+        return formatter.render(self, fmt)
 
     def __getstate__(self):
         state = {k: v for k, v in self.__dict__.items() if not isinstance(v, InstanceState)}
