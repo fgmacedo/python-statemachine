@@ -39,7 +39,7 @@ def _parse_events(value: str) -> list[str]:
 
 
 # Match the outer <svg ...>...</svg> element, stripping XML prologue/DOCTYPE.
-_SVG_TAG_RE = re.compile(rb"(<svg\b.*</svg>)", re.DOTALL)
+_SVG_TAG_RE = re.compile(r"(<svg\b.*</svg>)", re.DOTALL)
 
 # Match fixed width/height attributes (e.g. width="702pt" height="170pt").
 _SVG_WIDTH_RE = re.compile(r'\bwidth="([^"]*(?:pt|px))"')
@@ -79,7 +79,7 @@ class StateMachineDiagram(SphinxDirective):
         qualname = self.arguments[0]
 
         try:
-            from statemachine.contrib.diagram import DotGraphMachine
+            from statemachine.contrib.diagram import formatter
             from statemachine.contrib.diagram import import_sm
 
             sm_class = import_sm(qualname)
@@ -101,11 +101,10 @@ class StateMachineDiagram(SphinxDirective):
         output_format = self.options.get("format", "").strip().lower()
 
         if output_format == "mermaid":
-            return self._run_mermaid(machine, qualname)
+            return self._run_mermaid(machine, formatter, qualname)
 
         try:
-            graph = DotGraphMachine(machine).get_graph()
-            svg_bytes: bytes = graph.create_svg()  # type: ignore[attr-defined]
+            svg_text = formatter.render(machine, "svg")
         except Exception as exc:
             return [
                 self.state_machine.reporter.warning(
@@ -114,12 +113,12 @@ class StateMachineDiagram(SphinxDirective):
                 )
             ]
 
-        svg_tag, intrinsic_width, intrinsic_height = self._prepare_svg(svg_bytes)
+        svg_tag, intrinsic_width, intrinsic_height = self._prepare_svg(svg_text)
         svg_styles = self._build_svg_styles(intrinsic_width, intrinsic_height)
         svg_tag = svg_tag.replace("<svg ", f"<svg {svg_styles} ", 1)
 
         alt_text = html_mod.escape(self.options.get("alt", qualname.rsplit(".", 1)[-1]))
-        target = self._resolve_target(svg_bytes)
+        target = self._resolve_target(svg_text)
 
         img_html = f'<div role="img" aria-label="{alt_text}">{svg_tag}</div>'
         if target:
@@ -149,12 +148,10 @@ class StateMachineDiagram(SphinxDirective):
 
         return [raw_node]
 
-    def _run_mermaid(self, machine: object, qualname: str) -> list[nodes.Node]:
+    def _run_mermaid(self, machine: object, formatter: Any, qualname: str) -> list[nodes.Node]:
         """Render a Mermaid diagram using sphinxcontrib-mermaid's node type."""
         try:
-            from statemachine.contrib.diagram import MermaidGraphMachine
-
-            mermaid_src = MermaidGraphMachine(machine).get_mermaid()
+            mermaid_src = formatter.render(machine, "mermaid")
         except Exception as exc:
             return [
                 self.state_machine.reporter.warning(
@@ -190,10 +187,10 @@ class StateMachineDiagram(SphinxDirective):
             self.add_name(node)
         return [node]
 
-    def _prepare_svg(self, svg_bytes: bytes) -> tuple[str, str, str]:
+    def _prepare_svg(self, svg_text: str) -> tuple[str, str, str]:
         """Extract the ``<svg>`` element and its intrinsic dimensions."""
-        match = _SVG_TAG_RE.search(svg_bytes)
-        svg_tag = match.group(1).decode("utf-8") if match else svg_bytes.decode("utf-8")
+        match = _SVG_TAG_RE.search(svg_text)
+        svg_tag = match.group(1) if match else svg_text
 
         width_match = _SVG_WIDTH_RE.search(svg_tag)
         height_match = _SVG_HEIGHT_RE.search(svg_tag)
@@ -235,7 +232,7 @@ class StateMachineDiagram(SphinxDirective):
 
         return f'style="{"; ".join(parts)}"'
 
-    def _resolve_target(self, svg_bytes: bytes) -> str:
+    def _resolve_target(self, svg_text: str) -> str:
         """Return the href for the wrapper ``<a>`` tag, if any.
 
         When ``:target:`` is given without a value (or as empty string), the
@@ -258,8 +255,8 @@ class StateMachineDiagram(SphinxDirective):
         outdir = os.path.join(self.env.app.outdir, "_images")
         os.makedirs(outdir, exist_ok=True)
         outpath = os.path.join(outdir, filename)
-        with open(outpath, "wb") as f:
-            f.write(svg_bytes)
+        with open(outpath, "w", encoding="utf-8") as f:
+            f.write(svg_text)
 
         return f"/_images/{filename}"
 

@@ -889,47 +889,47 @@ class TestPrepareSvg:
         return directive
 
     def test_strips_xml_prologue(self):
-        svg_bytes = (
-            b'<?xml version="1.0"?>\n<!DOCTYPE svg>\n'
-            b'<svg width="100pt" height="50pt" viewBox="0 0 100 50">'
-            b"<circle/></svg>"
+        svg_text = (
+            '<?xml version="1.0"?>\n<!DOCTYPE svg>\n'
+            '<svg width="100pt" height="50pt" viewBox="0 0 100 50">'
+            "<circle/></svg>"
         )
         directive = self._make_directive()
-        svg_tag, _, _ = directive._prepare_svg(svg_bytes)
+        svg_tag, _, _ = directive._prepare_svg(svg_text)
 
         assert not svg_tag.startswith("<?xml")
         assert svg_tag.startswith("<svg")
         assert "</svg>" in svg_tag
 
     def test_extracts_intrinsic_dimensions(self):
-        svg_bytes = b'<svg width="702pt" height="170pt"><rect/></svg>'
+        svg_text = '<svg width="702pt" height="170pt"><rect/></svg>'
         directive = self._make_directive()
-        _, w, h = directive._prepare_svg(svg_bytes)
+        _, w, h = directive._prepare_svg(svg_text)
 
         assert w == "702pt"
         assert h == "170pt"
 
     def test_removes_fixed_dimensions(self):
-        svg_bytes = b'<svg width="702pt" height="170pt" viewBox="0 0 702 170"><rect/></svg>'
+        svg_text = '<svg width="702pt" height="170pt" viewBox="0 0 702 170"><rect/></svg>'
         directive = self._make_directive()
-        svg_tag, _, _ = directive._prepare_svg(svg_bytes)
+        svg_tag, _, _ = directive._prepare_svg(svg_text)
 
         assert 'width="702pt"' not in svg_tag
         assert 'height="170pt"' not in svg_tag
         assert "viewBox" in svg_tag
 
     def test_handles_no_dimensions(self):
-        svg_bytes = b'<svg viewBox="0 0 100 50"><rect/></svg>'
+        svg_text = '<svg viewBox="0 0 100 50"><rect/></svg>'
         directive = self._make_directive()
-        _, w, h = directive._prepare_svg(svg_bytes)
+        _, w, h = directive._prepare_svg(svg_text)
 
         assert w == ""
         assert h == ""
 
     def test_handles_px_dimensions(self):
-        svg_bytes = b'<svg width="200px" height="100px"><rect/></svg>'
+        svg_text = '<svg width="200px" height="100px"><rect/></svg>'
         directive = self._make_directive()
-        _, w, h = directive._prepare_svg(svg_bytes)
+        _, w, h = directive._prepare_svg(svg_text)
 
         assert w == "200px"
         assert h == "100px"
@@ -1030,15 +1030,15 @@ class TestResolveTarget:
 
     def test_no_target_option(self):
         directive = self._make_directive()
-        assert directive._resolve_target(b"<svg/>") == ""
+        assert directive._resolve_target("<svg/>") == ""
 
     def test_explicit_target_url(self):
         directive = self._make_directive({"target": "https://example.com/diagram.svg"})
-        assert directive._resolve_target(b"<svg/>") == "https://example.com/diagram.svg"
+        assert directive._resolve_target("<svg/>") == "https://example.com/diagram.svg"
 
     def test_empty_target_generates_file(self, tmp_path):
         directive = self._make_directive({"target": ""}, tmp_path=tmp_path)
-        svg_data = b"<svg><rect/></svg>"
+        svg_data = "<svg><rect/></svg>"
         result = directive._resolve_target(svg_data)
 
         assert result.startswith("/_images/statemachine-")
@@ -1048,21 +1048,21 @@ class TestResolveTarget:
         images_dir = tmp_path / "_images"
         svg_files = list(images_dir.glob("statemachine-*.svg"))
         assert len(svg_files) == 1
-        assert svg_files[0].read_bytes() == svg_data
+        assert svg_files[0].read_text(encoding="utf-8") == svg_data
 
     def test_empty_target_deterministic_filename(self, tmp_path):
         """Same qualname + events produces the same filename."""
         directive1 = self._make_directive({"target": "", "events": "go"}, tmp_path=tmp_path)
         directive2 = self._make_directive({"target": "", "events": "go"}, tmp_path=tmp_path)
-        result1 = directive1._resolve_target(b"<svg>1</svg>")
-        result2 = directive2._resolve_target(b"<svg>2</svg>")
+        result1 = directive1._resolve_target("<svg>1</svg>")
+        result2 = directive2._resolve_target("<svg>2</svg>")
         assert result1 == result2
 
     def test_different_events_different_filename(self, tmp_path):
         """Different events produce different filenames."""
         d1 = self._make_directive({"target": "", "events": "a"}, tmp_path=tmp_path)
         d2 = self._make_directive({"target": "", "events": "b"}, tmp_path=tmp_path)
-        assert d1._resolve_target(b"<svg/>") != d2._resolve_target(b"<svg/>")
+        assert d1._resolve_target("<svg/>") != d2._resolve_target("<svg/>")
 
 
 class TestDirectiveRun:
@@ -1347,6 +1347,33 @@ class TestFormatter:
         result = formatter.render(TrafficLightMachine, "dot")
         assert result.startswith("digraph TrafficLightMachine {")
 
+    def test_render_svg(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = formatter.render(TrafficLightMachine, "svg")
+        assert isinstance(result, str)
+        assert "<svg" in result
+        assert "green" in result
+
+    def test_render_svg_instance(self):
+        from statemachine.contrib.diagram import formatter
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        sm = TrafficLightMachine()
+        result = formatter.render(sm, "svg")
+        assert "<svg" in result
+        # Active state should be highlighted
+        assert "turquoise" in result
+
+    def test_format_svg(self):
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        result = f"{TrafficLightMachine:svg}"
+        assert "<svg" in result
+
     def test_render_md(self):
         from statemachine.contrib.diagram import formatter
 
@@ -1398,6 +1425,7 @@ class TestFormatter:
 
         fmts = formatter.supported_formats()
         assert "dot" in fmts
+        assert "svg" in fmts
         assert "mermaid" in fmts
         assert "md" in fmts
         assert "markdown" in fmts

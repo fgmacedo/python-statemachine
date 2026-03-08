@@ -106,6 +106,14 @@ def _render_dot(machine_or_class: "MachineRef") -> str:
     return DotGraphMachine(machine_or_class).get_graph().to_string()  # type: ignore[no-any-return]
 
 
+@formatter.register_format("svg")
+def _render_svg(machine_or_class: "MachineRef") -> str:
+    from statemachine.contrib.diagram import DotGraphMachine
+
+    svg_bytes: bytes = DotGraphMachine(machine_or_class).get_graph().create_svg()  # type: ignore[attr-defined]
+    return svg_bytes.decode("utf-8")
+
+
 @formatter.register_format("mermaid")
 def _render_mermaid(machine_or_class: "MachineRef") -> str:
     from statemachine.contrib.diagram import MermaidGraphMachine
