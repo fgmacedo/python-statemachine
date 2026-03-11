@@ -106,8 +106,9 @@ class Configuration:
         if csv is None:
             self.value = state.value
         elif isinstance(csv, MutableSet):
-            csv.add(state.value)
-            self._invalidate()
+            new = OrderedSet(csv)
+            new.add(state.value)
+            self.value = new
         else:
             self.value = OrderedSet([csv, state.value])
 
@@ -115,12 +116,13 @@ class Configuration:
         """Remove *state* from the configuration, normalizing back to scalar."""
         csv = self.value
         if isinstance(csv, MutableSet):
-            csv.discard(state.value)
-            self._invalidate()
-            if len(csv) == 1:
-                self.value = next(iter(csv))
-            elif len(csv) == 0:
+            new = OrderedSet(v for v in csv if v != state.value)
+            if len(new) == 0:
                 self.value = None
+            elif len(new) == 1:
+                self.value = next(iter(new))
+            else:
+                self.value = new
         elif csv == state.value:
             self.value = None
 
