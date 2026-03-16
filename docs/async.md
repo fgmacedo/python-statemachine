@@ -75,7 +75,7 @@ the initial state:
 ...     print(list(sm.configuration_values))
 
 >>> asyncio.run(show_problem())
-[None]
+[]
 
 ```
 

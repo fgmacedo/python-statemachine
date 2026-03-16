@@ -55,75 +55,53 @@ class Configuration:
 
     @value.setter
     def value(self, val: Any):
-        self._invalidate()
-        if val is not None and not isinstance(val, MutableSet) and val not in self._states_map:
-            raise InvalidStateValue(val)
-        setattr(self._model, self._state_field, val)
+        if val is None:
+            self._write_to_model(OrderedSet())
+        elif isinstance(val, MutableSet):
+            self._write_to_model(OrderedSet(val) if not isinstance(val, OrderedSet) else val)
+        else:
+            self._write_to_model(OrderedSet([val]))
 
     @property
     def values(self) -> OrderedSet[Any]:
         """The set of raw state values currently active."""
-        v = self.value
-        if isinstance(v, OrderedSet):
-            return v
-        return OrderedSet([v])
+        return self._read_from_model()
 
     # -- Resolved states -------------------------------------------------------
 
     @property
     def states(self) -> "OrderedSet[State]":
         """The set of currently active :class:`State` instances (cached)."""
-        csv = self.value
-        if self._cached is not None and self._cached_value is csv:
+        raw = self.value
+        if self._cached is not None and self._cached_value is raw:
             return self._cached
-        if csv is None:
+        if raw is None:
             return OrderedSet()
 
-        instance_states = self._instance_states
-        if not isinstance(csv, MutableSet):
-            result = OrderedSet([instance_states[self._states_map[csv].id]])
-        else:
-            result = OrderedSet([instance_states[self._states_map[v].id] for v in csv])
-
+        # Normalize inline (avoid second getattr via _read_from_model)
+        values = raw if isinstance(raw, MutableSet) else (raw,)
+        result = OrderedSet(self._instance_states[self._states_map[v].id] for v in values)
         self._cached = result
-        self._cached_value = csv
+        self._cached_value = raw
         return result
 
     @states.setter
     def states(self, new_configuration: "OrderedSet[State]"):
-        if len(new_configuration) == 0:
-            self.value = None
-        elif len(new_configuration) == 1:
-            self.value = next(iter(new_configuration)).value
-        else:
-            self.value = OrderedSet(s.value for s in new_configuration)
+        self._write_to_model(OrderedSet(s.value for s in new_configuration))
 
     # -- Incremental mutation (used by the engine) -----------------------------
 
     def add(self, state: "State"):
-        """Add *state* to the configuration, maintaining the dual representation."""
-        csv = self.value
-        if csv is None:
-            self.value = state.value
-        elif isinstance(csv, MutableSet):
-            csv.add(state.value)
-            self.value = csv
-        else:
-            self.value = OrderedSet([csv, state.value])
+        """Add *state* to the configuration."""
+        values = self._read_from_model()
+        values.add(state.value)
+        self._write_to_model(values)
 
     def discard(self, state: "State"):
-        """Remove *state* from the configuration, normalizing back to scalar."""
-        csv = self.value
-        if isinstance(csv, MutableSet):
-            csv.discard(state.value)
-            if len(csv) == 0:
-                self.value = None
-            elif len(csv) == 1:
-                self.value = next(iter(csv))
-            else:
-                self.value = csv
-        elif csv == state.value:
-            self.value = None
+        """Remove *state* from the configuration."""
+        values = self._read_from_model()
+        values.discard(state.value)
+        self._write_to_model(values)
 
     # -- Deprecated v2 compat --------------------------------------------------
 
@@ -153,7 +131,31 @@ class Configuration:
         except KeyError as err:
             raise InvalidStateValue(csv) from err
 
-    # -- Internal --------------------------------------------------------------
+    # -- Internal: model boundary ----------------------------------------------
+
+    def _read_from_model(self) -> OrderedSet:
+        """Normalize: model value → always ``OrderedSet``."""
+        raw = self.value
+        if raw is None:
+            return OrderedSet()
+        if isinstance(raw, OrderedSet):
+            return raw
+        if isinstance(raw, MutableSet):
+            return OrderedSet(raw)
+        return OrderedSet([raw])
+
+    def _write_to_model(self, values: OrderedSet):
+        """Denormalize: ``OrderedSet`` → ``None | scalar | OrderedSet`` for model."""
+        self._invalidate()
+        if len(values) == 0:
+            raw = None
+        elif len(values) == 1:
+            raw = next(iter(values))
+        else:
+            raw = values
+        if raw is not None and not isinstance(raw, MutableSet) and raw not in self._states_map:
+            raise InvalidStateValue(raw)
+        setattr(self._model, self._state_field, raw)
 
     def _invalidate(self):
         self._cached = None

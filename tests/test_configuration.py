@@ -41,6 +41,42 @@ class TestConfigurationStatesSetter:
         assert sm.current_state_value == OrderedSet([ParallelSM.s1.value, ParallelSM.s2.value])
 
 
+class TestConfigurationValueSetter:
+    def test_set_value_none_writes_none_to_model(self):
+        sm = ParallelSM()
+        assert sm.current_state_value is not None
+
+        sm.current_state_value = None
+        assert sm.current_state_value is None
+        assert sm.configuration_values == OrderedSet()
+
+    def test_set_value_plain_set_coerces_to_ordered_set(self):
+        sm = ParallelSM()
+        s1_val = ParallelSM.s1.value
+        s2_val = ParallelSM.s2.value
+
+        # Assign a plain set (MutableSet but not OrderedSet)
+        sm.current_state_value = {s1_val, s2_val}
+        # Model should store an OrderedSet (denormalized back to it)
+        assert isinstance(sm.current_state_value, OrderedSet)
+        assert sm.current_state_value == OrderedSet([s1_val, s2_val])
+
+
+class TestReadFromModelNonOrderedSet:
+    def test_read_from_model_coerces_plain_set(self):
+        """When the model stores a plain set, _read_from_model coerces it."""
+        sm = ParallelSM()
+        s1_val = ParallelSM.s1.value
+        s2_val = ParallelSM.s2.value
+
+        # Bypass the value setter to place a plain set on the model
+        setattr(sm._config._model, sm._config._state_field, {s1_val, s2_val})
+
+        values = sm._config._read_from_model()
+        assert isinstance(values, OrderedSet)
+        assert values == OrderedSet([s1_val, s2_val])
+
+
 class TestConfigurationDiscard:
     def test_discard_nonmatching_scalar(self):
         sm = ParallelSM()
