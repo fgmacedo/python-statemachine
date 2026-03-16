@@ -243,7 +243,7 @@ async def test_set_none_clears_configuration(sm_runner):
 
     assert model.state is None
     assert sm.current_state_value is None
-    assert sm.configuration_values == OrderedSet([None])
+    assert sm.configuration_values == OrderedSet()
     assert sm.configuration == OrderedSet()
 
 
@@ -269,10 +269,10 @@ async def test_uninitialized_then_activated(sc_class, expected_ids):
     model = Model()
     sm = sc_class(model=model, listeners=[_AsyncListener()])
 
-    # Before activation: model.state is None, configuration_values wraps it
+    # Before activation: all APIs reflect empty configuration
     assert model.state is None
     assert sm.current_state_value is None
-    assert sm.configuration_values == OrderedSet([None])
+    assert sm.configuration_values == OrderedSet()
     assert sm.configuration == OrderedSet()
 
     # After activation: full contract holds
