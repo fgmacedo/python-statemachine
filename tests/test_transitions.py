@@ -19,7 +19,7 @@ def test_transition_representation(campaign_machine):
 def test_list_machine_events(classic_traffic_light_machine):
     machine = classic_traffic_light_machine()
     transitions = [t.name for t in machine.events]
-    assert transitions == ["slowdown", "stop", "go"]
+    assert transitions == ["Slowdown", "Stop", "Go"]
 
 
 def test_list_state_transitions(classic_traffic_light_machine):

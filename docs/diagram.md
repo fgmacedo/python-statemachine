@@ -126,9 +126,9 @@ stateDiagram-v2
     state "Yellow" as yellow
     state "Red" as red
     [*] --> green
-    green --> yellow : cycle
-    yellow --> red : cycle
-    red --> green : cycle
+    green --> yellow : Cycle
+    yellow --> red : Cycle
+    red --> green : Cycle
 <BLANKLINE>
     classDef active fill:#40E0D0,stroke:#333
     green:::active
@@ -137,9 +137,9 @@ stateDiagram-v2
 >>> print(f"{sm:md}")
 | State  | Event | Guard | Target |
 | ------ | ----- | ----- | ------ |
-| Green  | cycle |       | Yellow |
-| Yellow | cycle |       | Red    |
-| Red    | cycle |       | Green  |
+| Green  | Cycle |       | Yellow |
+| Yellow | Cycle |       | Red    |
+| Red    | Cycle |       | Green  |
 <BLANKLINE>
 
 ```
@@ -154,9 +154,9 @@ stateDiagram-v2
     state "Yellow" as yellow
     state "Red" as red
     [*] --> green
-    green --> yellow : cycle
-    yellow --> red : cycle
-    red --> green : cycle
+    green --> yellow : Cycle
+    yellow --> red : Cycle
+    red --> green : Cycle
 <BLANKLINE>
 
 ```
@@ -191,9 +191,9 @@ stateDiagram-v2
     state "Yellow" as yellow
     state "Red" as red
     [*] --> green
-    green --> yellow : cycle
-    yellow --> red : cycle
-    red --> green : cycle
+    green --> yellow : Cycle
+    yellow --> red : Cycle
+    red --> green : Cycle
 <BLANKLINE>
 
 >>> formatter.supported_formats()
@@ -294,9 +294,9 @@ A traffic light.
 <BLANKLINE>
 | State  | Event | Guard | Target |
 | ------ | ----- | ----- | ------ |
-| Green  | cycle |       | Yellow |
-| Yellow | cycle |       | Red    |
-| Red    | cycle |       | Green  |
+| Green  | Cycle |       | Yellow |
+| Yellow | Cycle |       | Red    |
+| Red    | Cycle |       | Green  |
 <BLANKLINE>
 <BLANKLINE>
 

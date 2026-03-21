@@ -27,9 +27,9 @@ def test_machine_should_be_at_start_state(campaign_machine):
         "closed",
     ]
     assert [t.name for t in campaign_machine.events] == [
-        "add_job",
-        "produce",
-        "deliver",
+        "Add job",
+        "Produce",
+        "Deliver",
     ]
 
     assert model.state == "draft"
@@ -160,11 +160,11 @@ def test_machine_should_list_allowed_events_in_the_current_state(campaign_machin
     machine = campaign_machine(model)
 
     assert model.state == "draft"
-    assert [t.name for t in machine.allowed_events] == ["add_job", "produce"]
+    assert [t.name for t in machine.allowed_events] == ["Add job", "Produce"]
 
     machine.produce()
     assert model.state == "producing"
-    assert [t.name for t in machine.allowed_events] == ["add_job", "deliver"]
+    assert [t.name for t in machine.allowed_events] == ["Add job", "Deliver"]
 
     deliver = machine.allowed_events[1]
 

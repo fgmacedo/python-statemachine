@@ -382,7 +382,7 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
     def raise_action(*args, **kwargs):
         machine: StateChart = kwargs["machine"]
 
-        Event(id=action.event, name=action.event, internal=True, _sm=machine).put()
+        Event(id=action.event, internal=True, _sm=machine).put()
 
     raise_action.action = action  # type: ignore[attr-defined]
     return raise_action
@@ -492,7 +492,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
                 continue
             params_values[param.name] = _eval(param.expr, **kwargs)
 
-        Event(id=event, name=event, delay=delay, internal=internal, _sm=machine).put(
+        Event(id=event, delay=delay, internal=internal, _sm=machine).put(
             *content,
             send_id=send_id,
             **params_values,

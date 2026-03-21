@@ -375,9 +375,9 @@ You can also get text representations of any state machine using Python's built-
 >>> print(f"{CoffeeOrder:md}")
 | State     | Event   | Guard | Target    |
 | --------- | ------- | ----- | --------- |
-| Pending   | start   |       | Preparing |
-| Preparing | finish  |       | Ready     |
-| Ready     | pick_up |       | Picked up |
+| Pending   | Start   |       | Preparing |
+| Preparing | Finish  |       | Ready     |
+| Ready     | Pick up |       | Picked up |
 
 ```
 
@@ -394,9 +394,9 @@ stateDiagram-v2
     state "Picked up" as picked_up
     [*] --> pending
     picked_up --> [*]
-    pending --> preparing : start
-    preparing --> ready : finish
-    ready --> picked_up : pick_up
+    pending --> preparing : Start
+    preparing --> ready : Finish
+    ready --> picked_up : Pick up
 <BLANKLINE>
 
 ```

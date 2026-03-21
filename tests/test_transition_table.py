@@ -157,7 +157,7 @@ class TestTransitionTableIntegration:
         assert "Green" in result
         assert "Yellow" in result
         assert "Red" in result
-        assert "cycle" in result
+        assert "Cycle" in result
 
     def test_traffic_light_rst(self):
         from tests.examples.traffic_light_machine import TrafficLightMachine
@@ -165,7 +165,7 @@ class TestTransitionTableIntegration:
         ir = extract(TrafficLightMachine)
         result = TransitionTableRenderer().render(ir, fmt="rst")
         assert "Green" in result
-        assert "cycle" in result
+        assert "Cycle" in result
         assert "+---" in result
 
     def test_compound_state_names(self):

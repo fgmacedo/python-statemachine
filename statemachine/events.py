@@ -30,7 +30,7 @@ class Events:
                 if isinstance(event, Event):
                     self._items.append(event)
                 else:
-                    self._items.append(Event(id=event, name=event))
+                    self._items.append(Event(id=event))
 
         return self
 

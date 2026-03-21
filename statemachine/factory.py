@@ -310,7 +310,7 @@ class StateMachineMetaclass(type):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
                 event_id = _expand_event_id(key)
-                cls.add_event(event=Event(transitions=value, id=event_id, name=key))
+                cls.add_event(event=Event(transitions=value, id=event_id))
             elif isinstance(value, (Event,)):
                 if value._has_real_id:
                     event_id = value.id
@@ -338,7 +338,7 @@ class StateMachineMetaclass(type):
         # machinery that is stored at ``func.attr_name``
         setattr(cls, func.attr_name, func)
         if func.is_event:
-            cls.add_event(event=Event(func._transitions, id=attr_name, name=attr_name))
+            cls.add_event(event=Event(func._transitions, id=attr_name))
 
     def add_state(cls, id, state: State):
         state._set_id(id)

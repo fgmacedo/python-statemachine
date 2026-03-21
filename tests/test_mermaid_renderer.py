@@ -247,10 +247,10 @@ class TestMermaidRendererCompound:
         result = MermaidGraphMachine(SM).get_mermaid()
         assert 'state "Parent" as parent {' in result
         assert "[*] --> child1" in result
-        assert "child1 --> child2 : go" in result
+        assert "child1 --> child2 : Go" in result
         assert "child2 --> [*]" in result
-        assert "start --> parent : enter" in result
-        assert "parent --> end : finish" in result
+        assert "start --> parent : Enter" in result
+        assert "parent --> end : Finish" in result
 
     def test_compound_no_duplicate_transitions(self):
         """Transitions inside compound states must not also appear at top level."""
@@ -265,8 +265,8 @@ class TestMermaidRendererCompound:
             enter = start.to(parent)
 
         result = MermaidGraphMachine(SM).get_mermaid()
-        # "child1 --> child2 : go" should appear exactly once (inside compound)
-        assert result.count("child1 --> child2 : go") == 1
+        # "child1 --> child2 : Go" should appear exactly once (inside compound)
+        assert result.count("child1 --> child2 : Go") == 1
 
     def test_parallel_state(self):
         class SM(StateChart):
@@ -310,7 +310,7 @@ class TestMermaidRendererCompound:
 
         result = MermaidGraphMachine(SM).get_mermaid()
         # Inside parallel: compound endpoint redirected to initial child
-        assert "idle --> working : start" in result
+        assert "idle --> working : Start" in result
         assert "idle --> inner" not in result
 
     def test_compound_outside_parallel_not_redirected(self):
@@ -326,8 +326,8 @@ class TestMermaidRendererCompound:
             leave = parent.to(end)
 
         result = MermaidGraphMachine(SM).get_mermaid()
-        assert "start --> parent : enter" in result
-        assert "parent --> end : leave" in result
+        assert "start --> parent : Enter" in result
+        assert "parent --> end : Leave" in result
 
     def test_nested_compound(self):
         class SM(StateChart):
@@ -689,9 +689,9 @@ class TestMermaidRendererIntegration:
         from tests.examples.traffic_light_machine import TrafficLightMachine
 
         result = MermaidGraphMachine(TrafficLightMachine).get_mermaid()
-        assert "green --> yellow : cycle" in result
-        assert "yellow --> red : cycle" in result
-        assert "red --> green : cycle" in result
+        assert "green --> yellow : Cycle" in result
+        assert "yellow --> red : Cycle" in result
+        assert "red --> green : Cycle" in result
 
     def test_traffic_light_with_events(self):
         from tests.examples.traffic_light_machine import TrafficLightMachine

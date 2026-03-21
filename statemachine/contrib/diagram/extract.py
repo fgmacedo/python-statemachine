@@ -116,6 +116,7 @@ def _format_event_names(transition: "Transition") -> str:
 
     all_ids = {str(e) for e in events}
 
+    seen_ids: Set[str] = set()
     display: List[str] = []
     for event in events:
         eid = str(event)
@@ -123,8 +124,9 @@ def _format_event_names(transition: "Transition") -> str:
         # form ("done_invoke_X") is also registered on this transition.
         if "." in eid and eid.replace(".", "_") in all_ids:
             continue
-        if eid not in display:  # pragma: no branch
-            display.append(eid)
+        if eid not in seen_ids:  # pragma: no branch
+            seen_ids.add(eid)
+            display.append(event.name if event.name else eid)
 
     return " ".join(display)
 

@@ -82,8 +82,8 @@ class TestExplicitEvent:
 
         assert list(StartMachine.events) == ["launch_the_machine"]
         assert [e.id for e in StartMachine.events] == ["launch_the_machine"]
-        assert [e.name for e in StartMachine.events] == ["launch_the_machine"]
-        assert StartMachine.launch_the_machine.name == "launch_the_machine"
+        assert [e.name for e in StartMachine.events] == ["Launch the machine"]
+        assert StartMachine.launch_the_machine.name == "Launch the machine"
         assert str(StartMachine.launch_the_machine) == "launch_the_machine"
         assert StartMachine.launch_the_machine == StartMachine.launch_the_machine.id
 
@@ -201,8 +201,8 @@ class TestExplicitEvent:
         assert sm.send("cycle") == "Running cycle from red to green"
         assert sm.cycle.name == "Loop"
         assert sm.slow_down.name == "Slow down"
-        assert sm.stop.name == "stop"
-        assert sm.go.name == "go"
+        assert sm.stop.name == "Stop"
+        assert sm.go.name == "Go"
 
     def test_multiple_ids_from_the_same_event_will_be_converted_to_multiple_events(self):
         class TrafficLightMachine(StateChart):
