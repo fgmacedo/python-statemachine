@@ -15,6 +15,7 @@ from .i18n import _
 from .invoke import normalize_invoke_callbacks
 from .transition import Transition
 from .transition_list import TransitionList
+from .utils import humanize_id
 
 if TYPE_CHECKING:
     from .statemachine import StateChart
@@ -116,10 +117,8 @@ class State:
 
     Args:
         name: A human-readable representation of the state. Default is derived
-            from the name of the variable assigned to the state machine class.
-            The name is derived from the id using this logic::
-
-                name = id.replace("_", " ").capitalize()
+            from the name of the variable assigned to the state machine class,
+            by replacing ``_`` and ``.`` with spaces and capitalizing the first word.
 
         value: A specific value to the storage and retrieval of states.
             If specified, you can use It to map a more friendly representation to a low-level
@@ -302,7 +301,7 @@ class State:
         if self.value is None:
             self.value = id
         if not self.name:
-            self.name = self._id.replace("_", " ").capitalize()
+            self.name = humanize_id(self._id)
         self._hash = hash((self.name, self._id))
 
         return self

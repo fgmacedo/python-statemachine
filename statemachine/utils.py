@@ -1,6 +1,9 @@
 import asyncio
+import re
 import threading
 from typing import Any
+
+_SEPARATOR_RE = re.compile(r"[_.]")
 
 _cached_loop = threading.local()
 """Loop that will be used when the SM is running in a synchronous context. One loop per thread."""
@@ -24,6 +27,21 @@ def ensure_iterable(obj):
         return iter(obj)
     except TypeError:
         return [obj]
+
+
+def humanize_id(id: str) -> str:
+    """Convert a machine identifier to a human-readable name.
+
+    Splits on ``_`` and ``.`` separators and capitalizes the first word.
+
+    >>> humanize_id("go")
+    'Go'
+    >>> humanize_id("done_state_parent")
+    'Done state parent'
+    >>> humanize_id("error.execution")
+    'Error execution'
+    """
+    return _SEPARATOR_RE.sub(" ", id).strip().capitalize()
 
 
 def run_async_from_sync(coroutine: "Any") -> "Any":

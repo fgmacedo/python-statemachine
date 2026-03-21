@@ -9,6 +9,7 @@ from .event_data import TriggerData
 from .exceptions import InvalidDefinition
 from .i18n import _
 from .transition_mixin import AddCallbacksMixin
+from .utils import humanize_id
 
 if TYPE_CHECKING:
     from .statemachine import StateChart
@@ -107,7 +108,7 @@ class Event(AddCallbacksMixin, str):
         if name:
             instance.name = name
         elif _has_real_id:
-            instance.name = str(id).replace("_", " ").capitalize()
+            instance.name = humanize_id(id)
         else:
             instance.name = ""
         if transitions:

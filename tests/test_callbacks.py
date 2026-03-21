@@ -320,7 +320,7 @@ class TestIssue417:
     def test_issue_417_cannot_start(self, model_class, sm_class, mock_calls):
         model = model_class(0)
         sm = sm_class(model, 0)
-        with pytest.raises(sm.TransitionNotAllowed, match="Can't start when in Created"):
+        with pytest.raises(sm.TransitionNotAllowed, match="Can't Start when in Created"):
             sm.start()
 
         mock_calls.assert_not_called()

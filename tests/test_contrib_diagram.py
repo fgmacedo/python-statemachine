@@ -12,6 +12,7 @@ from statemachine.contrib.diagram.extract import _format_event_names
 from statemachine.contrib.diagram.model import ActionType
 from statemachine.contrib.diagram.model import StateType
 from statemachine.contrib.diagram.renderers.dot import DotRenderer
+from statemachine.event import Event
 
 from statemachine import State
 from statemachine import StateChart
@@ -176,7 +177,7 @@ class TestDiagramCmdLine:
 
         content = out.read_text()
         assert "stateDiagram-v2" in content
-        assert "green --> yellow : cycle" in content
+        assert "green --> yellow : Cycle" in content
 
     def test_format_md(self, tmp_path):
         out = tmp_path / "sm.md"
@@ -192,7 +193,7 @@ class TestDiagramCmdLine:
 
         content = out.read_text()
         assert "| State" in content
-        assert "cycle" in content
+        assert "Cycle" in content
 
     def test_format_rst(self, tmp_path):
         out = tmp_path / "sm.rst"
@@ -208,7 +209,7 @@ class TestDiagramCmdLine:
 
         content = out.read_text()
         assert "+---" in content
-        assert "cycle" in content
+        assert "Cycle" in content
 
     def test_format_mermaid_stdout(self, capsys):
         main(
@@ -702,8 +703,8 @@ class TestExtract:
 class TestFormatEventNames:
     """Tests for _format_event_names — alias filtering for diagram display."""
 
-    def test_simple_event_unchanged(self):
-        """A plain event with no aliases is returned as-is."""
+    def test_simple_event_uses_name(self):
+        """A plain event displays its human-readable name."""
 
         class SM(StateChart):
             s1 = State(initial=True)
@@ -711,7 +712,7 @@ class TestFormatEventNames:
             go = s1.to(s2)
 
         t = SM.s1.transitions[0]
-        assert _format_event_names(t) == "go"
+        assert _format_event_names(t) == "Go"
 
     def test_done_state_alias_filtered(self):
         """done_state_X registers both underscore and dot forms; only underscore is shown."""
@@ -727,7 +728,7 @@ class TestFormatEventNames:
 
         t = next(t for t in SM.parent.transitions if t.event and "done_state" in t.event)
         result = _format_event_names(t)
-        assert result == "done_state_parent"
+        assert result == "Done state parent"
         assert "done.state" not in result
 
     def test_done_invoke_alias_filtered(self):
@@ -740,7 +741,7 @@ class TestFormatEventNames:
 
         t = SM.s1.transitions[0]
         result = _format_event_names(t)
-        assert result == "done_invoke_child"
+        assert result == "Done invoke child"
         assert "done.invoke" not in result
 
     def test_error_alias_filtered(self):
@@ -753,7 +754,7 @@ class TestFormatEventNames:
 
         t = SM.s1.transitions[0]
         result = _format_event_names(t)
-        assert result == "error_execution"
+        assert result == "Error execution"
         assert "error.execution" not in result
 
     def test_multiple_distinct_events_preserved(self):
@@ -769,8 +770,8 @@ class TestFormatEventNames:
         t = SM.s1.transitions[0]
         t.add_event("also")
         result = _format_event_names(t)
-        assert "go" in result
-        assert "also" in result
+        assert "Go" in result
+        assert "Also" in result
 
     def test_eventless_transition_returns_empty(self):
         """A transition with no events returns an empty string."""
@@ -798,7 +799,22 @@ class TestFormatEventNames:
         from statemachine.transition import Transition
 
         t = Transition(source=SM.s1, target=SM.s2, event="custom.event")
-        assert _format_event_names(t) == "custom.event"
+        assert _format_event_names(t) == "Custom event"
+
+    def test_explicit_event_name_displayed(self):
+        """An Event with an explicit name= shows the human-readable name."""
+
+        class SM(StateChart):
+            active = State(initial=True)
+            suspended = State(final=True)
+
+            suspend = Event(
+                active.to(suspended),
+                name="Human Suspend",
+            )
+
+        t = SM.active.transitions[0]
+        assert _format_event_names(t) == "Human Suspend"
 
 
 class TestDotRendererEdgeCases:
@@ -1355,7 +1371,7 @@ class TestFormat:
 
         result = f"{TrafficLightMachine:mermaid}"
         assert "stateDiagram-v2" in result
-        assert "green --> yellow : cycle" in result
+        assert "green --> yellow : Cycle" in result
 
     def test_format_md_instance(self):
         from tests.examples.traffic_light_machine import TrafficLightMachine
@@ -1363,7 +1379,7 @@ class TestFormat:
         sm = TrafficLightMachine()
         result = f"{sm:md}"
         assert "| State" in result
-        assert "cycle" in result
+        assert "Cycle" in result
 
     def test_format_md_class(self):
         from tests.examples.traffic_light_machine import TrafficLightMachine

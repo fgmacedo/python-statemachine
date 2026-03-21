@@ -83,9 +83,10 @@ Generate a diagram or get a text representation with f-strings:
 >>> print(f"{sm:md}")
 | State  | Event | Guard | Target |
 | ------ | ----- | ----- | ------ |
-| Green  | cycle |       | Yellow |
-| Yellow | cycle |       | Red    |
-| Red    | cycle |       | Green  |
+| Green  | Cycle |       | Yellow |
+| Yellow | Cycle |       | Red    |
+| Red    | Cycle |       | Green  |
+<BLANKLINE>
 
 ```
 
