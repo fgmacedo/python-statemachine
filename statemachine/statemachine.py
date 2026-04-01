@@ -395,8 +395,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     def current_state(self) -> "State | MutableSet[State]":
         """Get/Set the current :ref:`state`.
 
-        This is a low level API, that can be to assign any valid state
-        completely bypassing all the hooks and validations.
+        .. deprecated:: 3.0.0
+            Use :attr:`configuration` / :attr:`configuration_values` instead.
         """
         warnings.warn(
             """Property `current_state` is deprecated in favor of `configuration`.""",
@@ -406,7 +406,12 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         return self._config.current_state
 
     @current_state.setter
-    def current_state(self, value):  # pragma: no cover
+    def current_state(self, value):
+        warnings.warn(
+            """Property `current_state` is deprecated in favor of `configuration`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.current_state_value = value.value
 
     @property
