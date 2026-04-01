@@ -356,3 +356,28 @@ class TestCurrentStateDeprecated:
         sm = SM()
         with pytest.warns(DeprecationWarning, match="current_state"):
             _ = sm.current_state  # noqa: F841
+
+    def test_current_state_setter_emits_warning(self):
+        class SM(StateMachine):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        sm = SM()
+        with pytest.warns(DeprecationWarning, match="current_state"):
+            sm.current_state = sm.s2
+        assert sm.s2 in sm.configuration
+
+    def test_current_state_setter_changes_state(self):
+        class SM(StateMachine):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        sm = SM()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            sm.current_state = sm.s2
+        assert sm.s2 in sm.configuration
