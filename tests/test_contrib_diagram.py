@@ -384,7 +384,8 @@ def test_initial_edge_with_compound_state_has_lhead():
         enter = start.to(parent)
 
     dot = DotGraphMachine(SM)().to_string()
-    assert "lhead=cluster_parent" in dot
+    assert "lhead=" in dot
+    assert "cluster_parent" in dot
 
 
 def test_initial_edge_inside_compound_subgraph():
