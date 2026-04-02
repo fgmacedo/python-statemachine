@@ -7,7 +7,11 @@ of methods defined inside State.Compound class bodies.
 Theme: Fellowship journey through Middle-earth.
 """
 
+from enum import Enum
+from enum import auto
+
 import pytest
+from statemachine.states import States
 
 from statemachine import State
 from statemachine import StateChart
@@ -213,3 +217,38 @@ class TestCompoundStates:
 
         sm = NamedCompound()
         assert sm.shire.name == "The Shire"
+
+    async def test_from_enum_inside_compound(self, sm_runner):
+        """States.from_enum() works inside compound states (#606)."""
+
+        class OuterStates(Enum):
+            FOO = auto()
+            BAR = auto()
+
+        class InnerStates(Enum):
+            FIZZ = auto()
+            BUZZ = auto()
+
+        class SC(StateChart):
+            baz = States.from_enum(OuterStates, initial=OuterStates.FOO, final=OuterStates.BAR)
+
+            class inner(State.Compound):
+                qux = States.from_enum(
+                    InnerStates, initial=InnerStates.FIZZ, final=InnerStates.BUZZ
+                )
+                fizz_to_buzz = qux.FIZZ.to(qux.BUZZ)
+
+            baz_foo_to_inner = baz.FOO.to(inner)
+            inner_to_baz_bar = inner.to(baz.BAR)
+
+        sm = await sm_runner.start(SC)
+        assert {OuterStates.FOO} == set(sm.configuration_values)
+
+        await sm_runner.send(sm, "baz_foo_to_inner")
+        assert {"inner", InnerStates.FIZZ} == set(sm.configuration_values)
+
+        await sm_runner.send(sm, "fizz_to_buzz")
+        assert {"inner", InnerStates.BUZZ} == set(sm.configuration_values)
+
+        await sm_runner.send(sm, "inner_to_baz_bar")
+        assert {OuterStates.BAR} == set(sm.configuration_values)

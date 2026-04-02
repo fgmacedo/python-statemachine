@@ -7,8 +7,14 @@ when all regions reach final, and mixed compound/parallel hierarchies.
 Theme: War of the Ring — multiple simultaneous fronts.
 """
 
-import pytest
+from enum import Enum
+from enum import auto
 
+import pytest
+from statemachine.states import States
+
+from statemachine import State
+from statemachine import StateChart
 from tests.machines.parallel.session import Session
 from tests.machines.parallel.session_with_done_state import SessionWithDoneState
 from tests.machines.parallel.two_towers import TwoTowers
@@ -138,6 +144,53 @@ class TestParallelStates:
         # done.state.session fires, transitions to finished, then terminates
         assert {"finished"} == set(sm.configuration_values)
         assert sm.is_terminated is True
+
+    async def test_from_enum_inside_parallel(self, sm_runner):
+        """States.from_enum() works inside parallel states (#606)."""
+
+        class RegionA(Enum):
+            IDLE = auto()
+            ACTIVE = auto()
+
+        class RegionB(Enum):
+            OFF = auto()
+            ON = auto()
+
+        class SC(StateChart):
+            start = State(initial=True)
+            done = State(final=True)
+
+            class work(State.Parallel):
+                class region_a(State.Compound):
+                    a = States.from_enum(RegionA, initial=RegionA.IDLE, final=RegionA.ACTIVE)
+                    go_a = a.IDLE.to(a.ACTIVE)
+
+                class region_b(State.Compound):
+                    b = States.from_enum(RegionB, initial=RegionB.OFF, final=RegionB.ON)
+                    go_b = b.OFF.to(b.ON)
+
+            begin = start.to(work)
+            finish = work.to(done)
+
+        sm = await sm_runner.start(SC)
+        assert {"start"} == set(sm.configuration_values)
+
+        await sm_runner.send(sm, "begin")
+        vals = set(sm.configuration_values)
+        assert "work" in vals
+        assert RegionA.IDLE in vals
+        assert RegionB.OFF in vals
+
+        await sm_runner.send(sm, "go_a")
+        vals = set(sm.configuration_values)
+        assert RegionA.ACTIVE in vals
+        assert RegionB.OFF in vals  # region_b unchanged
+
+        await sm_runner.send(sm, "go_b")
+        # Both regions final -> done.state.work fires
+        assert {RegionA.ACTIVE, RegionB.ON} <= set(sm.configuration_values) or {"done"} == set(
+            sm.configuration_values
+        )
 
     async def test_top_level_parallel_not_terminated_when_one_region_pending(self, sm_runner):
         """Machine keeps running when only one region reaches final."""

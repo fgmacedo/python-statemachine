@@ -71,11 +71,18 @@ class NestedStateFactory(type):
             inherited_kwargs.update(getattr(base, "_factory_kwargs", {}))
         inherited_kwargs.update(kwargs)
 
+        # Lazy import to avoid circular dependency (states.py imports state.py)
+        from .states import States
+
         states = []
         history = []
         callbacks = {}
         for key, value in attrs.items():
-            if isinstance(value, HistoryState):
+            if isinstance(value, States):
+                for state_id, state in value.items():
+                    state._set_id(state_id)
+                    states.append(state)
+            elif isinstance(value, HistoryState):
                 value._set_id(key)
                 history.append(value)
             elif isinstance(value, State):
