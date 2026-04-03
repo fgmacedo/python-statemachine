@@ -55,8 +55,12 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         start_value: An optional start state value if there's no current state assigned
             on the :ref:`domain models`. Default: ``None``.
 
-        listeners: An optional list of objects that provies attributes to be used as callbacks.
+        listeners: An optional list of objects that provides attributes to be used as callbacks.
             See :ref:`listeners` for more details.
+
+        **kwargs: Additional keyword arguments available for dependency injection into
+            callbacks. These are passed to class listener ``setup()`` methods and to the
+            initial activation callbacks (e.g. ``on_enter_<state>``).
 
     """
 
@@ -145,9 +149,13 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         **kwargs: Any,
     ):
         self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
-        self.history_values: Dict[
-            str, List[State]
-        ] = {}  # Mapping of compound states to last active state(s).
+        """The external model object that holds domain state, or an internal
+        :class:`Model` instance when none is provided.  See :ref:`domain models`."""
+
+        self.history_values: Dict[str, List[State]] = {}
+        """Mapping from compound state IDs to the list of states that were active
+        the last time that compound state was exited. Used by history pseudo-states
+        to restore previous configurations."""
         self.state_field = state_field
         self.start_configuration_values = (
             [start_value] if start_value is not None else list(self.start_configuration_values)
@@ -416,6 +424,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
     @property
     def events(self) -> "List[Event]":
+        """List of all :ref:`Event` instances declared on this state machine."""
         return [getattr(self, event) for event in self.__class__._events]
 
     @property
