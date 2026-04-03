@@ -45,6 +45,7 @@ dev = [
     "pytest-asyncio >=0.25.0; python_version <'3.10'",
     "pydot",
     "django >=6.0.3; python_version >='3.12'",
+    "django >=5.2.12; python_version >='3.10' and python_version <'3.12'",
     "pytest-django >=4.12.0; python_version >='3.10'",
     "Sphinx; python_version >'3.8'",
     "sphinx-gallery; python_version >'3.8'",
