@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -210,7 +211,7 @@ class DotRenderer:
         initial_node = self._create_initial_node(initial_node_id)
         added_to_atomic = False
 
-        extra = {}
+        extra: Dict[str, Any] = {}
         if initial_state.children:
             extra["lhead"] = f"cluster_{initial_state.id}"
 
@@ -483,9 +484,9 @@ class DotRenderer:
         self,
         transition: DiagramTransition,
         target_id: Optional[str],
-    ) -> "tuple[str, str, Dict[str, str]]":
+    ) -> "tuple[str, str, Dict[str, Any]]":
         """Resolve source/destination node IDs and cluster attributes for an edge."""
-        extra: Dict[str, str] = {}
+        extra: Dict[str, Any] = {}
         source_is_compound = transition.source in self._compound_ids
         target_is_compound = target_id is not None and target_id in self._compound_ids
 

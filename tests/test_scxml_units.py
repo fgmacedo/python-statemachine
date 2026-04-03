@@ -1031,6 +1031,21 @@ class TestInvokeCallableWrapperRunInstance:
         assert wrapper._instance is handler_instance
 
 
+class TestInvokeSessionSendToParentAsync:
+    async def test_send_to_parent_awaitable(self):
+        """send_to_parent calls ensure_future when parent.send returns an awaitable."""
+        from statemachine.io.scxml.invoke import _InvokeSession
+
+        async def async_send(event, **kwargs):
+            pass
+
+        parent = Mock()
+        parent.send = async_send
+        session = _InvokeSession(parent, invokeid="inv1")
+        # Should not raise — the coroutine is scheduled via ensure_future
+        session.send_to_parent("child.done", key="value")
+
+
 class TestOrderedSetStr:
     def test_str_representation(self):
         """OrderedSet.__str__ returns a set-like string."""
