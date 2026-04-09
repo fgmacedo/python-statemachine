@@ -82,3 +82,6 @@ docs/sg_execution_times.rst
 
 # Temporary files
 tmp/
+
+# Local specs
+specs/

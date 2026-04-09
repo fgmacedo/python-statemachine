@@ -13,6 +13,7 @@ from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from dataclasses import field
+from inspect import iscoroutinefunction
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -131,6 +132,16 @@ def _needs_wrapping(item: Any) -> bool:
         # StateChart subclass → child machine invoker
         if issubclass(item, StateChart):
             return True
+    return False
+
+
+def _has_async_run(handler: Any) -> bool:
+    """Check if a handler (or its wrapped inner) has an async ``run()`` method."""
+    if iscoroutinefunction(getattr(handler, "run", None)):
+        return True
+    if isinstance(handler, _InvokeCallableWrapper):
+        inner = handler._invoke_handler
+        return iscoroutinefunction(getattr(inner, "run", None))
     return False
 
 
@@ -357,6 +368,15 @@ class InvokeManager:
         # Use meta.func to find the original (unwrapped) handler; the callback
         # system wraps everything in a signature_adapter closure.
         handler = self._resolve_handler(callback.meta.func)
+
+        if handler is not None and _has_async_run(handler):
+            from .exceptions import InvalidDefinition
+
+            raise InvalidDefinition(
+                "Cannot use IInvoke with async run() on the sync engine. "
+                "Add an async callback or listener to enable the async engine."
+            )
+
         ctx = self._make_context(state, event_kwargs, handler=handler)
         invocation = Invocation(invokeid=ctx.invokeid, state_id=state.id, ctx=ctx)
 
@@ -448,12 +468,22 @@ class InvokeManager:
         invocation: Invocation,
     ):
         try:
-            loop = asyncio.get_running_loop()
-            if handler is not None:
-                # Run handler.run(ctx) in a thread executor so blocking I/O
+            if handler is not None and _has_async_run(handler):
+                # Async IInvoke: call run() and await the coroutine directly
+                # on the event loop (no executor needed).
+                result = await handler.run(ctx)
+            elif handler is not None:
+                # Sync IInvoke: run in a thread executor so blocking I/O
                 # doesn't freeze the event loop.
+                loop = asyncio.get_running_loop()
                 result = await loop.run_in_executor(None, handler.run, ctx)
+            elif callback._iscoro:
+                # Coroutine callback: await directly on the event loop.
+                result = await callback(ctx=ctx, machine=ctx.machine, **ctx.kwargs)
             else:
+                # Sync callback: run in a thread executor so blocking I/O
+                # doesn't freeze the event loop.
+                loop = asyncio.get_running_loop()
                 result = await loop.run_in_executor(
                     None, lambda: callback.call(ctx=ctx, machine=ctx.machine, **ctx.kwargs)
                 )

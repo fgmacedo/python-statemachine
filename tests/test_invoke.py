@@ -829,6 +829,184 @@ class TestInvokeGroupOnCancelBeforeRun:
         group.on_cancel()
 
 
+class TestCoroutineFunctionAsInvokeTarget:
+    """Coroutine functions should work as invoke targets on the async engine."""
+
+    async def test_coroutine_invoke_returns_awaited_result(self):
+        """An async function used as invoke target should be awaited and return its value."""
+        from tests.conftest import SMRunner
+
+        async def async_loader():
+            return 42
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=async_loader)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+            def on_enter_ready(self, data=None, **kwargs):
+                self.result = data
+
+        sm_runner = SMRunner(is_async=True)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+
+        assert "ready" in sm.configuration_values
+        assert sm.result == 42
+
+    async def test_coroutine_invoke_error_sends_error_execution(self):
+        """An async invoke that raises should send error.execution."""
+        from tests.conftest import SMRunner
+
+        async def failing_loader():
+            raise ValueError("async boom")
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=failing_loader)
+            error_state = State(final=True)
+            error_execution = loading.to(error_state)
+
+            def on_enter_error_state(self, error=None, **kwargs):
+                self.caught_error = error
+
+        sm_runner = SMRunner(is_async=True)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+
+        assert "error_state" in sm.configuration_values
+        assert isinstance(sm.caught_error, ValueError)
+        assert str(sm.caught_error) == "async boom"
+
+    async def test_coroutine_invoke_cancelled_on_state_exit(self):
+        """An async invoke should be cancelled when the owning state is exited."""
+        from tests.conftest import SMRunner
+
+        cancel_observed = []
+
+        async def slow_loader():
+            import asyncio
+
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                cancel_observed.append(True)
+                raise
+            return "should not reach"
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=slow_loader)
+            stopped = State(final=True)
+            cancel = loading.to(stopped)
+
+        sm_runner = SMRunner(is_async=True)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.05)
+        await sm_runner.send(sm, "cancel")
+        await sm_runner.sleep(0.05)
+
+        assert "stopped" in sm.configuration_values
+
+
+class TestAsyncIInvokeInstance:
+    """IInvoke instances with async def run() should be awaited on the async engine."""
+
+    async def test_async_iinvoke_instance(self):
+        """An IInvoke instance with async run() should be awaited."""
+        from tests.conftest import SMRunner
+
+        class AsyncHandler:
+            async def run(self, ctx):
+                return "async_result"
+
+        handler = AsyncHandler()
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=handler)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+            def on_enter_ready(self, data=None, **kwargs):
+                self.result = data
+
+        sm_runner = SMRunner(is_async=True)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+
+        assert "ready" in sm.configuration_values
+        assert sm.result == "async_result"
+
+
+class TestAsyncIInvokeClass:
+    """IInvoke classes with async def run() should be instantiated and awaited."""
+
+    async def test_async_iinvoke_class(self):
+        """An IInvoke class with async run() should be instantiated and its run() awaited."""
+        from tests.conftest import SMRunner
+
+        class AsyncHandler:
+            async def run(self, ctx):
+                return "class_async_result"
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=AsyncHandler)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+            def on_enter_ready(self, data=None, **kwargs):
+                self.result = data
+
+        sm_runner = SMRunner(is_async=True)
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.2)
+        await sm_runner.processing_loop(sm)
+
+        assert "ready" in sm.configuration_values
+        assert sm.result == "class_async_result"
+
+
+class TestAsyncIInvokeOnSyncEngine:
+    """IInvoke with async run() on the sync engine should raise InvalidDefinition."""
+
+    def test_async_iinvoke_instance_on_sync_engine_raises(self):
+        """An IInvoke instance with async run() should fail clearly on the sync engine."""
+        import pytest
+        from statemachine.exceptions import InvalidDefinition
+
+        class AsyncHandler:
+            async def run(self, ctx):
+                return "unreachable"
+
+        handler = AsyncHandler()
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=handler)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+        with pytest.raises(InvalidDefinition):
+            SM()
+
+    def test_async_iinvoke_class_on_sync_engine_raises(self):
+        """An IInvoke class with async run() should fail clearly on the sync engine."""
+        import pytest
+        from statemachine.exceptions import InvalidDefinition
+
+        class AsyncHandler:
+            async def run(self, ctx):
+                return "unreachable"
+
+        class SM(StateChart):
+            loading = State(initial=True, invoke=AsyncHandler)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+        with pytest.raises(InvalidDefinition):
+            SM()
+
+
 class TestDoneInvokeEventFactory:
     """done_invoke_ prefix works with both TransitionList and Event."""
 
