@@ -282,12 +282,12 @@ This is ideal for non-blocking async I/O:
 ```py
 >>> import asyncio
 
->>> async def fetch_data():
+>>> async def async_fetch():
 ...     await asyncio.sleep(0.01)  # simulates async I/O
 ...     return {"status": "ok"}
 
 >>> class AsyncLoader(StateChart):
-...     loading = State(initial=True, invoke=fetch_data)
+...     loading = State(initial=True, invoke=async_fetch)
 ...     ready = State(final=True)
 ...     done_invoke_loading = loading.to(ready)
 ...
