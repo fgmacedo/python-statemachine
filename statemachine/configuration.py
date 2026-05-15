@@ -97,14 +97,17 @@ class Configuration:
     # -- Incremental mutation (used by the engine) -----------------------------
 
     def add(self, state: "State"):
-        """Add *state* to the configuration."""
-        values = self._read_from_model()
+        """Add *state* to the configuration (copy-on-write for thread safety)."""
+        # Copy so we never mutate the OrderedSet still held by concurrent
+        # readers or by the cache identity check. ``_read_from_model`` may
+        # return the same ref stored on the model.
+        values = OrderedSet(self._read_from_model())
         values.add(state.value)
         self._write_to_model(values)
 
     def discard(self, state: "State"):
-        """Remove *state* from the configuration."""
-        values = self._read_from_model()
+        """Remove *state* from the configuration (copy-on-write for thread safety)."""
+        values = OrderedSet(self._read_from_model())
         values.discard(state.value)
         self._write_to_model(values)
 
