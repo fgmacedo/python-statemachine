@@ -73,8 +73,13 @@ class Configuration:
     def states(self) -> "OrderedSet[State]":
         """The set of currently active :class:`State` instances (cached)."""
         raw = self.value
-        if self._cached is not None and self._cached_value is raw:
-            return self._cached
+        # Snapshot the cache fields locally — another thread may call
+        # ``_invalidate()`` between the freshness check and the return,
+        # so reading ``self._cached`` twice would risk returning ``None``.
+        cached = self._cached
+        cached_value = self._cached_value
+        if cached is not None and cached_value is raw:
+            return cached
         if raw is None:
             return OrderedSet()
 
