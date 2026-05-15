@@ -3,9 +3,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version:  2.4.0\n"
+"Project-Id-Version:  3.1.0\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2026-02-24 14:31-0300\n"
+"POT-Creation-Date: 2026-05-15 12:08-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
 "Language: pt_BR\n"
@@ -14,33 +14,57 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.16.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: statemachine/callbacks.py:404 statemachine/callbacks.py:409
+#, python-brace-format
 msgid "Did not found name '{}' from model or statemachine"
 msgstr "Nome '{}' não encontrado no modelo ou na máquina de estados"
 
+#: statemachine/configuration.py:121
+msgid ""
+"There's no current state set. In async code, did you activate the initial"
+" state? (e.g., `await sm.activate_initial_state()`)"
+msgstr ""
+"Nenhum estado atual definido. Em código assíncrono, você ativou o estado "
+"inicial? (ex.: `await sm.activate_initial_state()`)"
+
 #: statemachine/dispatcher.py:126
+#, python-brace-format
 msgid "Failed to parse boolean expression '{}'"
 msgstr "Falha ao interpretar a expressão booleana '{}'"
 
-#: statemachine/event.py:121
+#: statemachine/event.py:95
+#, python-brace-format
+msgid ""
+"Event() received a non-string 'id' ({cls_name}). To combine multiple "
+"transitions under one event, use the | operator: t1 | t2."
+msgstr ""
+"Event() recebeu um 'id' que não é uma string ({cls_name}). Para combinar "
+"múltiplas transições em um único evento, use o operador |: t1 | t2."
+
+#: statemachine/event.py:131
+#, python-brace-format
 msgid "Cannot add callback '{}' to an event with no transitions."
 msgstr "Não é possível adicionar callback '{}' a um evento sem transições."
 
-#: statemachine/event.py:154
+#: statemachine/event.py:164
+#, python-brace-format
 msgid "Event {} cannot be called without a SM instance"
 msgstr "O evento {} não pode ser chamado sem uma instância de SM"
 
 #: statemachine/exceptions.py:25
+#, python-brace-format
 msgid "{!r} is not a valid state value."
 msgstr "{!r} não é um valor de estado válido."
 
 #: statemachine/exceptions.py:40
+#, python-brace-format
 msgid "Can't {} when in {}."
 msgstr "Não é possível {} quando em {}."
 
-#: statemachine/factory.py:79
+#: statemachine/factory.py:81
+#, python-brace-format
 msgid ""
 "There should be one and only one initial state. Your currently have "
 "these: {0}"
@@ -48,7 +72,8 @@ msgstr ""
 "Deve haver um e apenas um estado inicial. Atualmente, você possui estes: "
 "{0}"
 
-#: statemachine/factory.py:160
+#: statemachine/factory.py:198
+#, python-brace-format
 msgid ""
 "There should be one and only one initial state. You currently have these:"
 " {!r}"
@@ -56,13 +81,15 @@ msgstr ""
 "Deve haver um e apenas um estado inicial. Atualmente, você possui estes: "
 "{!r}"
 
-#: statemachine/factory.py:176
+#: statemachine/factory.py:213
+#, python-brace-format
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
 msgstr ""
 "Não é possível declarar transições a partir de um estado final. Estado(s)"
 " inválido(s): {}"
 
-#: statemachine/factory.py:187
+#: statemachine/factory.py:225
+#, python-brace-format
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
 "states have no outgoing transition: {!r}"
@@ -70,7 +97,8 @@ msgstr ""
 "Todos os estados não finais devem ter pelo menos uma transição de saída. "
 "Estes estados não possuem transição de saída: {!r}"
 
-#: statemachine/factory.py:201
+#: statemachine/factory.py:239
+#, python-brace-format
 msgid ""
 "All non-final states should have at least one path to a final state. "
 "These states have no path to a final state: {!r}"
@@ -79,7 +107,8 @@ msgstr ""
 "estado final. Estes estados não possuem caminho para um estado final: "
 "{!r}"
 
-#: statemachine/factory.py:214
+#: statemachine/factory.py:252
+#, python-brace-format
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
@@ -87,7 +116,8 @@ msgstr ""
 "Há estados inacessíveis. O grafo da máquina de estados deve ter um único "
 "componente. Estados desconectados: {}"
 
-#: statemachine/factory.py:251
+#: statemachine/factory.py:289
+#, python-brace-format
 msgid ""
 "Invalid entry in 'listeners': {!r}. Expected a class, callable, or "
 "listener instance."
@@ -95,35 +125,31 @@ msgstr ""
 "Entrada inválida em 'listeners': {!r}. Esperado uma classe, callable ou "
 "instância de listener."
 
-#: statemachine/factory.py:351
+#: statemachine/factory.py:388
+#, python-brace-format
 msgid "An event in the '{}' has no id."
 msgstr "Um evento em '{}' não possui id."
 
 #: statemachine/mixins.py:28
+#, python-brace-format
 msgid "{!r} is not a valid state machine name."
 msgstr "{!r} não é um nome de máquina de estados válido."
 
-#: statemachine/state.py:246
+#: statemachine/state.py:250
 msgid "'donedata' can only be specified on final states."
 msgstr "'donedata' só pode ser especificado em estados finais."
 
-#: statemachine/state.py:304
-msgid "State overriding is not allowed. Trying to add '{}' to {}"
-msgstr "Sobrescrever estados não é permitido. Tentando adicionar '{}' a {}"
-
-#: statemachine/statemachine.py:158
+#: statemachine/statemachine.py:169
 msgid "There are no states or transitions."
 msgstr "Não há estados ou transições."
 
-#: statemachine/statemachine.py:431
-msgid ""
-"There's no current state set. In async code, did you activate the initial"
-" state? (e.g., `await sm.activate_initial_state()`)"
-msgstr ""
-"Nenhum estado atual definido. Em código assíncrono, você ativou o estado "
-"inicial? (ex.: `await sm.activate_initial_state()`)"
+#: statemachine/statemachine.py:239
+#, python-brace-format
+msgid "State overriding is not allowed. Trying to add '{}' to {}"
+msgstr "Sobrescrever estados não é permitido. Tentando adicionar '{}' a {}"
 
-#: statemachine/transition.py:74
+#: statemachine/transition.py:75
+#, python-brace-format
 msgid ""
 "Not a valid internal transition from source {source!r}, target {target!r}"
 " should be self or a descendant."
@@ -132,6 +158,7 @@ msgstr ""
 "deve ser o próprio estado ou um descendente."
 
 #: statemachine/transition_mixin.py:19
+#, python-brace-format
 msgid "{} only supports the decorator syntax to register callbacks."
 msgstr "{} suporta apenas a sintaxe de decorator para registrar callbacks."
 
