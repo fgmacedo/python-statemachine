@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Generator
 from typing import List
 from typing import cast
@@ -12,11 +11,11 @@ from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
 from .event import _expand_event_id
 from .exceptions import InvalidDefinition
-from .exceptions import StateMachineError
 from .i18n import _
 from .invoke import normalize_invoke_callbacks
 from .transition import Transition
 from .transition_list import TransitionList
+from .utils import humanize_id
 
 if TYPE_CHECKING:
     from .statemachine import StateChart
@@ -72,11 +71,18 @@ class NestedStateFactory(type):
             inherited_kwargs.update(getattr(base, "_factory_kwargs", {}))
         inherited_kwargs.update(kwargs)
 
+        # Lazy import to avoid circular dependency (states.py imports state.py)
+        from .states import States
+
         states = []
         history = []
         callbacks = {}
         for key, value in attrs.items():
-            if isinstance(value, HistoryState):
+            if isinstance(value, States):
+                for state_id, state in value.items():
+                    state._set_id(state_id)
+                    states.append(state)
+            elif isinstance(value, HistoryState):
                 value._set_id(key)
                 history.append(value)
             elif isinstance(value, State):
@@ -118,10 +124,8 @@ class State:
 
     Args:
         name: A human-readable representation of the state. Default is derived
-            from the name of the variable assigned to the state machine class.
-            The name is derived from the id using this logic::
-
-                name = id.replace("_", " ").capitalize()
+            from the name of the variable assigned to the state machine class,
+            by replacing ``_`` and ``.`` with spaces and capitalizing the first word.
 
         value: A specific value to the storage and retrieval of states.
             If specified, you can use It to map a more friendly representation to a low-level
@@ -246,6 +250,7 @@ class State:
                 raise InvalidDefinition(_("'donedata' can only be specified on final states."))
             self.enter.add(donedata, priority=CallbackPriority.INLINE)
         self.document_order = 0
+        self._hash = id(self)
         self._init_states()
 
     def _init_states(self):
@@ -267,7 +272,7 @@ class State:
         )
 
     def __hash__(self):
-        return hash(repr(self))
+        return self._hash
 
     def _setup(self):
         self.enter.add("on_enter_state", priority=CallbackPriority.GENERIC, is_convention=True)
@@ -294,22 +299,6 @@ class State:
     def __str__(self):
         return self.name
 
-    def __get__(self, machine, owner):
-        if machine is None:
-            return self
-        return self.for_instance(machine=machine, cache=machine._states_for_instance)
-
-    def __set__(self, instance, value):
-        raise StateMachineError(
-            _("State overriding is not allowed. Trying to add '{}' to {}").format(value, self.id)
-        )
-
-    def for_instance(self, machine: "StateChart", cache: Dict["State", "State"]) -> "State":
-        if self not in cache:
-            cache[self] = InstanceState(self, machine)
-
-        return cache[self]
-
     @property
     def id(self) -> str:
         return self._id
@@ -319,7 +308,8 @@ class State:
         if self.value is None:
             self.value = id
         if not self.name:
-            self.name = self._id.replace("_", " ").capitalize()
+            self.name = humanize_id(self._id)
+        self._hash = hash((self.name, self._id))
 
         return self
 
@@ -366,101 +356,58 @@ class State:
 
 
 class InstanceState(State):
-    """ """
+    """Per-instance proxy for a State, delegating attribute access to the underlying State.
+
+    Uses ``__getattr__`` for automatic delegation of instance attributes (name, value,
+    transitions, etc.) and explicit property overrides for attributes that access private
+    fields or have custom logic (id, initial, final, parallel, is_active).
+    """
 
     def __init__(
         self,
         state: State,
         machine: "StateChart",
     ):
-        self._state = ref(state)
+        self._state = state
         self._machine = ref(machine)
+        self._hash = hash(state)
         self._init_states()
 
-    def _ref(self) -> State:
-        """Dereference the weakref, raising if the referent has been collected."""
-        state = self._state()
-        assert state is not None
-        return state
-
-    @property
-    def name(self):
-        return self._ref().name
-
-    @property
-    def value(self):
-        return self._ref().value
-
-    @property
-    def transitions(self):
-        return self._ref().transitions
-
-    @property
-    def enter(self):
-        return self._ref().enter
-
-    @property
-    def exit(self):
-        return self._ref().exit
-
-    @property
-    def invoke(self):
-        return self._ref().invoke
+    def __getattr__(self, name: str):
+        value = getattr(self._state, name)
+        self.__dict__[name] = value
+        return value
 
     def __eq__(self, other):
-        return self._ref() == other
+        return self._state == other
 
     def __hash__(self):
-        return hash(repr(self._ref()))
+        return self._hash
 
     def __repr__(self):
-        return repr(self._ref())
-
-    @property
-    def initial(self):
-        return self._ref()._initial
-
-    @property
-    def final(self):
-        return self._ref()._final
+        return repr(self._state)
 
     @property
     def id(self) -> str:
-        return (self._state() or self)._id  # type: ignore[union-attr]
+        return self._state._id
+
+    @property
+    def initial(self):
+        return self._state._initial
+
+    @property
+    def final(self):
+        return self._state._final
+
+    @property
+    def parallel(self):
+        return self._state._parallel
 
     @property
     def is_active(self):
         machine = self._machine()
         assert machine is not None
         return self.value in machine.configuration_values
-
-    @property
-    def is_atomic(self):
-        return self._ref().is_atomic
-
-    @property
-    def parent(self):
-        return self._ref().parent
-
-    @property
-    def states(self):
-        return self._ref().states
-
-    @property
-    def history(self):
-        return self._ref().history
-
-    @property
-    def parallel(self):
-        return self._ref().parallel
-
-    @property
-    def is_compound(self):
-        return self._ref().is_compound
-
-    @property
-    def document_order(self):
-        return self._ref().document_order
 
 
 class AnyState(State):

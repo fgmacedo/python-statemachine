@@ -80,21 +80,31 @@ Every event has two string properties:
 
 - **`id`** — the programmatic identifier, derived from the class attribute name.
   Use this in `send()`, guards, and comparisons.
-- **`name`** — a human-readable label for display purposes. Defaults to the `id`
-  when not explicitly set.
+- **`name`** — a human-readable label for display purposes. Auto-generated from
+  the `id` by replacing `_` and `.` with spaces and capitalizing the first word.
+  You can override the automatic name by passing `name=` explicitly when
+  declaring the event:
 
 ```py
 >>> TrafficLight.cycle.id
 'cycle'
 
 >>> TrafficLight.cycle.name
-'cycle'
+'Cycle'
+
+>>> class Example(StateChart):
+...     on = State(initial=True)
+...     off = State(final=True)
+...     shut_down = Event(on.to(off), name="Shut the system down")
+
+>>> Example.shut_down.name
+'Shut the system down'
 
 ```
 
 ```{tip}
 Always use `event.id` for programmatic checks. The `name` property is intended
-for UI display and may change format in future versions.
+for UI display and may differ from the `id`.
 ```
 
 

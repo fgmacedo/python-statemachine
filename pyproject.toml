@@ -1,6 +1,6 @@
 [project]
 name = "python-statemachine"
-version = "3.0.0"
+version = "3.1.0"
 description = "Python Finite State Machines made easy."
 authors = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
 maintainers = [{ name = "Fernando Macedo", email = "fgmacedo@gmail.com" }]
@@ -28,35 +28,38 @@ requires-python = ">=3.9"
 homepage = "https://github.com/fgmacedo/python-statemachine"
 
 [project.optional-dependencies]
-diagrams = ["pydot >= 2.0.0"]
+diagrams = ["pydot >= 4.0.1"]
 
 [dependency-groups]
 dev = [
-    "ruff >=0.15.0",
+    "ruff >=0.15.8",
     "pre-commit",
     "mypy",
     "pytest",
-    "pytest-cov >=6.0.0; python_version >='3.9'",
+    "pytest-cov >=7.1.0; python_version >='3.9'",
     "pytest-cov; python_version <'3.9'",
-    "pytest-sugar >=1.0.0",
-    "pytest-mock >=3.14.0",
-    "pytest-benchmark >=4.0.0",
-    "pytest-asyncio >=0.25.0",
+    "pytest-sugar >=1.1.1",
+    "pytest-mock >=3.15.1",
+    "pytest-benchmark >=5.2.3",
+    "pytest-asyncio >=1.3.0; python_version >='3.10'",
+    "pytest-asyncio >=0.25.0; python_version <'3.10'",
     "pydot",
-    "django >=5.2.11; python_version >='3.10'",
-    "pytest-django >=4.8.0; python_version >'3.8'",
+    "django >=6.0.3; python_version >='3.12'",
+    "django >=5.2.12; python_version >='3.10' and python_version <'3.12'",
+    "pytest-django >=4.12.0; python_version >='3.10'",
     "Sphinx; python_version >'3.8'",
     "sphinx-gallery; python_version >'3.8'",
     "myst-parser; python_version >'3.8'",
     "pillow; python_version >'3.8'",
     "sphinx-autobuild; python_version >'3.8'",
-    "furo >=2024.5.6; python_version >'3.8'",
+    "furo >=2025.12.19; python_version >'3.8'",
     "sphinx-copybutton >=0.5.2; python_version >'3.8'",
-    "pdbr>=0.8.9; python_version >'3.8'",
-    "babel >=2.16.0; python_version >='3.8'",
-    "pytest-xdist>=3.6.1",
-    "pytest-timeout>=2.3.1",
-    "pyright>=1.1.400",
+    "sphinxcontrib-mermaid; python_version >'3.8'",
+    "pdbr>=0.9.7; python_version >'3.8'",
+    "babel >=2.18.0; python_version >='3.8'",
+    "pytest-xdist>=3.8.0",
+    "pytest-timeout>=2.4.0",
+    "pyright>=1.1.408",
 ]
 
 [build-system]
@@ -88,14 +91,15 @@ markers = [
 ]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 xfail_strict = true
-log_cli = true
-log_cli_level = "DEBUG"
+# Log level WARNING by default; the engine caches a no-op for logger.debug at
+# init time, so DEBUG here would bypass that optimization and slow benchmarks.
+# To enable DEBUG logging for a specific test run:
+#   uv run pytest -o log_cli_level=DEBUG
+log_cli_level = "WARNING"
 log_cli_format = "%(relativeCreated)6.0fms %(threadName)-18s %(name)-35s %(message)s"
 log_cli_date_format = "%H:%M:%S"
 asyncio_default_fixture_loop_scope = "module"
-filterwarnings = [
-    "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
-]
+filterwarnings = ["ignore::pytest_benchmark.logger.PytestBenchmarkWarning"]
 
 [tool.coverage.run]
 branch = true
@@ -119,6 +123,7 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if TYPE_CHECKING",
+    'if __name__ == "__main__"',
 ]
 
 [tool.coverage.html]
@@ -133,7 +138,14 @@ disable_error_code = "annotation-unchecked"
 mypy_path = "$MYPY_CONFIG_FILE_DIR/tests/django_project"
 
 [[tool.mypy.overrides]]
-module = ['django.*', 'pytest.*', 'pydot.*', 'sphinx_gallery.*']
+module = [
+    'django.*',
+    'pytest.*',
+    'pydot.*',
+    'sphinx_gallery.*',
+    'docutils.*',
+    'sphinx.*',
+]
 ignore_missing_imports = true
 
 [tool.ruff]

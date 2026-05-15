@@ -1,4 +1,3 @@
-import logging
 from time import sleep
 from time import time
 from typing import TYPE_CHECKING
@@ -13,8 +12,6 @@ from .base import BaseEngine
 
 if TYPE_CHECKING:
     from ..transition import Transition
-
-logger = logging.getLogger(__name__)
 
 
 class SyncEngine(BaseEngine):
@@ -77,7 +74,7 @@ class SyncEngine(BaseEngine):
         # We will collect the first result as the processing result to keep backwards compatibility
         # so we need to use a sentinel object instead of `None` because the first result may
         # be also `None`, and on this case the `first_result` may be overridden by another result.
-        logger.debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
+        self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
         try:
             took_events = True
@@ -92,7 +89,7 @@ class SyncEngine(BaseEngine):
                 # handles eventless transitions and internal events
                 while not macrostep_done:
                     self._microstep_count = 0
-                    logger.debug(
+                    self._debug(
                         "%s Macrostep %d: eventless/internal queue",
                         self._log_id,
                         self._macrostep_count,
@@ -110,7 +107,7 @@ class SyncEngine(BaseEngine):
                             internal_event = self.internal_queue.pop()
                             enabled_transitions = self.select_transitions(internal_event)
                     if enabled_transitions:
-                        logger.debug(
+                        self._debug(
                             "%s Enabled transitions: %s", self._log_id, enabled_transitions
                         )
                         took_events = True
@@ -130,9 +127,7 @@ class SyncEngine(BaseEngine):
                         self._run_microstep(enabled_transitions, internal_event)
 
                 # Process external events
-                logger.debug(
-                    "%s Macrostep %d: external queue", self._log_id, self._macrostep_count
-                )
+                self._debug("%s Macrostep %d: external queue", self._log_id, self._macrostep_count)
                 while not self.external_queue.is_empty():
                     self.clear_cache()
                     took_events = True
@@ -147,7 +142,7 @@ class SyncEngine(BaseEngine):
 
                     self._macrostep_count += 1
                     self._microstep_count = 0
-                    logger.debug(
+                    self._debug(
                         "%s macrostep %d: event=%s",
                         self._log_id,
                         self._macrostep_count,
@@ -158,7 +153,7 @@ class SyncEngine(BaseEngine):
                     self._invoke_manager.handle_external_event(external_event)
 
                     enabled_transitions = self.select_transitions(external_event)
-                    logger.debug("%s Enabled transitions: %s", self._log_id, enabled_transitions)
+                    self._debug("%s Enabled transitions: %s", self._log_id, enabled_transitions)
                     if enabled_transitions:
                         try:
                             result = self.microstep(list(enabled_transitions), external_event)
@@ -177,7 +172,7 @@ class SyncEngine(BaseEngine):
 
         finally:
             self._processing.release()
-        logger.debug("%s Processing loop ended", self._log_id)
+        self._debug("%s Processing loop ended", self._log_id)
         return first_result if first_result is not self._sentinel else None
 
     def enabled_events(self, *args, **kwargs):

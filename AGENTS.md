@@ -77,6 +77,16 @@ current event.
 - `on_error_execution()` works via naming convention but **only** when a transition for
   `error.execution` is declared — it is NOT a generic callback.
 
+### Thread safety
+
+- The sync engine is **thread-safe**: multiple threads can send events to the same SM instance
+  concurrently. The processing loop uses a `threading.Lock` so at most one thread executes
+  transitions at a time. Event queues use `PriorityQueue` (stdlib, thread-safe).
+- **Do not replace `PriorityQueue`** with non-thread-safe alternatives (e.g., `collections.deque`,
+  plain `list`) — this would break concurrent access guarantees.
+- Stress tests in `tests/test_threading.py::TestThreadSafety` exercise real contention with
+  barriers and multiple sender threads. Any change to queue or locking internals must pass these.
+
 ### Invoke (`<invoke>`)
 
 - `invoke.py` — `InvokeManager` on the engine manages the lifecycle: `mark_for_invoke()`,
@@ -127,6 +137,16 @@ timeout 120 uv run pytest -n 4
 
 Testes normally run under 60s (~40s on average), so take a closer look if they take longer, it can be a regression.
 
+### Debug logging
+
+`log_cli_level` defaults to `WARNING` in `pyproject.toml`. The engine caches a no-op
+for `logger.debug` at init time — running tests with `DEBUG` would bypass this
+optimization and inflate benchmark numbers. To enable debug logs for a specific run:
+
+```bash
+uv run pytest -o log_cli_level=DEBUG tests/test_something.py
+```
+
 When analyzing warnings or extensive output, run the tests **once** saving the output to a file
 (`> /tmp/pytest-output.txt 2>&1`), then analyze the file — instead of running the suite
 repeatedly with different greps.
@@ -159,6 +179,26 @@ async def test_something(self, sm_runner):
 ```
 
 Do **not** manually add async no-op listeners or duplicate test classes — prefer `sm_runner`.
+
+### TDD and coverage requirements
+
+Follow a **test-driven development** approach: tests are not an afterthought — they are a
+first-class requirement that must be part of every implementation plan.
+
+- **Planning phase:** every plan must include test tasks as explicit steps, not a final
+  "add tests" bullet. Identify what needs to be tested (new branches, edge cases, error
+  paths) while designing the implementation.
+- **100% branch coverage is mandatory.** The pre-commit hook enforces `--cov-fail-under=100`
+  with branch coverage enabled. Code that drops coverage will not pass CI.
+- **Verify coverage before committing:** after writing tests, run coverage on the affected
+  modules and check for missing lines/branches:
+  ```bash
+  timeout 120 uv run pytest tests/<test_file>.py --cov=statemachine.<module> --cov-report=term-missing --cov-branch
+  ```
+- **Use pytest fixtures** (`tmp_path`, `monkeypatch`, etc.) — never hardcode paths or
+  use mutable global state when a fixture exists.
+- **Unreachable defensive branches** (e.g., `if` guards that can never be True given the
+  type system) may be marked with `pragma: no cover`, but prefer writing a test first.
 
 ## Linting and formatting
 

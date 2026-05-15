@@ -9,30 +9,18 @@ Theme: Fellowship coordination — actions depend on where members are.
 
 import pytest
 
-from statemachine import State
-from statemachine import StateChart
+from tests.machines.in_condition.combined_guard import CombinedGuard
+from tests.machines.in_condition.descendant_check import DescendantCheck
+from tests.machines.in_condition.eventless_in import EventlessIn
+from tests.machines.in_condition.fellowship import Fellowship
+from tests.machines.in_condition.fellowship_coordination import FellowshipCoordination
+from tests.machines.in_condition.gate_of_moria import GateOfMoria
 
 
 @pytest.mark.timeout(5)
 class TestInCondition:
     async def test_in_condition_true_enables_transition(self, sm_runner):
         """In('state_id') when state is active -> transition fires."""
-
-        class Fellowship(StateChart):
-            class positions(State.Parallel):
-                class frodo(State.Compound):
-                    shire_f = State(initial=True)
-                    mordor_f = State(final=True)
-
-                    journey = shire_f.to(mordor_f)
-
-                class sam(State.Compound):
-                    shire_s = State(initial=True)
-                    mordor_s = State(final=True)
-
-                    # Sam follows Frodo: eventless, guarded by In('mordor_f')
-                    shire_s.to(mordor_s, cond="In('mordor_f')")
-
         sm = await sm_runner.start(Fellowship)
         await sm_runner.send(sm, "journey")
         vals = set(sm.configuration_values)
@@ -41,39 +29,12 @@ class TestInCondition:
 
     async def test_in_condition_false_blocks_transition(self, sm_runner):
         """In('state_id') when state is not active -> transition blocked."""
-
-        class GateOfMoria(StateChart):
-            outside = State(initial=True)
-            at_gate = State()
-            inside = State(final=True)
-
-            approach = outside.to(at_gate)
-            # Can only enter if we are at the gate
-            enter_gate = outside.to(inside, cond="In('at_gate')")
-            speak_friend = at_gate.to(inside)
-
         sm = await sm_runner.start(GateOfMoria)
         await sm_runner.send(sm, "enter_gate")
         assert "outside" in sm.configuration_values
 
     async def test_in_with_parallel_regions(self, sm_runner):
         """Cross-region In() evaluation in parallel states."""
-
-        class FellowshipCoordination(StateChart):
-            class mission(State.Parallel):
-                class scouts(State.Compound):
-                    scouting = State(initial=True)
-                    reported = State(final=True)
-
-                    report = scouting.to(reported)
-
-                class army(State.Compound):
-                    waiting = State(initial=True)
-                    marching = State(final=True)
-
-                    # Army marches only after scouts report
-                    waiting.to(marching, cond="In('reported')")
-
         sm = await sm_runner.start(FellowshipCoordination)
         vals = set(sm.configuration_values)
         assert "waiting" in vals
@@ -86,19 +47,6 @@ class TestInCondition:
 
     async def test_in_with_compound_descendant(self, sm_runner):
         """In('child') when child is an active descendant."""
-
-        class DescendantCheck(StateChart):
-            class realm(State.Compound):
-                village = State(initial=True)
-                castle = State()
-
-                ascend = village.to(castle)
-
-            conquered = State(final=True)
-            # Guarded by being inside the castle
-            conquer = realm.to(conquered, cond="In('castle')")
-            explore = realm.to.itself(internal=True)
-
         sm = await sm_runner.start(DescendantCheck)
         await sm_runner.send(sm, "conquer")
         assert "realm" in sm.configuration_values
@@ -111,22 +59,6 @@ class TestInCondition:
 
     async def test_in_combined_with_event(self, sm_runner):
         """Event + In() guard together."""
-
-        class CombinedGuard(StateChart):
-            class positions(State.Parallel):
-                class scout(State.Compound):
-                    out = State(initial=True)
-                    back = State(final=True)
-
-                    return_scout = out.to(back)
-
-                class warrior(State.Compound):
-                    idle = State(initial=True)
-                    attacking = State(final=True)
-
-                    # Only attacks when scout is back
-                    charge = idle.to(attacking, cond="In('back')")
-
         sm = await sm_runner.start(CombinedGuard)
         await sm_runner.send(sm, "charge")
         assert "idle" in sm.configuration_values
@@ -137,22 +69,6 @@ class TestInCondition:
 
     async def test_in_with_eventless_transition(self, sm_runner):
         """Eventless + In() guard."""
-
-        class EventlessIn(StateChart):
-            class coordination(State.Parallel):
-                class leader(State.Compound):
-                    planning = State(initial=True)
-                    ready = State(final=True)
-
-                    get_ready = planning.to(ready)
-
-                class follower(State.Compound):
-                    waiting = State(initial=True)
-                    moving = State(final=True)
-
-                    # Eventless: move when leader is ready
-                    waiting.to(moving, cond="In('ready')")
-
         sm = await sm_runner.start(EventlessIn)
         assert "waiting" in sm.configuration_values
 

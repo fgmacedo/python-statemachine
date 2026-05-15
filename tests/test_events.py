@@ -82,8 +82,8 @@ class TestExplicitEvent:
 
         assert list(StartMachine.events) == ["launch_the_machine"]
         assert [e.id for e in StartMachine.events] == ["launch_the_machine"]
-        assert [e.name for e in StartMachine.events] == ["launch_the_machine"]
-        assert StartMachine.launch_the_machine.name == "launch_the_machine"
+        assert [e.name for e in StartMachine.events] == ["Launch the machine"]
+        assert StartMachine.launch_the_machine.name == "Launch the machine"
         assert str(StartMachine.launch_the_machine) == "launch_the_machine"
         assert StartMachine.launch_the_machine == StartMachine.launch_the_machine.id
 
@@ -201,8 +201,8 @@ class TestExplicitEvent:
         assert sm.send("cycle") == "Running cycle from red to green"
         assert sm.cycle.name == "Loop"
         assert sm.slow_down.name == "Slow down"
-        assert sm.stop.name == "stop"
-        assert sm.go.name == "go"
+        assert sm.stop.name == "Stop"
+        assert sm.go.name == "Go"
 
     def test_multiple_ids_from_the_same_event_will_be_converted_to_multiple_events(self):
         class TrafficLightMachine(StateChart):
@@ -330,3 +330,18 @@ def test_events_match_none_with_empty():
 
     events = Events()
     assert events.match(None) is True
+
+
+def test_event_raises_on_non_string_id():
+    """Event() should raise InvalidDefinition when id is not a string.
+
+    This catches a common mistake where users pass multiple transitions as
+    positional args (e.g. Event(t1, t2)) instead of combining them with |.
+    """
+    s1 = State(initial=True)
+    s2 = State(final=True)
+    t1 = s1.to(s2)
+    t2 = s2.to(s1)
+
+    with pytest.raises(InvalidDefinition, match="non-string 'id'.*use the \\| operator"):
+        Event(t1, t2)

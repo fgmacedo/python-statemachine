@@ -9,7 +9,7 @@ repos:
         exclude: docs/auto_examples
 - repo: https://github.com/charliermarsh/ruff-pre-commit
   # Ruff version.
-  rev: v0.15.0
+  rev: v0.15.8
   hooks:
     # Run the linter.
     - id: ruff
@@ -31,6 +31,16 @@ repos:
     types: [python]
     language: system
     pass_filenames: false
+  - id: generate-images
+    name: Generate README images
+    entry: >-
+      uv run python -m statemachine.contrib.diagram
+      tests.examples.traffic_light_machine.TrafficLightMachine
+      docs/images/readme_trafficlightmachine.png
+      --events cycle cycle cycle
+    language: system
+    pass_filenames: false
+    files: (statemachine/contrib/diagram/|tests/examples/traffic_light_machine\.py)
   - id: pytest
     name: Pytest
     entry: uv run pytest -n auto --cov-fail-under=100

@@ -51,6 +51,8 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx_gallery.gen_gallery",
     "sphinx_copybutton",
+    "statemachine.contrib.diagram.sphinx_ext",
+    "sphinxcontrib.mermaid",
 ]
 
 autosectionlabel_prefix_document = True

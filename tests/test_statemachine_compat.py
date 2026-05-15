@@ -357,9 +357,7 @@ class TestCurrentStateDeprecated:
         with pytest.warns(DeprecationWarning, match="current_state"):
             _ = sm.current_state  # noqa: F841
 
-    def test_current_state_with_list_value(self):
-        """current_state handles list current_state_value (backward compat)."""
-
+    def test_current_state_setter_emits_warning(self):
         class SM(StateMachine):
             s1 = State(initial=True)
             s2 = State(final=True)
@@ -367,8 +365,19 @@ class TestCurrentStateDeprecated:
             go = s1.to(s2)
 
         sm = SM()
-        setattr(sm.model, sm.state_field, [sm.s1.value])
+        with pytest.warns(DeprecationWarning, match="current_state"):
+            sm.current_state = sm.s2
+        assert sm.s2 in sm.configuration
+
+    def test_current_state_setter_changes_state(self):
+        class SM(StateMachine):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        sm = SM()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
-            config = sm.current_state
-        assert sm.s1 in config
+            sm.current_state = sm.s2
+        assert sm.s2 in sm.configuration

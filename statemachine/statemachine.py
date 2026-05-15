@@ -16,6 +16,7 @@ from .callbacks import CallbackSpecList
 from .callbacks import CallbacksRegistry
 from .callbacks import SpecListGrouper
 from .callbacks import SpecReference
+from .configuration import Configuration
 from .dispatcher import Listener
 from .dispatcher import Listeners
 from .engines.async_ import AsyncEngine
@@ -24,12 +25,14 @@ from .event import BoundEvent
 from .event_data import TriggerData
 from .exceptions import InvalidDefinition
 from .exceptions import InvalidStateValue
+from .exceptions import StateMachineError
 from .exceptions import TransitionNotAllowed
 from .factory import StateMachineMetaclass
 from .graph import iterate_states_and_transitions
 from .i18n import _
 from .model import Model
 from .signature import SignatureAdapter
+from .state import InstanceState
 from .utils import run_async_from_sync
 
 if TYPE_CHECKING:
@@ -52,8 +55,12 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         start_value: An optional start state value if there's no current state assigned
             on the :ref:`domain models`. Default: ``None``.
 
-        listeners: An optional list of objects that provies attributes to be used as callbacks.
+        listeners: An optional list of objects that provides attributes to be used as callbacks.
             See :ref:`listeners` for more details.
+
+        **kwargs: Additional keyword arguments available for dependency injection into
+            callbacks. These are passed to class listener ``setup()`` methods and to the
+            initial activation callbacks (e.g. ``on_enter_<state>``).
 
     """
 
@@ -142,15 +149,19 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         **kwargs: Any,
     ):
         self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
-        self.history_values: Dict[
-            str, List[State]
-        ] = {}  # Mapping of compound states to last active state(s).
+        """The external model object that holds domain state, or an internal
+        :class:`Model` instance when none is provided.  See :ref:`domain models`."""
+
+        self.history_values: Dict[str, List[State]] = {}
+        """Mapping from compound state IDs to the list of states that were active
+        the last time that compound state was exited. Used by history pseudo-states
+        to restore previous configurations."""
         self.state_field = state_field
         self.start_configuration_values = (
             [start_value] if start_value is not None else list(self.start_configuration_values)
         )
         self._callbacks = CallbacksRegistry()
-        self._states_for_instance: Dict[State, State] = {}
+        self._config = self._build_configuration()
         self._listeners: Dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
 
@@ -193,6 +204,22 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             resolved.append(instance)
         return resolved
 
+    def _build_configuration(self) -> Configuration:
+        """Create InstanceState entries and return a new Configuration."""
+        instance_states: Dict[str, Any] = {}
+        events = self.__class__._events
+        for state in self.states_map.values():
+            ist = InstanceState(state, self)
+            instance_states[state.id] = ist
+            if state.id not in events:
+                vars(self)[state.id] = ist
+        return Configuration(
+            instance_states=instance_states,
+            model=self.model,
+            state_field=self.state_field,
+            states_map=self.states_map,
+        )
+
     def activate_initial_state(self) -> Any:
         result = self._engine.activate_initial_state()
         if not isawaitable(result):
@@ -205,6 +232,14 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             return result
         return run_async_from_sync(result)
 
+    def __setattr__(self, name, value):
+        # Fast path: internal/private attributes are never state IDs.
+        if not name.startswith("_") and name in self.__class__.states_map:
+            raise StateMachineError(
+                _("State overriding is not allowed. Trying to add '{}' to {}").format(value, name)
+            )
+        super().__setattr__(name, value)
+
     def __repr__(self):
         configuration_ids = [s.id for s in self.configuration]
         return (
@@ -212,10 +247,15 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
             f"configuration={configuration_ids!r})"
         )
 
+    def __format__(self, fmt: str) -> str:
+        from .contrib.diagram.formatter import formatter
+
+        return formatter.render(self, fmt)
+
     def __getstate__(self):
-        state = self.__dict__.copy()
+        state = {k: v for k, v in self.__dict__.items() if not isinstance(v, InstanceState)}
         del state["_callbacks"]
-        del state["_states_for_instance"]
+        del state["_config"]
         del state["_engine"]
         return state
 
@@ -223,7 +263,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         listeners = state.pop("_listeners")
         self.__dict__.update(state)  # type: ignore[attr-defined]
         self._callbacks = CallbacksRegistry()
-        self._states_for_instance = {}
+        self._config = self._build_configuration()
         self._listeners = {}
 
         # _listeners already contained both class-level and runtime listeners
@@ -335,44 +375,16 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     def configuration_values(self) -> OrderedSet[Any]:
         """The state configuration values is the set of currently active states's values
         (or ids if no custom value is defined)."""
-        if isinstance(self.current_state_value, OrderedSet):
-            return self.current_state_value
-        return OrderedSet([self.current_state_value])
+        return self._config.values
 
     @property
     def configuration(self) -> OrderedSet["State"]:
         """The set of currently active states."""
-        if self.current_state_value is None:
-            return OrderedSet()
-
-        if not isinstance(self.current_state_value, MutableSet):
-            return OrderedSet(
-                [
-                    self.states_map[self.current_state_value].for_instance(
-                        machine=self,
-                        cache=self._states_for_instance,
-                    )
-                ]
-            )
-
-        return OrderedSet(
-            [
-                self.states_map[value].for_instance(
-                    machine=self,
-                    cache=self._states_for_instance,
-                )
-                for value in self.current_state_value
-            ]
-        )
+        return self._config.states
 
     @configuration.setter
     def configuration(self, new_configuration: OrderedSet["State"]):
-        if len(new_configuration) == 0:
-            self.current_state_value = None
-        elif len(new_configuration) == 1:
-            self.current_state_value = new_configuration.pop().value
-        else:
-            self.current_state_value = OrderedSet(s.value for s in new_configuration)
+        self._config.states = new_configuration
 
     @property
     def current_state_value(self):
@@ -381,67 +393,38 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         This is a low level API, that can be used to assign any valid state value
         completely bypassing all the hooks and validations.
         """
-        return getattr(self.model, self.state_field, None)
+        return self._config.value
 
     @current_state_value.setter
     def current_state_value(self, value):
-        if (
-            value is not None
-            and not isinstance(value, MutableSet)
-            and value not in self.states_map
-        ):
-            raise InvalidStateValue(value)
-        setattr(self.model, self.state_field, value)
+        self._config.value = value
 
     @property
     def current_state(self) -> "State | MutableSet[State]":
         """Get/Set the current :ref:`state`.
 
-        This is a low level API, that can be to assign any valid state
-        completely bypassing all the hooks and validations.
+        .. deprecated:: 3.0.0
+            Use :attr:`configuration` / :attr:`configuration_values` instead.
         """
         warnings.warn(
             """Property `current_state` is deprecated in favor of `configuration`.""",
             DeprecationWarning,
             stacklevel=2,
         )
-        current_value = self.current_state_value
-
-        try:
-            if isinstance(current_value, list):
-                return OrderedSet(
-                    [
-                        self.states_map[value].for_instance(
-                            machine=self,
-                            cache=self._states_for_instance,
-                        )
-                        for value in current_value
-                    ]
-                )
-
-            state: State = self.states_map[current_value].for_instance(
-                machine=self,
-                cache=self._states_for_instance,
-            )
-            return state
-        except KeyError as err:
-            if self.current_state_value is None:
-                raise InvalidStateValue(
-                    self.current_state_value,
-                    _(
-                        "There's no current state set. In async code, "
-                        "did you activate the initial state? "
-                        "(e.g., `await sm.activate_initial_state()`)"
-                    ),
-                ) from err
-            raise InvalidStateValue(self.current_state_value) from err
+        return self._config.current_state
 
     @current_state.setter
-    def current_state(self, value):  # pragma: no cover
+    def current_state(self, value):
+        warnings.warn(
+            """Property `current_state` is deprecated in favor of `configuration`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.current_state_value = value.value
 
     @property
     def events(self) -> "List[Event]":
+        """List of all :ref:`Event` instances declared on this state machine."""
         return [getattr(self, event) for event in self.__class__._events]
 
     @property

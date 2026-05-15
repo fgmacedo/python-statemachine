@@ -77,14 +77,21 @@ True
 
 ```
 
-Generate a diagram:
+Generate a diagram or get a text representation with f-strings:
 
 ```py
->>> # This example will only run on automated tests if dot is present
->>> getfixture("requires_dot_installed")
->>> img_path = "docs/images/readme_trafficlightmachine.png"
->>> sm._graph().write_png(img_path)
+>>> print(f"{sm:md}")
+| State  | Event | Guard | Target |
+| ------ | ----- | ----- | ------ |
+| Green  | Cycle |       | Yellow |
+| Yellow | Cycle |       | Red    |
+| Red    | Cycle |       | Green  |
+<BLANKLINE>
 
+```
+
+```python
+sm._graph().write_png("traffic_light.png")
 ```
 
 ![](https://raw.githubusercontent.com/fgmacedo/python-statemachine/develop/docs/images/readme_trafficlightmachine.png)
@@ -345,7 +352,7 @@ There's a lot more to explore:
 - **`prepare_event`** callback — inject custom data into all callbacks
 - **Observer pattern** — register external listeners to watch events and state changes
 - **Django integration** — auto-discover state machines in Django apps with `MachineMixin`
-- **Diagram generation** — from the CLI, at runtime, or in Jupyter notebooks
+- **Diagram generation** — via f-strings (`f"{sm:mermaid}"`), CLI, Sphinx directive, or Jupyter
 - **Dictionary-based definitions** — create state machines from data structures
 - **Internationalization** — error messages in multiple languages
 

@@ -63,8 +63,8 @@ class EventData:
     source: "State" = field(init=False)
     """The :ref:`State` which :ref:`statemachine` was in when the Event started."""
 
-    target: "State" = field(init=False)
-    """The destination :ref:`State` of the :ref:`transition`."""
+    target: "State | None" = field(init=False)
+    """The destination :ref:`State` of the :ref:`transition`, or ``None`` for targetless."""
 
     def __post_init__(self):
         self.state = self.transition.source

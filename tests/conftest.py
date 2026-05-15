@@ -22,86 +22,32 @@ def current_time():
 
 @pytest.fixture()
 def campaign_machine():
-    "Define a new class for each test"
-    from statemachine import State
-    from statemachine import StateChart
-
-    class CampaignMachine(StateChart):
-        "A workflow machine"
-
-        draft = State(initial=True)
-        producing = State("Being produced")
-        closed = State(final=True)
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
+    from tests.machines.workflow.campaign_machine import CampaignMachine
 
     return CampaignMachine
 
 
 @pytest.fixture()
 def campaign_machine_with_validator():
-    "Define a new class for each test"
-    from statemachine import State
-    from statemachine import StateChart
+    from tests.machines.workflow.campaign_machine_with_validator import (
+        CampaignMachineWithValidator,
+    )
 
-    class CampaignMachine(StateChart):
-        "A workflow machine"
-
-        draft = State(initial=True)
-        producing = State("Being produced")
-        closed = State(final=True)
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing, validators="can_produce")
-        deliver = producing.to(closed)
-
-        def can_produce(*args, **kwargs):
-            if "goods" not in kwargs:
-                raise LookupError("Goods not found.")
-
-    return CampaignMachine
+    return CampaignMachineWithValidator
 
 
 @pytest.fixture()
 def campaign_machine_with_final_state():
-    "Define a new class for each test"
-    from statemachine import State
-    from statemachine import StateChart
-
-    class CampaignMachine(StateChart):
-        "A workflow machine"
-
-        draft = State(initial=True)
-        producing = State("Being produced")
-        closed = State(final=True)
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
+    from tests.machines.workflow.campaign_machine import CampaignMachine
 
     return CampaignMachine
 
 
 @pytest.fixture()
 def campaign_machine_with_values():
-    "Define a new class for each test"
-    from statemachine import State
-    from statemachine import StateChart
+    from tests.machines.workflow.campaign_machine_with_values import CampaignMachineWithValues
 
-    class CampaignMachineWithKeys(StateChart):
-        "A workflow machine"
-
-        draft = State(initial=True, value=1)
-        producing = State("Being produced", value=2)
-        closed = State(value=3, final=True)
-
-        add_job = draft.to(draft) | producing.to(producing)
-        produce = draft.to(producing)
-        deliver = producing.to(closed)
-
-    return CampaignMachineWithKeys
+    return CampaignMachineWithValues
 
 
 @pytest.fixture()
@@ -153,18 +99,7 @@ def classic_traffic_light_machine_allow_event(classic_traffic_light_machine):
 
 @pytest.fixture()
 def reverse_traffic_light_machine():
-    from statemachine import State
-    from statemachine import StateChart
-
-    class ReverseTrafficLightMachine(StateChart):
-        "A traffic light machine"
-
-        green = State(initial=True)
-        yellow = State()
-        red = State()
-
-        stop = red.from_(yellow, green, red)
-        cycle = green.from_(red) | yellow.from_(green) | red.from_(yellow) | red.from_.itself()
+    from tests.machines.workflow.reverse_traffic_light import ReverseTrafficLightMachine
 
     return ReverseTrafficLightMachine
 

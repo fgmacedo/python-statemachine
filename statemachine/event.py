@@ -9,6 +9,7 @@ from .event_data import TriggerData
 from .exceptions import InvalidDefinition
 from .i18n import _
 from .transition_mixin import AddCallbacksMixin
+from .utils import humanize_id
 
 if TYPE_CHECKING:
     from .statemachine import StateChart
@@ -88,6 +89,15 @@ class Event(AddCallbacksMixin, str):
             id = transitions
             transitions = None
 
+        if id is not None and not isinstance(id, str):
+            raise InvalidDefinition(
+                _(
+                    "Event() received a non-string 'id' ({cls_name}). "
+                    "To combine multiple transitions under one event, "
+                    "use the | operator: t1 | t2."
+                ).format(cls_name=type(id).__name__)
+            )
+
         _has_real_id = id is not None
         id = str(id) if _has_real_id else f"__event__{uuid4().hex}"
 
@@ -98,7 +108,7 @@ class Event(AddCallbacksMixin, str):
         if name:
             instance.name = name
         elif _has_real_id:
-            instance.name = str(id).replace("_", " ").capitalize()
+            instance.name = humanize_id(id)
         else:
             instance.name = ""
         if transitions:

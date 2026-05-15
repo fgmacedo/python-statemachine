@@ -12,10 +12,13 @@ that runs for the duration of a state and is cancelled when the state is exited.
 Invoke handlers run **outside** the main state machine processing loop:
 
 - **Sync engine**: each invoke handler runs in a **daemon thread**.
-- **Async engine**: each invoke handler runs in a **thread executor**
-  (`loop.run_in_executor`), wrapped in an `asyncio.Task`. The executor is used because
-  invoke handlers are expected to perform blocking I/O (network calls, file access,
-  subprocess communication) that would freeze the event loop if run directly.
+- **Async engine**:
+  - **Sync handlers** run in a **thread executor** (`loop.run_in_executor`), wrapped
+    in an `asyncio.Task`. The executor is used because blocking I/O (network calls,
+    file access, subprocess communication) would freeze the event loop if run directly.
+  - **Coroutine functions** and `IInvoke` handlers with `async def run()` are
+    **awaited directly** on the event loop, with no executor overhead. This is the
+    natural choice for non-blocking async I/O (e.g., `aiohttp`, async DB drivers).
 
 When a handler completes, a `done.invoke.<state>.<id>` event is automatically sent back
 to the machine. If the handler raises an exception, an `error.execution` event is sent
@@ -268,6 +271,86 @@ Events from cancelled invocations are silently ignored.
 >>> cancel_called
 [True]
 
+```
+
+## Coroutine functions
+
+Coroutine functions (`async def`) can be used as invoke targets. On the async engine,
+they are awaited directly on the event loop instead of running in a thread executor.
+This is ideal for non-blocking async I/O:
+
+```py
+>>> import asyncio
+
+>>> async def async_fetch():
+...     await asyncio.sleep(0.01)  # simulates async I/O
+...     return {"status": "ok"}
+
+>>> class AsyncLoader(StateChart):
+...     loading = State(initial=True, invoke=async_fetch)
+...     ready = State(final=True)
+...     done_invoke_loading = loading.to(ready)
+...
+...     def on_enter_ready(self, data=None, **kwargs):
+...         self.result = data
+
+>>> async def main():
+...     sm = AsyncLoader()
+...     await sm.activate_initial_state()
+...     await asyncio.sleep(0.1)
+...     await sm._processing_loop()
+...     return sm
+
+>>> sm = asyncio.run(main())
+
+>>> "ready" in sm.configuration_values
+True
+>>> sm.result
+{'status': 'ok'}
+
+```
+
+The `IInvoke` protocol also supports `async def run()`. Since `IInvoke` handlers
+are wrapped internally, you need at least one async callback in the machine to
+trigger the async engine (e.g., an `async def` action or listener):
+
+```py
+>>> class AsyncFetcher:
+...     async def run(self, ctx: InvokeContext):
+...         await asyncio.sleep(0.01)
+...         return "async_fetched"
+
+>>> class AsyncFetcherMachine(StateChart):
+...     loading = State(initial=True, invoke=AsyncFetcher)
+...     ready = State(final=True)
+...     done_invoke_loading = loading.to(ready)
+...
+...     async def on_enter_ready(self, data=None, **kwargs):
+...         self.result = data
+
+>>> async def run_fetcher():
+...     sm = AsyncFetcherMachine()
+...     await sm.activate_initial_state()
+...     await asyncio.sleep(0.1)
+...     await sm._processing_loop()
+...     return sm
+
+>>> sm = asyncio.run(run_fetcher())
+
+>>> "ready" in sm.configuration_values
+True
+>>> sm.result
+'async_fetched'
+
+```
+
+Cancellation of coroutine handlers works through `asyncio.Task.cancel()`, which
+raises `CancelledError` at the next `await` point, giving proper async cancellation
+semantics without cooperative polling.
+
+```{note}
+Coroutine functions automatically select the async engine. Using an `IInvoke` with
+`async def run()` on the sync engine raises `InvalidDefinition`.
 ```
 
 ## Event data propagation

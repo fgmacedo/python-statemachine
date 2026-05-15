@@ -28,6 +28,7 @@ from .schema import Param
 from .schema import ScriptAction
 
 logger = logging.getLogger(__name__)
+_debug = logger.debug if logger.isEnabledFor(logging.DEBUG) else lambda *a, **k: None
 protected_attrs = _event_data_kwargs | {"_sessionid", "_ioprocessors", "_name", "_event"}
 
 
@@ -220,7 +221,7 @@ class Cond(CallableAction):
 
     def __call__(self, *args, **kwargs):
         result = _eval(self.action, **kwargs)
-        logger.debug("Cond %s -> %s", self.action, result)
+        _debug("Cond %s -> %s", self.action, result)
         return result
 
     @staticmethod
@@ -298,7 +299,7 @@ class Assign(CallableAction):
                 f"{self.action.location}"
             )
         setattr(obj, attr, value)
-        logger.debug(f"Assign: {self.action.location} = {value!r}")
+        _debug("Assign: %s = %r", self.action.location, value)
 
 
 class Log(CallableAction):
@@ -381,7 +382,7 @@ def create_raise_action_callable(action: RaiseAction) -> Callable:
     def raise_action(*args, **kwargs):
         machine: StateChart = kwargs["machine"]
 
-        Event(id=action.event, name=action.event, internal=True, _sm=machine).put()
+        Event(id=action.event, internal=True, _sm=machine).put()
 
     raise_action.action = action  # type: ignore[attr-defined]
     return raise_action
@@ -491,7 +492,7 @@ def create_send_action_callable(action: SendAction) -> Callable:  # noqa: C901
                 continue
             params_values[param.name] = _eval(param.expr, **kwargs)
 
-        Event(id=event, name=event, delay=delay, internal=internal, _sm=machine).put(
+        Event(id=event, delay=delay, internal=internal, _sm=machine).put(
             *content,
             send_id=send_id,
             **params_values,
