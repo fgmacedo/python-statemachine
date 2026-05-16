@@ -1,15 +1,15 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
         exclude: docs/auto_examples
     -   id: trailing-whitespace
         exclude: docs/auto_examples
-- repo: https://github.com/charliermarsh/ruff-pre-commit
+- repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.15.8
+  rev: v0.15.13
   hooks:
     # Run the linter.
     - id: ruff
