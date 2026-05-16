@@ -73,8 +73,13 @@ class Configuration:
     def states(self) -> "OrderedSet[State]":
         """The set of currently active :class:`State` instances (cached)."""
         raw = self.value
-        if self._cached is not None and self._cached_value is raw:
-            return self._cached
+        # Snapshot the cache fields locally — another thread may call
+        # ``_invalidate()`` between the freshness check and the return,
+        # so reading ``self._cached`` twice would risk returning ``None``.
+        cached = self._cached
+        cached_value = self._cached_value
+        if cached is not None and cached_value is raw:
+            return cached
         if raw is None:
             return OrderedSet()
 
@@ -92,14 +97,17 @@ class Configuration:
     # -- Incremental mutation (used by the engine) -----------------------------
 
     def add(self, state: "State"):
-        """Add *state* to the configuration."""
-        values = self._read_from_model()
+        """Add *state* to the configuration (copy-on-write for thread safety)."""
+        # Copy so we never mutate the OrderedSet still held by concurrent
+        # readers or by the cache identity check. ``_read_from_model`` may
+        # return the same ref stored on the model.
+        values = OrderedSet(self._read_from_model())
         values.add(state.value)
         self._write_to_model(values)
 
     def discard(self, state: "State"):
-        """Remove *state* from the configuration."""
-        values = self._read_from_model()
+        """Remove *state* from the configuration (copy-on-write for thread safety)."""
+        values = OrderedSet(self._read_from_model())
         values.discard(state.value)
         self._write_to_model(values)
 

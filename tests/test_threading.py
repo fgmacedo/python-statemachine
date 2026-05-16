@@ -134,6 +134,22 @@ class TestThreadSafety:
 
         return CyclingMachine()
 
+    @pytest.fixture()
+    def parallel_machine(self):
+        class TwoRegions(StateChart):
+            class both(State.Parallel):
+                class left(State.Compound):
+                    l1 = State(initial=True)
+                    l2 = State()
+                    tick_l = l1.to(l2) | l2.to(l1)
+
+                class right(State.Compound):
+                    r1 = State(initial=True)
+                    r2 = State()
+                    tick_r = r1.to(r2) | r2.to(r1)
+
+        return TwoRegions()
+
     @pytest.mark.parametrize("num_threads", [4, 8])
     def test_concurrent_sends_no_lost_events(self, cycling_machine, num_threads):
         """All events sent concurrently must be processed — none lost."""
@@ -293,6 +309,67 @@ class TestThreadSafety:
         reader_thread.join(timeout=5)
 
         assert not errors, f"Thread errors: {errors}"
+
+    def test_concurrent_parallel_region_send_and_read(self, parallel_machine):
+        """Reading configuration while parallel-region events mutate it must not raise.
+
+        Regresses an in-place mutation of the model's ``OrderedSet`` during
+        ``Configuration.add()`` / ``discard()``: a concurrent reader iterating
+        ``.configuration`` could crash with
+        ``RuntimeError: Set changed size during iteration`` or briefly observe
+        a stale cached set missing the newly entered state.
+        """
+        num_senders = 4
+        events_per_sender = 400
+        barrier = threading.Barrier(num_senders + 1)
+        stop_event = threading.Event()
+        errors = []
+
+        def sender(event_name):
+            try:
+                barrier.wait(timeout=5)
+                for _ in range(events_per_sender):
+                    parallel_machine.send(event_name)
+            except Exception as e:
+                errors.append(e)
+
+        def reader():
+            barrier.wait(timeout=5)
+            while not stop_event.is_set():
+                try:
+                    # Force resolution + iteration each loop.
+                    _ = list(parallel_machine.configuration)
+                    _ = [s.id for s in parallel_machine.configuration]
+                except Exception as e:
+                    errors.append(e)
+
+        senders = []
+        # Alternate tick_l / tick_r across threads so both regions mutate concurrently.
+        for i in range(num_senders):
+            event = "tick_l" if i % 2 == 0 else "tick_r"
+            senders.append(threading.Thread(target=sender, args=(event,)))
+        reader_thread = threading.Thread(target=reader)
+
+        for t in senders:
+            t.start()
+        reader_thread.start()
+
+        for t in senders:
+            t.join(timeout=30)
+        stop_event.set()
+        reader_thread.join(timeout=5)
+
+        assert not errors, f"Thread errors: {errors}"
+
+    def test_add_discard_produce_fresh_orderedset(self, parallel_machine):
+        """``add`` / ``discard`` must produce a fresh ``OrderedSet`` ref each call.
+
+        Pins the copy-on-write contract independently of timing: otherwise a
+        reader holding the prior ref could observe mid-mutation.
+        """
+        snapshot = parallel_machine._config.values
+        parallel_machine.send("tick_l")
+        assert parallel_machine._config.values is not snapshot
 
 
 async def test_regression_443_with_modifications_for_async_engine():
