@@ -289,3 +289,32 @@ which will:
 
 Monitor the workflow run at `https://github.com/fgmacedo/python-statemachine/actions` to
 confirm the release was published successfully.
+
+#### 10. Publish the GitHub release
+
+Create the GitHub release from the freshly pushed tag using the release notes file as the
+body. Two adjustments are needed when going from MyST/Sphinx markdown to GitHub-flavored
+markdown:
+
+- Convert MyST directives (`` ```{note} ``, `` ```{warning} ``, etc.) to GitHub's
+  [alert syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
+  (`> [!NOTE]`, `> [!WARNING]`) or to plain blockquotes.
+- Rewrite intra-docs links. Relative links like `[3.1.0 release notes](3.1.0.md)` resolve
+  on ReadTheDocs but not on github.com. Replace them with absolute URLs against the
+  matching tag, e.g.
+  `https://github.com/fgmacedo/python-statemachine/blob/vX.Y.Z/docs/releases/X.Y.Z.md`.
+  Avoid linking to `https://python-statemachine.readthedocs.io/en/vX.Y.Z/` immediately
+  after publishing because the ReadTheDocs build for the new tag may still be in progress.
+
+Then create the release. Use the converted notes as the body:
+
+```shell
+gh release create vX.Y.Z \
+  --title "vX.Y.Z" \
+  --notes-file /tmp/release-X.Y.Z-notes.md \
+  --target main \
+  --verify-tag
+```
+
+Confirm the rendered release at
+`https://github.com/fgmacedo/python-statemachine/releases/tag/vX.Y.Z`.
