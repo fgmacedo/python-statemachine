@@ -614,8 +614,10 @@ class TestInvokeCancelAlreadyTerminated:
             done_invoke_loading = loading.to(ready)
 
         sm = await sm_runner.start(SM)
-        await sm_runner.sleep(0.15)
-        await sm_runner.processing_loop(sm)
+        deadline = time.monotonic() + 2.0
+        while "ready" not in sm.configuration_values and time.monotonic() < deadline:
+            await sm_runner.sleep(0.02)
+            await sm_runner.processing_loop(sm)
 
         assert "ready" in sm.configuration_values
         # All invocations should be terminated by now
