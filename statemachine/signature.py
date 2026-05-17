@@ -8,12 +8,9 @@ from inspect import iscoroutinefunction
 from itertools import chain
 from types import MethodType
 from typing import Any
-from typing import FrozenSet
-from typing import Optional
-from typing import Tuple
 
-BindCacheKey = Tuple[int, FrozenSet[str]]
-BindTemplate = Tuple[Tuple[str, ...], Optional[str], Optional[str]]  # noqa: UP007
+BindCacheKey = tuple[int, frozenset[str]]
+BindTemplate = tuple[tuple[str, ...], str | None, str | None]  # noqa: UP007
 
 
 def _make_key(method):

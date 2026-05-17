@@ -3,8 +3,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from typing import Dict
-from typing import List
 
 from ...event import Event
 from ...exceptions import InvalidDefinition
@@ -66,8 +64,8 @@ class SessionData:
 
 class SCXMLProcessor:
     def __init__(self):
-        self.scs: "Dict[str, type[StateChart]]" = {}
-        self.sessions: Dict[str, SessionData] = {}
+        self.scs: "dict[str, type[StateChart]]" = {}
+        self.sessions: dict[str, SessionData] = {}
         self._ioprocessors = {
             "http://www.w3.org/TR/scxml/#SCXMLEventProcessor": self,
             "scxml": self,
@@ -148,8 +146,8 @@ class SCXMLProcessor:
             )
         return self.sessions[machine.name]
 
-    def _process_history(self, history: Dict[str, HistoryState]) -> Dict[str, HistoryDefinition]:
-        states_dict: Dict[str, HistoryDefinition] = {}
+    def _process_history(self, history: dict[str, HistoryState]) -> dict[str, HistoryDefinition]:
+        states_dict: dict[str, HistoryDefinition] = {}
         for state_id, state in history.items():
             state_dict = HistoryDefinition()
 
@@ -163,8 +161,8 @@ class SCXMLProcessor:
 
         return states_dict
 
-    def _process_states(self, states: Dict[str, State]) -> Dict[str, StateDefinition]:
-        states_dict: Dict[str, StateDefinition] = {}
+    def _process_states(self, states: dict[str, State]) -> dict[str, StateDefinition]:
+        states_dict: dict[str, StateDefinition] = {}
         for state_id, state in states.items():
             states_dict[state_id] = self._process_state(state)
         return states_dict
@@ -223,7 +221,7 @@ class SCXMLProcessor:
         self.process_definition(definition, location=child_name, is_invoked=True)
         return self.scs[child_name]
 
-    def _process_transitions(self, transitions: List[Transition]):
+    def _process_transitions(self, transitions: list[Transition]):
         result: TransitionsList = []
         for transition in transitions:
             event = transition.event or None
@@ -247,7 +245,7 @@ class SCXMLProcessor:
             result.append(transition_dict)
         return result
 
-    def _add(self, location: str, definition: Dict[str, Any]):
+    def _add(self, location: str, definition: dict[str, Any]):
         try:
             sc_class = create_machine_class_from_definition(location, **definition)
             self.scs[location] = sc_class

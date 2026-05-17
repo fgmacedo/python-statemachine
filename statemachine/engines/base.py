@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field
 from itertools import chain
@@ -7,9 +8,6 @@ from queue import Queue
 from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
 from typing import cast
 
 from ..event import BoundEvent
@@ -91,7 +89,7 @@ class BaseEngine:
         self._sentinel = object()
         self.running = True
         self._processing = Lock()
-        self._cache: Dict = {}  # Cache for _get_args_kwargs results
+        self._cache: dict = {}  # Cache for _get_args_kwargs results
         self._invoke_manager = InvokeManager(self)
         self._macrostep_count: int = 0
         self._microstep_count: int = 0
@@ -243,7 +241,7 @@ class BaseEngine:
 
         return filtered_transitions
 
-    def _compute_exit_set(self, transitions: List[Transition]) -> OrderedSet[StateTransition]:
+    def _compute_exit_set(self, transitions: list[Transition]) -> OrderedSet[StateTransition]:
         """Compute the exit set for a transition."""
 
         states_to_exit = OrderedSet[StateTransition]()
@@ -286,7 +284,7 @@ class BaseEngine:
             return self.find_lcca([transition.source] + list(states))
 
     @staticmethod
-    def find_lcca(states: List[State]) -> "State | None":
+    def find_lcca(states: list[State]) -> "State | None":
         """
         Find the Least Common Compound Ancestor (LCCA) of the given list of states.
 
@@ -371,7 +369,7 @@ class BaseEngine:
 
         return self._filter_conflicting_transitions(enabled_transitions)
 
-    def microstep(self, transitions: List[Transition], trigger_data: TriggerData):
+    def microstep(self, transitions: list[Transition], trigger_data: TriggerData):
         """Process a single set of transitions in a 'lock step'.
         This includes exiting states, executing transition content, and entering states.
         """
@@ -454,7 +452,7 @@ class BaseEngine:
 
     def _prepare_exit_states(
         self,
-        enabled_transitions: List[Transition],
+        enabled_transitions: list[Transition],
     ) -> "tuple[list[StateTransition], OrderedSet[State]]":
         """Compute exit set, sort, and update history. Pure computation, no callbacks."""
         states_to_exit = self._compute_exit_set(enabled_transitions)
@@ -491,7 +489,7 @@ class BaseEngine:
             self.sm._config.discard(state)
 
     def _exit_states(
-        self, enabled_transitions: List[Transition], trigger_data: TriggerData
+        self, enabled_transitions: list[Transition], trigger_data: TriggerData
     ) -> OrderedSet[State]:
         """Compute and process the states to exit for the given transitions."""
         ordered_states, result = self._prepare_exit_states(enabled_transitions)
@@ -515,7 +513,7 @@ class BaseEngine:
 
     def _execute_transition_content(
         self,
-        enabled_transitions: List[Transition],
+        enabled_transitions: list[Transition],
         trigger_data: TriggerData,
         get_key: Callable[[Transition], str],
         set_target_as_state: bool = False,
@@ -537,10 +535,10 @@ class BaseEngine:
 
     def _prepare_entry_states(
         self,
-        enabled_transitions: List[Transition],
+        enabled_transitions: list[Transition],
         states_to_exit: OrderedSet[State],
         previous_configuration: OrderedSet[State],
-    ) -> "tuple[list[StateTransition], OrderedSet[StateTransition], Dict[str, Any], OrderedSet[State]]":  # noqa: E501
+    ) -> "tuple[list[StateTransition], OrderedSet[StateTransition], dict[str, Any], OrderedSet[State]]":  # noqa: E501
         """Compute entry set, ordering, and new configuration. Pure computation, no callbacks.
 
         Returns:
@@ -548,7 +546,7 @@ class BaseEngine:
         """
         states_to_enter = OrderedSet[StateTransition]()
         states_for_default_entry = OrderedSet[StateTransition]()
-        default_history_content: Dict[str, Any] = {}
+        default_history_content: dict[str, Any] = {}
 
         self.compute_entry_set(
             enabled_transitions, states_to_enter, states_for_default_entry, default_history_content
@@ -626,7 +624,7 @@ class BaseEngine:
 
     def _enter_states(  # noqa: C901
         self,
-        enabled_transitions: List[Transition],
+        enabled_transitions: list[Transition],
         trigger_data: TriggerData,
         states_to_exit: OrderedSet[State],
         previous_configuration: OrderedSet[State],

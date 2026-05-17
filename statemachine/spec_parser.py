@@ -1,10 +1,9 @@
 import ast
 import operator
 import re
+from collections.abc import Callable
 from functools import reduce
 from inspect import isawaitable
-from typing import Callable
-from typing import Dict
 
 replacements = {"!": "not ", "^": " and ", "v": " or "}
 
@@ -115,7 +114,7 @@ def build_constant(constant) -> Callable:
 
 
 class Functions:
-    registry: Dict[str, Callable] = {}
+    registry: dict[str, Callable] = {}
 
     @classmethod
     def register(cls, id) -> Callable:
@@ -178,45 +177,41 @@ def build_custom_operator(operator) -> Callable:
     return custom_comparator
 
 
-def build_expression(node, variable_hook, operator_mapping):  # noqa: C901
-    if isinstance(node, ast.BoolOp):
-        # Handle `and` / `or` operations
-        operator_fn = operator_mapping[type(node.op)]
-        left_expr = build_expression(node.values[0], variable_hook, operator_mapping)
-        for right in node.values[1:]:
-            right_expr = build_expression(right, variable_hook, operator_mapping)
-            left_expr = operator_fn(left_expr, right_expr)
-        return left_expr
-    elif isinstance(node, ast.Compare):
-        # Handle `==` / `!=` / `>` / `<` / `>=` / `<=` operations
-        expressions = []
-        left_expr = build_expression(node.left, variable_hook, operator_mapping)
-        for right_op, right in zip(node.ops, node.comparators):  # noqa: B905  # strict=True requires 3.10+
-            right_expr = build_expression(right, variable_hook, operator_mapping)
-            operator_fn = operator_mapping[type(right_op)]
-            expression = operator_fn(left_expr, right_expr)
-            left_expr = right_expr
-            expressions.append(expression)
-
-        return reduce(custom_and, expressions)
-    elif isinstance(node, ast.Call):
-        # Handle function calls
-        assert isinstance(node.func, ast.Name)
-        constructor = Functions.get(node.func.id)
-        params = [arg.value for arg in node.args if isinstance(arg, ast.Constant)]
-        return constructor(*params)
-    elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-        # Handle `not` operation
-        operand_expr = build_expression(node.operand, variable_hook, operator_mapping)
-        return operator_mapping[type(node.op)](operand_expr)
-    elif isinstance(node, ast.Name):
-        # Handle variables by calling the variable_hook
-        return variable_hook(node.id)
-    elif isinstance(node, ast.Constant):
-        # Handle constants by returning the value
-        return build_constant(node.value)
-    else:
-        raise ValueError(f"Unsupported expression structure: {node.__class__.__name__}")
+def build_expression(node, variable_hook, operator_mapping):
+    match node:
+        case ast.BoolOp():
+            # `and` / `or` operations
+            operator_fn = operator_mapping[type(node.op)]
+            left_expr = build_expression(node.values[0], variable_hook, operator_mapping)
+            for right in node.values[1:]:
+                right_expr = build_expression(right, variable_hook, operator_mapping)
+                left_expr = operator_fn(left_expr, right_expr)
+            return left_expr
+        case ast.Compare():
+            # `==` / `!=` / `>` / `<` / `>=` / `<=` operations
+            expressions = []
+            left_expr = build_expression(node.left, variable_hook, operator_mapping)
+            for right_op, right in zip(node.ops, node.comparators, strict=True):
+                right_expr = build_expression(right, variable_hook, operator_mapping)
+                operator_fn = operator_mapping[type(right_op)]
+                expression = operator_fn(left_expr, right_expr)
+                left_expr = right_expr
+                expressions.append(expression)
+            return reduce(custom_and, expressions)
+        case ast.Call():
+            assert isinstance(node.func, ast.Name)
+            constructor = Functions.get(node.func.id)
+            params = [arg.value for arg in node.args if isinstance(arg, ast.Constant)]
+            return constructor(*params)
+        case ast.UnaryOp(op=ast.Not()):
+            operand_expr = build_expression(node.operand, variable_hook, operator_mapping)
+            return operator_mapping[type(node.op)](operand_expr)
+        case ast.Name(id=name):
+            return variable_hook(name)
+        case ast.Constant(value=value):
+            return build_constant(value)
+        case _:
+            raise ValueError(f"Unsupported expression structure: {node.__class__.__name__}")
 
 
 def parse_boolean_expr(expr, variable_hook, operator_mapping):

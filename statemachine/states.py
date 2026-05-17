@@ -1,11 +1,9 @@
 from enum import Enum
-from typing import Dict  # deprecated since 3.9: https://peps.python.org/pep-0585/
-from typing import Type
 
 from .state import State
 from .utils import ensure_iterable
 
-EnumType = Type[Enum]
+EnumType = type[Enum]
 
 
 class States:
@@ -35,7 +33,7 @@ class States:
 
     """
 
-    def __init__(self, states: "Dict[str, State] | None" = None) -> None:
+    def __init__(self, states: "dict[str, State] | None" = None) -> None:
         """
         Initializes a new instance of the States class.
 
@@ -45,7 +43,7 @@ class States:
         Returns:
             None.
         """
-        self._states: Dict[str, State] = states if states is not None else {}
+        self._states: dict[str, State] = states if states is not None else {}
 
     def __repr__(self):
         return f"{list(self)}"

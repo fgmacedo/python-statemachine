@@ -1,10 +1,10 @@
 import html
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import chain
 from typing import Any
-from typing import Callable
 from uuid import uuid4
 
 from ...event import BoundEvent

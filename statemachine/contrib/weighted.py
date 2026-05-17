@@ -1,10 +1,7 @@
 import random
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Union
+from typing import TypeAlias
 
 from statemachine.callbacks import CallbackPriority
 from statemachine.transition_list import TransitionList
@@ -20,7 +17,7 @@ class _WeightedGroup:
     the selected index. Subsequent conds check against the cache.
     """
 
-    def __init__(self, weights: List[float], seed: "int | float | str | None" = None):
+    def __init__(self, weights: list[float], seed: "int | float | str | None" = None):
         self.weights = weights
         self.rng = random.Random(seed)
         self._selected: "int | None" = None
@@ -60,10 +57,9 @@ def _make_weighted_cond(index: int, group: _WeightedGroup, weight: float, total_
 
 # Type alias for a weighted destination:
 #   (target, weight)  or  (target, weight, kwargs_dict)
-_WeightedDest = Union[
-    Tuple["State", Union[int, float]],
-    Tuple["State", Union[int, float], Dict[str, Any]],
-]
+_WeightedDest: TypeAlias = (
+    tuple["State", int | float] | tuple["State", int | float, dict[str, Any]]
+)
 
 
 def to(target: "State", weight: "int | float", **kwargs: Any) -> _WeightedDest:
@@ -97,7 +93,7 @@ def to(target: "State", weight: "int | float", **kwargs: Any) -> _WeightedDest:
     return (target, weight, kwargs)
 
 
-def _validate_dest(i: int, item: Any) -> "Tuple[State, float, Dict[str, Any]]":
+def _validate_dest(i: int, item: Any) -> "tuple[State, float, dict[str, Any]]":
     """Validate and normalize a single ``(target, weight[, kwargs])`` tuple."""
     from statemachine.state import State
 
@@ -109,7 +105,7 @@ def _validate_dest(i: int, item: Any) -> "Tuple[State, float, Dict[str, Any]]":
 
     if len(item) == 2:
         target, weight = item
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
     else:
         target, weight, kwargs = item
         if not isinstance(kwargs, dict):

@@ -1,10 +1,9 @@
 import asyncio
 import contextvars
+from collections.abc import Callable
 from itertools import chain
 from time import time
 from typing import TYPE_CHECKING
-from typing import Callable
-from typing import List
 
 from ..event_data import EventData
 from ..event_data import TriggerData
@@ -143,7 +142,7 @@ class AsyncEngine(BaseEngine):
 
     async def _execute_transition_content(
         self,
-        enabled_transitions: "List[Transition]",
+        enabled_transitions: "list[Transition]",
         trigger_data: TriggerData,
         get_key: "Callable[[Transition], str]",
         set_target_as_state: bool = False,
@@ -164,7 +163,7 @@ class AsyncEngine(BaseEngine):
         return result
 
     async def _exit_states(  # type: ignore[override]
-        self, enabled_transitions: "List[Transition]", trigger_data: TriggerData
+        self, enabled_transitions: "list[Transition]", trigger_data: TriggerData
     ) -> "OrderedSet[State]":
         ordered_states, result = self._prepare_exit_states(enabled_transitions)
         on_error = self._on_error_handler()
@@ -188,7 +187,7 @@ class AsyncEngine(BaseEngine):
 
     async def _enter_states(  # noqa: C901
         self,
-        enabled_transitions: "List[Transition]",
+        enabled_transitions: "list[Transition]",
         trigger_data: TriggerData,
         states_to_exit: "OrderedSet[State]",
         previous_configuration: "OrderedSet[State]",
@@ -270,7 +269,7 @@ class AsyncEngine(BaseEngine):
 
         return result
 
-    async def microstep(self, transitions: "List[Transition]", trigger_data: TriggerData):
+    async def microstep(self, transitions: "list[Transition]", trigger_data: TriggerData):
         self._microstep_count += 1
         self._debug(
             "%s macro:%d micro:%d transitions: %s",

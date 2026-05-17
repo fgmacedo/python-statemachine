@@ -1,8 +1,6 @@
 import re
 import xml.etree.ElementTree as ET
-from typing import List
 from typing import Literal
-from typing import Set
 from typing import cast
 from urllib.parse import urlparse
 
@@ -40,7 +38,7 @@ def strip_namespaces(tree: ET.Element):
                 attrib[new_name] = attrib.pop(name)
 
 
-def _parse_initial(initial_content: "str | None") -> List[str]:
+def _parse_initial(initial_content: "str | None") -> list[str]:
     if initial_content is None:
         return []
     return initial_content.split()
@@ -87,13 +85,13 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     return definition
 
 
-def _find_own_datamodel_elements(root: ET.Element) -> List[ET.Element]:
+def _find_own_datamodel_elements(root: ET.Element) -> list[ET.Element]:
     """Find <datamodel> elements that belong to this SCXML document, not to inline children.
 
     Skips any <datamodel> nested inside <content> elements (which contain inline
     child SCXML documents for <invoke>).
     """
-    result: List[ET.Element] = []
+    result: list[ET.Element] = []
 
     def _walk(elem: ET.Element):
         for child in elem:
@@ -157,7 +155,7 @@ def parse_history(state_elem: ET.Element) -> HistoryState:
 
 def parse_state(  # noqa: C901
     state_elem: ET.Element,
-    initial_states: Set[str],
+    initial_states: set[str],
     is_final: bool = False,
     is_parallel: bool = False,
 ) -> State:
@@ -434,7 +432,7 @@ def parse_invoke(element: ET.Element) -> InvokeDefinition:
     autoforward = element.attrib.get("autoforward", "false").lower() == "true"
     namelist = element.attrib.get("namelist")
 
-    params: List[Param] = []
+    params: list[Param] = []
     content: "str | None" = None
     finalize: "ExecutableContent | None" = None
 

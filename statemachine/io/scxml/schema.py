@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Dict
-from typing import List
 from typing import Literal
 from urllib.parse import ParseResult
 
@@ -14,7 +12,7 @@ class Action:
 
 @dataclass
 class ExecutableContent:
-    actions: List[Action] = field(default_factory=list)
+    actions: list[Action] = field(default_factory=list)
 
     def __str__(self):
         return ", ".join(str(action) for action in self.actions)
@@ -45,7 +43,7 @@ class LogAction(Action):
 @dataclass
 class IfBranch(Action):
     cond: "str | None"
-    actions: List[Action] = field(default_factory=list)
+    actions: list[Action] = field(default_factory=list)
 
     def __str__(self):
         return self.cond or "<empty cond>"
@@ -56,7 +54,7 @@ class IfBranch(Action):
 
 @dataclass
 class IfAction(Action):
-    branches: List[IfBranch] = field(default_factory=list)
+    branches: list[IfBranch] = field(default_factory=list)
 
 
 @dataclass
@@ -85,7 +83,7 @@ class SendAction(Action):
     delay: "str | None" = None
     delayexpr: "str | None" = None
     namelist: "str | None" = None
-    params: List[Param] = field(default_factory=list)
+    params: list[Param] = field(default_factory=list)
     content: "str | None" = None
 
 
@@ -112,7 +110,7 @@ class Transition:
 
 @dataclass
 class DoneData:
-    params: List[Param] = field(default_factory=list)
+    params: list[Param] = field(default_factory=list)
     content_expr: "str | None" = None
 
 
@@ -126,7 +124,7 @@ class InvokeDefinition:
     idlocation: "str | None" = None
     autoforward: bool = False
     namelist: "str | None" = None
-    params: List[Param] = field(default_factory=list)
+    params: list[Param] = field(default_factory=list)
     content: "str | None" = None
     finalize: "ExecutableContent | None" = None
 
@@ -137,20 +135,20 @@ class State:
     initial: bool = False
     final: bool = False
     parallel: bool = False
-    transitions: List[Transition] = field(default_factory=list)
-    onentry: List[ExecutableContent] = field(default_factory=list)
-    onexit: List[ExecutableContent] = field(default_factory=list)
-    states: Dict[str, "State"] = field(default_factory=dict)
-    history: Dict[str, "HistoryState"] = field(default_factory=dict)
+    transitions: list[Transition] = field(default_factory=list)
+    onentry: list[ExecutableContent] = field(default_factory=list)
+    onexit: list[ExecutableContent] = field(default_factory=list)
+    states: dict[str, "State"] = field(default_factory=dict)
+    history: dict[str, "HistoryState"] = field(default_factory=dict)
     donedata: "DoneData | None" = None
-    invocations: List[InvokeDefinition] = field(default_factory=list)
+    invocations: list[InvokeDefinition] = field(default_factory=list)
 
 
 @dataclass
 class HistoryState:
     id: str
     type: "Literal['shallow', 'deep']" = "shallow"
-    transitions: List[Transition] = field(default_factory=list)
+    transitions: list[Transition] = field(default_factory=list)
 
 
 @dataclass
@@ -163,13 +161,13 @@ class DataItem:
 
 @dataclass
 class DataModel:
-    data: List[DataItem] = field(default_factory=list)
-    scripts: List[ScriptAction] = field(default_factory=list)
+    data: list[DataItem] = field(default_factory=list)
+    scripts: list[ScriptAction] = field(default_factory=list)
 
 
 @dataclass
 class StateMachineDefinition:
     name: "str | None" = None
-    states: Dict[str, State] = field(default_factory=dict)
-    initial_states: List[str] = field(default_factory=list)
+    states: dict[str, State] = field(default_factory=dict)
+    initial_states: list[str] = field(default_factory=list)
     datamodel: "DataModel | None" = None

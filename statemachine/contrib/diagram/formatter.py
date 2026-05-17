@@ -16,24 +16,22 @@ A module-level :data:`formatter` instance is the single public entry point::
         ...
 """
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
-from typing import Callable
-from typing import Dict
-from typing import List
 
 if TYPE_CHECKING:
-    from typing import Union
+    from typing import TypeAlias
 
     from statemachine.statemachine import StateChart
 
-    MachineRef = Union["StateChart", "type[StateChart]"]
+    MachineRef: TypeAlias = StateChart | type[StateChart]
 
 
 class Formatter:
     """Unified facade for rendering state machines in multiple text formats."""
 
     def __init__(self) -> None:
-        self._formats: Dict[str, "Callable[[MachineRef], str]"] = {}
+        self._formats: dict[str, "Callable[[MachineRef], str]"] = {}
 
     def register_format(
         self, *names: str
@@ -78,7 +76,7 @@ class Formatter:
             )
         return renderer_fn(machine_or_class)
 
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         """Return sorted list of all registered format names (including aliases)."""
         return sorted(self._formats)
 

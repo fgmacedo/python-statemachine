@@ -8,10 +8,10 @@ finalize.
 
 import asyncio
 import logging
+from collections.abc import Callable
 from inspect import isawaitable
 from pathlib import Path
 from typing import Any
-from typing import Callable
 
 from ...invoke import IInvoke
 from ...invoke import InvokeContext
