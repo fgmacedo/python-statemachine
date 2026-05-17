@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
 from typing import cast
 from uuid import uuid4
 
@@ -189,7 +188,7 @@ class Event(AddCallbacksMixin, str):
 
     def split(  # type: ignore[override]
         self, sep: "str | None" = None, maxsplit: int = -1
-    ) -> List["Event"]:
+    ) -> list["Event"]:
         result = super().split(sep, maxsplit)
         if len(result) == 1:
             return [self]

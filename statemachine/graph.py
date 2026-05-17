@@ -1,7 +1,7 @@
 from collections import deque
+from collections.abc import Iterable
+from collections.abc import MutableSet
 from typing import TYPE_CHECKING
-from typing import Iterable
-from typing import MutableSet
 
 if TYPE_CHECKING:
     from .state import State

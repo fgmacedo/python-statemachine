@@ -1,8 +1,7 @@
+from collections.abc import Generator
 from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Generator
-from typing import List
 from typing import cast
 from weakref import ref
 
@@ -214,8 +213,8 @@ class State:
         initial: bool = False,
         final: bool = False,
         parallel: bool = False,
-        states: "List[State] | None" = None,
-        history: "List[HistoryState] | None" = None,
+        states: "list[State] | None" = None,
+        history: "list[HistoryState] | None" = None,
         enter: Any = None,
         exit: Any = None,
         invoke: Any = None,
@@ -284,7 +283,7 @@ class State:
             f"on_invoke_{self.id}", priority=CallbackPriority.NAMING, is_convention=True
         )
 
-    def _on_event_defined(self, event: str, transition: Transition, states: List["State"]):
+    def _on_event_defined(self, event: str, transition: Transition, states: list["State"]):
         """Called by statemachine factory when an event is defined having a transition
         starting from this state.
         """
@@ -417,7 +416,7 @@ class AnyState(State):
     until the state machine class is evaluated.
     """
 
-    def _on_event_defined(self, event: str, transition: Transition, states: List[State]):
+    def _on_event_defined(self, event: str, transition: Transition, states: list[State]):
         for state in states:
             if state.final:
                 continue

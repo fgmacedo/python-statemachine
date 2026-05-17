@@ -1,7 +1,4 @@
 from typing import TYPE_CHECKING
-from typing import List
-from typing import Set
-from typing import Union
 
 from .model import ActionType
 from .model import DiagramAction
@@ -11,12 +8,14 @@ from .model import DiagramTransition
 from .model import StateType
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from statemachine.state import State
     from statemachine.statemachine import StateChart
     from statemachine.transition import Transition
 
     # A StateChart class or instance — both expose the same structural metadata.
-    MachineRef = Union["StateChart", "type[StateChart]"]
+    MachineRef: TypeAlias = StateChart | type[StateChart]
 
 
 def _determine_state_type(state: "State") -> StateType:
@@ -50,8 +49,8 @@ def _actions_getter(machine: "MachineRef"):
     return getter
 
 
-def _extract_state_actions(state: "State", getter) -> List[DiagramAction]:
-    actions: List[DiagramAction] = []
+def _extract_state_actions(state: "State", getter) -> list[DiagramAction]:
+    actions: list[DiagramAction] = []
 
     entry = str(getter(state.enter))
     exit_ = str(getter(state.exit))
@@ -82,7 +81,7 @@ def _extract_state(
     is_active = state.value in active_values
     is_parallel_area = bool(state.parent and getattr(state.parent, "parallel", False))
 
-    children: List[DiagramState] = []
+    children: list[DiagramState] = []
     for substate in state.states:
         children.append(_extract_state(substate, machine, getter, active_values))
     for history_state in getattr(state, "history", []):
@@ -116,8 +115,8 @@ def _format_event_names(transition: "Transition") -> str:
 
     all_ids = {str(e) for e in events}
 
-    seen_ids: Set[str] = set()
-    display: List[str] = []
+    seen_ids: set[str] = set()
+    display: list[str] = []
     for event in events:
         eid = str(event)
         # Skip dot-form aliases (e.g. "done.invoke.X") when the underscore
@@ -131,9 +130,9 @@ def _format_event_names(transition: "Transition") -> str:
     return " ".join(display)
 
 
-def _extract_transitions_from_state(state: "State") -> List[DiagramTransition]:
+def _extract_transitions_from_state(state: "State") -> list[DiagramTransition]:
     """Extract transitions from a single state (non-recursive)."""
-    result: List[DiagramTransition] = []
+    result: list[DiagramTransition] = []
     for transition in state.transitions:
         targets = transition.targets if transition.targets else []
         target_ids = [t.id for t in targets]
@@ -152,9 +151,9 @@ def _extract_transitions_from_state(state: "State") -> List[DiagramTransition]:
     return result
 
 
-def _extract_all_transitions(states) -> List[DiagramTransition]:
+def _extract_all_transitions(states) -> list[DiagramTransition]:
     """Recursively extract transitions from all states."""
-    result: List[DiagramTransition] = []
+    result: list[DiagramTransition] = []
     for state in states:
         result.extend(_extract_transitions_from_state(state))
         if state.states:
@@ -166,9 +165,9 @@ def _extract_all_transitions(states) -> List[DiagramTransition]:
     return result
 
 
-def _collect_compound_ids(states: List[DiagramState]) -> Set[str]:
+def _collect_compound_ids(states: list[DiagramState]) -> set[str]:
     """Collect IDs of states that have children (compound/parallel)."""
-    result: Set[str] = set()
+    result: set[str] = set()
     for state in states:
         if state.children:
             result.add(state.id)
@@ -177,12 +176,12 @@ def _collect_compound_ids(states: List[DiagramState]) -> Set[str]:
 
 
 def _collect_bidirectional_compound_ids(
-    transitions: List[DiagramTransition],
-    compound_ids: Set[str],
-) -> Set[str]:
+    transitions: list[DiagramTransition],
+    compound_ids: set[str],
+) -> set[str]:
     """Find compound states that have both outgoing and incoming explicit edges."""
-    outgoing: Set[str] = set()
-    incoming: Set[str] = set()
+    outgoing: set[str] = set()
+    incoming: set[str] = set()
     for t in transitions:
         if t.is_internal:
             continue
@@ -198,8 +197,8 @@ def _collect_bidirectional_compound_ids(
 
 
 def _mark_initial_transitions(
-    transitions: List[DiagramTransition],
-    compound_ids: Set[str],
+    transitions: list[DiagramTransition],
+    compound_ids: set[str],
 ) -> None:
     """Mark implicit initial transitions (compound state → child, no event)."""
     for t in transitions:
@@ -207,7 +206,7 @@ def _mark_initial_transitions(
             t.is_initial = True
 
 
-def _resolve_initial_states(states: List[DiagramState]) -> None:
+def _resolve_initial_states(states: list[DiagramState]) -> None:
     """Ensure exactly one state per level has is_initial=True.
 
     Skips parallel areas and history states. Falls back to document order
@@ -268,7 +267,7 @@ def extract(machine_or_class: "MachineRef") -> DiagramGraph:
     if isinstance(machine, StateChart) and hasattr(machine, "configuration_values"):
         active_values = set(machine.configuration_values)
 
-    states: List[DiagramState] = []
+    states: list[DiagramState] = []
     for state in machine.states:
         states.append(_extract_state(state, machine, getter, active_values))
 

@@ -1,8 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Set
 
 from ..model import ActionType
 from ..model import DiagramAction
@@ -34,14 +30,14 @@ class MermaidRenderer:
     Compound states outside parallel regions are left unchanged.
     """
 
-    def __init__(self, config: Optional[MermaidRendererConfig] = None):
+    def __init__(self, config: MermaidRendererConfig | None = None):
         self.config = config or MermaidRendererConfig()
-        self._active_ids: List[str] = []
-        self._rendered_transitions: Set[tuple] = set()
-        self._compound_ids: Set[str] = set()
-        self._initial_child_map: Dict[str, str] = {}
-        self._parallel_descendant_ids: Set[str] = set()
-        self._all_descendants_map: Dict[str, Set[str]] = {}
+        self._active_ids: list[str] = []
+        self._rendered_transitions: set[tuple] = set()
+        self._compound_ids: set[str] = set()
+        self._initial_child_map: dict[str, str] = {}
+        self._parallel_descendant_ids: set[str] = set()
+        self._all_descendants_map: dict[str, set[str]] = {}
 
     def render(self, graph: DiagramGraph) -> str:
         """Render a DiagramGraph to a Mermaid stateDiagram-v2 string."""
@@ -52,7 +48,7 @@ class MermaidRenderer:
         self._parallel_descendant_ids = self._collect_parallel_descendants(graph.states)
         self._all_descendants_map = self._build_all_descendants_map(graph.states)
 
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append("stateDiagram-v2")
         lines.append(f"    direction {self.config.direction}")
 
@@ -70,9 +66,9 @@ class MermaidRenderer:
 
         return "\n".join(lines) + "\n"
 
-    def _build_initial_child_map(self, states: List[DiagramState]) -> Dict[str, str]:
+    def _build_initial_child_map(self, states: list[DiagramState]) -> dict[str, str]:
         """Build a map from compound state ID to its initial child ID (recursive)."""
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
         for state in states:
             if state.children:
                 initial = next((c for c in state.children if c.is_initial), None)
@@ -83,11 +79,11 @@ class MermaidRenderer:
 
     @staticmethod
     def _collect_parallel_descendants(
-        states: List[DiagramState],
+        states: list[DiagramState],
         inside_parallel: bool = False,
-    ) -> Set[str]:
+    ) -> set[str]:
         """Collect IDs of all states that are descendants of a parallel state."""
-        result: Set[str] = set()
+        result: set[str] = set()
         for state in states:
             if inside_parallel:
                 result.add(state.id)
@@ -97,9 +93,9 @@ class MermaidRenderer:
             )
         return result
 
-    def _build_all_descendants_map(self, states: List[DiagramState]) -> Dict[str, Set[str]]:
+    def _build_all_descendants_map(self, states: list[DiagramState]) -> dict[str, set[str]]:
         """Map each compound state ID to the set of all its descendant IDs."""
-        result: Dict[str, Set[str]] = {}
+        result: dict[str, set[str]] = {}
         for state in states:
             if state.children:
                 result[state.id] = self._collect_recursive_descendants(state.children)
@@ -107,9 +103,9 @@ class MermaidRenderer:
         return result
 
     @staticmethod
-    def _collect_recursive_descendants(states: List[DiagramState]) -> Set[str]:
+    def _collect_recursive_descendants(states: list[DiagramState]) -> set[str]:
         """Collect all state IDs in a subtree recursively."""
-        ids: Set[str] = set()
+        ids: set[str] = set()
         for s in states:
             ids.add(s.id)
             ids.update(MermaidRenderer._collect_recursive_descendants(s.children))
@@ -132,9 +128,9 @@ class MermaidRenderer:
 
     def _render_states(
         self,
-        states: List[DiagramState],
-        transitions: List[DiagramTransition],
-        lines: List[str],
+        states: list[DiagramState],
+        transitions: list[DiagramTransition],
+        lines: list[str],
         indent: int,
     ) -> None:
         for state in states:
@@ -167,7 +163,7 @@ class MermaidRenderer:
     def _render_atomic_state(
         self,
         state: DiagramState,
-        lines: List[str],
+        lines: list[str],
         indent: int,
     ) -> None:
         pad = "    " * indent
@@ -186,8 +182,8 @@ class MermaidRenderer:
     def _render_compound_state(
         self,
         state: DiagramState,
-        transitions: List[DiagramTransition],
-        lines: List[str],
+        transitions: list[DiagramTransition],
+        lines: list[str],
         indent: int,
     ) -> None:
         pad = "    " * indent
@@ -227,18 +223,18 @@ class MermaidRenderer:
         if state.is_active:
             self._active_ids.append(state.id)
 
-    def _collect_all_descendant_ids(self, states: List[DiagramState]) -> Set[str]:
+    def _collect_all_descendant_ids(self, states: list[DiagramState]) -> set[str]:
         """Collect all state IDs in a subtree (direct children only for scope)."""
-        ids: Set[str] = set()
+        ids: set[str] = set()
         for s in states:
             ids.add(s.id)
         return ids
 
     def _render_scope_transitions(
         self,
-        transitions: List[DiagramTransition],
-        scope_ids: Set[str],
-        lines: List[str],
+        transitions: list[DiagramTransition],
+        scope_ids: set[str],
+        lines: list[str],
         indent: int,
     ) -> None:
         """Render transitions that belong to this scope level.
@@ -257,8 +253,8 @@ class MermaidRenderer:
         are redirected to the compound's initial child via ``_resolve_endpoint``.
         """
         # Build the descendant sets for compounds in this scope
-        compound_descendants: Dict[str, Set[str]] = {}
-        expanded: Set[str] = set(scope_ids)
+        compound_descendants: dict[str, set[str]] = {}
+        expanded: set[str] = set(scope_ids)
         for sid in scope_ids:
             if sid in self._all_descendants_map:
                 compound_descendants[sid] = self._all_descendants_map[sid]
@@ -295,8 +291,8 @@ class MermaidRenderer:
     @staticmethod
     def _is_fully_internal(
         source: str,
-        targets: List[str],
-        compound_descendants: Dict[str, Set[str]],
+        targets: list[str],
+        compound_descendants: dict[str, set[str]],
     ) -> bool:
         """Check if all endpoints belong to the same compound's descendants."""
         for descendants in compound_descendants.values():
@@ -309,11 +305,11 @@ class MermaidRenderer:
         transition: DiagramTransition,
         source: str,
         target: str,
-        lines: List[str],
+        lines: list[str],
         indent: int,
     ) -> None:
         pad = "    " * indent
-        label_parts: List[str] = []
+        label_parts: list[str] = []
         if transition.event:
             label_parts.append(transition.event)
         if transition.guards:
@@ -333,8 +329,8 @@ class MermaidRenderer:
 
     def _render_initial_and_final(
         self,
-        states: List[DiagramState],
-        lines: List[str],
+        states: list[DiagramState],
+        lines: list[str],
         indent: int,
     ) -> None:
         """Render top-level [*] --> initial and final --> [*] arrows."""

@@ -1,8 +1,7 @@
+from collections.abc import Mapping
+from collections.abc import MutableSet
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import Mapping
-from typing import MutableSet
 
 from .exceptions import InvalidStateValue
 from .i18n import _
@@ -37,7 +36,7 @@ class Configuration:
         instance_states: "Mapping[str, State]",
         model: Any,
         state_field: str,
-        states_map: "Dict[Any, State]",
+        states_map: "dict[Any, State]",
     ):
         self._instance_states = instance_states
         self._model = model

@@ -1,11 +1,9 @@
 import warnings
+from collections.abc import MutableSet
 from inspect import isawaitable
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Generic
-from typing import List
-from typing import MutableSet
 from typing import TypeVar
 
 from statemachine.orderedset import OrderedSet
@@ -106,7 +104,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     produce an ``error.execution`` internal event instead of propagating, as mandated by the
     SCXML specification. If ``False``, exceptions propagate normally."""
 
-    start_configuration_values: List[Any] = []
+    start_configuration_values: list[Any] = []
     """Default state values to be entered when the state machine starts.
 
     If empty (default), the root ``initial`` state will be used.
@@ -123,21 +121,21 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     states: "States"
     """Collection of top-level :ref:`State` objects declared on this class."""
 
-    states_map: Dict[Any, "State"]
+    states_map: dict[Any, "State"]
     """Mapping from each state's ``value`` to the corresponding :ref:`State` instance.
     Includes states at all nesting levels (compound children, parallel regions, etc.)."""
 
     initial_state: "State | None"
     """The single top-level initial :ref:`State`, or ``None`` for abstract classes."""
 
-    final_states: "List[State]"
+    final_states: "list[State]"
     """List of top-level :ref:`State` objects marked as ``final``."""
 
     _abstract: bool
-    _events: "Dict[Event, None]"
+    _events: "dict[Event, None]"
     _protected_attrs: set
     _specs: CallbackSpecList
-    _class_listeners: List[Any]
+    _class_listeners: list[Any]
     prepare: SpecListGrouper
 
     def __init__(
@@ -145,14 +143,14 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         model: "TModel | None" = None,
         state_field: str = "state",
         start_value: Any = None,
-        listeners: "List[object] | None" = None,
+        listeners: "list[object] | None" = None,
         **kwargs: Any,
     ):
         self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
         """The external model object that holds domain state, or an internal
         :class:`Model` instance when none is provided.  See :ref:`domain models`."""
 
-        self.history_values: Dict[str, List[State]] = {}
+        self.history_values: dict[str, list[State]] = {}
         """Mapping from compound state IDs to the list of states that were active
         the last time that compound state was exited. Used by history pseudo-states
         to restore previous configurations."""
@@ -162,7 +160,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         )
         self._callbacks = CallbacksRegistry()
         self._config = self._build_configuration()
-        self._listeners: Dict[int, Any] = {}
+        self._listeners: dict[int, Any] = {}
         """Listeners that provides attributes to be used as callbacks."""
 
         if self._abstract:
@@ -184,8 +182,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
         return SyncEngine(self)
 
-    def _resolve_class_listeners(self, **kwargs: Any) -> List[object]:
-        resolved: List[object] = []
+    def _resolve_class_listeners(self, **kwargs: Any) -> list[object]:
+        resolved: list[object] = []
         for entry in self._class_listeners:
             if callable(entry):
                 instance = entry()
@@ -206,7 +204,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
     def _build_configuration(self) -> Configuration:
         """Create InstanceState entries and return a new Configuration."""
-        instance_states: Dict[str, Any] = {}
+        instance_states: dict[str, Any] = {}
         events = self.__class__._events
         for state in self.states_map.values():
             ist = InstanceState(state, self)
@@ -259,7 +257,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         del state["_engine"]
         return state
 
-    def __setstate__(self, state: Dict[str, Any]) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         listeners = state.pop("_listeners")
         self.__dict__.update(state)  # type: ignore[attr-defined]
         self._callbacks = CallbacksRegistry()
@@ -312,7 +310,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
         return self
 
-    def _register_callbacks(self, listeners: List[object]):
+    def _register_callbacks(self, listeners: list[object]):
         self._listeners.update({id(listener): listener for listener in listeners})
         self._add_listener(
             Listeners.from_listeners(
@@ -336,7 +334,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         self._callbacks.async_or_sync()
 
     @property
-    def active_listeners(self) -> List[object]:
+    def active_listeners(self) -> list[object]:
         """List of all active listeners attached to this instance.
 
         Includes class-level listeners (resolved from the ``listeners`` class attribute),
@@ -423,12 +421,12 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         self.current_state_value = value.value
 
     @property
-    def events(self) -> "List[Event]":
+    def events(self) -> "list[Event]":
         """List of all :ref:`Event` instances declared on this state machine."""
         return [getattr(self, event) for event in self.__class__._events]
 
     @property
-    def allowed_events(self) -> "List[Event]":
+    def allowed_events(self) -> "list[Event]":
         """List of the current allowed events."""
         return [
             getattr(self, event)

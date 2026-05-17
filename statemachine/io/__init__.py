@@ -1,10 +1,7 @@
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Mapping
 from typing import Protocol
-from typing import Sequence
-from typing import Tuple
 from typing import TypedDict
 from typing import cast
 
@@ -33,8 +30,8 @@ class TransitionDict(TypedDict, total=False):
     after: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
 
 
-TransitionsDict = Dict["str | None", List[TransitionDict]]
-TransitionsList = List[TransitionDict]
+TransitionsDict = dict["str | None", list[TransitionDict]]
+TransitionsList = list[TransitionDict]
 
 
 class BaseStateKwargs(TypedDict, total=False):
@@ -49,8 +46,8 @@ class BaseStateKwargs(TypedDict, total=False):
 
 
 class StateKwargs(BaseStateKwargs, total=False):
-    states: List[State]
-    history: List[HistoryState]
+    states: list[State]
+    history: list[HistoryState]
 
 
 class HistoryKwargs(TypedDict, total=False):
@@ -65,17 +62,17 @@ class HistoryDefinition(HistoryKwargs, total=False):
 
 
 class StateDefinition(BaseStateKwargs, total=False):
-    states: Dict[str, "StateDefinition"]
-    history: Dict[str, "HistoryDefinition"]
+    states: dict[str, "StateDefinition"]
+    history: dict[str, "HistoryDefinition"]
     on: TransitionsDict
     transitions: TransitionsList
 
 
 def _parse_history(
     states: Mapping[str, "HistoryKwargs |HistoryDefinition"],
-) -> Tuple[Dict[str, HistoryState], Dict[str, dict]]:
-    states_instances: Dict[str, HistoryState] = {}
-    events_definitions: Dict[str, dict] = {}
+) -> tuple[dict[str, HistoryState], dict[str, dict]]:
+    states_instances: dict[str, HistoryState] = {}
+    events_definitions: dict[str, dict] = {}
     for state_id, state_definition in states.items():
         state_definition = cast(HistoryDefinition, state_definition)
         transition_defs = state_definition.pop("on", {})
@@ -94,17 +91,17 @@ def _parse_history(
 
 def _parse_states(
     states: Mapping[str, "BaseStateKwargs | StateDefinition"],
-) -> Tuple[Dict[str, State], Dict[str, dict]]:
-    states_instances: Dict[str, State] = {}
-    events_definitions: Dict[str, dict] = {}
+) -> tuple[dict[str, State], dict[str, dict]]:
+    states_instances: dict[str, State] = {}
+    events_definitions: dict[str, dict] = {}
 
     for state_id, state_definition in states.items():
         # Process nested states. Replaces `states` as a definition by a list of `State` instances.
         state_definition = cast(StateDefinition, state_definition)
 
         # pop the nested states, history and transitions definitions
-        inner_states_defs: Dict[str, StateDefinition] = state_definition.pop("states", {})
-        inner_history_defs: Dict[str, HistoryDefinition] = state_definition.pop("history", {})
+        inner_states_defs: dict[str, StateDefinition] = state_definition.pop("states", {})
+        inner_history_defs: dict[str, HistoryDefinition] = state_definition.pop("history", {})
         transition_defs = state_definition.pop("on", {})
         transition_list = state_definition.pop("transitions", [])
         if transition_list:
@@ -177,7 +174,7 @@ def create_machine_class_from_definition(
     """
     states_instances, events_definitions = _parse_states(states)
 
-    events: Dict[str, TransitionList] = {}
+    events: dict[str, TransitionList] = {}
     for state_id, state_events in events_definitions.items():
         for event_name, transitions_data in state_events.items():
             for transition_data in transitions_data:

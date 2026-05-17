@@ -1,7 +1,7 @@
 import itertools
-from typing import Iterable
-from typing import Iterator
-from typing import MutableSet
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import MutableSet
 from typing import TypeVar
 
 T = TypeVar("T")

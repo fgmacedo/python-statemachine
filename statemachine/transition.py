@@ -1,6 +1,5 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
-from typing import List
 
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
@@ -43,7 +42,7 @@ class Transition:
     def __init__(
         self,
         source: "State",
-        target: "State | List[State] | None" = None,
+        target: "State | list[State] | None" = None,
         event=None,
         internal=False,
         initial=False,
@@ -56,7 +55,7 @@ class Transition:
     ):
         self.source = source
         if isinstance(target, list):
-            self._targets: "List[State]" = target
+            self._targets: "list[State]" = target
         elif target is not None:
             self._targets = [target]
         else:
@@ -104,7 +103,7 @@ class Transition:
         return self._targets[0] if self._targets else None
 
     @property
-    def targets(self) -> "List[State]":
+    def targets(self) -> "list[State]":
         """All target states. For single-target transitions, returns a one-element list."""
         return self._targets
 
