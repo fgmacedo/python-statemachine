@@ -8,14 +8,10 @@ from enum import IntFlag
 from enum import auto
 from functools import partial
 from inspect import isawaitable
-from typing import TYPE_CHECKING
 
 from .exceptions import AttrNotFound
 from .i18n import _
 from .utils import ensure_iterable
-
-if TYPE_CHECKING:
-    pass
 
 
 def allways_true(*args, **kwargs):
