@@ -218,7 +218,7 @@ uv run mypy statemachine/ tests/
 
 ## Code style
 
-- **Formatter/Linter:** ruff (line length 99, target Python 3.9)
+- **Formatter/Linter:** ruff (line length 99, target Python 3.10)
 - **Rules:** pycodestyle, pyflakes, isort, pyupgrade, flake8-comprehensions, flake8-bugbear, flake8-pytest-style
 - **Imports:** single-line, sorted by isort. **Always prefer top-level imports** — only use
   lazy (in-function) imports when strictly necessary to break circular dependencies
