@@ -95,7 +95,7 @@ class StateMachineMetaclass(type):
     def _expand_docstring(cls) -> None:
         """Replace ``{statechart:FORMAT}`` placeholders in the class docstring."""
         doc = cls.__doc__
-        if not doc:
+        if not doc or not cls._STATECHART_RE.search(doc):
             return
 
         from .contrib.diagram.formatter import formatter

@@ -1,13 +1,14 @@
 import importlib
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 from urllib.request import urlopen
 
 from .extract import extract
 from .formatter import formatter as formatter
-from .renderers.dot import DotRenderer
-from .renderers.dot import DotRendererConfig
-from .renderers.mermaid import MermaidRenderer
-from .renderers.mermaid import MermaidRendererConfig
+
+if TYPE_CHECKING:
+    from .renderers.dot import DotRendererConfig
+    from .renderers.mermaid import MermaidRendererConfig
 
 
 class DotGraphMachine:
@@ -40,7 +41,9 @@ class DotGraphMachine:
     def __init__(self, machine):
         self.machine = machine
 
-    def _build_config(self) -> DotRendererConfig:
+    def _build_config(self) -> "DotRendererConfig":
+        from .renderers.dot import DotRendererConfig
+
         return DotRendererConfig(
             graph_rankdir=self.graph_rankdir,
             font_name=self.font_name,
@@ -51,6 +54,8 @@ class DotGraphMachine:
         )
 
     def get_graph(self):
+        from .renderers.dot import DotRenderer
+
         ir = extract(self.machine)
         renderer = DotRenderer(config=self._build_config())
         return renderer.render(ir)
@@ -69,7 +74,9 @@ class MermaidGraphMachine:
     def __init__(self, machine):
         self.machine = machine
 
-    def _build_config(self) -> MermaidRendererConfig:
+    def _build_config(self) -> "MermaidRendererConfig":
+        from .renderers.mermaid import MermaidRendererConfig
+
         return MermaidRendererConfig(
             direction=self.direction,
             active_fill=self.active_fill,
@@ -77,6 +84,8 @@ class MermaidGraphMachine:
         )
 
     def get_mermaid(self) -> str:
+        from .renderers.mermaid import MermaidRenderer
+
         ir = extract(self.machine)
         renderer = MermaidRenderer(config=self._build_config())
         return renderer.render(ir)
