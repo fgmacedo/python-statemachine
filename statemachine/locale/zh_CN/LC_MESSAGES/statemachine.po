@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version:  3.1.1\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2026-05-15 12:08-0300\n"
+"POT-Creation-Date: 2026-05-18 16:16-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
 "Language: zh_CN\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Did not found name '{}' from model or statemachine"
 msgstr "在模型或状态机中未找到名称 '{}'"
 
-#: statemachine/configuration.py:121
+#: statemachine/configuration.py:129
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
@@ -37,9 +37,7 @@ msgstr "无法解析布尔表达式 '{}'"
 msgid ""
 "Event() received a non-string 'id' ({cls_name}). To combine multiple "
 "transitions under one event, use the | operator: t1 | t2."
-msgstr ""
-"Event() 接收到的 'id' 不是字符串 ({cls_name})。要将多个转换组合在同一个事件下，"
-"请使用 | 运算符：t1 | t2。"
+msgstr "Event() 接收到的 'id' 不是字符串 ({cls_name})。要将多个转换组合在同一个事件下，请使用 | 运算符：t1 | t2。"
 
 #: statemachine/event.py:131
 #, python-brace-format
