@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version:  3.1.1\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2026-05-15 12:08-0300\n"
+"POT-Creation-Date: 2026-05-18 16:16-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
 "Language: pt_BR\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Did not found name '{}' from model or statemachine"
 msgstr "Nome '{}' não encontrado no modelo ou na máquina de estados"
 
-#: statemachine/configuration.py:121
+#: statemachine/configuration.py:129
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
