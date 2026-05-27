@@ -33,7 +33,7 @@ class Configuration:
 
     def __init__(
         self,
-        instance_states: "Mapping[str, State]",
+        instance_states: "Mapping[Any, State]",
         model: Any,
         state_field: str,
         states_map: "dict[Any, State]",
@@ -84,7 +84,7 @@ class Configuration:
 
         # Normalize inline (avoid second getattr via _read_from_model)
         values = raw if isinstance(raw, MutableSet) else (raw,)
-        result = OrderedSet(self._instance_states[self._states_map[v].id] for v in values)
+        result = OrderedSet(self._instance_states[v] for v in values)
         self._cached = result
         self._cached_value = raw
         return result
