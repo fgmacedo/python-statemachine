@@ -204,11 +204,11 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
     def _build_configuration(self) -> Configuration:
         """Create InstanceState entries and return a new Configuration."""
-        instance_states: dict[str, Any] = {}
+        instance_states: dict[Any, Any] = {}
         events = self.__class__._events
         for state in self.states_map.values():
             ist = InstanceState(state, self)
-            instance_states[state.id] = ist
+            instance_states[state.value] = ist
             if state.id not in events:
                 vars(self)[state.id] = ist
         return Configuration(
