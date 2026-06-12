@@ -526,7 +526,11 @@ class InvokeManager:
                 self._debug("%s Error in on_cancel for %s", self._log_id, invokeid, exc_info=True)
 
         # 3) Cancel the async task (raises CancelledError at next await).
-        if invocation.task is not None and not invocation.task.done():
+        if (
+            invocation.task is not None
+            and invocation.task is not asyncio.current_task()
+            and not invocation.task.done()
+        ):
             invocation.task.cancel()
 
         # 4) Wait for the sync thread to actually finish (skip if we ARE

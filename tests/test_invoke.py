@@ -214,6 +214,65 @@ class TestInvokeCancelOnExit:
         assert "cancelled_state" in sm.configuration_values
 
 
+class TestInvokeSelfCancelOnDone:
+    """Self-cancel — an invoke whose done.invoke exits the owning state must
+    not cancel itself when it completes after the initial loop releases."""
+
+    async def test_async_invoke_no_self_cancel_on_done(self):
+        import asyncio
+
+        from tests.conftest import SMRunner
+
+        sm_runner = SMRunner(is_async=True)
+        reached = []
+
+        class SM(StateChart):
+            loading = State(initial=True)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+            async def on_invoke_loading(self, **kwargs):
+                await asyncio.sleep(0.05)
+                return "ok"
+
+            async def on_enter_ready(self, **kwargs):
+                # Suspension point so a pending self-cancel surfaces here.
+                await asyncio.sleep(0)
+                reached.append(True)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+
+        assert reached == [True]
+        assert "ready" in sm.configuration_values
+
+    async def test_sync_invoke_no_self_cancel_on_done(self):
+        from tests.conftest import SMRunner
+
+        sm_runner = SMRunner(is_async=False)
+        reached = []
+
+        class SM(StateChart):
+            loading = State(initial=True)
+            ready = State(final=True)
+            done_invoke_loading = loading.to(ready)
+
+            def on_invoke_loading(self, **kwargs):
+                time.sleep(0.05)
+                return "ok"
+
+            def on_enter_ready(self, **kwargs):
+                reached.append(True)
+
+        sm = await sm_runner.start(SM)
+        await sm_runner.sleep(0.15)
+        await sm_runner.processing_loop(sm)
+
+        assert reached == [True]
+        assert "ready" in sm.configuration_values
+
+
 class TestInvokeErrorHandling:
     """Error in invoker → error.execution event."""
 
