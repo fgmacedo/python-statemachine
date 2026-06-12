@@ -215,3 +215,95 @@ class TestAddDiscard:
         await sm_runner.send(sm, "move_a")
         assert "a2" in sm.configuration_values
         assert len(sm.configuration_values) == 5
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for issue #624: sibling compound states whose children
+# share the same ``id`` (e.g. ``a``, ``b``) but use distinct ``value=``
+# identifiers must not collapse in ``_instance_states``.
+#
+# Before the fix, ``_instance_states`` was keyed by ``state.id`` — so two
+# states with id ``"a"`` overwrote each other, and event dispatch raised
+# ``TransitionNotAllowed`` because the cached configuration resolved to the
+# wrong ``State`` instance.  Phase A re-keyed by ``state.value`` (which is
+# globally unique, since it's the canonical identifier used by
+# ``states_map``).
+# ---------------------------------------------------------------------------
+
+
+class SiblingCompoundChart(StateChart):
+    """Canonical repro from issue #624.
+
+    Two sibling ``State.Compound`` regions, each containing children named
+    ``a`` and ``b``.  The ``value=`` strings (e.g. ``"g1__a"``) make each
+    state globally unique despite the shared local id.
+    """
+
+    allow_event_without_transition = False
+
+    class g1(State.Compound):
+        a = State(initial=True, value="g1__a")
+        b = State(final=True, value="g1__b")
+        to_b = a.to(b, event="g1__b")
+
+    class g2(State.Compound):
+        a = State(initial=True, value="g2__a")
+        b = State(final=True, value="g2__b")
+        to_b = a.to(b, event="g2__b")
+
+    advance = g1.to(g2)
+
+
+class TestSiblingCompoundIdCollision:
+    """Regression: sibling compounds with same-named children (#624)."""
+
+    async def test_dispatch_to_g1_inner_state_both_engines(self, sm_runner):
+        sm = await sm_runner.start(SiblingCompoundChart)
+
+        # Initial configuration: g1 compound active, g1__a as initial child.
+        assert "g1__a" in sm.configuration_values
+        assert "g1" in sm.configuration_values
+
+        # Before the fix, this raised TransitionNotAllowed because the
+        # _instance_states key "a" was overwritten by g2's "a".
+        await sm_runner.send(sm, "g1__b")
+
+        assert "g1__b" in sm.configuration_values
+        assert "g1__a" not in sm.configuration_values
+
+    async def test_dispatch_to_g2_inner_state_both_engines(self, sm_runner):
+        sm = await sm_runner.start(SiblingCompoundChart)
+
+        # Move from g1 to g2 first.
+        await sm_runner.send(sm, "advance")
+        assert "g2__a" in sm.configuration_values
+        assert "g2" in sm.configuration_values
+
+        # Same scenario as g1, but in the second sibling compound.
+        await sm_runner.send(sm, "g2__b")
+
+        assert "g2__b" in sm.configuration_values
+        assert "g2__a" not in sm.configuration_values
+        assert "g1__b" not in sm.configuration_values
+
+    def test_instance_states_keyed_by_value_no_collision(self):
+        """White-box invariant: ``_instance_states`` must not collapse keys.
+
+        Before the fix for #624, ``_instance_states`` was keyed by ``state.id``
+        (the Python attribute name) — so sibling compounds with same-named
+        children (both ``a``) collapsed to a single entry, leaving the dict
+        with fewer entries than ``states_map``. This test pins the post-fix
+        invariant: one entry per registered state, keyed by ``state.value``.
+
+        The dispatch tests above prove the correct ``InstanceState`` is
+        wrapped at each key (a wrong wrapping would break dispatch).
+        """
+        sm = SiblingCompoundChart()
+
+        instance_states = sm._config._instance_states  # type: ignore[attr-defined]
+
+        # No key collapse: one entry per registered state.
+        assert len(instance_states) == len(sm.states_map)
+
+        # Keyed by the canonical identifier (state.value), matching states_map.
+        assert set(instance_states.keys()) == set(sm.states_map.keys())
