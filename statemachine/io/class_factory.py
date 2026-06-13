@@ -35,7 +35,7 @@ class TransitionDict(TypedDict, total=False):
     event: "str | None"
     internal: bool
     initial: bool
-    validators: bool
+    validators: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
     cond: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
     unless: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
     on: "str | ActionProtocol | Sequence[str] | Sequence[ActionProtocol]"
@@ -204,6 +204,7 @@ def create_machine_class_from_definition(
                     "event": transition_event_name,
                     "internal": transition_data.get("internal"),
                     "initial": transition_data.get("initial"),
+                    "validators": transition_data.get("validators"),
                     "cond": transition_data.get("cond"),
                     "unless": transition_data.get("unless"),
                     "on": transition_data.get("on"),
