@@ -157,5 +157,5 @@ def load(
     )
     cls = interpreter.scs[location]
     # Keep the interpreter reachable (and alive) from the returned class.
-    cls._io_processor = interpreter
+    cls._io_processor = interpreter  # pyright: ignore[reportAttributeAccessIssue]
     return cast("type[StateChart]", cls)

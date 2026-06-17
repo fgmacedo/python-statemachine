@@ -13,6 +13,7 @@ injects them on every event via :func:`build_system_variables`:
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -130,7 +131,7 @@ class IOProcessor:
 class SessionData:
     """Per-machine runtime session state held by the interpreter."""
 
-    machine: object
+    machine: Any
     processor: IOProcessor
     first_event_raised: bool = False
 

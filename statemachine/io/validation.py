@@ -17,7 +17,7 @@ SCHEMA_RESOURCE = "statechart.schema.json"
 @lru_cache(maxsize=1)
 def load_schema() -> dict:
     """Load and cache the bundled statechart JSON Schema."""
-    resource = files("statemachine.io").joinpath("schemas", SCHEMA_RESOURCE)
+    resource = files("statemachine.io").joinpath("schemas").joinpath(SCHEMA_RESOURCE)
     return json.loads(resource.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 

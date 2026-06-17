@@ -22,6 +22,7 @@ from ..invoke import InvokeContext
 from .actions import ExecuteBlock
 from .evaluators import Evaluator
 from .model import InvokeDefinition
+from .model import StateMachineDefinition
 from .system_variables import EventDataWrapper
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class Invoker:
         self,
         definition: InvokeDefinition,
         base_dir: str,
-        register_child: "Callable[[str, str], type]",
+        register_child: "Callable[[StateMachineDefinition | str, str], type]",
         evaluator: Evaluator,
     ):
         self._definition = definition
@@ -215,7 +216,7 @@ class Invoker:
 
         return result
 
-    def _create_child_class(self, content: str, invokeid: str):
+    def _create_child_class(self, content: "StateMachineDefinition | str", invokeid: str):
         """Compile the child statechart and create a machine class."""
         child_name = f"invoke_{invokeid}"
         return self._register_child(content, child_name)
@@ -244,12 +245,16 @@ class _InvokeSession:
     def __init__(self, parent, invokeid: str):
         self.parent = parent
         self.invokeid = invokeid
+        self._pending_tasks: "set[asyncio.Future]" = set()
+        """Strong refs to scheduled sends; the loop only holds weak refs to tasks."""
 
     def send_to_parent(self, event: str, **data):
         """Send an event to the parent machine's external queue."""
         result = self.parent.send(event, _invokeid=self.invokeid, **data)
         if isawaitable(result):
-            asyncio.ensure_future(result)
+            task = asyncio.ensure_future(result)
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
 
 
 # Verify protocol compliance at import time

@@ -42,6 +42,25 @@ class TestParseTimeErrors:
             ParseTime.time_in_ms("abc")
 
 
+class TestParseTimeReplace:
+    @pytest.mark.parametrize(
+        ("expr", "expected"),
+        [
+            ("5s", "5000.0"),
+            ("1.5s", "1500.0"),
+            (".5s", "500.0"),
+            ("150ms", "150.0"),
+        ],
+    )
+    def test_replaces_css_time_literal(self, expr, expected):
+        """A CSS2 time literal is replaced by its value in milliseconds."""
+        assert ParseTime.replace(expr) == expected
+
+    def test_bare_unit_is_not_matched(self):
+        """A unit suffix without digits (e.g. a name ending in 's') is left untouched."""
+        assert ParseTime.replace("items") == "items"
+
+
 # --- Parser ---
 
 
@@ -1035,17 +1054,25 @@ class TestInvokeCallableWrapperRunInstance:
 
 class TestInvokeSessionSendToParentAsync:
     async def test_send_to_parent_awaitable(self):
-        """send_to_parent calls ensure_future when parent.send returns an awaitable."""
+        """send_to_parent schedules the awaitable and keeps a strong ref until it finishes."""
         from statemachine.io.invoke import _InvokeSession
 
         async def async_send(event, **kwargs):
-            pass
+            """Stub for parent.send that returns a coroutine (awaitable result)."""
+            return None
 
         parent = Mock()
         parent.send = async_send
         session = _InvokeSession(parent, invokeid="inv1")
         # Should not raise — the coroutine is scheduled via ensure_future
         session.send_to_parent("child.done", key="value")
+
+        # The scheduled task is retained (the loop only keeps weak refs to tasks)...
+        assert len(session._pending_tasks) == 1
+        (task,) = session._pending_tasks
+        # ...and discarded once it completes, via the done-callback.
+        await task
+        assert session._pending_tasks == set()
 
 
 class TestOrderedSetStr:

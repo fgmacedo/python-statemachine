@@ -38,7 +38,8 @@ _debug = logger.debug if logger.isEnabledFor(logging.DEBUG) else lambda *a, **k:
 
 
 class ParseTime:
-    pattern = re.compile(r"(\d+)?(\.\d+)?(s|ms)")
+    pattern = re.compile(r"(\d+(?:\.\d+)?|\.\d+)(s|ms)")
+    """CSS2 time literal: a number (``5``, ``1.5``, ``.5``) followed by ``s`` or ``ms``."""
 
     @classmethod
     def replace(cls, expr: str) -> str:

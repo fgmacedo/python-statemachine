@@ -11,6 +11,7 @@ It is format-neutral and runtime-agnostic: anything that is a runtime concern
 there is no import cycle.
 """
 
+from typing import Any
 from typing import Protocol
 
 from .actions import Cond
@@ -42,7 +43,9 @@ class RuntimeHooks(Protocol):
         """Extra kwargs for ``create_machine_class_from_definition`` (e.g. ``prepare_event``)."""
         ...
 
-    def make_invoker(self, invoke_def: InvokeDefinition):  # pragma: no cover - structural Protocol
+    def make_invoker(
+        self, invoke_def: InvokeDefinition
+    ) -> Any:  # pragma: no cover - structural Protocol
         """Build the invoke handler for an ``<invoke>`` definition."""
         ...
 
@@ -185,7 +188,7 @@ class DefinitionBuilder:
         callables.extend(refs)
         return callables
 
-    def _compile_guard(self, expr):
+    def _compile_guard(self, expr) -> Any:
         """Compile a guard expression (or list of them) into Cond callables."""
         if isinstance(expr, (list, tuple)):
             return [Cond.create(e, self._evaluator) for e in expr]
