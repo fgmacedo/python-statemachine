@@ -372,6 +372,13 @@ To generate diagrams, install with the `diagrams` extra (requires
 pip install python-statemachine[diagrams]
 ```
 
+To load statecharts from declarative documents, install the IO extras
+(`yaml` for YAML, `validation` for `validate=True`, or `io` for both):
+
+```
+pip install python-statemachine[io]
+```
+
 
 ## Contributing
 
