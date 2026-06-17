@@ -1,0 +1,18 @@
+<!-- Didactic: a parent invokes an inline child that signals it back via `#_parent`. -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" name="invoke_child" initial="waiting">
+  <state id="waiting">
+    <invoke type="scxml">
+      <content>
+        <scxml initial="running">
+          <state id="running">
+            <onentry>
+              <send event="done" target="#_parent"/>
+            </onentry>
+          </state>
+        </scxml>
+      </content>
+    </invoke>
+    <transition event="done" target="pass"/>
+  </state>
+  <final id="pass"/>
+</scxml>

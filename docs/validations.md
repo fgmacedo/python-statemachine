@@ -22,6 +22,13 @@ These checks run as soon as the class body is evaluated by the
 `StateMachineMetaclass`. If any check fails, the class itself is not
 created.
 
+```{note}
+Statecharts loaded via {func}`statemachine.io.load` (SCXML/JSON/YAML) disable the three
+**structural** checks below — unreachable states, trap states and final-state
+reachability — because declarative documents legitimately express configurations they
+would reject. See [](io/index.md#validation-of-loaded-documents).
+```
+
 
 ### Exactly one initial state
 

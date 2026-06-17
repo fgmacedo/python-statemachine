@@ -25,6 +25,15 @@ Existing projects should consider migrating when possible, as the
 SCXML-compliant behavior provides more predictable semantics.
 ```
 
+```{warning}
+This page describes runtime *semantics*. If you **load SCXML documents** via
+`SCXMLProcessor`, note that SCXML is executable content: by default the
+datamodel is evaluated with a restricted AST whitelist and `<script>` is
+rejected, so untrusted documents cannot execute arbitrary code. Pass
+`trusted=True` only for SCXML you control. See the 3.2.0 release notes and
+GHSA-v4jc-pm6r-3vj8.
+```
+
 
 ## Comparison table
 

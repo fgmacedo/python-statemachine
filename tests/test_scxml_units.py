@@ -5,21 +5,22 @@ import xml.etree.ElementTree as ET
 from unittest.mock import Mock
 
 import pytest
-from statemachine.io.scxml.actions import EventDataWrapper
-from statemachine.io.scxml.actions import Log
-from statemachine.io.scxml.actions import ParseTime
-from statemachine.io.scxml.actions import create_action_callable
-from statemachine.io.scxml.actions import create_datamodel_action_callable
-from statemachine.io.scxml.invoke import SCXMLInvoker
-from statemachine.io.scxml.parser import parse_element
-from statemachine.io.scxml.parser import parse_scxml
-from statemachine.io.scxml.parser import strip_namespaces
-from statemachine.io.scxml.schema import CancelAction
-from statemachine.io.scxml.schema import DataModel
-from statemachine.io.scxml.schema import IfBranch
-from statemachine.io.scxml.schema import InvokeDefinition
-from statemachine.io.scxml.schema import LogAction
-from statemachine.io.scxml.schema import Param
+from statemachine.io.actions import Log
+from statemachine.io.actions import ParseTime
+from statemachine.io.actions import create_action_callable
+from statemachine.io.actions import create_datamodel_action_callable
+from statemachine.io.evaluators import evaluator_for
+from statemachine.io.invoke import Invoker
+from statemachine.io.model import CancelAction
+from statemachine.io.model import DataModel
+from statemachine.io.model import IfBranch
+from statemachine.io.model import InvokeDefinition
+from statemachine.io.model import LogAction
+from statemachine.io.model import Param
+from statemachine.io.scxml.reader import parse_element
+from statemachine.io.scxml.reader import parse_scxml
+from statemachine.io.scxml.reader import strip_namespaces
+from statemachine.io.system_variables import EventDataWrapper
 
 # --- ParseTime ---
 
@@ -115,17 +116,17 @@ class TestParseSendParam:
 class TestCreateActionCallable:
     def test_unknown_action_type_raises(self):
         """create_action_callable raises ValueError for unknown action types."""
-        from statemachine.io.scxml.schema import Action
+        from statemachine.io.model import Action
 
         with pytest.raises(ValueError, match="Unknown action type"):
-            create_action_callable(Action())
+            create_action_callable(Action(), evaluator_for())
 
 
 class TestLogAction:
     def test_log_without_label(self, capsys):
         """Log action without label prints just the value."""
         action = LogAction(label=None, expr="42")
-        log = Log(action)
+        log = Log(action, evaluator_for())
         log()  # "42" is a literal that evaluates without machine context
         captured = capsys.readouterr()
         assert "42" in captured.out
@@ -134,10 +135,10 @@ class TestLogAction:
 class TestCancelActionCallable:
     def test_cancel_without_sendid_raises(self):
         """CancelAction without sendid or sendidexpr raises ValueError."""
-        from statemachine.io.scxml.actions import create_cancel_action_callable
+        from statemachine.io.actions import create_cancel_action_callable
 
         action = CancelAction(sendid=None, sendidexpr=None)
-        cancel = create_cancel_action_callable(action)
+        cancel = create_cancel_action_callable(action, evaluator_for())
         with pytest.raises(ValueError, match="must have either 'sendid' or 'sendidexpr'"):
             cancel(machine=None)
 
@@ -146,7 +147,7 @@ class TestCreateDatamodelCallable:
     def test_empty_datamodel_returns_none(self):
         """create_datamodel_action_callable returns None for empty DataModel."""
         model = DataModel(data=[], scripts=[])
-        result = create_datamodel_action_callable(model)
+        result = create_datamodel_action_callable(model, evaluator_for())
         assert result is None
 
 
@@ -267,7 +268,7 @@ class TestEventDataWrapperMultipleArgs:
         """EventDataWrapper.data returns the args tuple when more than one positional arg."""
         from unittest.mock import Mock
 
-        from statemachine.io.scxml.actions import EventDataWrapper
+        from statemachine.io.system_variables import EventDataWrapper
 
         trigger_data = Mock()
         trigger_data.kwargs = {}
@@ -288,12 +289,12 @@ class TestIfActionRaisesWithoutErrorOnExecution:
 
     def test_if_condition_error_propagates_without_catch_errors_as_events(self):
         """<if> with failing condition raises when machine.catch_errors_as_events is False."""
-        from statemachine.io.scxml.actions import create_if_action_callable
-        from statemachine.io.scxml.schema import IfAction
-        from statemachine.io.scxml.schema import IfBranch
+        from statemachine.io.actions import create_if_action_callable
+        from statemachine.io.model import IfAction
+        from statemachine.io.model import IfBranch
 
         action = IfAction(branches=[IfBranch(cond="undefined_var")])
-        if_callable = create_if_action_callable(action)
+        if_callable = create_if_action_callable(action, evaluator_for())
 
         machine = Mock()
         machine.catch_errors_as_events = False
@@ -373,10 +374,11 @@ def _make_invoker(definition=None, base_dir=None, register_child=None):
         base_dir = ""
     if register_child is None:
         register_child = Mock(return_value=Mock)
-    return SCXMLInvoker(
+    return Invoker(
         definition=definition,
         base_dir=base_dir,
         register_child=register_child,
+        evaluator=evaluator_for(),
     )
 
 
@@ -470,15 +472,15 @@ class TestSCXMLInvoker:
 
     def test_send_to_parent_warns_without_session(self, caplog):
         """_send_to_parent logs a warning when machine has no _invoke_session."""
-        from statemachine.io.scxml.actions import _send_to_parent
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_parent
+        from statemachine.io.model import SendAction
 
         action = SendAction(event="done", target="#_parent")
         machine = Mock(spec=[])  # spec=[] ensures no _invoke_session attribute
         machine.name = "test_machine"
 
-        with caplog.at_level(logging.WARNING, logger="statemachine.io.scxml.actions"):
-            _send_to_parent(action, machine=machine)
+        with caplog.at_level(logging.WARNING, logger="statemachine.io.actions"):
+            _send_to_parent(action, evaluator_for(), machine=machine)
 
         assert "no _invoke_session" in caplog.text
 
@@ -499,13 +501,13 @@ class TestSendToInvoke:
 
     def test_routes_event_to_child(self):
         """_send_to_invoke forwards the event to InvokeManager.send_to_child."""
-        from statemachine.io.scxml.actions import _send_to_invoke
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_invoke
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager()
         action = SendAction(event="childEvent", target="#_child1")
 
-        _send_to_invoke(action, "child1", machine=machine)
+        _send_to_invoke(action, "child1", evaluator_for(), machine=machine)
 
         machine._engine._invoke_manager.send_to_child.assert_called_once_with(
             "child1", "childEvent"
@@ -514,13 +516,13 @@ class TestSendToInvoke:
 
     def test_sends_error_communication_when_child_not_found(self):
         """_send_to_invoke sends error.communication when invokeid is not found."""
-        from statemachine.io.scxml.actions import _send_to_invoke
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_invoke
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager(send_to_child_return=False)
         action = SendAction(event="childEvent", target="#_unknown")
 
-        _send_to_invoke(action, "unknown", machine=machine)
+        _send_to_invoke(action, "unknown", evaluator_for(), machine=machine)
 
         machine._put_nonblocking.assert_called_once()
         trigger_data = machine._put_nonblocking.call_args[0][0]
@@ -528,13 +530,13 @@ class TestSendToInvoke:
 
     def test_evaluates_eventexpr(self):
         """_send_to_invoke evaluates eventexpr when event is None."""
-        from statemachine.io.scxml.actions import _send_to_invoke
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_invoke
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager()
         action = SendAction(event=None, eventexpr="'dynamic_event'", target="#_child1")
 
-        _send_to_invoke(action, "child1", machine=machine)
+        _send_to_invoke(action, "child1", evaluator_for(), machine=machine)
 
         machine._engine._invoke_manager.send_to_child.assert_called_once_with(
             "child1", "dynamic_event"
@@ -542,8 +544,8 @@ class TestSendToInvoke:
 
     def test_forwards_params(self):
         """_send_to_invoke forwards evaluated params to send_to_child."""
-        from statemachine.io.scxml.actions import _send_to_invoke
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_invoke
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager()
         action = SendAction(
@@ -552,7 +554,7 @@ class TestSendToInvoke:
             params=[Param(name="x", expr="42"), Param(name="y", expr="'hello'")],
         )
 
-        _send_to_invoke(action, "child1", machine=machine)
+        _send_to_invoke(action, "child1", evaluator_for(), machine=machine)
 
         machine._engine._invoke_manager.send_to_child.assert_called_once_with(
             "child1", "childEvent", x=42, y="hello"
@@ -560,8 +562,8 @@ class TestSendToInvoke:
 
     def test_forwards_namelist_variables(self):
         """_send_to_invoke resolves namelist variables from model and forwards them."""
-        from statemachine.io.scxml.actions import _send_to_invoke
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_invoke
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager()
         model = type("Model", (), {})()
@@ -570,7 +572,7 @@ class TestSendToInvoke:
         machine.model = model
         action = SendAction(event="childEvent", target="#_child1", namelist="var1 var2")
 
-        _send_to_invoke(action, "child1", machine=machine)
+        _send_to_invoke(action, "child1", evaluator_for(), machine=machine)
 
         machine._engine._invoke_manager.send_to_child.assert_called_once_with(
             "child1", "childEvent", var1="alpha", var2="beta"
@@ -578,24 +580,24 @@ class TestSendToInvoke:
 
     def test_namelist_missing_variable_raises(self):
         """_send_to_invoke raises NameError when namelist variable is not on model."""
-        from statemachine.io.scxml.actions import _send_to_invoke
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_invoke
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager()
         machine.model = Mock(spec=[])  # no attributes
         action = SendAction(event="childEvent", target="#_child1", namelist="missing_var")
 
         with pytest.raises(NameError, match="missing_var"):
-            _send_to_invoke(action, "child1", machine=machine)
+            _send_to_invoke(action, "child1", evaluator_for(), machine=machine)
 
     def test_send_action_callable_routes_invoke_target(self):
         """create_send_action_callable routes #_<invokeid> targets to _send_to_invoke."""
-        from statemachine.io.scxml.actions import create_send_action_callable
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import create_send_action_callable
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager()
         action = SendAction(event="hello", target="#_myinvoke")
-        send_callable = create_send_action_callable(action)
+        send_callable = create_send_action_callable(action, evaluator_for())
 
         send_callable(machine=machine)
 
@@ -603,12 +605,12 @@ class TestSendToInvoke:
 
     def test_send_action_callable_scxml_session_target(self):
         """create_send_action_callable sends error.communication for #_scxml_ targets."""
-        from statemachine.io.scxml.actions import create_send_action_callable
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import create_send_action_callable
+        from statemachine.io.model import SendAction
 
         machine = self._make_machine_with_invoke_manager()
         action = SendAction(event="hello", target="#_scxml_session123")
-        send_callable = create_send_action_callable(action)
+        send_callable = create_send_action_callable(action, evaluator_for())
 
         send_callable(machine=machine)
 
@@ -659,8 +661,8 @@ class TestEventDataWrapperEdgeCases:
 class TestSendToParentParams:
     def test_send_to_parent_with_namelist_and_params(self):
         """_send_to_parent resolves namelist and params before sending."""
-        from statemachine.io.scxml.actions import _send_to_parent
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_parent
+        from statemachine.io.model import SendAction
 
         model = type("Model", (), {})()
         model.myvar = "hello"
@@ -676,14 +678,14 @@ class TestSendToParentParams:
             params=[Param(name="extra", expr="42")],
         )
 
-        _send_to_parent(action, machine=machine)
+        _send_to_parent(action, evaluator_for(), machine=machine)
 
         session.send_to_parent.assert_called_once_with("childDone", myvar="hello", extra=42)
 
     def test_send_to_parent_namelist_missing_raises(self):
         """_send_to_parent raises NameError when namelist variable is missing."""
-        from statemachine.io.scxml.actions import _send_to_parent
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_parent
+        from statemachine.io.model import SendAction
 
         machine = Mock()
         machine.model = Mock(spec=[])  # no attributes
@@ -692,12 +694,12 @@ class TestSendToParentParams:
         action = SendAction(event="ev", target="#_parent", namelist="missing_var")
 
         with pytest.raises(NameError, match="missing_var"):
-            _send_to_parent(action, machine=machine)
+            _send_to_parent(action, evaluator_for(), machine=machine)
 
     def test_send_to_parent_param_without_expr_skipped(self):
         """_send_to_parent skips params where expr is None."""
-        from statemachine.io.scxml.actions import _send_to_parent
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_parent
+        from statemachine.io.model import SendAction
 
         machine = Mock()
         machine.model = Mock()
@@ -714,7 +716,7 @@ class TestSendToParentParams:
             ],
         )
 
-        _send_to_parent(action, machine=machine)
+        _send_to_parent(action, evaluator_for(), machine=machine)
         session.send_to_parent.assert_called_once_with("ev", has_expr=1)
 
 
@@ -724,8 +726,8 @@ class TestSendToParentParams:
 class TestSendToInvokeParamSkip:
     def test_param_without_expr_is_skipped(self):
         """_send_to_invoke skips params where expr is None."""
-        from statemachine.io.scxml.actions import _send_to_invoke
-        from statemachine.io.scxml.parser import SendAction
+        from statemachine.io.actions import _send_to_invoke
+        from statemachine.io.model import SendAction
 
         machine = Mock()
         machine.model = Mock()
@@ -741,7 +743,7 @@ class TestSendToInvokeParamSkip:
             ],
         )
 
-        _send_to_invoke(action, "child", machine=machine)
+        _send_to_invoke(action, "child", evaluator_for(), machine=machine)
 
         machine._engine._invoke_manager.send_to_child.assert_called_once_with(
             "child", "ev", with_expr=1
@@ -754,7 +756,7 @@ class TestSendToInvokeParamSkip:
 class TestInvokeInitCallback:
     def test_invoke_init_idempotent(self):
         """invoke_init only runs once, even if called multiple times."""
-        from statemachine.io.scxml.actions import create_invoke_init_callable
+        from statemachine.io.system_variables import create_invoke_init_callable
 
         callback = create_invoke_init_callable()
         machine = Mock()
@@ -1005,7 +1007,7 @@ class TestSCXMLInvokerEvaluateParamsNoExprNoLocation:
 class TestInvokeInitMachineNone:
     def test_invoke_init_without_machine_is_noop(self):
         """invoke_init does nothing when machine is not in kwargs."""
-        from statemachine.io.scxml.actions import create_invoke_init_callable
+        from statemachine.io.system_variables import create_invoke_init_callable
 
         callback = create_invoke_init_callable()
         # Call without machine kwarg — should not raise
@@ -1034,7 +1036,7 @@ class TestInvokeCallableWrapperRunInstance:
 class TestInvokeSessionSendToParentAsync:
     async def test_send_to_parent_awaitable(self):
         """send_to_parent calls ensure_future when parent.send returns an awaitable."""
-        from statemachine.io.scxml.invoke import _InvokeSession
+        from statemachine.io.invoke import _InvokeSession
 
         async def async_send(event, **kwargs):
             pass

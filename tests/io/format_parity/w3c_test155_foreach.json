@@ -1,0 +1,49 @@
+{
+  "name": "w3c_test155_foreach",
+  "datamodel": [
+    {
+      "id": "total",
+      "expr": "0"
+    },
+    {
+      "id": "nums",
+      "expr": "[1, 2, 3]"
+    }
+  ],
+  "states": {
+    "s0": {
+      "initial": true,
+      "enter": [
+        {
+          "foreach": {
+            "array": "nums",
+            "item": "n",
+            "do": [
+              {
+                "assign": {
+                  "location": "total",
+                  "expr": "total + n"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "target": "pass",
+          "cond": "total == 6"
+        },
+        {
+          "target": "fail"
+        }
+      ]
+    },
+    "pass": {
+      "final": true
+    },
+    "fail": {
+      "final": true
+    }
+  }
+}

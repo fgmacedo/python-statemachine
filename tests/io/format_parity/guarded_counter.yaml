@@ -1,0 +1,16 @@
+# Didactic: a datamodel value, a guard and an eventless transition reach `pass`.
+name: guarded_counter
+datamodel:
+  - {id: count, expr: "0"}
+states:
+  a:
+    initial: true
+    enter:
+      - assign: {location: count, expr: "count + 2"}
+    transitions:
+      - {target: pass, cond: "count >= 2"}
+      - {target: fail}
+  pass:
+    final: true
+  fail:
+    final: true

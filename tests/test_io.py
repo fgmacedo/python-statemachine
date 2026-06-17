@@ -1,7 +1,7 @@
 """Tests for statemachine.io module (dictionary-based state machine definitions)."""
 
-from statemachine.io import _parse_history
 from statemachine.io import create_machine_class_from_definition
+from statemachine.io.class_factory import _parse_history
 
 
 class TestParseHistory:

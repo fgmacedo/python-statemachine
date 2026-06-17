@@ -222,7 +222,15 @@ uv run mypy statemachine/ tests/
 - **Rules:** pycodestyle, pyflakes, isort, pyupgrade, flake8-comprehensions, flake8-bugbear, flake8-pytest-style
 - **Imports:** single-line, sorted by isort. **Always prefer top-level imports** — only use
   lazy (in-function) imports when strictly necessary to break circular dependencies
-- **Docstrings:** Google convention
+- **Docstrings:** Google convention. Document only what isn't obvious from the
+  name/type (hidden conventions, non-obvious semantics), not trivial fields.
+- **Attribute docs:** use an attribute *docstring* (a string literal on the line
+  **below** the attribute), not an inline `#` comment, so Sphinx autodoc captures it.
+  Reserve `#` for explaining logic. Example:
+  ```python
+  unless: "str | None" = None
+  """Negated guard expression; the transition is allowed only if it is falsy."""
+  ```
 - **Naming:** PascalCase for classes, snake_case for functions/methods, UPPER_SNAKE_CASE for constants
 - **Type hints:** used throughout; `TYPE_CHECKING` for circular imports
 - Pre-commit hooks enforce ruff + mypy + pytest
@@ -267,6 +275,24 @@ All code examples in `docs/*.md` **must** be testable doctests (using ```` ```py
 `>>>` prompts), not plain ```` ```python ```` blocks. The test suite collects them via
 `--doctest-glob=*.md`. If an example cannot be expressed as a doctest (e.g., it requires
 real concurrency), write it as a unit test in `tests/` and reference it from the docs instead.
+
+### Declarative IO: keep the JSON Schema and the parser in sync
+
+The native JSON/YAML format has three artifacts that must agree: the parser
+(`statemachine/io/native.py`), the runtime, and the published JSON Schema
+(`statemachine/io/schemas/statechart.schema.json`). They drift apart silently unless
+enforced, so when you add or change native vocabulary:
+
+- Update the **schema** alongside the parser/runtime change, never after.
+- The parser is the source of truth for accepted keys: `_ACTION_KEYS` and the
+  `_DOCUMENT_KEYS`/`_STATE_KEYS`/`_TRANSITION_KEYS`/`_INVOKE_KEYS` frozensets. The parser
+  **rejects unknown keys** using them, and `tests/io/test_validation.py` asserts each set
+  equals the matching schema node's properties, so a change on one side without the other
+  fails CI.
+- **Every native example is schema-validated.** Test fixtures load with `validate=True` (and
+  a corpus test validates every `.yaml`/`.json` under `tests/io/`); docs examples pass
+  `validate=True` too. A feature exercised by an example but missing from the schema breaks a
+  test.
 
 ## Git workflow
 

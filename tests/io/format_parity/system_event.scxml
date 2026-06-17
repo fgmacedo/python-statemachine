@@ -1,0 +1,13 @@
+<!-- Didactic: a guard reads the `_event` system variable (available in every format). -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" name="system_event" initial="start"
+       datamodel="ecmascript">
+  <state id="start">
+    <onentry>
+      <raise event="go"/>
+    </onentry>
+    <transition event="go" cond="_event.name == 'go'" target="pass"/>
+    <transition event="go" target="fail"/>
+  </state>
+  <final id="pass"/>
+  <final id="fail"/>
+</scxml>

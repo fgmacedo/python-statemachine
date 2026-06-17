@@ -1,0 +1,76 @@
+{
+  "name": "w3c_test147_if",
+  "datamodel": [
+    {
+      "id": "x",
+      "expr": "0"
+    }
+  ],
+  "states": {
+    "s0": {
+      "initial": true,
+      "enter": [
+        {
+          "if": {
+            "cond": "False",
+            "then": [
+              {
+                "raise": "foo"
+              },
+              {
+                "assign": {
+                  "location": "x",
+                  "expr": "x + 1"
+                }
+              }
+            ],
+            "elif": [
+              {
+                "cond": "True",
+                "then": [
+                  {
+                    "raise": "bar"
+                  },
+                  {
+                    "assign": {
+                      "location": "x",
+                      "expr": "x + 1"
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "raise": "baz"
+              },
+              {
+                "assign": {
+                  "location": "x",
+                  "expr": "x + 1"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "event": "bar",
+          "target": "pass",
+          "cond": "x == 1"
+        },
+        {
+          "event": "bar",
+          "target": "fail"
+        }
+      ]
+    },
+    "pass": {
+      "final": true
+    },
+    "fail": {
+      "final": true
+    }
+  }
+}

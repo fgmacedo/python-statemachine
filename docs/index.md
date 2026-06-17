@@ -59,6 +59,17 @@ timeout
 ```
 
 ```{toctree}
+:caption: IO and formats
+:maxdepth: 2
+:hidden:
+
+io/index
+io/formats
+io/json_schema
+io/security
+```
+
+```{toctree}
 :caption: How to
 :maxdepth: 2
 :hidden:

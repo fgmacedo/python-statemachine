@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fgmacedo.github.io/python-statemachine/schemas/statechart/v1.json",
+  "title": "python-statemachine statechart",
+  "description": "Declarative statechart definition for python-statemachine (JSON/YAML native format).",
+  "type": "object",
+  "required": ["states"],
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "datamodel": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": true },
+        { "type": "array", "items": { "$ref": "#/$defs/dataItem" } }
+      ]
+    },
+    "states": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/state" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "flag": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "string", "enum": ["true", "false", "yes", "no", "on", "off"] }
+      ]
+    },
+    "guard": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "dataItem": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "expr": { "type": "string" },
+        "content": {},
+        "src": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "param": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "expr": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "structuredAction": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "assign": {
+          "type": "object",
+          "required": ["location"],
+          "properties": {
+            "location": { "type": "string" },
+            "expr": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "raise": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "required": ["event"],
+              "properties": { "event": { "type": "string" } },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "log": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string" },
+                "expr": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "script": { "type": "string" },
+        "cancel": {
+          "type": "object",
+          "properties": {
+            "sendid": { "type": "string" },
+            "sendidexpr": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "send": {
+          "type": "object",
+          "properties": {
+            "event": { "type": "string" },
+            "eventexpr": { "type": "string" },
+            "target": { "type": "string" },
+            "type": { "type": "string" },
+            "id": { "type": "string" },
+            "idlocation": { "type": "string" },
+            "delay": { "type": "string" },
+            "delayexpr": { "type": "string" },
+            "namelist": { "type": "string" },
+            "params": { "type": "array", "items": { "$ref": "#/$defs/param" } },
+            "content": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "foreach": {
+          "type": "object",
+          "required": ["array", "item"],
+          "properties": {
+            "array": { "type": "string" },
+            "item": { "type": "string" },
+            "index": { "type": "string" },
+            "do": { "$ref": "#/$defs/structuredActions" }
+          },
+          "additionalProperties": false
+        },
+        "if": {
+          "type": "object",
+          "required": ["cond"],
+          "properties": {
+            "cond": { "type": "string" },
+            "then": { "$ref": "#/$defs/structuredActions" },
+            "elif": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["cond"],
+                "properties": {
+                  "cond": { "type": "string" },
+                  "then": { "$ref": "#/$defs/structuredActions" }
+                },
+                "additionalProperties": false
+              }
+            },
+            "else": { "$ref": "#/$defs/structuredActions" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "oneOf": [
+        { "type": "string" },
+        { "$ref": "#/$defs/structuredAction" }
+      ]
+    },
+    "actions": {
+      "oneOf": [
+        { "$ref": "#/$defs/action" },
+        { "type": "array", "items": { "$ref": "#/$defs/action" } }
+      ]
+    },
+    "structuredActions": {
+      "oneOf": [
+        { "$ref": "#/$defs/structuredAction" },
+        { "type": "array", "items": { "$ref": "#/$defs/structuredAction" } }
+      ]
+    },
+    "invoke": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "typeexpr": { "type": "string" },
+        "src": { "type": "string" },
+        "srcexpr": { "type": "string" },
+        "id": { "type": "string" },
+        "idlocation": { "type": "string" },
+        "autoforward": { "$ref": "#/$defs/flag" },
+        "namelist": { "type": "string" },
+        "params": { "type": "array", "items": { "$ref": "#/$defs/param" } },
+        "content": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#" }
+          ]
+        },
+        "finalize": { "$ref": "#/$defs/structuredActions" }
+      },
+      "additionalProperties": false
+    },
+    "invokeList": {
+      "oneOf": [
+        { "$ref": "#/$defs/invoke" },
+        { "type": "array", "items": { "$ref": "#/$defs/invoke" } }
+      ]
+    },
+    "transition": {
+      "type": "object",
+      "properties": {
+        "event": { "type": "string" },
+        "target": { "type": "string" },
+        "cond": { "$ref": "#/$defs/guard" },
+        "unless": { "$ref": "#/$defs/guard" },
+        "internal": { "$ref": "#/$defs/flag" },
+        "initial": { "$ref": "#/$defs/flag" },
+        "on": { "$ref": "#/$defs/actions" },
+        "before": { "$ref": "#/$defs/actions" },
+        "after": { "$ref": "#/$defs/actions" }
+      },
+      "additionalProperties": false
+    },
+    "history": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["shallow", "deep"] },
+        "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } }
+      },
+      "additionalProperties": false
+    },
+    "donedata": {
+      "type": "object",
+      "properties": {
+        "params": { "type": "array", "items": { "$ref": "#/$defs/param" } },
+        "content": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "initial": { "$ref": "#/$defs/flag" },
+        "final": { "$ref": "#/$defs/flag" },
+        "parallel": { "$ref": "#/$defs/flag" },
+        "enter": { "$ref": "#/$defs/actions" },
+        "exit": { "$ref": "#/$defs/actions" },
+        "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } },
+        "invoke": { "$ref": "#/$defs/invokeList" },
+        "states": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/state" }
+        },
+        "history": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/history" }
+        },
+        "donedata": { "$ref": "#/$defs/donedata" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

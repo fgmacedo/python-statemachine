@@ -1,0 +1,26 @@
+<!-- Ported from W3C SCXML mandatory test147: only the first if-clause whose condition is
+     true executes (here the elseif), raising `bar` exactly once and incrementing x to 1. -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" name="w3c_test147_if" initial="s0"
+       datamodel="ecmascript">
+  <datamodel>
+    <data id="x" expr="0"/>
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <if cond="false">
+        <raise event="foo"/>
+        <assign location="x" expr="x + 1"/>
+        <elseif cond="true"/>
+        <raise event="bar"/>
+        <assign location="x" expr="x + 1"/>
+        <else/>
+        <raise event="baz"/>
+        <assign location="x" expr="x + 1"/>
+      </if>
+    </onentry>
+    <transition event="bar" cond="x == 1" target="pass"/>
+    <transition event="bar" target="fail"/>
+  </state>
+  <final id="pass"/>
+  <final id="fail"/>
+</scxml>

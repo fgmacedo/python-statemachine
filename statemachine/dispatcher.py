@@ -159,7 +159,11 @@ class Listeners:
         if not spec.is_bounded:
             for listener in self.items:
                 func = getattr(listener.obj, spec.attr_name, None)
-                if func is not None and func.__func__ is spec.func:
+                # ``getattr`` may return a non-method that happens to share the name
+                # (e.g. a model attribute named like a compiled guard); it is not the
+                # unbounded method we are rebinding, so skip it instead of accessing
+                # ``__func__`` (which would raise on a plain value).
+                if getattr(func, "__func__", None) is spec.func:
                     yield listener.build_key(spec.attr_name), partial(callable_method, func)
                     return
 
