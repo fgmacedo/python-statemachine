@@ -1,14 +1,11 @@
+from collections.abc import Callable
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import partial
 from functools import reduce
 from operator import attrgetter
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Iterable
-from typing import List
-from typing import Set
-from typing import Tuple
 
 from .callbacks import SPECS_ALL
 from .callbacks import SpecReference
@@ -37,7 +34,7 @@ class Listener:
     """
 
     obj: object
-    all_attrs: Set[str]
+    all_attrs: set[str]
     resolver_id: str
 
     @classmethod
@@ -58,8 +55,8 @@ class Listener:
 class Listeners:
     """Listeners that provides attributes to be used as callbacks."""
 
-    items: Tuple[Listener, ...]
-    all_attrs: Set[str]
+    items: tuple[Listener, ...]
+    all_attrs: set[str]
 
     @classmethod
     def from_listeners(cls, listeners: Iterable["Listener"]) -> "Listeners":
@@ -86,7 +83,7 @@ class Listeners:
                 executor.add(key, spec, builder)
 
     def _take_callback(self, name: str, names_not_found_handler: Callable) -> Callable:
-        callbacks: List[Callable] = []
+        callbacks: list[Callable] = []
         for key, builder in self.search_name(name):
             callback = builder()
             callback.unique_key = key  # type: ignore[attr-defined]
@@ -114,7 +111,7 @@ class Listeners:
 
         # Resolves boolean expressions
 
-        names_not_found: Set[str] = set()
+        names_not_found: set[str] = set()
         take_callback_partial = partial(
             self._take_callback, names_not_found_handler=names_not_found.add
         )
@@ -162,7 +159,11 @@ class Listeners:
         if not spec.is_bounded:
             for listener in self.items:
                 func = getattr(listener.obj, spec.attr_name, None)
-                if func is not None and func.__func__ is spec.func:
+                # ``getattr`` may return a non-method that happens to share the name
+                # (e.g. a model attribute named like a compiled guard); it is not the
+                # unbounded method we are rebinding, so skip it instead of accessing
+                # ``__func__`` (which would raise on a plain value).
+                if getattr(func, "__func__", None) is spec.func:
                     yield listener.build_key(spec.attr_name), partial(callable_method, func)
                     return
 
@@ -228,5 +229,5 @@ def event_method(func) -> Callable:
     return method
 
 
-def resolver_factory_from_objects(*objects: Tuple[Any, ...]):
+def resolver_factory_from_objects(*objects: tuple[Any, ...]):
     return Listeners.from_listeners(Listener.from_obj(o) for o in objects)

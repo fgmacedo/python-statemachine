@@ -1,9 +1,5 @@
 import re
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 from . import registry
 from .callbacks import CallbackGroup
@@ -39,8 +35,8 @@ class StateMachineMetaclass(type):
     def __init__(
         cls,
         name: str,
-        bases: Tuple[type],
-        attrs: Dict[str, Any],
+        bases: tuple[type],
+        attrs: dict[str, Any],
     ) -> None:
         super().__init__(name, bases, attrs)
         registry.register(cls)
@@ -49,13 +45,13 @@ class StateMachineMetaclass(type):
         # TODO: Experiment with the IDEA of a root state
         # cls.root = State(id=cls.id, name=cls.name)
         cls.states: States = States()
-        cls.states_map: Dict[Any, State] = {}
+        cls.states_map: dict[Any, State] = {}
         """Map of ``state.value`` to the corresponding :ref:`state`."""
 
         cls._abstract = True
-        cls._events: Dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
+        cls._events: dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
-        cls._events_to_update: Dict[Event, Optional[Event]] = {}
+        cls._events_to_update: dict[Event, Event | None] = {}
         cls._specs = CallbackSpecList()
         cls.prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
             "prepare_event", priority=CallbackPriority.GENERIC, is_convention=True
@@ -88,7 +84,7 @@ class StateMachineMetaclass(type):
         else:  # pragma: no cover
             cls.initial_state = None
 
-        cls.final_states: List[State] = [state for state in cls.states if state.final]
+        cls.final_states: list[State] = [state for state in cls.states if state.final]
 
         cls._check()
         cls._setup()
@@ -130,10 +126,10 @@ class StateMachineMetaclass(type):
         return formatter.render(cls, fmt)  # type: ignore[arg-type]
 
     def _initials_by_document_order(  # noqa: C901
-        cls, states: List[State], parent: "State | None" = None, order: int = 1
+        cls, states: list[State], parent: "State | None" = None, order: int = 1
     ):
         """Set initial state by document order if no explicit initial state is set"""
-        initials: List[State] = []
+        initials: list[State] = []
         for s in states:
             s.document_order = order
             order += 1
@@ -272,13 +268,13 @@ class StateMachineMetaclass(type):
             "send",
         } | {s.id for s in cls.states}
 
-    def _collect_class_listeners(cls, attrs: Dict[str, Any], bases: Tuple[type]):
+    def _collect_class_listeners(cls, attrs: dict[str, Any], bases: tuple[type]):
         """Collect class-level listener declarations from attrs and MRO.
 
         Listeners declared on parent classes are prepended (MRO order),
         unless the child sets ``listeners_inherit = False``.
         """
-        class_listeners: List[Any] = []
+        class_listeners: list[Any] = []
         if attrs.get("listeners_inherit", True):
             for base in reversed(bases):
                 class_listeners.extend(getattr(base, "_class_listeners", []))
@@ -291,7 +287,7 @@ class StateMachineMetaclass(type):
                     ).format(entry)
                 )
             class_listeners.append(entry)
-        cls._class_listeners: List[Any] = class_listeners
+        cls._class_listeners: list[Any] = class_listeners
 
     def add_inherited(cls, bases):
         for base in bases:

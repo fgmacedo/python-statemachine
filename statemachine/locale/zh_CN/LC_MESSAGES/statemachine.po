@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version:  3.1.1\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2026-05-18 16:16-0300\n"
+"POT-Creation-Date: 2026-06-16 23:00-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
 "Language: zh_CN\n"
@@ -16,35 +16,35 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: statemachine/callbacks.py:404 statemachine/callbacks.py:409
+#: statemachine/callbacks.py:398 statemachine/callbacks.py:403
 #, python-brace-format
 msgid "Did not found name '{}' from model or statemachine"
 msgstr "在模型或状态机中未找到名称 '{}'"
 
-#: statemachine/configuration.py:129
+#: statemachine/configuration.py:128
 msgid ""
 "There's no current state set. In async code, did you activate the initial"
 " state? (e.g., `await sm.activate_initial_state()`)"
 msgstr "没有设置当前状态。在异步代码中，您是否激活了初始状态？（例如，`await sm.activate_initial_state()`）"
 
-#: statemachine/dispatcher.py:126
+#: statemachine/dispatcher.py:123
 #, python-brace-format
 msgid "Failed to parse boolean expression '{}'"
 msgstr "无法解析布尔表达式 '{}'"
 
-#: statemachine/event.py:95
+#: statemachine/event.py:94
 #, python-brace-format
 msgid ""
 "Event() received a non-string 'id' ({cls_name}). To combine multiple "
 "transitions under one event, use the | operator: t1 | t2."
 msgstr "Event() 接收到的 'id' 不是字符串 ({cls_name})。要将多个转换组合在同一个事件下，请使用 | 运算符：t1 | t2。"
 
-#: statemachine/event.py:131
+#: statemachine/event.py:130
 #, python-brace-format
 msgid "Cannot add callback '{}' to an event with no transitions."
 msgstr "无法将回调 '{}' 添加到没有转换的事件。"
 
-#: statemachine/event.py:164
+#: statemachine/event.py:163
 #, python-brace-format
 msgid "Event {} cannot be called without a SM instance"
 msgstr "事件 {} 不能在没有 SM 实例的情况下调用"
@@ -59,54 +59,54 @@ msgstr "{!r} 不是有效的状态值。"
 msgid "Can't {} when in {}."
 msgstr "在 {} 时无法 {}。"
 
-#: statemachine/factory.py:81
+#: statemachine/factory.py:77
 #, python-brace-format
 msgid ""
 "There should be one and only one initial state. Your currently have "
 "these: {0}"
 msgstr "应有且仅有一个初始状态。当前您有这些：{0}"
 
-#: statemachine/factory.py:198
+#: statemachine/factory.py:194
 #, python-brace-format
 msgid ""
 "There should be one and only one initial state. You currently have these:"
 " {!r}"
 msgstr "应有且仅有一个初始状态。当前您有这些：{!r}"
 
-#: statemachine/factory.py:213
+#: statemachine/factory.py:209
 #, python-brace-format
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
 msgstr "无法从终止状态声明转换。无效状态：{}"
 
-#: statemachine/factory.py:225
+#: statemachine/factory.py:221
 #, python-brace-format
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
 "states have no outgoing transition: {!r}"
 msgstr "所有非终止状态都应至少有一个外部转换。这些状态没有外部转换：{!r}"
 
-#: statemachine/factory.py:239
+#: statemachine/factory.py:235
 #, python-brace-format
 msgid ""
 "All non-final states should have at least one path to a final state. "
 "These states have no path to a final state: {!r}"
 msgstr "所有非终止状态应至少有一个到终止状态的路径。这些状态没有到终止状态的路径：{!r}"
 
-#: statemachine/factory.py:252
+#: statemachine/factory.py:248
 #, python-brace-format
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
 " component. Disconnected states: {}"
 msgstr "存在不可到达的状态。状态机图应具有单个组件。断开的状态：{}"
 
-#: statemachine/factory.py:289
+#: statemachine/factory.py:285
 #, python-brace-format
 msgid ""
 "Invalid entry in 'listeners': {!r}. Expected a class, callable, or "
 "listener instance."
 msgstr "'listeners' 中的条目无效：{!r}。期望为类、可调用对象或监听器实例。"
 
-#: statemachine/factory.py:388
+#: statemachine/factory.py:384
 #, python-brace-format
 msgid "An event in the '{}' has no id."
 msgstr "'{}' 中的事件没有 ID。"
@@ -116,20 +116,20 @@ msgstr "'{}' 中的事件没有 ID。"
 msgid "{!r} is not a valid state machine name."
 msgstr "{!r} 不是有效的状态机名称。"
 
-#: statemachine/state.py:250
+#: statemachine/state.py:249
 msgid "'donedata' can only be specified on final states."
 msgstr "'donedata' 只能在终止状态上指定。"
 
-#: statemachine/statemachine.py:169
+#: statemachine/statemachine.py:167
 msgid "There are no states or transitions."
 msgstr "没有状态或转换。"
 
-#: statemachine/statemachine.py:239
+#: statemachine/statemachine.py:237
 #, python-brace-format
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
 msgstr "不允许覆盖状态。尝试将 '{}' 添加到 {}"
 
-#: statemachine/transition.py:75
+#: statemachine/transition.py:74
 #, python-brace-format
 msgid ""
 "Not a valid internal transition from source {source!r}, target {target!r}"

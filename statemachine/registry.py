@@ -1,6 +1,3 @@
-from typing import List
-from typing import Optional
-
 from .utils import qualname
 
 try:
@@ -32,6 +29,6 @@ def init_registry():
         _initialized = True
 
 
-def load_modules(modules: Optional[List[str]] = None) -> None:
+def load_modules(modules: list[str] | None = None) -> None:
     for module in modules or []:
         autodiscover_modules(module)

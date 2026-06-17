@@ -21,13 +21,20 @@ Alternatively, if you prefer using [pip](https://pip.pypa.io):
 python3 -m pip install python-statemachine
 ```
 
-For those looking to generate diagrams from your state machines, [pydot](https://github.com/pydot/pydot) and [Graphviz](https://graphviz.org/) are required.
-Conveniently, you can install python-statemachine along with the `pydot` dependency using the extras option.
-For more information, please refer to our documentation.
+## Optional extras
+
+Some features require extra dependencies, available as pip extras:
 
 ```shell
-python3 -m pip install "python-statemachine[diagrams]"
+python3 -m pip install "python-statemachine[diagrams]"    # pydot, to generate diagrams from your machines
+python3 -m pip install "python-statemachine[yaml]"        # PyYAML, to load YAML statechart documents
+python3 -m pip install "python-statemachine[validation]"  # jsonschema, to validate documents (validate=True)
+python3 -m pip install "python-statemachine[io]"          # PyYAML + jsonschema, the full JSON/YAML IO stack
 ```
+
+Diagram generation also requires the [Graphviz](https://graphviz.org/) system package (see
+[](diagram.md)). The `[yaml]`, `[validation]` and `[io]` extras back the declarative loaders
+documented in [](io/index.md); loading JSON needs no extra, as it uses only the standard library.
 
 
 

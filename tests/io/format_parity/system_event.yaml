@@ -1,0 +1,14 @@
+# Didactic: a guard reads the `_event` system variable (available in every format).
+name: system_event
+states:
+  start:
+    initial: true
+    enter:
+      - raise: go
+    transitions:
+      - {event: go, target: pass, cond: "_event.name == 'go'"}
+      - {event: go, target: fail}
+  pass:
+    final: true
+  fail:
+    final: true

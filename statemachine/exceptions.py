@@ -1,5 +1,5 @@
+from collections.abc import MutableSet
 from typing import TYPE_CHECKING
-from typing import MutableSet
 
 from .i18n import _
 

@@ -1,0 +1,37 @@
+{
+  "name": "invoke_child",
+  "states": {
+    "waiting": {
+      "initial": true,
+      "invoke": [
+        {
+          "content": {
+            "name": "child",
+            "states": {
+              "running": {
+                "initial": true,
+                "enter": [
+                  {
+                    "send": {
+                      "event": "done",
+                      "target": "#_parent"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "event": "done",
+          "target": "pass"
+        }
+      ]
+    },
+    "pass": {
+      "final": true
+    }
+  }
+}

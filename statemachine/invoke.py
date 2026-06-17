@@ -9,6 +9,7 @@ decorators (``@state.invoke``), and inline callables all work out of the box.
 import asyncio
 import threading
 import uuid
+from collections.abc import Callable
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -16,10 +17,6 @@ from dataclasses import field
 from inspect import iscoroutinefunction
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Tuple
 from typing import runtime_checkable
 
 try:
@@ -216,13 +213,13 @@ class InvokeGroup:
     the exception propagates (which causes an ``error.execution`` event).
     """
 
-    def __init__(self, callables: "List[Callable[..., Any]]"):
+    def __init__(self, callables: "list[Callable[..., Any]]"):
         self._callables = list(callables)
-        self._futures: "List[Future[Any]]" = []
+        self._futures: "list[Future[Any]]" = []
         self._executor: "ThreadPoolExecutor | None" = None
 
-    def run(self, ctx: "InvokeContext") -> "List[Any]":
-        results: "List[Any]" = [None] * len(self._callables)
+    def run(self, ctx: "InvokeContext") -> "list[Any]":
+        results: "list[Any]" = [None] * len(self._callables)
         self._executor = ThreadPoolExecutor(max_workers=len(self._callables))
         try:
             self._futures = [self._executor.submit(fn) for fn in self._callables]
@@ -282,8 +279,8 @@ class InvokeManager:
 
     def __init__(self, engine: "BaseEngine"):
         self._engine = engine
-        self._active: Dict[str, Invocation] = {}
-        self._pending: "List[Tuple[State, dict]]" = []
+        self._active: dict[str, Invocation] = {}
+        self._pending: "list[tuple[State, dict]]" = []
 
     @property
     def _debug(self):
@@ -529,7 +526,11 @@ class InvokeManager:
                 self._debug("%s Error in on_cancel for %s", self._log_id, invokeid, exc_info=True)
 
         # 3) Cancel the async task (raises CancelledError at next await).
-        if invocation.task is not None and not invocation.task.done():
+        if (
+            invocation.task is not None
+            and invocation.task is not asyncio.current_task()
+            and not invocation.task.done()
+        ):
             invocation.task.cancel()
 
         # 4) Wait for the sync thread to actually finish (skip if we ARE

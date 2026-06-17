@@ -1,0 +1,92 @@
+{
+  "name": "order_pipeline",
+  "datamodel": [
+    {
+      "id": "prices",
+      "expr": "[]"
+    },
+    {
+      "id": "subtotal",
+      "expr": "0"
+    },
+    {
+      "id": "discount",
+      "expr": "0"
+    },
+    {
+      "id": "total",
+      "expr": "0"
+    },
+    {
+      "id": "trail",
+      "expr": "[]"
+    }
+  ],
+  "states": {
+    "cart": {
+      "initial": true,
+      "enter": [
+        {
+          "script": "prices = [12, 7, 31]\ntrail = trail + ['cart']\n"
+        },
+        {
+          "raise": "checkout"
+        }
+      ],
+      "transitions": [
+        {
+          "event": "checkout",
+          "target": "pricing",
+          "before": [
+            {
+              "script": "trail = trail + ['before']"
+            }
+          ],
+          "on": [
+            {
+              "foreach": {
+                "array": "prices",
+                "item": "p",
+                "do": [
+                  {
+                    "assign": {
+                      "location": "subtotal",
+                      "expr": "subtotal + p"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "after": [
+            {
+              "script": "trail = trail + ['after']"
+            }
+          ]
+        }
+      ]
+    },
+    "pricing": {
+      "enter": [
+        {
+          "script": "discount = (subtotal // 10) if subtotal >= 50 else 0\ntotal = subtotal - discount\n"
+        }
+      ],
+      "transitions": [
+        {
+          "target": "pass",
+          "cond": "total == 45 and trail == ['cart', 'before', 'after']"
+        },
+        {
+          "target": "fail"
+        }
+      ]
+    },
+    "pass": {
+      "final": true
+    },
+    "fail": {
+      "final": true
+    }
+  }
+}

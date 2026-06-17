@@ -1,6 +1,5 @@
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
-from typing import Iterable
-from typing import List
 
 from .callbacks import CallbackGroup
 from .transition import Transition
@@ -22,7 +21,7 @@ class TransitionList(AddCallbacksMixin):
                 Defaults to `None`.
 
         """
-        self.transitions: List[Transition] = list(transitions) if transitions else []
+        self.transitions: list[Transition] = list(transitions) if transitions else []
 
     def __repr__(self):
         """Return a string representation of the :ref:`TransitionList`."""
@@ -42,7 +41,7 @@ class TransitionList(AddCallbacksMixin):
         """
         return TransitionList(self.transitions).add_transitions(other)
 
-    def _on_event_defined(self, event: str, states: List["State"]):
+    def _on_event_defined(self, event: str, states: list["State"]):
         self.add_event(event)
 
         for transition in self.transitions:
@@ -111,7 +110,7 @@ class TransitionList(AddCallbacksMixin):
             transition.add_event(event)
 
     @property
-    def unique_events(self) -> List["Event"]:
+    def unique_events(self) -> list["Event"]:
         """
         Returns a list of unique event names across all transitions in the :ref:`TransitionList`
         instance.

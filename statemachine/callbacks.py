@@ -2,22 +2,16 @@ import asyncio
 from bisect import insort
 from collections import defaultdict
 from collections import deque
+from collections.abc import Callable
 from enum import IntEnum
 from enum import IntFlag
 from enum import auto
 from functools import partial
 from inspect import isawaitable
-from typing import TYPE_CHECKING
-from typing import Callable
-from typing import Dict
-from typing import List
 
 from .exceptions import AttrNotFound
 from .i18n import _
 from .utils import ensure_iterable
-
-if TYPE_CHECKING:
-    from typing import Set
 
 
 def allways_true(*args, **kwargs):
@@ -66,7 +60,7 @@ class CallbackSpec:
     before any real call is performed.
     """
 
-    names_not_found: "Set[str] | None" = None
+    names_not_found: "set[str] | None" = None
     """List of names that were not found on the model or statemachine"""
 
     def __init__(
@@ -155,9 +149,9 @@ class CallbackSpecList:
     """List of {ref}`CallbackSpec` instances"""
 
     def __init__(self, factory=CallbackSpec):
-        self.items: List[CallbackSpec] = []
+        self.items: list[CallbackSpec] = []
         self.conventional_specs = set()
-        self._groupers: Dict[CallbackGroup, SpecListGrouper] = {}
+        self._groupers: dict[CallbackGroup, SpecListGrouper] = {}
         self.factory = factory
 
     def __repr__(self):
@@ -380,7 +374,7 @@ class CallbacksExecutor:
 
 class CallbacksRegistry:
     def __init__(self) -> None:
-        self._registry: Dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
+        self._registry: dict[str, CallbacksExecutor] = defaultdict(CallbacksExecutor)
         self.has_async_callbacks: bool = False
 
     def __getitem__(self, key: str) -> CallbacksExecutor:

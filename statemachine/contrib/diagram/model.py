@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
 from enum import Enum
-from typing import List
-from typing import Set
 
 
 class StateType(Enum):
@@ -36,8 +34,8 @@ class DiagramState:
     id: str
     name: str
     type: StateType
-    actions: List[DiagramAction] = field(default_factory=list)
-    children: List["DiagramState"] = field(default_factory=list)
+    actions: list[DiagramAction] = field(default_factory=list)
+    children: list["DiagramState"] = field(default_factory=list)
     is_active: bool = False
     is_parallel_area: bool = False
     is_initial: bool = False
@@ -46,10 +44,10 @@ class DiagramState:
 @dataclass
 class DiagramTransition:
     source: str
-    targets: List[str] = field(default_factory=list)
+    targets: list[str] = field(default_factory=list)
     event: str = ""
-    guards: List[str] = field(default_factory=list)
-    actions: List[str] = field(default_factory=list)
+    guards: list[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
     is_internal: bool = False
     is_initial: bool = False
 
@@ -57,7 +55,7 @@ class DiagramTransition:
 @dataclass
 class DiagramGraph:
     name: str
-    states: List[DiagramState] = field(default_factory=list)
-    transitions: List[DiagramTransition] = field(default_factory=list)
-    compound_state_ids: Set[str] = field(default_factory=set)
-    bidirectional_compound_ids: Set[str] = field(default_factory=set)
+    states: list[DiagramState] = field(default_factory=list)
+    transitions: list[DiagramTransition] = field(default_factory=list)
+    compound_state_ids: set[str] = field(default_factory=set)
+    bidirectional_compound_ids: set[str] = field(default_factory=set)

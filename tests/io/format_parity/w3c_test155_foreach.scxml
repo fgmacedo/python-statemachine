@@ -1,0 +1,20 @@
+<!-- Ported from W3C SCXML mandatory test155: foreach runs its body once per item,
+     summing [1, 2, 3] into 6. -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" name="w3c_test155_foreach" initial="s0"
+       datamodel="ecmascript">
+  <datamodel>
+    <data id="total" expr="0"/>
+    <data id="nums" expr="[1, 2, 3]"/>
+  </datamodel>
+  <state id="s0">
+    <onentry>
+      <foreach item="n" array="nums">
+        <assign location="total" expr="total + n"/>
+      </foreach>
+    </onentry>
+    <transition cond="total == 6" target="pass"/>
+    <transition target="fail"/>
+  </state>
+  <final id="pass"/>
+  <final id="fail"/>
+</scxml>

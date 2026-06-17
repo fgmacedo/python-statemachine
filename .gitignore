@@ -85,3 +85,8 @@ tmp/
 
 # Local specs
 specs/
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example

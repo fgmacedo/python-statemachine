@@ -1,5 +1,3 @@
-from typing import List
-
 from ..model import DiagramGraph
 from ..model import DiagramState
 from ..model import DiagramTransition
@@ -26,11 +24,11 @@ class TransitionTableRenderer:
 
     def _collect_rows(
         self,
-        states: List[DiagramState],
-        transitions: List[DiagramTransition],
-    ) -> "List[tuple[str, str, str, str]]":
+        states: list[DiagramState],
+        transitions: list[DiagramTransition],
+    ) -> "list[tuple[str, str, str, str]]":
         """Collect (State, Event, Guard, Target) tuples from the IR."""
-        rows: List[tuple[str, str, str, str]] = []
+        rows: list[tuple[str, str, str, str]] = []
         state_names = self._build_state_name_map(states)
 
         for t in transitions:
@@ -50,7 +48,7 @@ class TransitionTableRenderer:
 
         return rows
 
-    def _build_state_name_map(self, states: List[DiagramState]) -> dict:
+    def _build_state_name_map(self, states: list[DiagramState]) -> dict:
         """Build a mapping from state ID to display name, recursively."""
         result: dict = {}
         for state in states:
@@ -59,7 +57,7 @@ class TransitionTableRenderer:
                 result.update(self._build_state_name_map(state.children))
         return result
 
-    def _render_md(self, rows: "List[tuple[str, str, str, str]]") -> str:
+    def _render_md(self, rows: "list[tuple[str, str, str, str]]") -> str:
         """Render as a markdown table."""
         headers = ("State", "Event", "Guard", "Target")
         col_widths = [len(h) for h in headers]
@@ -79,7 +77,7 @@ class TransitionTableRenderer:
 
         return "\n".join(lines) + "\n"
 
-    def _render_rst(self, rows: "List[tuple[str, str, str, str]]") -> str:
+    def _render_rst(self, rows: "list[tuple[str, str, str, str]]") -> str:
         """Render as an RST grid table."""
         headers = ("State", "Event", "Guard", "Target")
         col_widths = [len(h) for h in headers]

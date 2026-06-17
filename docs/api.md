@@ -147,6 +147,19 @@ class MyMachine(StateChart):
 .. autofunction:: statemachine.io.create_machine_class_from_definition
 ```
 
+## io.load
+
+```{versionadded} 3.2.0
+```
+
+See [](io/index.md) for the guide.
+
+```{eval-rst}
+.. autofunction:: statemachine.io.load
+
+.. autofunction:: statemachine.io.build_processor
+```
+
 ## timeout
 
 ```{versionadded} 3.0.0

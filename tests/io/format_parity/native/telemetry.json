@@ -1,0 +1,122 @@
+{
+  "name": "telemetry",
+  "datamodel": [
+    {
+      "id": "level",
+      "expr": "0"
+    },
+    {
+      "id": "tier",
+      "expr": "''"
+    },
+    {
+      "id": "code",
+      "expr": "0"
+    },
+    {
+      "id": "trail",
+      "expr": "[]"
+    }
+  ],
+  "states": {
+    "online": {
+      "initial": true,
+      "states": {
+        "sampling": {
+          "initial": true,
+          "enter": [
+            {
+              "script": "level = 4"
+            },
+            {
+              "if": {
+                "cond": "level >= 7",
+                "then": [
+                  {
+                    "assign": {
+                      "location": "tier",
+                      "expr": "'high'"
+                    }
+                  }
+                ],
+                "elif": [
+                  {
+                    "cond": "level >= 3",
+                    "then": [
+                      {
+                        "assign": {
+                          "location": "tier",
+                          "expr": "'mid'"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "else": [
+                  {
+                    "assign": {
+                      "location": "tier",
+                      "expr": "'low'"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "send": {
+                "event": "report",
+                "params": [
+                  {
+                    "name": "code",
+                    "expr": "level * 10"
+                  }
+                ]
+              }
+            }
+          ],
+          "transitions": [
+            {
+              "event": "report",
+              "target": "verdict",
+              "before": [
+                {
+                  "script": "trail = trail + ['before:' + tier]"
+                }
+              ],
+              "on": [
+                {
+                  "assign": {
+                    "location": "code",
+                    "expr": "_event.data.code"
+                  }
+                }
+              ],
+              "after": [
+                {
+                  "script": "trail = trail + ['after:' + tier]"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "verdict": {
+      "transitions": [
+        {
+          "target": "pass",
+          "cond": "code == 40 and tier == 'mid' and trail == ['before:mid', 'after:mid']"
+        },
+        {
+          "target": "fail"
+        }
+      ]
+    },
+    "pass": {
+      "final": true
+    },
+    "fail": {
+      "final": true
+    }
+  }
+}

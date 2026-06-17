@@ -1,10 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Set
 
 import pydot
 
@@ -31,9 +27,9 @@ class DotRendererConfig:
     state_active_penwidth: int = 2
     state_active_fillcolor: str = "turquoise"
     transition_font_size: str = "10"
-    graph_attrs: Dict[str, str] = field(default_factory=dict)
-    node_attrs: Dict[str, str] = field(default_factory=dict)
-    edge_attrs: Dict[str, str] = field(default_factory=dict)
+    graph_attrs: dict[str, str] = field(default_factory=dict)
+    node_attrs: dict[str, str] = field(default_factory=dict)
+    edge_attrs: dict[str, str] = field(default_factory=dict)
 
 
 class DotRenderer:
@@ -45,10 +41,10 @@ class DotRenderer:
     - Refined graph/node/edge defaults
     """
 
-    def __init__(self, config: Optional[DotRendererConfig] = None):
+    def __init__(self, config: DotRendererConfig | None = None):
         self.config = config or DotRendererConfig()
-        self._compound_ids: Set[str] = set()
-        self._compound_bidir_ids: Set[str] = set()
+        self._compound_ids: set[str] = set()
+        self._compound_bidir_ids: set[str] = set()
 
     def render(self, graph: DiagramGraph) -> pydot.Dot:
         """Render a DiagramGraph to a pydot.Dot object."""
@@ -120,10 +116,10 @@ class DotRenderer:
 
     def _render_states(
         self,
-        states: List[DiagramState],
-        transitions: List[DiagramTransition],
+        states: list[DiagramState],
+        transitions: list[DiagramTransition],
         parent_graph: "pydot.Dot | pydot.Subgraph",
-        extra_nodes: Optional[List[pydot.Node]] = None,
+        extra_nodes: list[pydot.Node] | None = None,
     ) -> None:
         """Render states and transitions into the parent graph."""
         initial_state = next((s for s in states if s.is_initial), None)
@@ -177,7 +173,7 @@ class DotRenderer:
 
     @staticmethod
     def _place_extra_nodes(
-        extra_nodes: Optional[List[pydot.Node]],
+        extra_nodes: list[pydot.Node] | None,
         atomic_subgraph: pydot.Subgraph,
         parent_graph: "pydot.Dot | pydot.Subgraph",
         has_atomic: bool,
@@ -211,7 +207,7 @@ class DotRenderer:
         initial_node = self._create_initial_node(initial_node_id)
         added_to_atomic = False
 
-        extra: Dict[str, Any] = {}
+        extra: dict[str, Any] = {}
         if initial_state.children:
             extra["lhead"] = f"cluster_{initial_state.id}"
 
@@ -308,7 +304,7 @@ class DotRenderer:
     def _build_html_table_label(
         self,
         state: DiagramState,
-        actions: List[DiagramAction],
+        actions: list[DiagramAction],
     ) -> str:
         """Build an HTML TABLE label with UML compartments (name | actions).
 
@@ -357,7 +353,7 @@ class DotRenderer:
             height=0.3,
         )
 
-    def _create_compound_anchor_nodes(self, state: DiagramState) -> List[pydot.Node]:
+    def _create_compound_anchor_nodes(self, state: DiagramState) -> list[pydot.Node]:
         """Create invisible anchor nodes for edge routing inside a compound cluster.
 
         These nodes are injected into the children's atomic_subgraph so they
@@ -433,7 +429,7 @@ class DotRenderer:
     def _add_transitions_for_state(
         self,
         state: DiagramState,
-        all_transitions: List[DiagramTransition],
+        all_transitions: list[DiagramTransition],
         graph: "pydot.Dot | pydot.Subgraph",
     ) -> None:
         """Add edges for all non-internal transitions originating from this state."""
@@ -446,11 +442,9 @@ class DotRenderer:
             for edge in self._create_edges(transition):
                 graph.add_edge(edge)
 
-    def _create_edges(self, transition: DiagramTransition) -> List[pydot.Edge]:
+    def _create_edges(self, transition: DiagramTransition) -> list[pydot.Edge]:
         """Create pydot.Edge objects for a transition."""
-        target_ids: List[Optional[str]] = (
-            list(transition.targets) if transition.targets else [None]
-        )
+        target_ids: list[str | None] = list(transition.targets) if transition.targets else [None]
 
         cond = ", ".join(transition.guards)
         cond_html = f"<br/>[{_escape_html(cond)}]" if cond else ""
@@ -463,7 +457,7 @@ class DotRenderer:
     def _create_single_edge(
         self,
         transition: DiagramTransition,
-        target_id: Optional[str],
+        target_id: str | None,
         index: int,
         cond_html: str,
     ) -> pydot.Edge:
@@ -483,10 +477,10 @@ class DotRenderer:
     def _resolve_edge_endpoints(
         self,
         transition: DiagramTransition,
-        target_id: Optional[str],
-    ) -> "tuple[str, str, Dict[str, Any]]":
+        target_id: str | None,
+    ) -> "tuple[str, str, dict[str, Any]]":
         """Resolve source/destination node IDs and cluster attributes for an edge."""
-        extra: Dict[str, Any] = {}
+        extra: dict[str, Any] = {}
         source_is_compound = transition.source in self._compound_ids
         target_is_compound = target_id is not None and target_id in self._compound_ids
 

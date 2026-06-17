@@ -1,7 +1,8 @@
 """Tests for statemachine.io module (dictionary-based state machine definitions)."""
 
-from statemachine.io import _parse_history
+import pytest
 from statemachine.io import create_machine_class_from_definition
+from statemachine.io.class_factory import _parse_history
 
 
 class TestParseHistory:
@@ -44,3 +45,34 @@ class TestCreateMachineWithEventNameConcat:
         event_ids = sorted(e.id for e in sm.events)
         assert "parent_evt" in event_ids
         assert "sub_evt" in event_ids
+
+
+class TestTransitionValidators:
+    """A ``validators`` entry in a transition definition must be materialized
+    onto the Transition (the explicit-rejection channel), not silently dropped.
+    """
+
+    def test_validators_from_definition_run_on_send(self):
+        class Rejected(Exception):
+            pass
+
+        def reject(*args, **kwargs):
+            raise Rejected("not allowed")
+
+        sm_cls = create_machine_class_from_definition(
+            "ValidatedMachine",
+            states={
+                "s1": {
+                    "initial": True,
+                    "on": {"go": [{"target": "s2", "validators": reject}]},
+                },
+                "s2": {"final": True},
+            },
+        )
+        sm = sm_cls()
+
+        # Without the validator being materialized, send() would succeed and
+        # the machine would land in s2. With it, the validator aborts.
+        with pytest.raises(Rejected):
+            sm.send("go")
+        assert "s1" in sm.configuration_values

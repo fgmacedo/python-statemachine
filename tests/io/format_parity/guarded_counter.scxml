@@ -1,0 +1,16 @@
+<!-- Didactic: a datamodel value, a guard and an eventless transition reach `pass`. -->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" name="guarded_counter" initial="a"
+       datamodel="ecmascript">
+  <datamodel>
+    <data id="count" expr="0"/>
+  </datamodel>
+  <state id="a">
+    <onentry>
+      <assign location="count" expr="count + 2"/>
+    </onentry>
+    <transition cond="count &gt;= 2" target="pass"/>
+    <transition target="fail"/>
+  </state>
+  <final id="pass"/>
+  <final id="fail"/>
+</scxml>

@@ -1,31 +1,32 @@
 import re
 import xml.etree.ElementTree as ET
-from typing import List
+from collections.abc import Callable
 from typing import Literal
-from typing import Set
 from typing import cast
 from urllib.parse import urlparse
 
-from .schema import Action
-from .schema import AssignAction
-from .schema import CancelAction
-from .schema import DataItem
-from .schema import DataModel
-from .schema import DoneData
-from .schema import ExecutableContent
-from .schema import ForeachAction
-from .schema import HistoryState
-from .schema import IfAction
-from .schema import IfBranch
-from .schema import InvokeDefinition
-from .schema import LogAction
-from .schema import Param
-from .schema import RaiseAction
-from .schema import ScriptAction
-from .schema import SendAction
-from .schema import State
-from .schema import StateMachineDefinition
-from .schema import Transition
+from ..model import Action
+from ..model import AssignAction
+from ..model import CancelAction
+from ..model import DataItem
+from ..model import DataModel
+from ..model import DoneData
+from ..model import ExecutableContent
+from ..model import ForeachAction
+from ..model import HistoryState
+from ..model import IfAction
+from ..model import IfBranch
+from ..model import InvokeDefinition
+from ..model import LogAction
+from ..model import Param
+from ..model import RaiseAction
+from ..model import ScriptAction
+from ..model import SendAction
+from ..model import State
+from ..model import StateMachineDefinition
+from ..model import Transition
+from ..ports import FormatSpec
+from ..ports import register_format
 
 
 def strip_namespaces(tree: ET.Element):
@@ -40,7 +41,7 @@ def strip_namespaces(tree: ET.Element):
                 attrib[new_name] = attrib.pop(name)
 
 
-def _parse_initial(initial_content: "str | None") -> List[str]:
+def _parse_initial(initial_content: "str | None") -> list[str]:
     if initial_content is None:
         return []
     return initial_content.split()
@@ -87,13 +88,13 @@ def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
     return definition
 
 
-def _find_own_datamodel_elements(root: ET.Element) -> List[ET.Element]:
+def _find_own_datamodel_elements(root: ET.Element) -> list[ET.Element]:
     """Find <datamodel> elements that belong to this SCXML document, not to inline children.
 
     Skips any <datamodel> nested inside <content> elements (which contain inline
     child SCXML documents for <invoke>).
     """
-    result: List[ET.Element] = []
+    result: list[ET.Element] = []
 
     def _walk(elem: ET.Element):
         for child in elem:
@@ -122,7 +123,7 @@ def parse_datamodel(root: ET.Element) -> "DataModel | None":
             data_model.data.append(
                 DataItem(
                     id=data_elem.attrib["id"],
-                    src=src_parsed,
+                    src=src,
                     expr=data_elem.attrib.get("expr"),
                     content=content,
                 )
@@ -157,7 +158,7 @@ def parse_history(state_elem: ET.Element) -> HistoryState:
 
 def parse_state(  # noqa: C901
     state_elem: ET.Element,
-    initial_states: Set[str],
+    initial_states: set[str],
     is_final: bool = False,
     is_parallel: bool = False,
 ) -> State:
@@ -279,25 +280,11 @@ def parse_executable_content(element: ET.Element) -> ExecutableContent:
 
 
 def parse_element(element: ET.Element) -> Action:
-    tag = element.tag
-    if tag == "raise":
-        return parse_raise(element)
-    elif tag == "assign":
-        return parse_assign(element)
-    elif tag == "log":
-        return parse_log(element)
-    elif tag == "if":
-        return parse_if(element)
-    elif tag == "send":
-        return parse_send(element)
-    elif tag == "script":
-        return parse_script(element)
-    elif tag == "foreach":
-        return parse_foreach(element)
-    elif tag == "cancel":
-        return parse_cancel(element)
-
-    raise ValueError(f"Unknown tag: {tag}")
+    try:
+        parser = _ELEMENT_PARSERS[element.tag]
+    except KeyError:
+        raise ValueError(f"Unknown tag: {element.tag}") from None
+    return parser(element)
 
 
 def parse_raise(element: ET.Element) -> RaiseAction:
@@ -434,7 +421,7 @@ def parse_invoke(element: ET.Element) -> InvokeDefinition:
     autoforward = element.attrib.get("autoforward", "false").lower() == "true"
     namelist = element.attrib.get("namelist")
 
-    params: List[Param] = []
+    params: list[Param] = []
     content: "str | None" = None
     finalize: "ExecutableContent | None" = None
 
@@ -471,3 +458,33 @@ def parse_invoke(element: ET.Element) -> InvokeDefinition:
         content=content,
         finalize=finalize,
     )
+
+
+#: Dispatch table for executable-content elements (all parsers share the same
+#: ``(element) -> Action`` signature, so a lookup is cleaner than a branch chain).
+_ELEMENT_PARSERS: "dict[str, Callable[[ET.Element], Action]]" = {
+    "raise": parse_raise,
+    "assign": parse_assign,
+    "log": parse_log,
+    "if": parse_if,
+    "send": parse_send,
+    "script": parse_script,
+    "foreach": parse_foreach,
+    "cancel": parse_cancel,
+}
+
+
+class SCXMLReader:
+    """Format adapter that parses SCXML (XML) documents into the neutral IR."""
+
+    def read(self, text: str, *, source_name: "str | None" = None) -> StateMachineDefinition:
+        return parse_scxml(text)
+
+
+register_format(
+    FormatSpec(
+        name="scxml",
+        extensions=(".scxml", ".xml"),
+        reader_factory=SCXMLReader,
+    )
+)
