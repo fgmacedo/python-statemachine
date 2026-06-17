@@ -75,4 +75,4 @@ class TestTransitionValidators:
         # the machine would land in s2. With it, the validator aborts.
         with pytest.raises(Rejected):
             sm.send("go")
-        assert sm.current_state.id == "s1"
+        assert "s1" in sm.configuration_values
