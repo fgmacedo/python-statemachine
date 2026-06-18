@@ -2,7 +2,7 @@
 
 The restricted evaluator is shared by every format, so the same vectors run through the
 :func:`~statemachine.io.load` facade for SCXML, JSON and YAML. The default (``trusted=False``)
-evaluates expressions with an AST whitelist and rejects ``script``/``<script>``;
+evaluates expressions with an AST allowlist and rejects ``script``/``<script>``;
 ``trusted=True`` restores ``eval``/``exec``. Concerns that need a bound Python model (the
 guard name-resolution boundary) live in their own class at the end.
 """

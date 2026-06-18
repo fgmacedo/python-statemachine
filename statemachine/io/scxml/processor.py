@@ -18,7 +18,7 @@ class SCXMLProcessor(Interpreter):
 
     Args:
         trusted: when ``False`` (default), datamodel expressions are evaluated by
-            a restricted AST-whitelist evaluator and ``<script>`` is rejected, so
+            a restricted AST-allowlist evaluator and ``<script>`` is rejected, so
             loading a document cannot execute arbitrary code. When ``True``,
             expressions and ``<script>`` are evaluated as arbitrary Python via
             ``eval``/``exec`` — only use it for SCXML you trust (see the package

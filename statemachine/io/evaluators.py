@@ -5,7 +5,7 @@ neutral IR (:mod:`statemachine.io.model`) into callables, deciding *how* they ar
 evaluated:
 
 - :class:`RestrictedEvaluator` (secure default): compiles expressions with the
-  AST-whitelist evaluator (:func:`statemachine.spec_parser.parse_expr`), which
+  AST-allowlist evaluator (:func:`statemachine.spec_parser.parse_expr`), which
   cannot reach builtins, dunder attributes, or arbitrary calls. ``<script>`` and
   raw-Python evaluation are rejected because they are arbitrary code.
 - :class:`PythonEvaluator` (opt-in, ``trusted=True``): preserves the legacy
@@ -168,7 +168,7 @@ class Evaluator(Protocol):
 
 
 class RestrictedEvaluator:
-    """Secure default: AST-whitelist evaluation, no ``eval``/``exec``.
+    """Secure default: AST-allowlist evaluation, no ``eval``/``exec``.
 
     ``<script>`` and any expression outside the supported subset (method calls,
     dunder attribute access, lambdas, comprehensions, ...) are rejected at
@@ -235,7 +235,7 @@ class PythonEvaluator:
 
     def compile_bool(self, expr: str) -> Callable:
         # Intentionally uses ``eval`` (not ``parse_expr``): the whole point of the
-        # trusted evaluator is to accept guards the restricted AST whitelist rejects —
+        # trusted evaluator is to accept guards the restricted AST allowlist rejects —
         # method/function calls, builtins, etc. (e.g. SCXML conformance conds like
         # ``_event.data.get('x') == 1`` or ``hasattr(_event, 'name')``). Routing this
         # through ``parse_expr`` would make trusted mode no more capable than the

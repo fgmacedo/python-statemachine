@@ -11,7 +11,7 @@ document can never instantiate arbitrary Python objects, regardless of `trusted`
 ## The two evaluation modes
 
 `load(..., trusted=False)` (the default) uses a **restricted evaluator** built on an AST
-whitelist. It allows the everyday building blocks of a guard or expression:
+allowlist. It allows the everyday building blocks of a guard or expression:
 
 - comparisons (`==`, `!=`, `<`, `>=`, …) and boolean algebra (`and`, `or`, `not`);
 - arithmetic, indexing (`items[0]`), and list/tuple/set/dict literals;
@@ -45,7 +45,7 @@ rejected
 
 ```
 
-What the whitelist refuses is **call syntax** (`name()`, `obj.method()`), so an attacker's
+What the allowlist refuses is **call syntax** (`name()`, `obj.method()`), so an attacker's
 expression cannot reach builtins, the one exception being `In(...)`:
 
 - `cond: "order.is_ready"` — allowed (a plain attribute read, which runs the property getter).

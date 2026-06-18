@@ -6,7 +6,7 @@ provides a Python datamodel and loads SCXML through the same
 :func:`~statemachine.io.load` facade as the native JSON/YAML formats.
 
 Like every format, SCXML is loaded **secure by default** (``trusted=False`` rejects
-``<script>`` and evaluates expressions with the restricted AST-whitelist evaluator); pass
+``<script>`` and evaluates expressions with the restricted AST-allowlist evaluator); pass
 ``trusted=True`` only for documents you control. See the security note in
 :mod:`statemachine.io` and the GHSA-v4jc-pm6r-3vj8 advisory.
 """

@@ -13,7 +13,7 @@ Security
 
 Loading a document compiles its guards, datamodel expressions and executable content into
 callables. Because a document may come from a semi-trusted source, loading is **secure by
-default** (``trusted=False``): expressions are evaluated by a **restricted AST-whitelist
+default** (``trusted=False``): expressions are evaluated by a **restricted AST-allowlist
 evaluator** that cannot reach builtins, dunder attributes, or arbitrary calls, and
 ``<script>`` / ``script`` (arbitrary code) is rejected. This mirrors ``yaml.safe_load`` and
 keeps loading from turning into arbitrary code execution.

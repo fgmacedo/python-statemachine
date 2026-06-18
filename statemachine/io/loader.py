@@ -3,7 +3,7 @@
 :func:`load` is the simple entry point: give it a file path (format detected by
 extension) or inline content (with an explicit ``format=``) and it returns the
 ready-to-instantiate :class:`~statemachine.statemachine.StateChart` class. It is
-**secure by default** — expressions are evaluated by a restricted AST-whitelist
+**secure by default** — expressions are evaluated by a restricted AST-allowlist
 evaluator and ``<script>`` / arbitrary Python is rejected unless ``trusted=True``.
 
 For advanced scenarios (a document declaring several statecharts, or SCXML files
@@ -140,7 +140,7 @@ def load(
         format: explicit format name (``"scxml"``, ``"json"``, ``"yaml"``),
             overriding extension detection and required for inline content.
         trusted: when ``False`` (default), expressions are evaluated by a restricted
-            AST-whitelist evaluator and ``<script>`` / arbitrary Python is rejected.
+            AST-allowlist evaluator and ``<script>`` / arbitrary Python is rejected.
             When ``True``, expressions and scripts are evaluated as arbitrary Python.
         validate: when ``True`` (native JSON/YAML only), validate the document against
             the published JSON Schema before building (requires the ``[validation]``

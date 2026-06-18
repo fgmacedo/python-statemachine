@@ -1,5 +1,5 @@
 """Tests for the value-expression support added to ``spec_parser`` (the restricted
-AST-whitelist evaluator used to avoid ``eval`` on SCXML datamodel expressions)."""
+AST-allowlist evaluator used to avoid ``eval`` on SCXML datamodel expressions)."""
 
 import pytest
 from statemachine.spec_parser import parse_expr

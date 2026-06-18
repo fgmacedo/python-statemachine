@@ -231,7 +231,7 @@ def build_attribute(value_expr: Callable, attr: str) -> Callable:
 def build_expression(  # noqa: C901
     node, variable_hook, operator_mapping, allow_value_nodes: bool = False
 ):
-    """Build a callable from an AST node using a whitelist of allowed structures.
+    """Build a callable from an AST node using an allowlist of allowed structures.
 
     Args:
         allow_value_nodes: when ``True``, value-producing structures (arithmetic,
@@ -265,7 +265,7 @@ def build_expression(  # noqa: C901
                 expressions.append(expression)
             return reduce(custom_and, expressions)
         case ast.Call(func=ast.Name(id=func_id)):
-            # Only whitelisted functions from the registry (e.g. ``In(...)``) are
+            # Only allowlisted functions from the registry (e.g. ``In(...)``) are
             # callable. Method calls (``obj.method()``) have an ``ast.Attribute``
             # func and fall through to the ``case _`` guard below — this prevents
             # using calls as a sandbox-escape vector.
@@ -324,7 +324,7 @@ def parse_boolean_expr(expr, variable_hook, operator_mapping):
 
 
 def parse_expr(expr: str, variable_hook: Callable) -> Callable:
-    """Parse a value expression into a callable using the restricted AST whitelist.
+    """Parse a value expression into a callable using the restricted AST allowlist.
 
     Unlike :func:`parse_boolean_expr`, this does not apply the DSL operator
     replacement (``!``/``^``/``v``) and does not coerce the top-level result to
@@ -333,7 +333,7 @@ def parse_expr(expr: str, variable_hook: Callable) -> Callable:
     without :func:`eval`.
 
     Raises:
-        ValueError: if the expression uses a structure outside the whitelist
+        ValueError: if the expression uses a structure outside the allowlist
             (e.g. attribute access to dunders, method calls, lambdas).
         SyntaxError: if the expression is empty or not valid Python.
     """
