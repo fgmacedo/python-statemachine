@@ -28,6 +28,7 @@ shown side by side where possible. For a quick overview, jump to the
 | Error handling | Exceptions propagate | Optional {ref}`catch_errors_as_events <error-execution>` (`error.execution`) |
 | Validations | None | {ref}`Structural + callback checks <validations>` at definition and creation time |
 | SCXML compliance | [Not a goal](https://github.com/pytransitions/transitions/issues/446#issuecomment-646837282) | {ref}`W3C conformant <processing-model>` with automated test suite |
+| Serialization / loading | `markup` dict round-trip (persist as JSON/YAML yourself; no SCXML) | [Secure `io.load()`](../io/index.md) from SCXML, JSON and YAML |
 | Processing model | Immediate or queued | Always queued ({ref}`run-to-completion <rtc-model>`) |
 
 
@@ -178,7 +179,7 @@ python-statemachine also supports hierarchical features not available in *transi
 See {ref}`compound-states` and {ref}`parallel-states` for the full reference.
 
 
-### Creating machines from dicts
+### Creating machines from dicts and documents
 
 If you prefer the dict-based definition style familiar from *transitions*, you can
 use {func}`~statemachine.io.create_machine_class_from_definition` to build a
@@ -217,6 +218,28 @@ True
 The result is a regular `StateChart` subclass — all features (validations, diagrams,
 listeners, async) work exactly the same way. See
 {func}`~statemachine.io.create_machine_class_from_definition` for the full API.
+
+#### Loading from SCXML, JSON or YAML documents
+
+*transitions* can serialize a built machine to a Python dict with `MarkupMachine`
+(`machine.markup`) and rebuild it via `Machine(markup=...)`. That dict isn't tied to a file
+format — you persist it as JSON/YAML yourself — and callbacks and conditions are method-name
+strings resolved against the model by import at build time, so it isn't designed to load
+untrusted definitions, has no published schema, and doesn't cover SCXML.
+
+python-statemachine provides a first-class, secure loader, {func}`~statemachine.io.load`,
+that reads SCXML, JSON and YAML *documents* straight into a `StateChart`:
+
+```python
+from statemachine.io import load
+
+Machine = load("traffic_light.scxml")   # or .json / .yaml; format detected from the extension
+```
+
+Expressions in the document (guards, datamodel) are evaluated by a restricted allowlist —
+never `eval` — so documents from untrusted sources are safe to load; the native JSON/YAML
+format has a published JSON Schema (`validate=True`), and SCXML follows the W3C execution
+model. See [](../io/index.md) for the full guide.
 
 
 ## Defining transitions
@@ -952,6 +975,8 @@ See {ref}`validations` for the full list.
 | {ref}`Listener/observer pattern <listeners>` | No | **Yes** |
 | {ref}`Definition-time validations <validations>` | No | **Yes** |
 | {ref}`SCXML conformance <processing-model>` | No | **Yes** |
+| [Load from SCXML/JSON/YAML documents](../io/index.md) | No | **Yes** |
+| Serialize a built machine to a portable definition | Yes (`markup`) | Partial (load only) |
 | {ref}`Diagrams <diagrams>` | Yes | Yes |
 | {ref}`Django integration <machinemixin>` | Community | Built-in |
 | {ref}`Model binding <models>` | Yes | Yes |
