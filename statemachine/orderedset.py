@@ -71,8 +71,6 @@ class OrderedSet(MutableSet[T]):
     >>> eval(repr(OrderedSet(['a', 'b', 'c'])))
     OrderedSet(['a', 'b', 'c'])
 
-
-
     """
 
     __slots__ = ("_d",)
