@@ -145,10 +145,13 @@ levels of the hierarchy.
 
 ```{note}
 The generic `on_exit_state()` and `on_enter_state()` callbacks also fire
-once per state in the set, but the `state` parameter is bound to the
-transition's `source` or `target` — not the individual state being
-exited/entered. Use `event_data` if you need the full context, or prefer
-state-specific callbacks for clarity.
+once per state in the set, and the `state` parameter is bound to the
+individual state being exited or entered, so you can tell each level of a
+compound apart. On entry, `target` matches `state`; on exit, `source`
+matches `state`. The opposite endpoint stays fixed at the transition's
+`source` (on entry) or `target` (on exit). Prefer state-specific callbacks
+(`on_exit_<state>`, `on_enter_<state>`) when you want to target one level
+directly.
 ```
 
 ```{seealso}

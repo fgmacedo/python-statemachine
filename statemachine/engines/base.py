@@ -419,19 +419,30 @@ class BaseEngine:
         return result
 
     def _get_args_kwargs(
-        self, transition: Transition, trigger_data: TriggerData, target: "State | None" = None
+        self,
+        transition: Transition,
+        trigger_data: TriggerData,
+        target: "State | None" = None,
+        source: "State | None" = None,
     ):
         # Generate a unique key for the cache, the cache is invalidated once per loop
-        cache_key = (id(transition), id(trigger_data), id(target))
+        cache_key = (id(transition), id(trigger_data), id(target), id(source))
 
         # Check the cache for existing results
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         event_data = EventData(trigger_data=trigger_data, transition=transition)
+        # Bind `state`/`target` to the individual state being entered, and
+        # `state`/`source` to the individual state being exited, so the generic
+        # `on_enter_state`/`on_exit_state` callbacks stay symmetric when crossing
+        # compound state boundaries (the transition only knows its own endpoints).
         if target:
             event_data.state = target
             event_data.target = target
+        if source:
+            event_data.state = source
+            event_data.source = source
 
         args, kwargs = event_data.args, event_data.extended_kwargs
 
@@ -500,7 +511,7 @@ class BaseEngine:
             if info.state is not None:  # pragma: no branch
                 self._invoke_manager.cancel_for_state(info.state)
 
-            args, kwargs = self._get_args_kwargs(info.transition, trigger_data)
+            args, kwargs = self._get_args_kwargs(info.transition, trigger_data, source=info.state)
 
             # Execute `onexit` handlers — same per-block error isolation as onentry.
             if info.state is not None:  # pragma: no branch

@@ -158,6 +158,10 @@ When `True` (SCXML default), runtime exceptions in action callbacks
 internal `error.execution` events. When `False` (legacy default), exceptions
 propagate normally to the caller.
 
+This flag only governs exceptions raised **inside** an action callback. An event
+that doesn't match any enabled transition is a different case, controlled by
+{ref}`allow_event_without_transition <behaviour>` instead.
+
 ```{note}
 {ref}`Validators <validators>` are **not** affected by this flag — they
 always propagate exceptions to the caller, regardless of the
