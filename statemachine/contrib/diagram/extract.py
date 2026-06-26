@@ -91,7 +91,7 @@ def _extract_state(
 
     return DiagramState(
         id=state.id,
-        name=state.name,
+        name=str(state.name),
         type=state_type,
         actions=actions,
         children=children,
@@ -125,7 +125,7 @@ def _format_event_names(transition: "Transition") -> str:
             continue
         if eid not in seen_ids:  # pragma: no branch
             seen_ids.add(eid)
-            display.append(event.name if event.name else eid)
+            display.append(str(event.name) if event.name else eid)
 
     return " ".join(display)
 
@@ -279,7 +279,7 @@ def extract(machine_or_class: "MachineRef") -> DiagramGraph:
     _resolve_initial_states(states)
 
     return DiagramGraph(
-        name=machine.name,
+        name=str(machine.name),
         states=states,
         transitions=transitions,
         compound_state_ids=compound_ids,

@@ -36,7 +36,7 @@ class TransitionNotAllowed(StateMachineError):
     def __init__(self, event: "Event | None", configuration: MutableSet["State"]):
         self.event = event
         self.configuration = configuration
-        name = ", ".join([s.name for s in configuration])
+        name = ", ".join(str(s.name) for s in configuration)
         msg = _("Can't {} when in {}.").format(
             self.event and self.event.name or "transition", name
         )

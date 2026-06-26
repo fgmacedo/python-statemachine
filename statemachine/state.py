@@ -296,7 +296,7 @@ class State:
         )
 
     def __str__(self):
-        return self.name
+        return str(self.name)
 
     @property
     def id(self) -> str:
@@ -308,7 +308,7 @@ class State:
             self.value = id
         if not self.name:
             self.name = humanize_id(self._id)
-        self._hash = hash((self.name, self._id))
+        self._hash = hash((str(self.name), self._id))
 
         return self
 

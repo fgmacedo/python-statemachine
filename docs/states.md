@@ -34,7 +34,7 @@ True
 
 | Parameter | Default | Description |
 |---|---|---|
-| `name` | `""` | Human-readable display name. Defaults to the attribute name, capitalized. |
+| `name` | `""` | Human-readable display name. Defaults to the attribute name, capitalized. Accepts any object castable to `str` (e.g. a lazy translation proxy), resolved via `str()` at display time. |
 | `value` | `None` | Custom value for this state, accessible via `configuration_values`. |
 | `initial` | `False` | Marks this as the initial state. Exactly one per machine (or per compound). |
 | `final` | `False` | Marks this as a final (accepting) state. No outgoing transitions allowed. |
