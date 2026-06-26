@@ -62,10 +62,14 @@ class OrderedSet(MutableSet[T]):
     >>> s[2]
     3
 
+    >>> s[-1]
+    3
+
+    >>> s[-3]
+    1
+
     >>> eval(repr(OrderedSet(['a', 'b', 'c'])))
     OrderedSet(['a', 'b', 'c'])
-
-
 
     """
 
@@ -84,10 +88,15 @@ class OrderedSet(MutableSet[T]):
         self._d.pop(x, None)
 
     def __getitem__(self, index) -> T:
+        original_index = index
+        if index < 0:
+            index += len(self)
+        if index < 0:
+            raise IndexError(f"index {original_index} out of range")
         try:
             return next(itertools.islice(self._d, index, index + 1))
         except StopIteration as e:
-            raise IndexError(f"index {index} out of range") from e
+            raise IndexError(f"index {original_index} out of range") from e
 
     def __contains__(self, x: object) -> bool:
         return self._d.__contains__(x)
