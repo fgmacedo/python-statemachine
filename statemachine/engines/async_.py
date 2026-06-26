@@ -71,17 +71,27 @@ class AsyncEngine(BaseEngine):
     # --- Callback dispatch overrides (async versions of BaseEngine methods) ---
 
     async def _get_args_kwargs(
-        self, transition: "Transition", trigger_data: TriggerData, target: "State | None" = None
+        self,
+        transition: "Transition",
+        trigger_data: TriggerData,
+        target: "State | None" = None,
+        source: "State | None" = None,
     ):
-        cache_key = (id(transition), id(trigger_data), id(target))
+        cache_key = (id(transition), id(trigger_data), id(target), id(source))
 
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         event_data = EventData(trigger_data=trigger_data, transition=transition)
+        # See the sync engine for the rationale: bind `state`/`target` to the
+        # entered state and `state`/`source` to the exited state, keeping the
+        # generic enter/exit callbacks symmetric across compound boundaries.
         if target:
             event_data.state = target
             event_data.target = target
+        if source:
+            event_data.state = source
+            event_data.source = source
 
         args, kwargs = event_data.args, event_data.extended_kwargs
 
@@ -173,7 +183,9 @@ class AsyncEngine(BaseEngine):
             if info.state is not None:  # pragma: no branch
                 self._invoke_manager.cancel_for_state(info.state)
 
-            args, kwargs = await self._get_args_kwargs(info.transition, trigger_data)
+            args, kwargs = await self._get_args_kwargs(
+                info.transition, trigger_data, source=info.state
+            )
 
             if info.state is not None:  # pragma: no branch
                 self._debug("%s Exiting state: %s", self._log_id, info.state)
