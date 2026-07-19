@@ -210,6 +210,18 @@ def test_classical_operators_name():
     )  # name reflects expression structure
 
 
+def test_classical_operators_without_spaces():
+    # "^" and "v" are operators even without surrounding whitespace, like "!",
+    # so they must not be swallowed into a single variable name.
+    for unspaced, spaced in [
+        ("frodo_has_ring^sam_is_loyal", "frodo_has_ring ^ sam_is_loyal"),
+        ("(frodo_has_ring)v(sauron_alive)", "(frodo_has_ring) v (sauron_alive)"),
+    ]:
+        got = parse_boolean_expr(unspaced, variable_hook, operator_mapping)()
+        want = parse_boolean_expr(spaced, variable_hook, operator_mapping)()
+        assert got is want, unspaced
+
+
 def test_empty_expression():
     expr = ""
     with pytest.raises(SyntaxError):
