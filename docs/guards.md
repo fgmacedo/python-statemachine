@@ -132,6 +132,71 @@ example combining multiple transitions on the same event.
 ```
 
 
+(callable conditions)=
+
+### Callable conditions
+
+Besides strings, `cond` and `unless` also accept callables directly, including
+lambdas, allowing simple guards to be defined inline:
+
+```py
+>>> class Turnstile(StateChart):
+...     locked = State(initial=True)
+...     unlocked = State(final=True)
+...
+...     coin = locked.to(unlocked, cond=lambda machine: machine.credits > 0)
+...
+...     credits = 0
+
+>>> sm = Turnstile()
+>>> sm.send("coin")
+>>> "locked" in sm.configuration_values
+True
+
+>>> sm.credits = 1
+>>> sm.send("coin")
+>>> "unlocked" in sm.configuration_values
+True
+
+```
+
+Like any callback, a callable condition receives its arguments via
+{ref}`dependency injection <dependency-injection>`: declare only the
+parameters you need, using the injectable names (`machine`, `event`,
+`source`, `target`, `model`, ...) or the arguments passed when triggering
+the event:
+
+```py
+>>> class Dispatcher(StateChart):
+...     idle = State(initial=True)
+...     dispatched = State(final=True)
+...
+...     dispatch = idle.to(dispatched, cond=lambda priority=0: priority > 5)
+
+>>> sm = Dispatcher()
+>>> sm.send("dispatch", priority=1)
+>>> "idle" in sm.configuration_values
+True
+
+>>> sm.send("dispatch", priority=9)
+>>> "dispatched" in sm.configuration_values
+True
+
+```
+
+```{warning}
+Plain callables, like lambdas and functions defined outside the class body,
+are called **unbound**, so `self` is not injected. A guard declared as
+`cond=lambda self: ...` fails with a `TypeError` when evaluated. Use
+`machine` instead of `self` to receive the state machine instance.
+
+`self` is only available when the callable resolves to a bound method,
+which happens when it is an attribute of the state machine class: either
+referenced by name (`cond="my_condition"`) or defined in the class body
+and passed by reference (`cond=my_condition`).
+```
+
+
 (condition expressions)=
 
 ### Condition expressions
