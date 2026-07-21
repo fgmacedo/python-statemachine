@@ -354,6 +354,102 @@ class TestIssue417:
             ExampleStateMachine()
 
 
+class TestIssue638:
+    """Guards passed as plain callables (e.g. lambdas) are resolved unbound.
+
+    Dependency injection works by parameter name, so ``self`` is only injected when
+    the callable is an attribute of the class and gets resolved to a bound method.
+    Plain callables must declare injectable names (e.g. ``machine``) instead.
+
+    See: https://github.com/fgmacedo/python-statemachine/issues/638
+    """
+
+    def test_lambda_cond_with_machine_param(self):
+        class ExampleStateMachine(StateChart):
+            created = State(initial=True)
+            started = State(final=True)
+
+            start = created.to(started, cond=lambda machine: machine.can_start)
+
+            def __init__(self, can_start: bool):
+                self.can_start = can_start
+                super().__init__()
+
+        sm = ExampleStateMachine(can_start=False)
+        sm.send("start")
+        assert "created" in sm.configuration_values
+
+        sm = ExampleStateMachine(can_start=True)
+        sm.send("start")
+        assert "started" in sm.configuration_values
+
+    def test_lambda_cond_without_params(self):
+        flags = {"can_start": False}
+
+        class ExampleStateMachine(StateChart):
+            created = State(initial=True)
+            started = State(final=True)
+
+            start = created.to(started, cond=lambda: flags["can_start"])
+
+        sm = ExampleStateMachine()
+        sm.send("start")
+        assert "created" in sm.configuration_values
+
+        flags["can_start"] = True
+        sm.send("start")
+        assert "started" in sm.configuration_values
+
+    def test_lambda_cond_with_event_kwargs(self):
+        class ExampleStateMachine(StateChart):
+            created = State(initial=True)
+            started = State(final=True)
+
+            start = created.to(started, cond=lambda priority=0: priority > 5)
+
+        sm = ExampleStateMachine()
+        sm.send("start", priority=1)
+        assert "created" in sm.configuration_values
+
+        sm.send("start", priority=9)
+        assert "started" in sm.configuration_values
+
+    def test_lambda_cond_with_self_param_is_called_unbound(self):
+        class ExampleStateMachine(StateChart):
+            catch_errors_as_events = False
+
+            created = State(initial=True)
+            started = State(final=True)
+
+            start = created.to(started, cond=lambda self: True)
+
+        sm = ExampleStateMachine()
+        with pytest.raises(TypeError, match="missing 1 required positional argument: 'self'"):
+            sm.send("start")
+
+    def test_class_body_function_cond_by_reference_is_bound(self):
+        class ExampleStateMachine(StateChart):
+            created = State(initial=True)
+            started = State(final=True)
+
+            def can_start(self) -> bool:
+                return self.flag
+
+            start = created.to(started, cond=can_start)
+
+            def __init__(self, flag: bool):
+                self.flag = flag
+                super().__init__()
+
+        sm = ExampleStateMachine(flag=False)
+        sm.send("start")
+        assert "created" in sm.configuration_values
+
+        sm = ExampleStateMachine(flag=True)
+        sm.send("start")
+        assert "started" in sm.configuration_values
+
+
 class TestVisitConditionFalse:
     """visit/async_visit skip callbacks whose condition returns False."""
 
