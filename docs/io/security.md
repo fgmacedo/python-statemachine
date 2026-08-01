@@ -201,17 +201,17 @@ every format (SCXML, JSON and YAML).
 A set of follow-up advisories hardened the restricted mode further and prompted the
 confidentiality/integrity vs availability framing above:
 
-- [GHSA-fj3w-533r-fvf6](https://github.com/fgmacedo/python-statemachine/security/advisories/GHSA-fj3w-533r-fvf6)
-  — `<data src="file:…">` and `<invoke src="…">` read local files during loading, regardless of
+- [GHSA-fj3w-533r-fvf6](https://github.com/fgmacedo/python-statemachine/security/advisories/GHSA-fj3w-533r-fvf6):
+  `<data src="file:…">` and `<invoke src="…">` read local files during loading, regardless of
   `trusted`. Loading now rejects external `src` references unless `trusted=True`, and refuses
   `<!DOCTYPE>`/DTD to block XML entity-expansion bombs.
 - [GHSA-v3qq-3xvg-m77g](https://github.com/fgmacedo/python-statemachine/security/advisories/GHSA-v3qq-3xvg-m77g)
-  / [GHSA-4857-ggqc-p3jc](https://github.com/fgmacedo/python-statemachine/security/advisories/GHSA-4857-ggqc-p3jc)
-  — a document could write to a dunder/private/protected attribute (notably traversing
+  / [GHSA-4857-ggqc-p3jc](https://github.com/fgmacedo/python-statemachine/security/advisories/GHSA-4857-ggqc-p3jc):
+  a document could write to a dunder/private/protected attribute (notably traversing
   `__class__`) and corrupt the shared model class process-wide. Write targets are now confined
   to public model attributes on every path segment.
-- [GHSA-r8gj-366q-cgvj](https://github.com/fgmacedo/python-statemachine/security/advisories/GHSA-r8gj-366q-cgvj)
-  — `**`/`*` in the restricted evaluator had no magnitude bound, so a tiny expression could
+- [GHSA-r8gj-366q-cgvj](https://github.com/fgmacedo/python-statemachine/security/advisories/GHSA-r8gj-366q-cgvj):
+  `**`/`*` in the restricted evaluator had no magnitude bound, so a tiny expression could
   exhaust CPU or memory. They are now magnitude-capped.
 
 These were released together in 3.2.1.
