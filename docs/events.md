@@ -131,6 +131,83 @@ delayed events, and cancellation.
 ```
 
 
+(events-as-method-protocol)=
+
+## Events as a method-call protocol
+
+Because every event is a callable method, a state machine can act as a guard
+for the **order** in which your object's methods may be called. Set
+`allow_event_without_transition = False` so that any call that doesn't match an
+enabled transition raises `TransitionNotAllowed` instead of being silently
+ignored. The transitions then describe the legal
+sequence, and the machine enforces it for you:
+
+```py
+>>> from statemachine import State, StateChart
+
+>>> class Connection(StateChart):
+...     "A client whose methods can only be called in a valid order."
+...     allow_event_without_transition = False  # reject any unexpected call
+...
+...     disconnected = State(initial=True)
+...     connected = State()
+...     authenticated = State()
+...
+...     connect = disconnected.to(connected)
+...     authenticate = connected.to(authenticated)
+...     disconnect = connected.to(disconnected) | authenticated.to(disconnected)
+...
+...     def on_connect(self):
+...         print("socket opened")
+...
+...     def on_authenticate(self):
+...         print("credentials accepted")
+
+```
+
+Calling the methods in a valid order works:
+
+```py
+>>> conn = Connection()
+>>> conn.connect()
+socket opened
+>>> conn.authenticate()
+credentials accepted
+>>> "authenticated" in conn.configuration_values
+True
+
+```
+
+A call that isn't valid in the current state raises, so an out-of-order method
+call fails loudly instead of doing nothing:
+
+```py
+>>> fresh = Connection()
+
+>>> fresh.authenticate()  # must connect first
+Traceback (most recent call last):
+    ...
+statemachine.exceptions.TransitionNotAllowed: Can't Authenticate when in Disconnected.
+
+```
+
+The same protection applies to unknown event names sent dynamically:
+
+```py
+>>> fresh.send("teleport")
+Traceback (most recent call last):
+    ...
+statemachine.exceptions.TransitionNotAllowed: Can't teleport when in Disconnected.
+
+```
+
+```{seealso}
+{ref}`behaviour` explains `allow_event_without_transition` and the other
+class-level flags that switch between this strict mode and the tolerant,
+event-driven default.
+```
+
+
 (event-parameter)=
 
 ## The `event` parameter on transitions

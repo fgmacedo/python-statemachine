@@ -5,7 +5,7 @@ neutral IR (:mod:`statemachine.io.model`) into callables, deciding *how* they ar
 evaluated:
 
 - :class:`RestrictedEvaluator` (secure default): compiles expressions with the
-  AST-whitelist evaluator (:func:`statemachine.spec_parser.parse_expr`), which
+  AST-allowlist evaluator (:func:`statemachine.spec_parser.parse_expr`), which
   cannot reach builtins, dunder attributes, or arbitrary calls. ``<script>`` and
   raw-Python evaluation are rejected because they are arbitrary code.
 - :class:`PythonEvaluator` (opt-in, ``trusted=True``): preserves the legacy
@@ -18,9 +18,13 @@ but name resolution and value computation still happen at call time, so runtime
 errors (``NameError``, ``TypeError``) keep flowing to ``error.execution`` as
 before.
 
+The evaluator is also the trust gate for external resource references: an external
+``<data src>`` / ``<invoke src>`` reads a local file, so the restricted evaluator rejects
+it via :meth:`ensure_external_src_allowed` (the trusted one allows it).
+
 This module is format-neutral: it is shared by the SCXML, JSON and YAML readers.
 See the :mod:`statemachine.io.scxml` package docstring and the GHSA-v4jc-pm6r-3vj8
-advisory for the rationale.
+(code execution) and GHSA-fj3w-533r-fvf6 (file disclosure) advisories for the rationale.
 """
 
 import ast
@@ -82,13 +86,17 @@ def _resolvable_model_attr(name: str, model) -> bool:
 def variable_hook(name: str) -> Callable:
     """Resolve a datamodel name at call time.
 
-    Looks the name up in the call kwargs first (engine-provided variables such as
-    ``_event``, ``_name``, ``machine``), then falls back to a (non-protected, non-private)
-    attribute of ``machine.model``. Mirrors the namespace built by :func:`_eval`.
+    Looks the name up in the call kwargs first (SCXML system variables such as
+    ``_event``, ``_name``), then falls back to a (non-protected, non-private) attribute of
+    ``machine.model``. Names in :data:`~statemachine.event._event_data_kwargs` (``machine``,
+    ``model``, ``event``, ``transition``, ...) are the live engine-capability objects; they
+    are **withheld** from the kwargs lookup so an untrusted expression cannot obtain the
+    engine and pivot through it onto shared classes (GHSA-v3qq-3xvg-m77g). The ``_``-prefixed
+    system variables are not engine objects and stay resolvable.
     """
 
     def resolver(*args, **kwargs):
-        if name in kwargs:
+        if name not in _event_data_kwargs and name in kwargs:
             return kwargs[name]
         model = kwargs["machine"].model
         if _resolvable_model_attr(name, model):
@@ -109,7 +117,7 @@ def cond_variable_hook(name: str) -> Callable:
     """
 
     def resolver(*args, **kwargs):
-        if name in kwargs:
+        if name not in _event_data_kwargs and name in kwargs:
             return kwargs[name]
         model = kwargs["machine"].model
         if _resolvable_model_attr(name, model):
@@ -166,9 +174,20 @@ class Evaluator(Protocol):
         """Evaluate inline ``<content>`` as a literal, falling back to the raw string."""
         ...
 
+    def ensure_external_src_allowed(  # pragma: no cover - structural Protocol
+        self, descriptor: str
+    ) -> None:
+        """Guard external resource references (``<data src>`` / ``<invoke src>``).
+
+        Reading a local file named by an untrusted document is a confidentiality risk, so
+        it is gated on the trust level just like ``<script>``. ``descriptor`` names the
+        offending element for the error message.
+        """
+        ...
+
 
 class RestrictedEvaluator:
-    """Secure default: AST-whitelist evaluation, no ``eval``/``exec``.
+    """Secure default: AST-allowlist evaluation, no ``eval``/``exec``.
 
     ``<script>`` and any expression outside the supported subset (method calls,
     dunder attribute access, lambdas, comprehensions, ...) are rejected at
@@ -208,6 +227,12 @@ class RestrictedEvaluator:
         except (ValueError, SyntaxError):
             return content
 
+    def ensure_external_src_allowed(self, descriptor: str) -> None:
+        raise InvalidDefinition(
+            f"{descriptor} loads a local file and is disabled by default. Pass "
+            "trusted=True to enable it, and only for trusted sources."
+        )
+
     @staticmethod
     def _compile(expr: str, hook: Callable) -> Callable:
         try:
@@ -235,7 +260,7 @@ class PythonEvaluator:
 
     def compile_bool(self, expr: str) -> Callable:
         # Intentionally uses ``eval`` (not ``parse_expr``): the whole point of the
-        # trusted evaluator is to accept guards the restricted AST whitelist rejects —
+        # trusted evaluator is to accept guards the restricted AST allowlist rejects —
         # method/function calls, builtins, etc. (e.g. SCXML conformance conds like
         # ``_event.data.get('x') == 1`` or ``hasattr(_event, 'name')``). Routing this
         # through ``parse_expr`` would make trusted mode no more capable than the
@@ -262,6 +287,9 @@ class PythonEvaluator:
             return eval(content, {}, {})
         except (NameError, SyntaxError, TypeError):
             return content
+
+    def ensure_external_src_allowed(self, descriptor: str) -> None:
+        return None
 
 
 def evaluator_for(trusted: bool = False) -> Evaluator:

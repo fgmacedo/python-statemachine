@@ -3,8 +3,8 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from typing import Literal
 from typing import cast
-from urllib.parse import urlparse
 
+from ...exceptions import InvalidDefinition
 from ..model import Action
 from ..model import AssignAction
 from ..model import CancelAction
@@ -47,8 +47,27 @@ def _parse_initial(initial_content: "str | None") -> list[str]:
     return initial_content.split()
 
 
+class _NoDTDTreeBuilder(ET.TreeBuilder):
+    """A tree builder that refuses documents carrying a ``<!DOCTYPE>``/DTD.
+
+    Internal entity definitions (the basis of billion-laughs / quadratic-blowup
+    expansion bombs) require a DTD, so rejecting the DOCTYPE neutralizes them at
+    parse time. Expat calls this ``doctype`` hook when it meets the declaration.
+    """
+
+    def doctype(self, name, pubid, system):  # noqa: D102 - expat callback
+        raise InvalidDefinition(
+            "DOCTYPE/DTD is not allowed in SCXML documents (XML entity-expansion protection)."
+        )
+
+
+def _fromstring_no_dtd(scxml_content: str) -> ET.Element:
+    """Parse SCXML text rejecting any DOCTYPE (see :class:`_NoDTDTreeBuilder`)."""
+    return ET.fromstring(scxml_content, parser=ET.XMLParser(target=_NoDTDTreeBuilder()))
+
+
 def parse_scxml(scxml_content: str) -> StateMachineDefinition:  # noqa: C901
-    root = ET.fromstring(scxml_content)
+    root = _fromstring_no_dtd(scxml_content)
     strip_namespaces(root)
 
     scxml = root if root.tag == "scxml" else root.find(".//scxml")
@@ -114,16 +133,12 @@ def parse_datamodel(root: ET.Element) -> "DataModel | None":
     for datamodel_elem in _find_own_datamodel_elements(root):
         for data_elem in datamodel_elem.findall("data"):
             content = data_elem.text and re.sub(r"\s+", " ", data_elem.text).strip() or None
-            src = data_elem.attrib.get("src")
-            src_parsed = urlparse(src) if src else None
-            if src_parsed and src_parsed.scheme == "file" and content is None:
-                with open(src_parsed.path) as f:
-                    content = f.read()
-
+            # An external ``src`` is kept as a raw string; resolving it (reading the file)
+            # is deferred to datamodel compilation, where the trust policy can gate it.
             data_model.data.append(
                 DataItem(
                     id=data_elem.attrib["id"],
-                    src=src,
+                    src=data_elem.attrib.get("src"),
                     expr=data_elem.attrib.get("expr"),
                     content=content,
                 )

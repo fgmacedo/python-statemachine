@@ -1,5 +1,5 @@
 """Tests for the value-expression support added to ``spec_parser`` (the restricted
-AST-whitelist evaluator used to avoid ``eval`` on SCXML datamodel expressions)."""
+AST-allowlist evaluator used to avoid ``eval`` on SCXML datamodel expressions)."""
 
 import pytest
 from statemachine.spec_parser import parse_expr
@@ -83,6 +83,33 @@ class TestValueExpressions:
     def test_nested_expression(self):
         hook = hook_from({"items": [1, 2, 3], "factor": 10})
         assert parse_expr("items[2] * factor + 1", hook)() == 31
+
+
+class TestArithmeticMagnitudeCaps:
+    """``**`` and ``*`` stay usable but cannot blow up: the denial-of-service forms raise,
+    while ordinary and edge-case arithmetic pass through (GHSA-r8gj-366q-cgvj)."""
+
+    @pytest.mark.parametrize("expr", ["9**9**9", "2**100000", "[0]*20000000", "'a'*20000000"])
+    def test_dos_forms_rejected(self, expr):
+        with pytest.raises(ValueError, match="too large"):
+            parse_expr(expr, hook_from({}))()
+
+    @pytest.mark.parametrize(
+        ("expr", "expected"),
+        [
+            ("2 ** 8", 256),  # int pow under the cap
+            ("2.5 ** 2", 6.25),  # non-int base: cap check skipped
+            ("2 ** 2.0", 4.0),  # non-int exponent: cap check skipped
+            ("5 ** 0", 1),  # exponent <= 0: cap check skipped
+            ("1 ** 5", 1),  # base in (0, 1, -1) can't grow: cap check skipped
+            ("[0] * 3", [0, 0, 0]),  # small sequence replication
+            ("[0] * 0", []),  # non-positive count: cap check skipped
+            ("'ab' * 2", "abab"),  # small str replication
+            ("3 * 4", 12),  # scalar multiply: neither operand a sequence
+        ],
+    )
+    def test_bounded_and_edge_cases_pass(self, expr, expected):
+        assert parse_expr(expr, hook_from({}))() == expected
 
 
 class TestRejectedExpressions:

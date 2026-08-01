@@ -1,0 +1,51 @@
+name: pages
+
+# Publishes the static assets served at https://fgmacedo.github.io/python-statemachine/
+# Currently: the native statechart JSON Schema, at the canonical URL used as its `$id`
+# (statemachine/io/schemas/statechart.schema.json -> /schemas/statechart/v1.json).
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - statemachine/io/schemas/statechart.schema.json
+      - .github/workflows/pages.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; don't cancel an in-progress publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Assemble site
+        run: |
+          mkdir -p _site/schemas/statechart
+          cp statemachine/io/schemas/statechart.schema.json _site/schemas/statechart/v1.json
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>python-statemachine</title>
+          <meta http-equiv="refresh" content="0; url=https://python-statemachine.readthedocs.io/">
+          <p>See the <a href="schemas/statechart/v1.json">statechart JSON Schema</a> or the
+          <a href="https://python-statemachine.readthedocs.io/">documentation</a>.</p>
+          HTML
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

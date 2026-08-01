@@ -19,6 +19,15 @@ comparison_repr = {
 }
 
 
+class UnsupportedExpression(ValueError):
+    """The expression contains a structure that is not on the parser allowlist.
+
+    Distinguishes a rejected expression from errors raised by the ``variable_hook``
+    while resolving names, so callers can report each one properly. Inherits from
+    ``ValueError`` to keep the previous behavior for callers catching it.
+    """
+
+
 def _unique_key(left, right, operator) -> str:
     left_key = getattr(left, "unique_key", "")
     right_key = getattr(right, "unique_key", "")
@@ -128,7 +137,7 @@ class Functions:
     def get(cls, func_id):
         func_id = func_id.lower()
         if func_id not in cls.registry:
-            raise ValueError(f"Unsupported function: {func_id}")
+            raise UnsupportedExpression(f"Unsupported function: {func_id}")
         return cls.registry[func_id]
 
 
@@ -231,7 +240,7 @@ def build_attribute(value_expr: Callable, attr: str) -> Callable:
 def build_expression(  # noqa: C901
     node, variable_hook, operator_mapping, allow_value_nodes: bool = False
 ):
-    """Build a callable from an AST node using a whitelist of allowed structures.
+    """Build a callable from an AST node using an allowlist of allowed structures.
 
     Args:
         allow_value_nodes: when ``True``, value-producing structures (arithmetic,
@@ -265,7 +274,7 @@ def build_expression(  # noqa: C901
                 expressions.append(expression)
             return reduce(custom_and, expressions)
         case ast.Call(func=ast.Name(id=func_id)):
-            # Only whitelisted functions from the registry (e.g. ``In(...)``) are
+            # Only allowlisted functions from the registry (e.g. ``In(...)``) are
             # callable. Method calls (``obj.method()``) have an ``ast.Attribute``
             # func and fall through to the ``case _`` guard below — this prevents
             # using calls as a sandbox-escape vector.
@@ -276,10 +285,13 @@ def build_expression(  # noqa: C901
             return operator_mapping[type(node.op)](recurse(node.operand))
         case ast.UnaryOp(op=(ast.USub() | ast.UAdd())) if allow_value_nodes:
             return build_unaryop(unary_operators[type(node.op)], recurse(node.operand))
-        case ast.BinOp() if allow_value_nodes and type(node.op) in binary_operators:
-            return build_binop(
-                binary_operators[type(node.op)], recurse(node.left), recurse(node.right)
-            )
+        case ast.BinOp() if allow_value_nodes:
+            op_type = type(node.op)
+            if op_type not in binary_operators:
+                # e.g. bitwise ``^``/``|``/``<<`` are outside the allowlist. (``**`` and ``*``
+                # are allowed but magnitude-capped — see ``binary_operators``.)
+                raise ValueError(f"Binary operator '{op_type.__name__}' is not allowed")
+            return build_binop(binary_operators[op_type], recurse(node.left), recurse(node.right))
         case ast.List(elts=elts) if allow_value_nodes:
             return build_collection(list, [recurse(e) for e in elts])
         case ast.Tuple(elts=elts) if allow_value_nodes:
@@ -300,14 +312,16 @@ def build_expression(  # noqa: C901
             # without underscore-attribute access or method calls, it cannot reach
             # type objects.
             if attr.startswith("_"):
-                raise ValueError(f"Attribute access to '{attr}' is not allowed")
+                raise UnsupportedExpression(f"Attribute access to '{attr}' is not allowed")
             return build_attribute(recurse(node.value), attr)
         case ast.Name(id=name):
             return variable_hook(name)
         case ast.Constant(value=value):
             return build_constant(value)
         case _:
-            raise ValueError(f"Unsupported expression structure: {node.__class__.__name__}")
+            raise UnsupportedExpression(
+                f"Unsupported expression structure: {node.__class__.__name__}"
+            )
 
 
 def parse_boolean_expr(expr, variable_hook, operator_mapping):
@@ -315,8 +329,10 @@ def parse_boolean_expr(expr, variable_hook, operator_mapping):
     if expr.strip() == "":
         raise SyntaxError("Empty expression")
 
-    # Optimization trying to avoid parsing the expression if not needed
-    if "!" not in expr and " " not in expr and "In(" not in expr:
+    # Optimization: a lone identifier can only be a variable name, so there is
+    # nothing to parse. Anything else (operators, comparisons, spaces, calls)
+    # goes through the parser.
+    if expr.isidentifier():
         return variable_hook(expr)
     expr = replace_operators(expr)
     tree = ast.parse(expr, mode="eval")
@@ -324,7 +340,7 @@ def parse_boolean_expr(expr, variable_hook, operator_mapping):
 
 
 def parse_expr(expr: str, variable_hook: Callable) -> Callable:
-    """Parse a value expression into a callable using the restricted AST whitelist.
+    """Parse a value expression into a callable using the restricted AST allowlist.
 
     Unlike :func:`parse_boolean_expr`, this does not apply the DSL operator
     replacement (``!``/``^``/``v``) and does not coerce the top-level result to
@@ -333,7 +349,7 @@ def parse_expr(expr: str, variable_hook: Callable) -> Callable:
     without :func:`eval`.
 
     Raises:
-        ValueError: if the expression uses a structure outside the whitelist
+        ValueError: if the expression uses a structure outside the allowlist
             (e.g. attribute access to dunders, method calls, lambdas).
         SyntaxError: if the expression is empty or not valid Python.
     """
@@ -358,14 +374,52 @@ operator_mapping = {
     ast.NotEq: build_custom_operator(operator.ne),
 }
 
+# Result-size caps for the two operators that can blow up cheaply. Ordinary scalar
+# arithmetic (``x * 2``, ``x ** 2``) is well under these; the caps only reject the
+# denial-of-service forms (``9**9**9`` bignum, ``[0]*20000000`` sequence replication).
+_MAX_POW_RESULT_BITS = 4096
+_MAX_SEQUENCE_LEN = 1_000_000
+
+
+def _guarded_pow(base, exp):
+    """``**`` with a magnitude cap (GHSA-r8gj-366q-cgvj).
+
+    ``int ** int`` can allocate a giant bignum from a tiny expression (``9**9**9`` is a
+    ~370-million-digit number). The result size is estimated *before* computing, so the
+    allocation never happens. Non-integer operands (floats overflow to ``inf`` instead of
+    growing without bound) are passed straight through.
+    """
+    if isinstance(base, int) and isinstance(exp, int) and exp > 0 and base not in (0, 1, -1):
+        if base.bit_length() * exp > _MAX_POW_RESULT_BITS:
+            raise ValueError("'**' result is too large for the restricted evaluator")
+    return operator.pow(base, exp)
+
+
+def _guarded_mul(a, b):
+    """``*`` with a sequence-replication cap (GHSA-r8gj-366q-cgvj).
+
+    ``seq * n`` (list/str/bytes/tuple times an int) can allocate an enormous object from a
+    12-character expression (``[0]*20000000``). The resulting length is checked *before*
+    allocating. Scalar numeric multiplication is unaffected.
+    """
+    for seq, n in ((a, b), (b, a)):
+        if isinstance(seq, (str, bytes, bytearray, list, tuple)) and isinstance(n, int):
+            if n > 0 and n * len(seq) > _MAX_SEQUENCE_LEN:
+                raise ValueError("'*' repetition is too large for the restricted evaluator")
+    return operator.mul(a, b)
+
+
+# ``**`` and ``*`` stay available for ordinary arithmetic but are wrapped so a tiny untrusted
+# expression cannot exhaust CPU/memory (GHSA-r8gj-366q-cgvj). ``trusted=True`` uses the full
+# Python evaluator instead, without these caps.
 binary_operators = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
+    ast.Mult: _guarded_mul,
     ast.Div: operator.truediv,
     ast.FloorDiv: operator.floordiv,
     ast.Mod: operator.mod,
-    ast.Pow: operator.pow,
+    ast.Pow: _guarded_pow,
 }
 
 unary_operators = {

@@ -123,6 +123,56 @@ class TestCompoundStates:
         await sm_runner.send(sm, "leave")
         assert log == ["exit_day", "exit_realm", "enter_outside"]
 
+    async def test_generic_enter_exit_state_param_is_symmetric(self, sm_runner):
+        """Generic ``on_enter_state``/``on_exit_state`` bind ``state`` to the
+        individual state being crossed, symmetrically in both directions.
+
+        Regression test for #634: exiting a compound used to report the
+        transition ``source`` for every exited state (``child`` twice), so the
+        parent state was never observable. Entering already reported the
+        individual state, so the two callbacks were asymmetric.
+        """
+        enters: list = []
+        exits: list = []
+
+        class SymmetricCompound(StateChart):
+            orphan = State(initial=True)
+
+            class parent(State.Compound):
+                child = State()
+
+            switch = orphan.to(parent.child) | parent.child.to(orphan)
+
+            def on_enter_state(self, source, target, state):
+                enters.append((source.id, target.id, state.id))
+
+            def on_exit_state(self, source, target, state):
+                exits.append((source.id, target.id, state.id))
+
+        sm = await sm_runner.start(SymmetricCompound)
+        enters.clear()
+        exits.clear()
+
+        # Enter the compound: `state`/`target` track each entered state.
+        await sm_runner.send(sm, "switch")
+        assert enters == [
+            ("orphan", "parent", "parent"),
+            ("orphan", "child", "child"),
+        ]
+        assert exits == [("orphan", "child", "orphan")]
+
+        enters.clear()
+        exits.clear()
+
+        # Exit the compound: `state`/`source` track each exited state, so the
+        # parent is now distinguishable from the child.
+        await sm_runner.send(sm, "switch")
+        assert exits == [
+            ("child", "orphan", "child"),
+            ("parent", "orphan", "parent"),
+        ]
+        assert enters == [("child", "orphan", "orphan")]
+
     async def test_callbacks_inside_compound_class(self, sm_runner):
         """Methods defined inside the State.Compound class body are discovered."""
         log = []

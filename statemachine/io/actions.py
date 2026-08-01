@@ -8,9 +8,11 @@ is format-neutral: it is shared by the SCXML, JSON and YAML readers.
 
 import logging
 import re
+import types
 from collections.abc import Callable
 from itertools import chain
 from typing import Any
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from ..event import BoundEvent
@@ -35,6 +37,80 @@ from .model import SendAction
 
 logger = logging.getLogger(__name__)
 _debug = logger.debug if logger.isEnabledFor(logging.DEBUG) else lambda *a, **k: None
+
+
+def _ensure_writable_target(name: str, descriptor: str) -> None:
+    """Reject a document-controlled write target that isn't a plain public attribute.
+
+    Executable content chooses the *name* it writes to: ``<assign location>`` (each dotted
+    segment), ``<foreach item>``/``index``, ``<data id>`` and ``<send>``/``<invoke>``
+    ``idlocation``. A private, dunder or engine-protected name lets an untrusted document
+    reach internals or, by traversing ``__class__``, corrupt the shared model class
+    process-wide (GHSA-v3qq-3xvg-m77g, GHSA-4857-ggqc-p3jc). Only a valid, public (no
+    leading ``_``), non-protected identifier may be written. Raised as ``ValueError`` so the
+    engine routes it to ``error.execution`` like any other executable-content failure.
+    """
+    if not name.isidentifier() or name.startswith("_") or name in protected_attrs:
+        raise ValueError(
+            f"{descriptor} cannot write to a private, dunder or protected name: {name!r}"
+        )
+
+
+def _reject_type_or_module(obj: Any, descriptor: str) -> None:
+    """Reject traversing through or writing onto a class or module.
+
+    A class (``isinstance(obj, type)``) or module is shared process-wide, so a ``setattr``
+    on it (or a hop through it) corrupts every user of that class/module, not just this
+    machine. Even if an untrusted expression manages to obtain such an object as a value
+    (e.g. via a leaked engine capability), the write target guard blocks the mutation
+    (GHSA-v3qq-3xvg-m77g). Plain data instances are unaffected. Raised as ``ValueError`` so
+    the engine routes it to ``error.execution``.
+    """
+    if isinstance(obj, type) or isinstance(obj, types.ModuleType):
+        raise ValueError(f"{descriptor} cannot traverse or write onto a class or module: {obj!r}")
+
+
+def _reject_engine_capability(obj: Any, descriptor: str) -> None:
+    """Reject traversing through or writing onto a live engine-capability object.
+
+    Beyond classes and modules (:func:`_reject_type_or_module`), the engine's own runtime
+    objects are shared, mutable capabilities: the machine
+    (:class:`~statemachine.statemachine.StateChart`, and thus ``StateMachine``), the io
+    :class:`~statemachine.io.interpreter.Interpreter`, the core
+    :class:`~statemachine.state.State` / :class:`~statemachine.transition.Transition` /
+    :class:`~statemachine.event.Event`, the system-variable facades
+    (:class:`~statemachine.io.system_variables.EventDataWrapper` /
+    :class:`~statemachine.io.system_variables.IOProcessor`) and the event carriers
+    (:class:`~statemachine.event_data.EventData` / :class:`~statemachine.event_data.TriggerData`).
+    A ``setattr`` on any of them (or a hop through one) mutates state shared across sibling
+    machine instances of the same loaded class. Even if some public alias ever leaks such
+    an object as a value, this blocks pivoting the write onto a shared object
+    (GHSA-v3qq-3xvg-m77g). The datamodel container (:class:`~statemachine.model.Model`, the
+    legitimate ``machine.model`` root) and plain data (dict/list/str/int/ordinary app model
+    instances) are unaffected. Lazy imports keep this off the module import cycle. Raised as
+    ``ValueError`` so the engine routes it to ``error.execution``.
+    """
+    from ..event_data import EventData
+    from ..event_data import TriggerData
+    from ..state import State
+    from ..transition import Transition
+    from .interpreter import Interpreter
+    from .system_variables import EventDataWrapper
+    from .system_variables import IOProcessor
+
+    engine_types = (
+        StateChart,
+        Interpreter,
+        State,
+        Transition,
+        Event,
+        EventDataWrapper,
+        IOProcessor,
+        EventData,
+        TriggerData,
+    )
+    if isinstance(obj, engine_types):
+        raise ValueError(f"{descriptor} cannot traverse or write onto an engine object: {obj!r}")
 
 
 class ParseTime:
@@ -164,19 +240,29 @@ class Assign(CallableAction):
             value = self._expr(*args, **kwargs)  # type: ignore[misc]
 
         *path, attr = self.action.location.split(".")
+        descriptor = f"<assign> 'location' ({self.action.location!r})"
         obj = machine.model
+        # Validate every hop (initial, intermediate and final): traversing a private/dunder
+        # object (e.g. ``__class__``) or writing a protected name is how an untrusted document
+        # escapes the datamodel, validating only the final segment left that open. A class or
+        # module (``_reject_type_or_module``) and a live engine-capability instance
+        # (``_reject_engine_capability``: machine/interpreter/State/Transition/Event and the
+        # system-variable facades) are additionally rejected as a hop or write target, so even
+        # a value that leaked such an object cannot be pivoted onto shared state
+        # (GHSA-v3qq-3xvg-m77g).
         for p in path:
+            _ensure_writable_target(p, descriptor)
+            _reject_type_or_module(obj, descriptor)
+            _reject_engine_capability(obj, descriptor)
             obj = getattr(obj, p)
 
-        if not attr.isidentifier() or not (hasattr(obj, attr) or attr in kwargs):
+        _ensure_writable_target(attr, descriptor)
+        _reject_type_or_module(obj, descriptor)
+        _reject_engine_capability(obj, descriptor)
+        if not (hasattr(obj, attr) or attr in kwargs):
             raise ValueError(
-                f"<assign> 'location' must be a valid Python attribute name and must be declared, "
+                f"<assign> 'location' must be declared before assignment, "
                 f"got: {self.action.location}"
-            )
-        if attr in protected_attrs:
-            raise ValueError(
-                f"<assign> 'location' cannot assign to a protected attribute: "
-                f"{self.action.location}"
             )
         setattr(obj, attr, value)
         _debug("Assign: %s = %r", self.action.location, value)
@@ -242,10 +328,9 @@ def create_foreach_action_callable(action: ForeachAction, evaluator: Evaluator) 
         except Exception as e:
             raise ValueError(f"Error evaluating <foreach> 'array' expression: {e}") from e
 
-        if not action.item.isidentifier():
-            raise ValueError(
-                f"<foreach> 'item' must be a valid Python attribute name, got: {action.item}"
-            )
+        _ensure_writable_target(action.item, "<foreach> 'item'")
+        if action.index:
+            _ensure_writable_target(action.index, "<foreach> 'index'")
         for index, item in enumerate(array):
             # Assign the item and optionally the index
             setattr(machine.model, action.item, item)
@@ -354,6 +439,7 @@ def create_send_action_callable(  # noqa: C901
         if action.id:
             send_id = action.id
         elif action.idlocation:
+            _ensure_writable_target(action.idlocation, "<send> 'idlocation'")
             send_id = uuid4().hex
             setattr(machine.model, action.idlocation, send_id)
 
@@ -408,12 +494,33 @@ def create_script_action_callable(action: ScriptAction, evaluator: Evaluator) ->
     return script_action
 
 
+def _resolve_data_src(action: DataItem, evaluator: Evaluator) -> "str | None":
+    """Read a ``<data src="file:…">`` reference at compile time, gated on trust.
+
+    Only the ``file`` scheme is resolved (mirroring the SCXML reader's historical
+    behaviour). Reading a local file named by an untrusted document is a confidentiality
+    risk, so the restricted evaluator rejects it; ``trusted=True`` reads it as before.
+    Runs inside the document's base directory (``loader._build`` ``_chdir``), so relative
+    paths resolve against the document.
+    """
+    if action.src is None:
+        return None
+    src_parsed = urlparse(action.src)
+    if src_parsed.scheme != "file":
+        return None
+    evaluator.ensure_external_src_allowed(f"<data id={action.id!r} src=...>")
+    with open(src_parsed.path) as f:
+        return f.read()
+
+
 def _create_dataitem_callable(action: DataItem, evaluator: Evaluator) -> Callable:
+    content = action.content if action.content else _resolve_data_src(action, evaluator)
     expr_fn = evaluator.compile_value(action.expr) if action.expr else None
-    content_fn = evaluator.compile_value(action.content) if action.content else None
+    content_fn = evaluator.compile_value(content) if content else None
 
     def data_initializer(**kwargs):
         machine: StateChart = kwargs["machine"]
+        _ensure_writable_target(action.id, "<data> 'id'")
 
         # Check for invoke param overrides — params from parent override child defaults
         invoke_params = getattr(machine, "_invoke_params", None)
@@ -432,7 +539,7 @@ def _create_dataitem_callable(action: DataItem, evaluator: Evaluator) -> Callabl
             try:
                 value = content_fn(**kwargs)
             except Exception:
-                value = action.content
+                value = content
         else:
             value = None
 

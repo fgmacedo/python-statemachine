@@ -11,19 +11,26 @@ whether it was authored in SCXML, JSON or YAML.
 Security
 --------
 
-Loading a document compiles its guards, datamodel expressions and executable content into
-callables. Because a document may come from a semi-trusted source, loading is **secure by
-default** (``trusted=False``): expressions are evaluated by a **restricted AST-whitelist
-evaluator** that cannot reach builtins, dunder attributes, or arbitrary calls, and
-``<script>`` / ``script`` (arbitrary code) is rejected. This mirrors ``yaml.safe_load`` and
-keeps loading from turning into arbitrary code execution.
+A statechart is an *executable document*, not inert data, so loading one is closer to importing
+code than to parsing JSON. Because a document may come from a semi-trusted source, loading is
+**secure by default** (``trusted=False``): expressions are evaluated by a **restricted
+AST-allowlist evaluator** that cannot reach builtins, dunder attributes or arbitrary calls;
+``<script>`` / ``script`` (arbitrary code) is rejected; external resource references
+(``<data src>`` / ``<invoke src>``, which read local files) are rejected; write targets are
+confined to public model attributes; and ``**``/``*`` are magnitude-capped.
 
-Passing ``trusted=True`` restores full ``eval``/``exec`` evaluation and enables ``script``.
-In that mode a document is equivalent to executable Python (much like :mod:`pickle`), so
-**only load ``trusted`` documents from sources you control** (hand-authored documents, the
-output of your own tooling, the W3C conformance suite).
+Passing ``trusted=True`` restores full ``eval``/``exec`` evaluation, enables ``script`` and
+allows external ``src`` references. In that mode a document is equivalent to executable Python
+(much like :mod:`pickle`), so **only load ``trusted`` documents from sources you control**
+(hand-authored documents, the output of your own tooling, the W3C conformance suite).
 
-See the GHSA-v4jc-pm6r-3vj8 advisory for details.
+The intended use of ``trusted=False`` is your own dynamic definitions (a no-code editor, your
+tooling, config you control); it is *hardening*, not a sandbox. It guarantees confidentiality
+and integrity, not availability: a *running* machine can still exhaust resources (eventless
+loops, large ``<foreach>``, recursive ``<invoke>``), so run genuinely untrusted documents under
+your own timeout/resource limits or OS-level isolation. See the GHSA-v4jc-pm6r-3vj8,
+GHSA-fj3w-533r-fvf6, GHSA-v3qq-3xvg-m77g, GHSA-4857-ggqc-p3jc and GHSA-r8gj-366q-cgvj advisories,
+and ``docs/io/security.md``, for details.
 """
 
 from .class_factory import ActionProtocol

@@ -56,11 +56,26 @@ def test_ordered_set_getitem():
     assert s[2] == 30
 
 
+def test_ordered_set_getitem_negative_index():
+    """OrderedSet supports negative index access like Python sequences."""
+    s = OrderedSet([10, 20, 30])
+    assert s[-1] == 30
+    assert s[-2] == 20
+    assert s[-3] == 10
+
+
 def test_ordered_set_getitem_out_of_range():
     """OrderedSet raises IndexError for out-of-range index."""
     s = OrderedSet([10, 20])
     with pytest.raises(IndexError, match="index 5 out of range"):
         s[5]
+
+
+def test_ordered_set_getitem_negative_out_of_range():
+    """OrderedSet raises IndexError for negative out-of-range index."""
+    s = OrderedSet([10, 20])
+    with pytest.raises(IndexError, match=r"index -3 out of range"):
+        s[-3]
 
 
 def test_ordered_set_union():

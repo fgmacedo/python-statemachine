@@ -28,7 +28,7 @@ SCXML-compliant behavior provides more predictable semantics.
 ```{warning}
 This page describes runtime *semantics*. If you **load SCXML documents** via
 `SCXMLProcessor`, note that SCXML is executable content: by default the
-datamodel is evaluated with a restricted AST whitelist and `<script>` is
+datamodel is evaluated with a restricted AST allowlist and `<script>` is
 rejected, so untrusted documents cannot execute arbitrary code. Pass
 `trusted=True` only for SCXML you control. See the 3.2.0 release notes and
 GHSA-v4jc-pm6r-3vj8.
@@ -157,6 +157,10 @@ When `True` (SCXML default), runtime exceptions in action callbacks
 (entry/exit, transition `on`) are caught by the engine and dispatched as
 internal `error.execution` events. When `False` (legacy default), exceptions
 propagate normally to the caller.
+
+This flag only governs exceptions raised **inside** an action callback. An event
+that doesn't match any enabled transition is a different case, controlled by
+{ref}`allow_event_without_transition <behaviour>` instead.
 
 ```{note}
 {ref}`Validators <validators>` are **not** affected by this flag — they

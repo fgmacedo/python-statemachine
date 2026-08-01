@@ -3,7 +3,7 @@
 :func:`load` is the simple entry point: give it a file path (format detected by
 extension) or inline content (with an explicit ``format=``) and it returns the
 ready-to-instantiate :class:`~statemachine.statemachine.StateChart` class. It is
-**secure by default** — expressions are evaluated by a restricted AST-whitelist
+**secure by default** — expressions are evaluated by a restricted AST-allowlist
 evaluator and ``<script>`` / arbitrary Python is rejected unless ``trusted=True``.
 
 For advanced scenarios (a document declaring several statecharts, or SCXML files
@@ -39,6 +39,20 @@ def _chdir(new_dir: Path):
         os.chdir(original)
 
 
+def _is_existing_file(source: str) -> bool:
+    """Whether ``source`` names an existing file, treating "too long"/invalid as not a file.
+
+    A long single-line inline document (e.g. minified JSON) is not a path, but reaches
+    :meth:`Path.is_file`, which on some platforms raises ``OSError`` (``ENAMETOOLONG``) or
+    ``ValueError`` (embedded NUL) instead of returning ``False``. Swallow those so inline
+    content is never mistaken for a crash; a real, resolvable path still returns ``True``.
+    """
+    try:
+        return Path(source).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 def _resolve_source(source: "str | Path", format: "str | None"):
     """Return ``(text, format_name, location_hint, base_dir)`` for a source.
 
@@ -48,7 +62,7 @@ def _resolve_source(source: "str | Path", format: "str | None"):
     """
     if isinstance(source, Path):
         path: "Path | None" = source
-    elif "\n" not in source and Path(source).is_file():
+    elif "\n" not in source and _is_existing_file(source):
         path = Path(source)
     else:
         path = None
@@ -140,7 +154,7 @@ def load(
         format: explicit format name (``"scxml"``, ``"json"``, ``"yaml"``),
             overriding extension detection and required for inline content.
         trusted: when ``False`` (default), expressions are evaluated by a restricted
-            AST-whitelist evaluator and ``<script>`` / arbitrary Python is rejected.
+            AST-allowlist evaluator and ``<script>`` / arbitrary Python is rejected.
             When ``True``, expressions and scripts are evaluated as arbitrary Python.
         validate: when ``True`` (native JSON/YAML only), validate the document against
             the published JSON Schema before building (requires the ``[validation]``

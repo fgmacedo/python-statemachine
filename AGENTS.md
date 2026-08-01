@@ -302,6 +302,10 @@ enforced, so when you add or change native vocabulary:
 - Signed commits preferred (`git commit -s`)
 - Use [Conventional Commits](https://www.conventionalcommits.org/) messages
   (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`)
+- **NEVER bypass pre-commit hooks** (`--no-verify`, `-n`, or disabling hooks). The hooks
+  inspect every commit to keep regressions out; only the maintainer may decide to skip them.
+  If a hook modifies files (e.g. `generate-images` regenerating a diagram PNG), stage the
+  generated changes and commit again until the hooks pass — do not skip them.
 
 ## Security
 
