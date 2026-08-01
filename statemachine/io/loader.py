@@ -39,6 +39,20 @@ def _chdir(new_dir: Path):
         os.chdir(original)
 
 
+def _is_existing_file(source: str) -> bool:
+    """Whether ``source`` names an existing file, treating "too long"/invalid as not a file.
+
+    A long single-line inline document (e.g. minified JSON) is not a path, but reaches
+    :meth:`Path.is_file`, which on some platforms raises ``OSError`` (``ENAMETOOLONG``) or
+    ``ValueError`` (embedded NUL) instead of returning ``False``. Swallow those so inline
+    content is never mistaken for a crash; a real, resolvable path still returns ``True``.
+    """
+    try:
+        return Path(source).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 def _resolve_source(source: "str | Path", format: "str | None"):
     """Return ``(text, format_name, location_hint, base_dir)`` for a source.
 
@@ -48,7 +62,7 @@ def _resolve_source(source: "str | Path", format: "str | None"):
     """
     if isinstance(source, Path):
         path: "Path | None" = source
-    elif "\n" not in source and Path(source).is_file():
+    elif "\n" not in source and _is_existing_file(source):
         path = Path(source)
     else:
         path = None

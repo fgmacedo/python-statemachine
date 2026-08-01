@@ -67,7 +67,9 @@ class TestNativeInvokeRuntime:
         )
         path = tmp_path / "parent.yaml"
         path.write_text(parent)
-        sm = load(path)()
+        # An external ``src`` reads a local file, so it requires trusted=True
+        # (see GHSA-fj3w-533r-fvf6 and tests/io/test_security.py).
+        sm = load(path, trusted=True)()
         _wait_final(sm)
         assert "done" in sm.configuration_values
 

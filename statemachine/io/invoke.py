@@ -20,6 +20,7 @@ from typing import Any
 from ..invoke import IInvoke
 from ..invoke import InvokeContext
 from .actions import ExecuteBlock
+from .actions import _ensure_writable_target
 from .evaluators import Evaluator
 from .model import InvokeDefinition
 from .model import StateMachineDefinition
@@ -57,6 +58,12 @@ class Invoker:
         self._base_dir: str = base_dir
         self._evaluator: Evaluator = evaluator
 
+        # A static ``src`` is known at load time, so reject it now (like <data src> /
+        # <script>) for a clean, propagating error. A dynamic ``srcexpr`` can only be
+        # resolved at runtime and is gated again in ``_resolve_content``.
+        if definition.content is None and definition.src is not None:
+            self._evaluator.ensure_external_src_allowed("<invoke src=...>")
+
         # Duck-typed attributes for InvokeManager
         self.invoke_id: "str | None" = definition.id
         self.idlocation: "str | None" = definition.idlocation
@@ -76,6 +83,7 @@ class Invoker:
 
         # Store invokeid in idlocation if specified
         if self.idlocation:
+            _ensure_writable_target(self.idlocation, "<invoke> 'idlocation'")
             setattr(machine.model, self.idlocation, ctx.invokeid)
 
         # Resolve invoke type
@@ -175,6 +183,10 @@ class Invoker:
             src = defn.src
         else:
             return None
+
+        # Reading a local file named by an untrusted document is a confidentiality risk,
+        # so it is gated on the trust level (mirrors <script> / <data src>).
+        self._evaluator.ensure_external_src_allowed("<invoke src=...>")
 
         # Handle file: URIs and relative paths
         if src.startswith("file:"):

@@ -60,6 +60,36 @@ class TestInlineContent:
         cls = load(json.dumps(TOGGLE_NATIVE), format="json", name="Custom")
         assert cls.__name__ == "Custom"
 
+    def test_long_single_line_inline_is_not_probed_as_path(self):
+        # A long single-line inline document reaches Path.is_file(); on some platforms that
+        # raises OSError(ENAMETOOLONG) instead of returning False. load() must treat it as
+        # inline content, never let the OSError escape.
+        big = {
+            "datamodel": [{"id": "blob", "expr": "'" + "x" * 5000 + "'"}],
+            "states": {
+                "s1": {"initial": True, "transitions": [{"event": "go", "target": "s2"}]},
+                "s2": {},
+            },
+        }
+        text = json.dumps(big)
+        assert "\n" not in text
+        sm = load(text, format="json")()
+        sm.send("go")
+        assert "s2" in sm.configuration_values
+
+    def test_is_file_oserror_is_treated_as_not_a_file(self, monkeypatch):
+        # Simulate the Linux ENAMETOOLONG behaviour on any platform: Path.is_file raising
+        # OSError must be swallowed so inline content still loads.
+        import errno
+        from pathlib import Path
+
+        def _raise(self):
+            raise OSError(errno.ENAMETOOLONG, "File name too long")
+
+        monkeypatch.setattr(Path, "is_file", _raise)
+        sm = load(json.dumps(TOGGLE_NATIVE), format="json")()
+        assert "on" in sm.configuration_values
+
 
 class TestFileSources:
     def test_load_json_file(self, tmp_path):

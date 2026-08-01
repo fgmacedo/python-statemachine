@@ -385,8 +385,12 @@ class TestSCXMLHistoryWithoutTransitions:
 # --- SCXMLInvoker ---
 
 
-def _make_invoker(definition=None, base_dir=None, register_child=None):
-    """Helper to create an SCXMLInvoker with sensible defaults."""
+def _make_invoker(definition=None, base_dir=None, register_child=None, trusted=False):
+    """Helper to create an SCXMLInvoker with sensible defaults.
+
+    ``trusted=True`` is needed to exercise external ``src`` resolution, which the
+    restricted (default) evaluator rejects (GHSA-fj3w-533r-fvf6).
+    """
     if definition is None:
         definition = InvokeDefinition()
     if base_dir is None:
@@ -397,7 +401,7 @@ def _make_invoker(definition=None, base_dir=None, register_child=None):
         definition=definition,
         base_dir=base_dir,
         register_child=register_child,
-        evaluator=evaluator_for(),
+        evaluator=evaluator_for(trusted=trusted),
     )
 
 
@@ -414,6 +418,24 @@ class TestSCXMLInvoker:
         ctx.machine = Mock(model=model)
 
         with pytest.raises(ValueError, match="Unsupported invoke type"):
+            invoker.run(ctx)
+
+    @pytest.mark.parametrize("bad_idlocation", ["__class__", "_secret", "state"])
+    def test_idlocation_rejects_private_dunder_protected(self, bad_idlocation):
+        """run() rejects a dunder/private/protected <invoke idlocation> before writing it.
+
+        The write-target guard on ``idlocation`` (GHSA-v3qq-3xvg-m77g / GHSA-4857-ggqc-p3jc)
+        raises ValueError, which the engine routes to error.execution; the model is never
+        mutated at the bad name.
+        """
+        defn = InvokeDefinition(content="<scxml/>", idlocation=bad_idlocation)
+        invoker = _make_invoker(definition=defn)
+        ctx = Mock()
+        model = Mock(spec=[])
+        ctx.machine = Mock(model=model)
+        ctx.invokeid = "inv1"
+
+        with pytest.raises(ValueError, match="private, dunder or protected"):
             invoker.run(ctx)
 
     def test_no_content_resolved_raises(self):
@@ -442,7 +464,7 @@ class TestSCXMLInvoker:
         scxml_file.write_text("<scxml/>")
 
         defn = InvokeDefinition(src="child.scxml")
-        invoker = _make_invoker(definition=defn, base_dir=str(tmp_path))
+        invoker = _make_invoker(definition=defn, base_dir=str(tmp_path), trusted=True)
 
         result = invoker._resolve_content(Mock())
         assert result == "<scxml/>"
@@ -648,15 +670,25 @@ class TestEventDataWrapperEdgeCases:
         with pytest.raises(ValueError, match="Either event_data or trigger_data"):
             EventDataWrapper()
 
-    def test_getattr_with_event_data_delegates(self):
-        """__getattr__ delegates to event_data when present."""
+    def test_engine_carriers_not_exposed(self):
+        """The facade never forwards arbitrary names to the wrapped EventData.
+
+        The old blind ``__getattr__`` forward re-exposed engine capabilities
+        (``_event.event_data`` / ``_event.trigger_data`` / ``_event.machine``); the facade
+        now exposes only SCXML-visible fields (GHSA-v3qq-3xvg-m77g).
+        """
         event_data = Mock()
         event_data.trigger_data = Mock(
             kwargs={}, send_id=None, event=Mock(internal=True, __str__=lambda s: "test")
         )
         event_data.some_custom_attr = "custom_value"
         wrapper = EventDataWrapper(event_data)
-        assert wrapper.some_custom_attr == "custom_value"
+        for leaked in ("some_custom_attr", "event_data", "trigger_data", "machine"):
+            with pytest.raises(AttributeError):
+                getattr(wrapper, leaked)
+        # The SCXML-visible surface still resolves.
+        assert wrapper.type == "internal"
+        assert wrapper.sendid is None
 
     def test_getattr_without_event_data_raises(self):
         """__getattr__ raises AttributeError when event_data is None."""
@@ -672,6 +704,28 @@ class TestEventDataWrapperEdgeCases:
         trigger_data.event.__str__ = lambda s: "my.event"
         wrapper = EventDataWrapper(trigger_data=trigger_data)
         assert wrapper.name == "my.event"
+
+
+class TestEventDataPayloadView:
+    """The ``_event.data`` payload view keeps the raw dict private (GHSA-v3qq-3xvg-m77g)."""
+
+    def test_fields_resolve_but_raw_dict_is_private(self):
+        from statemachine.io.system_variables import _Data
+
+        data = _Data({"aParam": 7})
+        assert data.aParam == 7  # individual fields resolve
+        assert data.get("aParam") == 7
+        assert data.missing is None  # unknown field -> None (not an error)
+        # The underlying dict is never handed back through the public payload name.
+        assert data.kwargs is None
+
+    def test_getattr_guard_avoids_recursion_before_field_set(self):
+        from statemachine.io.system_variables import _Data
+
+        # A not-yet-initialized instance must raise (not recurse) on any attribute access.
+        bare = _Data.__new__(_Data)
+        with pytest.raises(AttributeError):
+            bare.anything  # noqa: B018
 
 
 # --- _send_to_parent coverage ---
@@ -1003,7 +1057,7 @@ class TestSCXMLInvokerResolveContentAbsolutePath:
         scxml_file.write_text("<scxml/>")
 
         defn = InvokeDefinition(src=str(scxml_file))
-        invoker = _make_invoker(definition=defn, base_dir="/some/other/dir")
+        invoker = _make_invoker(definition=defn, base_dir="/some/other/dir", trusted=True)
 
         result = invoker._resolve_content(Mock())
         assert result == "<scxml/>"

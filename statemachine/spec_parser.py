@@ -285,10 +285,13 @@ def build_expression(  # noqa: C901
             return operator_mapping[type(node.op)](recurse(node.operand))
         case ast.UnaryOp(op=(ast.USub() | ast.UAdd())) if allow_value_nodes:
             return build_unaryop(unary_operators[type(node.op)], recurse(node.operand))
-        case ast.BinOp() if allow_value_nodes and type(node.op) in binary_operators:
-            return build_binop(
-                binary_operators[type(node.op)], recurse(node.left), recurse(node.right)
-            )
+        case ast.BinOp() if allow_value_nodes:
+            op_type = type(node.op)
+            if op_type not in binary_operators:
+                # e.g. bitwise ``^``/``|``/``<<`` are outside the allowlist. (``**`` and ``*``
+                # are allowed but magnitude-capped — see ``binary_operators``.)
+                raise ValueError(f"Binary operator '{op_type.__name__}' is not allowed")
+            return build_binop(binary_operators[op_type], recurse(node.left), recurse(node.right))
         case ast.List(elts=elts) if allow_value_nodes:
             return build_collection(list, [recurse(e) for e in elts])
         case ast.Tuple(elts=elts) if allow_value_nodes:
@@ -371,14 +374,52 @@ operator_mapping = {
     ast.NotEq: build_custom_operator(operator.ne),
 }
 
+# Result-size caps for the two operators that can blow up cheaply. Ordinary scalar
+# arithmetic (``x * 2``, ``x ** 2``) is well under these; the caps only reject the
+# denial-of-service forms (``9**9**9`` bignum, ``[0]*20000000`` sequence replication).
+_MAX_POW_RESULT_BITS = 4096
+_MAX_SEQUENCE_LEN = 1_000_000
+
+
+def _guarded_pow(base, exp):
+    """``**`` with a magnitude cap (GHSA-r8gj-366q-cgvj).
+
+    ``int ** int`` can allocate a giant bignum from a tiny expression (``9**9**9`` is a
+    ~370-million-digit number). The result size is estimated *before* computing, so the
+    allocation never happens. Non-integer operands (floats overflow to ``inf`` instead of
+    growing without bound) are passed straight through.
+    """
+    if isinstance(base, int) and isinstance(exp, int) and exp > 0 and base not in (0, 1, -1):
+        if base.bit_length() * exp > _MAX_POW_RESULT_BITS:
+            raise ValueError("'**' result is too large for the restricted evaluator")
+    return operator.pow(base, exp)
+
+
+def _guarded_mul(a, b):
+    """``*`` with a sequence-replication cap (GHSA-r8gj-366q-cgvj).
+
+    ``seq * n`` (list/str/bytes/tuple times an int) can allocate an enormous object from a
+    12-character expression (``[0]*20000000``). The resulting length is checked *before*
+    allocating. Scalar numeric multiplication is unaffected.
+    """
+    for seq, n in ((a, b), (b, a)):
+        if isinstance(seq, (str, bytes, bytearray, list, tuple)) and isinstance(n, int):
+            if n > 0 and n * len(seq) > _MAX_SEQUENCE_LEN:
+                raise ValueError("'*' repetition is too large for the restricted evaluator")
+    return operator.mul(a, b)
+
+
+# ``**`` and ``*`` stay available for ordinary arithmetic but are wrapped so a tiny untrusted
+# expression cannot exhaust CPU/memory (GHSA-r8gj-366q-cgvj). ``trusted=True`` uses the full
+# Python evaluator instead, without these caps.
 binary_operators = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
+    ast.Mult: _guarded_mul,
     ast.Div: operator.truediv,
     ast.FloorDiv: operator.floordiv,
     ast.Mod: operator.mod,
-    ast.Pow: operator.pow,
+    ast.Pow: _guarded_pow,
 }
 
 unary_operators = {
