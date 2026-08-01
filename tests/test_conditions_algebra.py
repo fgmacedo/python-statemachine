@@ -93,5 +93,6 @@ def test_should_not_mask_errors_raised_while_resolving_names():
 
         submit = start.to(end, cond="is_ready")
 
+    model = Model()
     with pytest.raises(ValueError, match="the model is not configured"):
-        AnyConditionSM(Model())
+        AnyConditionSM(model)
