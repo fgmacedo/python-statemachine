@@ -551,11 +551,14 @@ class TestLeakedEngineClassPollution:
         try:
             sm = _run_exec(scxml, native, fmt)
             assert "failed" in _config(sm)
-            # The shared class is intact: add_note is still the inherited method, not int 1,
-            # and a normal exception still constructs and carries a note.
-            assert callable(TransitionNotAllowed.add_note)
-            err = TransitionNotAllowed(None, set())
-            err.add_note("still works")
+            # The shared class is intact: the exploit did not inject ``add_note = 1`` onto it.
+            # ``BaseException.add_note`` only exists on Python 3.11+, so assert on the injection
+            # site (the class ``__dict__``) rather than the inherited method, to stay
+            # version-agnostic.
+            assert "add_note" not in TransitionNotAllowed.__dict__
+            assert getattr(TransitionNotAllowed, "add_note", None) != 1
+            # A normal exception still constructs.
+            TransitionNotAllowed(None, set())
         finally:
             # Defensive: if a regression ever mutated the shared class, restore it so the
             # rest of the suite is not corrupted.
