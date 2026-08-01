@@ -118,7 +118,9 @@ class Listeners:
 
         try:
             expression = parse_boolean_expr(spec.func, take_callback_partial, operator_mapping)
-        except SyntaxError as err:
+        except (SyntaxError, ValueError) as err:
+            # ``ValueError`` comes from the AST allowlist rejecting a node kind that
+            # cannot appear in a boolean expression (e.g. ``"user.age"``).
             raise InvalidDefinition(
                 _("Failed to parse boolean expression '{}'").format(spec.func)
             ) from err

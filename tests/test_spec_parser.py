@@ -222,6 +222,27 @@ def test_classical_operators_without_spaces():
         assert got is want, unspaced
 
 
+def test_unspaced_not_equal_is_a_comparison():
+    # "!" is an operator, but "!=" is not a negation: it must keep parsing
+    # as a comparison even without surrounding whitespace.
+    got = parse_boolean_expr("frodo_age!=51", variable_hook, operator_mapping)()
+    want = parse_boolean_expr("frodo_age != 51", variable_hook, operator_mapping)()
+    assert got is want is True
+
+
+def test_unspaced_comparison():
+    # A comparison is not a variable name, even without surrounding whitespace.
+    got = parse_boolean_expr("frodo_age>=50", variable_hook, operator_mapping)()
+    want = parse_boolean_expr("frodo_age >= 50", variable_hook, operator_mapping)()
+    assert got is want is True
+
+
+def test_bare_v_is_a_variable_name():
+    # "v" is only an operator between operands; a lone "v" is a plain variable.
+    expr = parse_boolean_expr("v", variable_hook, operator_mapping)
+    assert expr.__name__ == "v"
+
+
 def test_empty_expression():
     expr = ""
     with pytest.raises(SyntaxError):

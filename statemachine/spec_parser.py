@@ -315,10 +315,10 @@ def parse_boolean_expr(expr, variable_hook, operator_mapping):
     if expr.strip() == "":
         raise SyntaxError("Empty expression")
 
-    # Optimization trying to avoid parsing the expression if not needed. Skip it
-    # when any classical operator is present, not just "!" -- an unspaced "^"/"v"
-    # (e.g. "a^b") would otherwise be swallowed into a single variable name.
-    if not pattern.search(expr) and " " not in expr and "In(" not in expr:
+    # Optimization: a lone identifier can only be a variable name, so there is
+    # nothing to parse. Anything else (operators, comparisons, spaces, calls)
+    # goes through the parser.
+    if expr.isidentifier():
         return variable_hook(expr)
     expr = replace_operators(expr)
     tree = ast.parse(expr, mode="eval")

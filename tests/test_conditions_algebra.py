@@ -66,3 +66,14 @@ def test_should_raise_invalid_definition_if_cond_is_not_found():
 
     with pytest.raises(InvalidDefinition, match="Did not found name 'xxx'"):
         AnyConditionSM()
+
+
+def test_should_raise_invalid_definition_if_cond_has_unsupported_structure():
+    class AnyConditionSM(StateChart):
+        start = State(initial=True)
+        end = State(final=True)
+
+        submit = start.to(end, cond="user.age")
+
+    with pytest.raises(InvalidDefinition, match="Failed to parse boolean expression 'user.age'"):
+        AnyConditionSM()
