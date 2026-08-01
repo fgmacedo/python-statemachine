@@ -289,7 +289,7 @@ def build_expression(  # noqa: C901
             op_type = type(node.op)
             if op_type not in binary_operators:
                 # e.g. bitwise ``^``/``|``/``<<`` are outside the allowlist. (``**`` and ``*``
-                # are allowed but magnitude-capped — see ``binary_operators``.)
+                # are allowed but magnitude-capped, see ``binary_operators``.)
                 raise ValueError(f"Binary operator '{op_type.__name__}' is not allowed")
             return build_binop(binary_operators[op_type], recurse(node.left), recurse(node.right))
         case ast.List(elts=elts) if allow_value_nodes:
