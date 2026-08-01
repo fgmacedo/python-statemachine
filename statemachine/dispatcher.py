@@ -14,6 +14,7 @@ from .event import Event
 from .exceptions import InvalidDefinition
 from .i18n import _
 from .signature import SignatureAdapter
+from .spec_parser import UnsupportedExpression
 from .spec_parser import custom_and
 from .spec_parser import operator_mapping
 from .spec_parser import parse_boolean_expr
@@ -118,7 +119,10 @@ class Listeners:
 
         try:
             expression = parse_boolean_expr(spec.func, take_callback_partial, operator_mapping)
-        except SyntaxError as err:
+        except (SyntaxError, UnsupportedExpression) as err:
+            # ``UnsupportedExpression`` comes from the AST allowlist rejecting a node
+            # kind that cannot appear in a boolean expression (e.g. ``"user.age"``).
+            # Errors raised while resolving names are not parse errors and propagate.
             raise InvalidDefinition(
                 _("Failed to parse boolean expression '{}'").format(spec.func)
             ) from err

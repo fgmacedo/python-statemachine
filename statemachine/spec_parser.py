@@ -19,6 +19,15 @@ comparison_repr = {
 }
 
 
+class UnsupportedExpression(ValueError):
+    """The expression contains a structure that is not on the parser allowlist.
+
+    Distinguishes a rejected expression from errors raised by the ``variable_hook``
+    while resolving names, so callers can report each one properly. Inherits from
+    ``ValueError`` to keep the previous behavior for callers catching it.
+    """
+
+
 def _unique_key(left, right, operator) -> str:
     left_key = getattr(left, "unique_key", "")
     right_key = getattr(right, "unique_key", "")
@@ -128,7 +137,7 @@ class Functions:
     def get(cls, func_id):
         func_id = func_id.lower()
         if func_id not in cls.registry:
-            raise ValueError(f"Unsupported function: {func_id}")
+            raise UnsupportedExpression(f"Unsupported function: {func_id}")
         return cls.registry[func_id]
 
 
@@ -300,14 +309,16 @@ def build_expression(  # noqa: C901
             # without underscore-attribute access or method calls, it cannot reach
             # type objects.
             if attr.startswith("_"):
-                raise ValueError(f"Attribute access to '{attr}' is not allowed")
+                raise UnsupportedExpression(f"Attribute access to '{attr}' is not allowed")
             return build_attribute(recurse(node.value), attr)
         case ast.Name(id=name):
             return variable_hook(name)
         case ast.Constant(value=value):
             return build_constant(value)
         case _:
-            raise ValueError(f"Unsupported expression structure: {node.__class__.__name__}")
+            raise UnsupportedExpression(
+                f"Unsupported expression structure: {node.__class__.__name__}"
+            )
 
 
 def parse_boolean_expr(expr, variable_hook, operator_mapping):
@@ -315,8 +326,10 @@ def parse_boolean_expr(expr, variable_hook, operator_mapping):
     if expr.strip() == "":
         raise SyntaxError("Empty expression")
 
-    # Optimization trying to avoid parsing the expression if not needed
-    if "!" not in expr and " " not in expr and "In(" not in expr:
+    # Optimization: a lone identifier can only be a variable name, so there is
+    # nothing to parse. Anything else (operators, comparisons, spaces, calls)
+    # goes through the parser.
+    if expr.isidentifier():
         return variable_hook(expr)
     expr = replace_operators(expr)
     tree = ast.parse(expr, mode="eval")

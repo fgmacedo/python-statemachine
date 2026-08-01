@@ -66,3 +66,33 @@ def test_should_raise_invalid_definition_if_cond_is_not_found():
 
     with pytest.raises(InvalidDefinition, match="Did not found name 'xxx'"):
         AnyConditionSM()
+
+
+def test_should_raise_invalid_definition_if_cond_has_unsupported_structure():
+    class AnyConditionSM(StateChart):
+        start = State(initial=True)
+        end = State(final=True)
+
+        submit = start.to(end, cond="user.age")
+
+    with pytest.raises(InvalidDefinition, match="Failed to parse boolean expression 'user.age'"):
+        AnyConditionSM()
+
+
+def test_should_not_mask_errors_raised_while_resolving_names():
+    # Resolving a name reads attributes from the model, which runs user code. An
+    # error raised there is not a parse error and must not be reported as one.
+    class Model:
+        @property
+        def is_ready(self):
+            raise ValueError("the model is not configured")
+
+    class AnyConditionSM(StateChart):
+        start = State(initial=True)
+        end = State(final=True)
+
+        submit = start.to(end, cond="is_ready")
+
+    model = Model()
+    with pytest.raises(ValueError, match="the model is not configured"):
+        AnyConditionSM(model)

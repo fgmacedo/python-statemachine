@@ -210,6 +210,35 @@ def test_classical_operators_name():
     )  # name reflects expression structure
 
 
+@pytest.mark.parametrize(
+    ("unspaced", "spaced", "expected"),
+    [
+        ("frodo_has_ring^sam_is_loyal", "frodo_has_ring ^ sam_is_loyal", True),
+        ("frodo_has_ring^sauron_alive", "frodo_has_ring ^ sauron_alive", False),
+        ("(frodo_has_ring)v(sauron_alive)", "(frodo_has_ring) v (sauron_alive)", True),
+        # "!" is an operator, but "!=" is not a negation: it must keep parsing
+        # as a comparison. Note the "!=51" (and not "!=50"): a misparse resolves
+        # the whole string as an unknown variable, which defaults to False, so a
+        # "!=50" case would pass for the wrong reason.
+        ("frodo_age!=51", "frodo_age != 51", True),
+        ("frodo_age>=50", "frodo_age >= 50", True),
+    ],
+)
+def test_operators_without_surrounding_spaces(unspaced, spaced, expected):
+    # Operators do not require surrounding whitespace, so an unspaced expression
+    # must parse just like its spaced equivalent instead of being swallowed into
+    # a single variable name.
+    got = parse_boolean_expr(unspaced, variable_hook, operator_mapping)()
+    want = parse_boolean_expr(spaced, variable_hook, operator_mapping)()
+    assert got is want is expected
+
+
+def test_bare_v_is_a_variable_name():
+    # "v" is only an operator between operands; a lone "v" is a plain variable.
+    expr = parse_boolean_expr("v", variable_hook, operator_mapping)
+    assert expr.__name__ == "v"
+
+
 def test_empty_expression():
     expr = ""
     with pytest.raises(SyntaxError):
