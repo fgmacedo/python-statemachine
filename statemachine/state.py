@@ -56,62 +56,50 @@ class _FromState(_TransitionBuilder):
         return transitions
 
 
-def _bind_declared_event(key: str, declared: "Event") -> "Event":
-    """Register an ``Event`` declared inside a nested state class body.
+class _NestedBody:
+    """Collects a nested state class body into the arguments of the :ref:`State` it becomes.
 
-    The declared instance is a placeholder: unless an explicit ``id`` was given, it holds a
-    generated one. Its transitions are bound to an event carrying the attribute name, mirroring
-    what :class:`StateMachineMetaclass` does for top-level declarations.
+    Unlike :class:`statemachine.factory._StateChartBody`, this reader has no class to register
+    on. Everything that is not a substate is handed back as a callback for
+    ``StateMachineMetaclass._unpack_builders_callbacks`` to place on the owning statechart.
     """
-    event_id = declared.id if declared._has_real_id else _expand_event_id(key)
-    event = Event(id=event_id, name=declared.name)
-    if declared._transitions is not None:
-        declared._transitions.add_event(event)
-    return event
 
+    def __init__(self) -> None:
+        self.states: list[State] = []
+        self.history: list[HistoryState] = []
+        self.callbacks: dict = {}
 
-def _bind_decorated_event(key: str, func: Any) -> Any:
-    """Bind a callback declared with the ``@<source>.to(<target>)`` decorator syntax.
+    def on_states(self, states: Any) -> None:
+        for state_id, state in states.items():
+            state._set_id(state_id)
+            self.states.append(state)
 
-    Mirrors ``StateMachineMetaclass._add_unbounded_callback``: the attribute name becomes the
-    event, so the callback itself is kept under the mangled name the callback machinery expects.
-    """
-    if func.is_event:
-        func._transitions.add_event(_expand_event_id(key))
-    return func
+    def on_history(self, key: str, state: "HistoryState") -> None:
+        state._set_id(key)
+        self.history.append(state)
 
+    def on_state(self, key: str, state: "State") -> None:
+        state._set_id(key)
+        self.states.append(state)
 
-def _collect_nested_members(attrs: dict) -> "tuple[list[State], list[HistoryState], dict]":
-    """Split a nested state class body into states, history states and callbacks."""
-    # Lazy import to avoid circular dependency (states.py imports state.py)
-    from .states import States
+    def on_transitions(self, key: str, transitions: "Transition | TransitionList") -> None:
+        transitions.add_event(_expand_event_id(key))
 
-    states: list[State] = []
-    history: list[HistoryState] = []
-    callbacks: dict = {}
-    for key, value in attrs.items():
-        if isinstance(value, States):
-            for state_id, state in value.items():
-                state._set_id(state_id)
-                states.append(state)
-        elif isinstance(value, HistoryState):
-            value._set_id(key)
-            history.append(value)
-        elif isinstance(value, State):
-            value._set_id(key)
-            states.append(value)
-        elif isinstance(value, TransitionList):
-            value.add_event(_expand_event_id(key))
-        elif isinstance(value, Event):
-            # `Event` is callable, so it must be handled before the `callable` branch,
-            # otherwise its transitions would be left eventless.
-            callbacks[key] = _bind_declared_event(key, value)
-        elif getattr(value, "attr_name", None):
-            callbacks[value.attr_name] = _bind_decorated_event(key, value)
-        elif callable(value):
-            callbacks[key] = value
+    def on_event(self, key: str, declared: "Event") -> None:
+        event_id = declared.id if declared._has_real_id else _expand_event_id(key)
+        event = Event(id=event_id, name=declared.name)
+        if declared._transitions is not None:
+            declared._transitions.add_event(event)
+        self.callbacks[key] = event
 
-    return states, history, callbacks
+    def on_decorated(self, key: str, func: Any) -> None:
+        if func.is_event:
+            func._transitions.add_event(key)
+        self.callbacks[func.attr_name] = func
+
+    def on_other(self, key: str, value: Any) -> None:
+        if callable(value):
+            self.callbacks[key] = value
 
 
 class NestedStateFactory(type):
@@ -129,10 +117,18 @@ class NestedStateFactory(type):
             inherited_kwargs.update(getattr(base, "_factory_kwargs", {}))
         inherited_kwargs.update(kwargs)
 
-        states, history, callbacks = _collect_nested_members(attrs)
+        # Lazy import to avoid circular dependency (class_body.py imports state.py)
+        from .class_body import read
+
+        body = _NestedBody()
+        read(attrs, body)
 
         return State(
-            name=name, states=states, history=history, _callbacks=callbacks, **inherited_kwargs
+            name=name,
+            states=body.states,
+            history=body.history,
+            _callbacks=body.callbacks,
+            **inherited_kwargs,
         )
 
     @classmethod

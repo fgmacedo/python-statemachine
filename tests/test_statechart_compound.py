@@ -236,7 +236,10 @@ class TestCompoundStates:
         await sm_runner.processing_loop(sm)
         assert {"done"} == set(sm.configuration_values)
 
-    async def test_error_execution_inside_compound(self, sm_runner):
+    @pytest.mark.parametrize(
+        "declare", [lambda transitions: transitions, Event], ids=["bare", "Event"]
+    )
+    async def test_error_execution_inside_compound(self, sm_runner, declare):
         """error_execution inside a compound body registers error.execution event."""
 
         def raise_error():
@@ -247,15 +250,19 @@ class TestCompoundStates:
                 ok = State(initial=True)
                 failing = State()
 
-                trigger = ok.to(failing, on=raise_error)
+                trigger = declare(ok.to(failing, on=raise_error))
 
                 errored = State()
-                error_execution = failing.to(errored)
+                error_execution = declare(failing.to(errored))
 
             done = State(final=True)
             finish = active.to(done)
 
+        assert "error.execution" in [event.id for event in ErrorInCompound.events]
+
         sm = await sm_runner.start(ErrorInCompound)
+        assert "ok" in sm.configuration_values
+
         await sm_runner.send(sm, "trigger")
         assert "errored" in sm.configuration_values
 
@@ -375,29 +382,6 @@ class TestEventClassInsideCompound:
 
         await sm_runner.send(sm, "wander")
         assert "bag_end" in sm.configuration_values
-
-    async def test_event_id_expansion_conventions(self, sm_runner):
-        """The ``error_`` prefix expands to its dotted form."""
-
-        def raise_error():
-            raise RuntimeError("boom")
-
-        class ErrorInCompound(StateChart):
-            class active(State.Compound):
-                ok = State(initial=True)
-                failing = State()
-                errored = State(final=True)
-
-                trigger = Event(ok.to(failing, on=raise_error))
-                error_execution = Event(failing.to(errored))
-
-        assert "error.execution" in [event.id for event in ErrorInCompound.events]
-
-        sm = await sm_runner.start(ErrorInCompound)
-        assert "ok" in sm.configuration_values
-
-        await sm_runner.send(sm, "trigger")
-        assert "errored" in sm.configuration_values
 
     async def test_event_inside_parallel_region(self, sm_runner):
         class WarOfTheRing(StateChart):

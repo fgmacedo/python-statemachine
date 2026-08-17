@@ -5,6 +5,7 @@ from . import registry
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .class_body import read
 from .event import Event
 from .event import _expand_event_id
 from .exceptions import InvalidDefinition
@@ -15,8 +16,6 @@ from .graph import states_without_path_to_final_states
 from .i18n import _
 from .state import State
 from .states import States
-from .transition import Transition
-from .transition_list import TransitionList
 
 
 class StateMachineMetaclass(type):
@@ -298,43 +297,8 @@ class StateMachineMetaclass(type):
             for event in events:
                 cls.add_event(event=Event(id=event.id, name=event.name))
 
-    def add_from_attributes(cls, attrs):  # noqa: C901
-        for key, value in attrs.items():
-            if isinstance(value, States):
-                cls._add_states_from_dict(value)
-            if isinstance(value, State):
-                cls.add_state(key, value)
-            elif isinstance(value, (Transition, TransitionList)):
-                event_id = _expand_event_id(key)
-                cls.add_event(event=Event(transitions=value, id=event_id))
-            elif isinstance(value, (Event,)):
-                if value._has_real_id:
-                    event_id = value.id
-                else:
-                    event_id = _expand_event_id(key)
-                new_event = Event(
-                    transitions=value._transitions,
-                    id=event_id,
-                    name=value.name,
-                )
-                cls.add_event(event=new_event, old_event=value)
-                # Ensure the event is accessible by the Python attribute name
-                if event_id != key:
-                    setattr(cls, key, new_event)
-            elif getattr(value, "attr_name", None):
-                cls._add_unbounded_callback(key, value)
-
-    def _add_states_from_dict(cls, states):
-        for state_id, state in states.items():
-            cls.add_state(state_id, state)
-
-    def _add_unbounded_callback(cls, attr_name, func):
-        # if func is an event, the `attr_name` will be replaced by an event trigger,
-        # so we'll also give the ``func`` a new unique name to be used by the callback
-        # machinery that is stored at ``func.attr_name``
-        setattr(cls, func.attr_name, func)
-        if func.is_event:
-            cls.add_event(event=Event(func._transitions, id=attr_name))
+    def add_from_attributes(cls, attrs):
+        read(attrs, _StateChartBody(cls))
 
     def add_state(cls, id, state: State):
         state._set_id(id)
@@ -390,3 +354,40 @@ class StateMachineMetaclass(type):
     @property
     def events(self):
         return list(self._events)
+
+
+class _StateChartBody:
+    """Registers a statechart class body on the class under construction."""
+
+    def __init__(self, cls: "StateMachineMetaclass") -> None:
+        self.cls = cls
+
+    def on_states(self, states: States) -> None:
+        for state_id, state in states.items():
+            self.cls.add_state(state_id, state)
+
+    def on_state(self, key: str, state: State) -> None:
+        self.cls.add_state(key, state)
+
+    on_history = on_state
+    """A top-level history state is registered as an ordinary state."""
+
+    def on_transitions(self, key: str, transitions: Any) -> None:
+        self.cls.add_event(event=Event(transitions=transitions, id=_expand_event_id(key)))
+
+    def on_event(self, key: str, declared: Event) -> None:
+        event_id = declared.id if declared._has_real_id else _expand_event_id(key)
+        new_event = Event(transitions=declared._transitions, id=event_id, name=declared.name)
+        self.cls.add_event(event=new_event, old_event=declared)
+        if event_id != key:
+            setattr(self.cls, key, new_event)
+
+    def on_decorated(self, key: str, func: Any) -> None:
+        # The attribute name is taken over by the event trigger, so the callback machinery
+        # reaches the function through the unique name it stored at ``func.attr_name``.
+        setattr(self.cls, func.attr_name, func)
+        if func.is_event:
+            self.cls.add_event(event=Event(func._transitions, id=key))
+
+    def on_other(self, key: str, value: Any) -> None:
+        """Anything else is already a plain class attribute."""
