@@ -71,6 +71,26 @@ human-readable display name, use the `Event` class explicitly:
 
 ```
 
+The same declaration works inside a {ref}`compound state <compound-states>` body:
+
+```py
+>>> class Journey(StateChart):
+...     class shire(State.Compound):
+...         bag_end = State(initial=True)
+...         green_dragon = State()
+...
+...         visit_pub = Event(bag_end.to(green_dragon), name="Visit the pub")
+...
+...     road = State(final=True)
+...     depart = Event(shire.to(road))
+
+>>> sm = Journey()
+>>> sm.send("visit_pub")
+>>> set(sm.configuration_values) == {"shire", "green_dragon"}
+True
+
+```
+
 
 (event-identity)=
 

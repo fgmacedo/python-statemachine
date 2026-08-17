@@ -13,6 +13,7 @@ from enum import auto
 import pytest
 from statemachine.states import States
 
+from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
 from tests.machines.compound.middle_earth_journey import MiddleEarthJourney
@@ -235,7 +236,10 @@ class TestCompoundStates:
         await sm_runner.processing_loop(sm)
         assert {"done"} == set(sm.configuration_values)
 
-    async def test_error_execution_inside_compound(self, sm_runner):
+    @pytest.mark.parametrize(
+        "declare", [lambda transitions: transitions, Event], ids=["bare", "Event"]
+    )
+    async def test_error_execution_inside_compound(self, sm_runner, declare):
         """error_execution inside a compound body registers error.execution event."""
 
         def raise_error():
@@ -246,15 +250,19 @@ class TestCompoundStates:
                 ok = State(initial=True)
                 failing = State()
 
-                trigger = ok.to(failing, on=raise_error)
+                trigger = declare(ok.to(failing, on=raise_error))
 
                 errored = State()
-                error_execution = failing.to(errored)
+                error_execution = declare(failing.to(errored))
 
             done = State(final=True)
             finish = active.to(done)
 
+        assert "error.execution" in [event.id for event in ErrorInCompound.events]
+
         sm = await sm_runner.start(ErrorInCompound)
+        assert "ok" in sm.configuration_values
+
         await sm_runner.send(sm, "trigger")
         assert "errored" in sm.configuration_values
 
@@ -302,3 +310,168 @@ class TestCompoundStates:
 
         await sm_runner.send(sm, "inner_to_baz_bar")
         assert {OuterStates.BAR} == set(sm.configuration_values)
+
+
+@pytest.mark.timeout(5)
+class TestEventClassInsideCompound:
+    """The ``Event`` class inside a ``State.Compound`` body (#643)."""
+
+    async def test_event_class_declares_a_named_event(self, sm_runner):
+        """``Event(<transition>)`` binds the event instead of leaving it eventless."""
+
+        class QuirkyJourney(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State()
+
+                visit_pub = Event(bag_end.to(green_dragon))
+
+            road = State(final=True)
+            depart = Event(shire.to(road))
+
+        assert [event.id for event in QuirkyJourney.events] == ["visit_pub", "depart"]
+
+        sm = await sm_runner.start(QuirkyJourney)
+        assert {"shire", "bag_end"} == set(sm.configuration_values)
+
+        await sm_runner.send(sm, "visit_pub")
+        assert {"shire", "green_dragon"} == set(sm.configuration_values)
+
+    def test_display_name_is_preserved(self):
+        class NamedEvent(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State(final=True)
+
+                visit_pub = Event(bag_end.to(green_dragon), name="Visit the pub")
+
+        assert NamedEvent.visit_pub.id == "visit_pub"
+        assert NamedEvent.visit_pub.name == "Visit the pub"
+
+    async def test_explicit_id_is_reachable_by_both_names(self, sm_runner):
+        """An explicit ``id`` wins over the attribute name, which still resolves."""
+
+        class ExplicitId(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State(final=True)
+
+                visit_pub = Event(bag_end.to(green_dragon), id="pub.visit")
+
+        assert [event.id for event in ExplicitId.events] == ["pub.visit"]
+        assert ExplicitId.visit_pub.id == "pub.visit"
+
+        sm = await sm_runner.start(ExplicitId)
+        await sm_runner.send(sm, "pub.visit")
+        assert {"shire", "green_dragon"} == set(sm.configuration_values)
+
+    async def test_combined_transitions(self, sm_runner):
+        class Wandering(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State()
+
+                wander = Event(bag_end.to(green_dragon) | green_dragon.to(bag_end))
+
+            road = State(final=True)
+            depart = Event(shire.to(road))
+
+        sm = await sm_runner.start(Wandering)
+        await sm_runner.send(sm, "wander")
+        assert "green_dragon" in sm.configuration_values
+
+        await sm_runner.send(sm, "wander")
+        assert "bag_end" in sm.configuration_values
+
+    async def test_event_inside_parallel_region(self, sm_runner):
+        class WarOfTheRing(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+
+                    go = Event(start.to(end))
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+
+                    victory = Event(fighting.to(won))
+
+        sm = await sm_runner.start(WarOfTheRing)
+        assert {"war", "quest", "start", "battle", "fighting"} == set(sm.configuration_values)
+
+        await sm_runner.send(sm, "go")
+        await sm_runner.send(sm, "victory")
+        assert {"war", "quest", "end", "battle", "won"} == set(sm.configuration_values)
+
+    def test_event_without_transitions_is_reachable_but_unregistered(self):
+        """A transition-less ``Event`` gets its id from the attribute name.
+
+        Having no transitions, it never reaches the machine's event list -- unlike the
+        top-level form, which registers it.
+        """
+
+        class Placeholder(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State(final=True)
+
+                visit_pub = bag_end.to(green_dragon)
+                knock = Event(name="Knock on the door")
+
+        assert Placeholder.knock.id == "knock"
+        assert Placeholder.knock.name == "Knock on the door"
+        assert "knock" not in [event.id for event in Placeholder.events]
+
+
+@pytest.mark.timeout(5)
+class TestDecoratorEventInsideCompound:
+    """The ``@<source>.to(<target>)`` decorator inside a ``State.Compound`` body."""
+
+    async def test_decorator_declares_a_named_event(self, sm_runner):
+        """The decorated name becomes the event, and its body runs as the ``on`` action."""
+
+        class Gate(StateChart):
+            class gate(State.Compound):
+                locked = State(initial=True)
+                unlocked = State()
+
+                push = unlocked.to(locked)
+
+                @locked.to(unlocked)
+                def coin(self):
+                    return "accepted"
+
+            broken = State(final=True)
+            smash = gate.to(broken)
+
+        assert "coin" in [event.id for event in Gate.events]
+
+        sm = await sm_runner.start(Gate)
+        assert "locked" in sm.configuration_values
+
+        assert await sm_runner.send(sm, "coin") == "accepted"
+        assert "unlocked" in sm.configuration_values
+
+    async def test_decorated_callback_is_not_an_event(self, sm_runner):
+        """``@<event>.on`` keeps declaring a plain callback, not a new event."""
+
+        log = []
+
+        class Gate(StateChart):
+            class gate(State.Compound):
+                locked = State(initial=True)
+                unlocked = State(final=True)
+
+                coin = locked.to(unlocked)
+
+                @coin.on
+                def clink(self):
+                    log.append("clink")
+
+        assert [event.id for event in Gate.events] == ["coin"]
+
+        sm = await sm_runner.start(Gate)
+        await sm_runner.send(sm, "coin")
+        assert log == ["clink"]
