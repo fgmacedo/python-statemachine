@@ -91,11 +91,6 @@ True
 
 ```
 
-```{versionchanged} 3.2.2
-Before this release, an `Event` declared inside a `State.Compound` body was
-ignored and its transition became {ref}`eventless <eventless>`.
-```
-
 
 (event-identity)=
 
