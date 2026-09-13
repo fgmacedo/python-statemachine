@@ -68,8 +68,7 @@ individual `StateChart` behaviors granularly by overriding class-level attribute
 **Before (2.x):**
 
 ```python
-class MyMachine(StateMachine):
-    ...
+class MyMachine(StateMachine): ...
 ```
 
 **After (3.0) — gradual adoption:**
@@ -136,18 +135,18 @@ Due to compound and parallel states, the state machine can now have multiple act
 **Before (2.x):**
 
 ```python
-state = sm.current_state          # returns a single State
-value = sm.current_state.value    # get the value
+state = sm.current_state  # returns a single State
+value = sm.current_state.value  # get the value
 ```
 
 **After (3.0):**
 
 ```python
-states = sm.configuration             # returns OrderedSet[State]
-values = sm.configuration_values       # returns OrderedSet of values
+states = sm.configuration  # returns OrderedSet[State]
+values = sm.configuration_values  # returns OrderedSet of values
 
 # If you know you have a single active state (flat machine):
-state = next(iter(sm.configuration))   # get the single State
+state = next(iter(sm.configuration))  # get the single State
 ```
 
 ```{tip}
@@ -231,8 +230,8 @@ The exception now stores a `configuration` attribute (a set of states) instead o
 try:
     sm.send("go")
 except TransitionNotAllowed as e:
-    print(e.event)   # Event instance
-    print(e.state)   # single State
+    print(e.event)  # Event instance
+    print(e.state)  # single State
 ```
 
 **After (3.0):**
@@ -241,8 +240,8 @@ except TransitionNotAllowed as e:
 try:
     sm.send("go")
 except TransitionNotAllowed as e:
-    print(e.event)           # Event instance or None
-    print(e.configuration)   # MutableSet[State]
+    print(e.event)  # Event instance or None
+    print(e.configuration)  # MutableSet[State]
 ```
 
 ```{tip}
@@ -275,7 +274,7 @@ If you use `StateMachine` (not `StateChart`), the default `atomic_configuration_
 
 ```python
 def on_validate(self):
-    if self.accepted.is_active:    # True during on callback in 2.x
+    if self.accepted.is_active:  # True during on callback in 2.x
         return "congrats!"
 ```
 
@@ -320,6 +319,7 @@ loop = s1.to.itself()
 ```python
 # Self-transitions DO trigger on_enter_*/on_exit_* callbacks
 loop = s1.to.itself()
+
 
 # To disable (preserve 2.x behavior):
 class MyChart(StateChart):
@@ -383,7 +383,7 @@ See {ref}`validations`.
 ```python
 class MyMachine(StateMachine, strict_states=False):
     s1 = State(initial=True)
-    s2 = State()          # trap state — no outgoing transitions, not final
+    s2 = State()  # trap state — no outgoing transitions, not final
     go = s1.to(s2)
 ```
 
@@ -392,7 +392,7 @@ class MyMachine(StateMachine, strict_states=False):
 ```python
 class MyMachine(StateMachine):
     s1 = State(initial=True)
-    s2 = State(final=True)        # was State() — now correctly marked as final
+    s2 = State(final=True)  # was State() — now correctly marked as final
     go = s1.to(s2)
 ```
 
@@ -400,8 +400,8 @@ class MyMachine(StateMachine):
 
 ```python
 class MyMachine(StateMachine):
-    validate_trap_states = False           # allow non-final states without outgoing transitions
-    validate_final_reachability = False    # allow non-final states without path to final
+    validate_trap_states = False  # allow non-final states without outgoing transitions
+    validate_final_reachability = False  # allow non-final states without path to final
     s1 = State(initial=True)
     s2 = State()
     go = s1.to(s2)
@@ -462,11 +462,11 @@ from statemachine import StateMachine, State, Event
 **After (3.0):**
 
 ```python
-from statemachine import StateChart      # new base class
-from statemachine import HistoryState    # history pseudo-state for compound states
-from statemachine import StateMachine    # unchanged
-from statemachine import State           # unchanged
-from statemachine import Event           # unchanged
+from statemachine import StateChart  # new base class
+from statemachine import HistoryState  # history pseudo-state for compound states
+from statemachine import StateMachine  # unchanged
+from statemachine import State  # unchanged
+from statemachine import Event  # unchanged
 ```
 
 

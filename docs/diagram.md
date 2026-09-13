@@ -214,6 +214,7 @@ Sphinx directive):
 ```python
 from statemachine.contrib.diagram import formatter
 
+
 @formatter.register_format("plantuml", "puml")
 def _render_plantuml(machine_or_class):
     # your PlantUML renderer here
@@ -524,6 +525,7 @@ state color:
 class CustomDiagram(DotGraphMachine):
     graph_rankdir = "TB"
     state_active_fillcolor = "lightyellow"
+
 
 sm = OrderControl()
 sm.receive_payment(10)

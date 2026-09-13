@@ -28,16 +28,13 @@ class OrderState(ABC):
     """Abstract base for all order states."""
 
     @abstractmethod
-    def confirm(self, order):
-        ...
+    def confirm(self, order): ...
 
     @abstractmethod
-    def ship(self, order):
-        ...
+    def ship(self, order): ...
 
     @abstractmethod
-    def deliver(self, order):
-        ...
+    def deliver(self, order): ...
 
 
 class DraftState(OrderState):
