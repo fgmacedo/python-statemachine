@@ -8,6 +8,7 @@ from weakref import ref
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .event import Event
 from .event import _expand_event_id
 from .exceptions import InvalidDefinition
 from .i18n import _
@@ -56,7 +57,7 @@ class _FromState(_TransitionBuilder):
 
 
 class NestedStateFactory(type):
-    def __new__(  # type: ignore [misc]
+    def __new__(  # type: ignore [misc]  # noqa: C901
         cls, classname, bases, attrs, name="", **kwargs
     ) -> "State":
         if not bases:
@@ -76,6 +77,8 @@ class NestedStateFactory(type):
         states = []
         history = []
         callbacks = {}
+        # Order is significant: a ``HistoryState`` is a ``State``, and an ``Event`` is a
+        # callable ``str``, so both would be captured by a later branch.
         for key, value in attrs.items():
             if isinstance(value, States):
                 for state_id, state in value.items():
@@ -89,6 +92,21 @@ class NestedStateFactory(type):
                 states.append(value)
             elif isinstance(value, TransitionList):
                 value.add_event(_expand_event_id(key))
+            elif isinstance(value, Event):
+                if value._transitions is not None:
+                    event_id = value.id if value._has_real_id else _expand_event_id(key)
+                    value._transitions.add_event(
+                        Event(
+                            id=event_id,
+                            name=value.name,
+                            delay=value.delay,
+                            internal=value.internal,
+                        )
+                    )
+            elif getattr(value, "attr_name", None):
+                if value.is_event:
+                    value._transitions.add_event(key)
+                callbacks[value.attr_name] = value
             elif callable(value):
                 callbacks[key] = value
 

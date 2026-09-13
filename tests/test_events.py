@@ -59,6 +59,18 @@ class TestExplicitEvent:
         assert [e.name for e in StartMachine.events] == ["Start the machine"]
         assert StartMachine.start.name == "Start the machine"
 
+    def test_accept_delay_and_internal(self):
+        class BeaconsOfGondor(StateChart):
+            dark = State(initial=True)
+            lit = State(final=True)
+
+            light = Event(dark.to(lit), delay=50, internal=True)
+
+        (registered,) = BeaconsOfGondor.events
+        assert (registered.delay, registered.internal) == (50, True)
+        assert BeaconsOfGondor.light.delay == 50
+        assert BeaconsOfGondor().light.delay == 50
+
     def test_derive_name_from_id(self):
         class StartMachine(StateChart):
             created = State(initial=True)
