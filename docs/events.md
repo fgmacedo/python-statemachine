@@ -94,7 +94,8 @@ True
 ```{note}
 Inside a nested body there is no owning class yet, so an explicit `id` that differs from the
 attribute name does not also bind the attribute name, and an `Event` with no transitions is
-dropped instead of becoming a class attribute. Both work at the top level.
+dropped instead of becoming a class attribute. Both work at the top level, see
+[#656](https://github.com/fgmacedo/python-statemachine/issues/656).
 ```
 
 
