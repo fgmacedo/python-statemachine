@@ -316,6 +316,8 @@ class StateMachineMetaclass(type):
                     transitions=value._transitions,
                     id=event_id,
                     name=value.name,
+                    delay=value.delay,
+                    internal=value.internal,
                 )
                 cls.add_event(event=new_event, old_event=value)
                 # Ensure the event is accessible by the Python attribute name

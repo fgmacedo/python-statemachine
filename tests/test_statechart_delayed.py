@@ -89,8 +89,7 @@ class TestDelayedEvents:
 
         sm = await sm_runner.start(BeaconsOfGondor)
         # Queue via BoundEvent.put() to avoid blocking in processing_loop
-        event = BoundEvent(id="light", name="Light", delay=50, _sm=sm)
-        event.put()
+        sm.light.put()
 
         # Not yet processed
         assert "dark" in sm.configuration_values
