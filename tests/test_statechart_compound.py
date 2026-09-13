@@ -337,20 +337,41 @@ class TestEventClassInsideCompound:
         await sm_runner.send(sm, "visit_pub")
         assert {"shire", "green_dragon"} == set(sm.configuration_values)
 
-    def test_display_name_is_preserved(self):
+    def test_name_delay_and_internal_are_preserved(self):
         class NamedEvent(StateChart):
             class shire(State.Compound):
                 bag_end = State(initial=True)
                 green_dragon = State(final=True)
 
-                visit_pub = Event(bag_end.to(green_dragon), name="Visit the pub")
+                visit_pub = Event(
+                    bag_end.to(green_dragon), name="Visit the pub", delay=50, internal=True
+                )
 
-        assert NamedEvent.visit_pub.id == "visit_pub"
+        (registered,) = NamedEvent.events
+        assert (registered.id, registered.name) == ("visit_pub", "Visit the pub")
+        assert (registered.delay, registered.internal) == (50, True)
         assert NamedEvent.visit_pub.name == "Visit the pub"
 
-    async def test_explicit_id_is_reachable_by_both_names(self, sm_runner):
-        """An explicit ``id`` wins over the attribute name, which still resolves."""
+    def test_expanded_id_drops_the_declared_arguments(self):
+        """A space-separated id declares distinct events, so each one names itself.
 
+        The ``error_`` prefix expands to ``"error_foo error.foo"``, which reuses that format
+        to mean two spellings of a single event. See
+        ``test_multiple_ids_from_the_same_event_will_be_converted_to_multiple_events``.
+        """
+
+        class ErrorEvent(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State(final=True)
+
+                error_foo = Event(bag_end.to(green_dragon), name="Boom", delay=50)
+
+        assert [event.id for event in ErrorEvent.events] == ["error_foo", "error.foo"]
+        assert [event.name for event in ErrorEvent.events] == ["Error foo", "Error foo"]
+        assert [event.delay for event in ErrorEvent.events] == [0, 0]
+
+    async def test_explicit_id_wins_over_the_attribute_name(self, sm_runner):
         class ExplicitId(StateChart):
             class shire(State.Compound):
                 bag_end = State(initial=True)
@@ -359,7 +380,6 @@ class TestEventClassInsideCompound:
                 visit_pub = Event(bag_end.to(green_dragon), id="pub.visit")
 
         assert [event.id for event in ExplicitId.events] == ["pub.visit"]
-        assert ExplicitId.visit_pub.id == "pub.visit"
 
         sm = await sm_runner.start(ExplicitId)
         await sm_runner.send(sm, "pub.visit")
@@ -405,12 +425,8 @@ class TestEventClassInsideCompound:
         await sm_runner.send(sm, "victory")
         assert {"war", "quest", "end", "battle", "won"} == set(sm.configuration_values)
 
-    def test_event_without_transitions_is_reachable_but_unregistered(self):
-        """A transition-less ``Event`` gets its id from the attribute name.
-
-        Having no transitions, it never reaches the machine's event list -- unlike the
-        top-level form, which registers it.
-        """
+    def test_transition_less_event_declares_nothing(self):
+        """A nested ``Event`` carries only its id, so with no transitions it is dropped."""
 
         class Placeholder(StateChart):
             class shire(State.Compound):
@@ -420,9 +436,8 @@ class TestEventClassInsideCompound:
                 visit_pub = bag_end.to(green_dragon)
                 knock = Event(name="Knock on the door")
 
-        assert Placeholder.knock.id == "knock"
-        assert Placeholder.knock.name == "Knock on the door"
-        assert "knock" not in [event.id for event in Placeholder.events]
+        assert [event.id for event in Placeholder.events] == ["visit_pub"]
+        assert not hasattr(Placeholder, "knock")
 
 
 @pytest.mark.timeout(5)
