@@ -199,3 +199,29 @@ class TestParallelStates:
         assert sm.is_terminated is False
         assert "closed" in sm.configuration_values
         assert "running" in sm.configuration_values
+
+
+@pytest.mark.timeout(5)
+class TestNestedIsActive:
+    async def test_is_active_on_nested_child_via_attribute_chain(self, sm_runner):
+        """``is_active`` is correct for a leaf reached through an attribute chain.
+
+        A compound child nested inside a parallel region must report ``is_active``
+        consistently whether accessed directly (``sm.shut``) or through its parent
+        proxy (``sm.door.shut``). Both resolve to the same per-instance proxy.
+        """
+
+        class Microwave(StateChart):
+            class microwave(State.Parallel):
+                my_state = State(initial=True)
+
+                class door(State.Compound):
+                    shut = State(initial=True)
+
+        sm = await sm_runner.start(Microwave)
+
+        assert sm.my_state.is_active
+        assert sm.door.is_active
+        assert "shut" in sm.configuration_values
+        assert sm.shut.is_active
+        assert sm.door.shut.is_active

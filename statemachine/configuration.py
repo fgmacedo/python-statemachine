@@ -93,6 +93,16 @@ class Configuration:
     def states(self, new_configuration: "OrderedSet[State]"):
         self._write_to_model(OrderedSet(s.value for s in new_configuration))
 
+    def instance_state(self, value: Any) -> "State | None":
+        """Return the per-instance proxy registered for *value*, if any.
+
+        Used to resolve a nested child :class:`State` (reached through an
+        attribute chain like ``sm.door.shut``) to the same proxy the machine
+        exposes directly, so instance-scoped attributes (e.g. ``is_active``)
+        stay consistent regardless of access path.
+        """
+        return self._instance_states.get(value)
+
     # -- Incremental mutation (used by the engine) -----------------------------
 
     def add(self, state: "State"):
