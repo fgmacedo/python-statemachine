@@ -24,6 +24,7 @@ from typing import ClassVar
 from docutils import nodes
 from docutils.parsers.rst import directives
 from sphinx.util.docutils import SphinxDirective
+from sphinx.util.osutil import relative_uri
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -258,7 +259,8 @@ class StateMachineDiagram(SphinxDirective):
         with open(outpath, "w", encoding="utf-8") as f:
             f.write(svg_text)
 
-        return f"/_images/{filename}"
+        page_uri = self.env.app.builder.get_target_uri(self.env.docname)
+        return relative_uri(page_uri, f"_images/{filename}")
 
     def _build_wrapper_classes(self) -> list[str]:
         """Build CSS class list for the outer wrapper element."""

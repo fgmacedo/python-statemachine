@@ -1,10 +1,12 @@
 import re
 from contextlib import contextmanager
 from unittest import mock
+from urllib.parse import urljoin
 from xml.etree import ElementTree
 
 import pytest
 from docutils import nodes
+from sphinx.testing.util import SphinxTestApp
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
@@ -1146,6 +1148,8 @@ class TestResolveTarget:
         if tmp_path is not None:
             directive.state = mock.MagicMock()
             directive.state.document.settings.env.app.outdir = str(tmp_path)
+            directive.env.docname = "index"
+            directive.env.app.builder.get_target_uri.return_value = "index.html"
         return directive
 
     def test_no_target_option(self):
@@ -1161,7 +1165,7 @@ class TestResolveTarget:
         svg_data = "<svg><rect/></svg>"
         result = directive._resolve_target(svg_data)
 
-        assert result.startswith("/_images/statemachine-")
+        assert result.startswith("_images/statemachine-")
         assert result.endswith(".svg")
 
         # Verify the file was written
@@ -1185,6 +1189,47 @@ class TestResolveTarget:
         assert d1._resolve_target("<svg/>") != d2._resolve_target("<svg/>")
 
 
+@pytest.mark.parametrize("buildername", ["html", "dirhtml"])
+@pytest.mark.parametrize("docname", ["index", "guide/overview", "guide/index"])
+def test_sphinx_zoom_link_resolves_under_documentation_prefix(
+    tmp_path, request, buildername, docname
+):
+    srcdir = tmp_path / "src"
+    srcdir.mkdir()
+    (srcdir / "conf.py").write_text(
+        'extensions = ["statemachine.contrib.diagram.sphinx_ext"]\n', encoding="utf-8"
+    )
+    document = srcdir / f"{docname}.rst"
+    document.parent.mkdir(parents=True, exist_ok=True)
+    document.write_text(
+        "Diagram\n=======\n\n"
+        ".. statemachine-diagram:: tests.examples.traffic_light_machine.TrafficLightMachine\n"
+        "   :target:\n",
+        encoding="utf-8",
+    )
+    if docname != "index":
+        (srcdir / "index.rst").write_text(
+            f"Index\n=====\n\n.. toctree::\n\n   {docname}\n", encoding="utf-8"
+        )
+    app = SphinxTestApp(
+        buildername=buildername, srcdir=srcdir, builddir=tmp_path / "build", freshenv=True
+    )
+    request.addfinalizer(app.cleanup)
+    app.build()
+    assert app.statuscode == 0
+    assert app.warning.getvalue() == ""
+    page = app.builder.get_outfilename(docname)
+    with open(page, encoding="utf-8") as f:
+        match = re.search(r'href="([^"]*statemachine-[^"]+\.svg)"', f.read())
+    assert match is not None
+    href = match.group(1)
+    filename = href.rsplit("/", 1)[-1]
+    prefix = "https://example.com/project/en/stable/"
+    page_url = urljoin(prefix, app.builder.get_target_uri(docname))
+    assert urljoin(page_url, href) == f"{prefix}_images/{filename}"
+    assert (app.outdir / "_images" / filename).is_file()
+
+
 class TestDirectiveRun:
     """Integration tests for StateMachineDiagram.run()."""
 
@@ -1199,6 +1244,8 @@ class TestDirectiveRun:
         directive.state_machine = mock.MagicMock()
         directive.state = mock.MagicMock()
         directive.state.document.settings.env.app.outdir = str(tmp_path)
+        directive.env.docname = "index"
+        directive.env.app.builder.get_target_uri.return_value = "index.html"
         directive.content_offset = 0
         return directive
 
@@ -1273,7 +1320,7 @@ class TestDirectiveRun:
         """Empty target auto-generates a zoom SVG file."""
         _, result = self._run(tmp_path, options={"target": ""})
 
-        assert 'href="/_images/statemachine-' in result[0].astext()
+        assert 'href="_images/statemachine-' in result[0].astext()
         images_dir = tmp_path / "_images"
         assert any(images_dir.glob("statemachine-*.svg"))
 
