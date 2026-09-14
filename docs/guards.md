@@ -254,7 +254,7 @@ listeners. They can point to properties, attributes, or methods:
 **Parentheses** control evaluation order:
 
 ```python
-cond="(is_admin or is_moderator) and not is_banned"
+cond = "(is_admin or is_moderator) and not is_banned"
 ```
 
 #### Expression examples

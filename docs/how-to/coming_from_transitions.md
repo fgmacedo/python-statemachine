@@ -233,7 +233,7 @@ that reads SCXML, JSON and YAML *documents* straight into a `StateChart`:
 ```python
 from statemachine.io import load
 
-Machine = load("traffic_light.scxml")   # or .json / .yaml; format detected from the extension
+Machine = load("traffic_light.scxml")  # or .json / .yaml; format detected from the extension
 ```
 
 Expressions in the document (guards, datamodel) are evaluated by a restricted allowlist —
@@ -306,8 +306,8 @@ True
 In *transitions*, events are called as methods on the model:
 
 ```python
-machine.produce()   # triggers the "produce" event
-machine.deliver()   # triggers the "deliver" event
+machine.produce()  # triggers the "produce" event
+machine.deliver()  # triggers the "deliver" event
 ```
 
 python-statemachine supports both styles:
@@ -342,13 +342,15 @@ Callbacks are specified as strings (method names) or callables:
 ```python
 machine = Machine(
     states=states,
-    transitions=[{
-        "trigger": "produce",
-        "source": "draft",
-        "dest": "producing",
-        "before": "validate_job",
-        "after": "notify_team",
-    }],
+    transitions=[
+        {
+            "trigger": "produce",
+            "source": "draft",
+            "dest": "producing",
+            "before": "validate_job",
+            "after": "notify_team",
+        }
+    ],
     initial="draft",
 )
 ```
@@ -454,7 +456,9 @@ In *transitions*:
 
 ```python
 machine.add_transition(
-    "produce", "draft", "producing",
+    "produce",
+    "draft",
+    "producing",
     conditions=["is_valid", "has_resources"],
     unless=["is_locked"],
 )
@@ -588,9 +592,11 @@ See {ref}`invoke` for full documentation.
 ```python
 from transitions.extensions import AsyncMachine
 
+
 class AsyncModel:
     async def on_enter_producing(self):
         await some_async_operation()
+
 
 machine = AsyncMachine(model=AsyncModel(), states=states, initial="draft")
 await machine.produce()
@@ -751,6 +757,7 @@ No class swapping, no feature matrices to consult — just `StateChart`.
 ```python
 class MyModel:
     pass
+
 
 model = MyModel()
 machine = Machine(model=model, states=states, transitions=transitions, initial="draft")
