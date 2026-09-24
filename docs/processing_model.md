@@ -80,7 +80,7 @@ The engine maintains two separate FIFO queues:
 
 | Queue | How to enqueue | When processed |
 |---|---|---|
-| **Internal** | {func}`raise_() <StateMachine.raise_>` or `send(..., internal=True)` | Within the current macrostep |
+| **Internal** | {func}`raise_() <StateMachine.raise_>`, `send(..., internal=True)`, or an event declared with `Event(..., internal=True)` | Within the current macrostep |
 | **External** | {func}`send() <StateMachine.send>` | After the current macrostep ends |
 
 This distinction matters when you trigger events from inside callbacks.
