@@ -71,6 +71,31 @@ class TestExplicitEvent:
         assert BeaconsOfGondor.light.delay == 50
         assert BeaconsOfGondor().light.delay == 50
 
+    @pytest.mark.parametrize("trigger", ["method", "send"])
+    def test_declared_internal_puts_on_the_internal_queue(self, trigger):
+        class BeaconsOfGondor(StateChart):
+            dark = State(initial=True)
+            lit = State(final=True)
+
+            light = Event(dark.to(lit), internal=True)
+
+        sm = BeaconsOfGondor()
+        queued = []
+        put = sm._engine.put
+
+        def spy(trigger_data, internal=False, **kwargs):
+            queued.append(internal)
+            return put(trigger_data, internal=internal, **kwargs)
+
+        sm._engine.put = spy
+        if trigger == "method":
+            sm.light()
+        else:
+            sm.send("light")
+
+        assert queued == [True]
+        assert sm.lit.is_active
+
     def test_derive_name_from_id(self):
         class StartMachine(StateChart):
             created = State(initial=True)

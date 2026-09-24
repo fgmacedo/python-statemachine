@@ -146,7 +146,9 @@ class Event(AddCallbacksMixin, str):
         """
         if instance is None:
             return self
-        return BoundEvent(id=self.id, name=self.name, delay=self.delay, _sm=instance)
+        return BoundEvent(
+            id=self.id, name=self.name, delay=self.delay, internal=self.internal, _sm=instance
+        )
 
     def put(self, *args, send_id: "str | None" = None, **kwargs):
         # The `__call__` is declared here to help IDEs knowing that an `Event`
