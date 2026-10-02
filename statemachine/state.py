@@ -157,6 +157,13 @@ class State:
             See :ref:`actions`.
         exit: One or more callbacks assigned to be executed when the state is exited.
             See :ref:`actions`.
+        defer: Ids of the events this state keeps in a queue, instead of discarding them, when
+            no transition handles them. They are sent again once the machine reaches a
+            configuration that no longer defers them. Not allowed on final states.
+            See :ref:`deferral`.
+        on_defer: One or more callbacks assigned to be executed when an event is deferred.
+        on_replay: One or more callbacks assigned to be executed when a deferred event is sent
+            again.
 
     State is a core component on how this library implements an expressive API to declare
     StateMachines.
@@ -237,6 +244,9 @@ class State:
         exit: Any = None,
         invoke: Any = None,
         donedata: Any = None,
+        defer: "list[str] | None" = None,
+        on_defer: Any = None,
+        on_replay: Any = None,
         _callbacks: Any = None,
     ):
         self.name = name
@@ -266,6 +276,15 @@ class State:
             if not final:
                 raise InvalidDefinition(_("'donedata' can only be specified on final states."))
             self.enter.add(donedata, priority=CallbackPriority.INLINE)
+        if defer and final:
+            raise InvalidDefinition(_("Cannot defer events on final states."))
+        self._deferred_events: frozenset[str] = frozenset(defer or [])
+        self.on_defer = self._specs.grouper(CallbackGroup.DEFER).add(
+            on_defer, priority=CallbackPriority.INLINE
+        )
+        self.on_replay = self._specs.grouper(CallbackGroup.REPLAY).add(
+            on_replay, priority=CallbackPriority.INLINE
+        )
         self.document_order = 0
         self._hash = id(self)
         self._init_states()
@@ -299,6 +318,16 @@ class State:
         self.invoke.add("on_invoke_state", priority=CallbackPriority.GENERIC, is_convention=True)
         self.invoke.add(
             f"on_invoke_{self.id}", priority=CallbackPriority.NAMING, is_convention=True
+        )
+        self.on_defer.add("on_defer_event", priority=CallbackPriority.GENERIC, is_convention=True)
+        self.on_defer.add(
+            f"on_defer_{self.id}", priority=CallbackPriority.NAMING, is_convention=True
+        )
+        self.on_replay.add(
+            "on_replay_event", priority=CallbackPriority.GENERIC, is_convention=True
+        )
+        self.on_replay.add(
+            f"on_replay_{self.id}", priority=CallbackPriority.NAMING, is_convention=True
         )
 
     def _on_event_defined(self, event: str, transition: Transition, states: list["State"]):
@@ -353,6 +382,11 @@ class State:
         return self._parallel
 
     @property
+    def deferred_events(self) -> frozenset[str]:
+        """Event ids this state defers while it is active."""
+        return self._deferred_events
+
+    @property
     def is_compound(self):
         return bool(self.states) and not self.parallel
 
@@ -370,6 +404,11 @@ class State:
 
     def is_descendant(self, state: "State") -> bool:
         return state in self.ancestors()
+
+    @property
+    def deferred_events_recursive(self) -> frozenset[str]:
+        """Event ids deferred by this state and by all of its ancestors."""
+        return self._deferred_events.union(*(s._deferred_events for s in self.ancestors()))
 
 
 class InstanceState(State):

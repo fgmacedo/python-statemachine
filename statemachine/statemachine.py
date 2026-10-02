@@ -511,6 +511,28 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         self._engine.cancel_event(send_id)
 
     @property
+    def deferred_events(self) -> "list[TriggerData]":
+        """A copy of the queue of events deferred by the current configuration, in FIFO order."""
+        return list(self._engine._deferred_queue)
+
+    @property
+    def pending_deferred_event_ids(self) -> "list[str]":
+        """The ids of the events in the deferred queue, in FIFO order."""
+        return list(self._engine.pending_deferred_event_ids())
+
+    def is_event_deferred(self, event_id: str) -> bool:
+        """Whether an event with the given id would be deferred right now.
+
+        It is only deferred when every atomic state of the active configuration defers it,
+        either itself or through one of its ancestors.
+        """
+        return bool(self._engine._is_event_deferred(event_id))
+
+    def clear_deferred_queue(self) -> None:
+        """Discard the deferred events without replaying them."""
+        self._engine.clear_deferred_queue()
+
+    @property
     def is_terminated(self):
         """Whether the state machine has reached a final state.
 

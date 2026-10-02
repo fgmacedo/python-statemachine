@@ -86,6 +86,7 @@ class BaseEngine:
         self.sm: "StateChart" = sm
         self.external_queue = EventQueue()
         self.internal_queue = EventQueue()
+        self._deferred_queue: list[TriggerData] = []
         self._sentinel = object()
         self.running = True
         self._processing = Lock()
@@ -584,10 +585,84 @@ class BaseEngine:
         if not self.sm.atomic_configuration_update:
             self.sm._config.add(target)
 
+    def _is_event_deferred(self, event_id: str) -> bool:
+        atomic_states = [s for s in self.sm.configuration if s.is_atomic]
+        return bool(atomic_states) and all(
+            event_id in s.deferred_events_recursive for s in atomic_states
+        )
+
+    @staticmethod
+    def _event_id(trigger_data: TriggerData) -> str:
+        return str(trigger_data.event) if trigger_data.event else ""
+
+    def _deferral_callback_kwargs(self, trigger_data: TriggerData, state: State) -> dict:
+        kwargs = trigger_data.kwargs.copy()
+        kwargs.update(
+            {
+                "machine": self.sm,
+                "model": self.sm.model,
+                "event": trigger_data.event,
+                "state": state,
+                "source": state,
+                "target": None,
+            }
+        )
+        return kwargs
+
+    def _defer_event(self, trigger_data: TriggerData):
+        self._debug("%s Deferring event '%s'", self._log_id, trigger_data.event)
+        self._deferred_queue.append(trigger_data)
+        on_error = self._on_error_handler()
+        for state in self.sm.configuration:
+            if state.on_defer.key in self.sm._callbacks:
+                self.sm._callbacks.call(
+                    state.on_defer.key,
+                    *trigger_data.args,
+                    on_error=on_error,
+                    **self._deferral_callback_kwargs(trigger_data, state),
+                )
+
+    def _release_deferred_events(self) -> list[TriggerData]:
+        """Move the deferred events that are no longer deferred back to the external queue.
+
+        Returns the released events in FIFO order.
+        """
+        still_deferred: list[TriggerData] = []
+        released: list[TriggerData] = []
+        for trigger_data in self._deferred_queue:
+            if self._is_event_deferred(self._event_id(trigger_data)):
+                still_deferred.append(trigger_data)
+            else:
+                released.append(trigger_data)
+        self._deferred_queue = still_deferred
+        for trigger_data in released:
+            self._debug("%s Replaying deferred event '%s'", self._log_id, trigger_data.event)
+            self.external_queue.put(trigger_data)
+        return released
+
+    def _replay_deferred_events(self):
+        on_error = self._on_error_handler()
+        for trigger_data in self._release_deferred_events():
+            for state in self.sm.configuration:
+                if state.on_replay.key in self.sm._callbacks:
+                    self.sm._callbacks.call(
+                        state.on_replay.key,
+                        *trigger_data.args,
+                        on_error=on_error,
+                        **self._deferral_callback_kwargs(trigger_data, state),
+                    )
+
+    def pending_deferred_event_ids(self) -> list[str]:
+        return [self._event_id(td) for td in self._deferred_queue]
+
+    def clear_deferred_queue(self):
+        self._deferred_queue.clear()
+
     def stop(self):
         """Stop this engine externally (e.g. when a parent cancels a child invocation)."""
         self._debug("%s Stopping engine", self._log_id)
         self.running = False
+        self._deferred_queue.clear()
         try:
             self._invoke_manager.cancel_all()
         except Exception:  # pragma: no cover
@@ -718,6 +793,7 @@ class BaseEngine:
             if target.final:
                 self._handle_final_state(target, on_entry_result)
 
+        self._replay_deferred_events()
         return result
 
     def compute_entry_set(

@@ -167,7 +167,9 @@ class SyncEngine(BaseEngine):
                             raise
 
                     else:
-                        if not self.sm.allow_event_without_transition:
+                        if self._is_event_deferred(self._event_id(external_event)):
+                            self._defer_event(external_event)
+                        elif not self.sm.allow_event_without_transition:
                             raise TransitionNotAllowed(external_event.event, self.sm.configuration)
 
         finally:

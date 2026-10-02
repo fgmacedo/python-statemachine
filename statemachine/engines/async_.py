@@ -279,7 +279,33 @@ class AsyncEngine(BaseEngine):
             if target.final:
                 self._handle_final_state(target, on_entry_result)
 
+        await self._replay_deferred_events()
         return result
+
+    async def _defer_event(self, trigger_data: TriggerData):
+        self._debug("%s Deferring event '%s'", self._log_id, trigger_data.event)
+        self._deferred_queue.append(trigger_data)
+        on_error = self._on_error_handler()
+        for state in self.sm.configuration:
+            if state.on_defer.key in self.sm._callbacks:
+                await self.sm._callbacks.async_call(
+                    state.on_defer.key,
+                    *trigger_data.args,
+                    on_error=on_error,
+                    **self._deferral_callback_kwargs(trigger_data, state),
+                )
+
+    async def _replay_deferred_events(self):
+        on_error = self._on_error_handler()
+        for trigger_data in self._release_deferred_events():
+            for state in self.sm.configuration:
+                if state.on_replay.key in self.sm._callbacks:
+                    await self.sm._callbacks.async_call(
+                        state.on_replay.key,
+                        *trigger_data.args,
+                        on_error=on_error,
+                        **self._deferral_callback_kwargs(trigger_data, state),
+                    )
 
     async def microstep(self, transitions: "list[Transition]", trigger_data: TriggerData):
         self._microstep_count += 1
@@ -471,15 +497,18 @@ class AsyncEngine(BaseEngine):
                             if first_result is self._sentinel:
                                 first_result = result
                         else:
-                            if not self.sm.allow_event_without_transition:
+                            if self._is_event_deferred(self._event_id(external_event)):
+                                await self._defer_event(external_event)
+                                self._resolve_future(event_future, None)
+                            elif not self.sm.allow_event_without_transition:
                                 tna = TransitionNotAllowed(
                                     external_event.event, self.sm.configuration
                                 )
                                 self._reject_future(event_future, tna)
                                 self._reject_pending_futures(tna)
                                 raise tna
-                            # Event allowed but no transition — resolve with None
-                            self._resolve_future(event_future, None)
+                            else:
+                                self._resolve_future(event_future, None)
                     except Exception as exc:
                         self._reject_future(event_future, exc)
                         self._reject_pending_futures(exc)
