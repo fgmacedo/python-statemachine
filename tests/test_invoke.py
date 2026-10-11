@@ -1294,6 +1294,27 @@ class TestStopChildMachine:
         _stop_child_machine(child)
 
 
+class TestEngineStopCleanup:
+    """Test BaseEngine.stop cancel_all exception handling."""
+
+    def test_stop_swallows_cancel_all_exception_and_stops(self):
+        """stop() swallows exceptions from cancel_all and still stops the engine."""
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+
+            go = s1.to(s2)
+
+        sm = SM()
+        engine = sm._engine
+        engine._invoke_manager.cancel_all = lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+
+        engine.stop()
+
+        assert engine.running is False
+
+
 class TestEngineDelCleanup:
     """Test BaseEngine.__del__ cancel_all exception handling."""
 
