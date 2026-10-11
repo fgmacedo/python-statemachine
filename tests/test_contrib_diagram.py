@@ -1148,25 +1148,24 @@ class TestResolveTarget:
         if tmp_path is not None:
             directive.state = mock.MagicMock()
             directive.state.document.settings.env.app.outdir = str(tmp_path)
-            directive.env.docname = "index"
-            directive.env.app.builder.get_target_uri.return_value = "index.html"
         return directive
 
     def test_no_target_option(self):
         directive = self._make_directive()
-        assert directive._resolve_target("<svg/>") == ""
+        assert directive._resolve_target("<svg/>") == ("", "")
 
     def test_explicit_target_url(self):
         directive = self._make_directive({"target": "https://example.com/diagram.svg"})
-        assert directive._resolve_target("<svg/>") == "https://example.com/diagram.svg"
+        assert directive._resolve_target("<svg/>") == ("https://example.com/diagram.svg", "")
 
     def test_empty_target_generates_file(self, tmp_path):
         directive = self._make_directive({"target": ""}, tmp_path=tmp_path)
         svg_data = "<svg><rect/></svg>"
-        result = directive._resolve_target(svg_data)
+        href, filename = directive._resolve_target(svg_data)
 
-        assert result.startswith("_images/statemachine-")
-        assert result.endswith(".svg")
+        assert filename.startswith("statemachine-")
+        assert filename.endswith(".svg")
+        assert href == f"_images/{filename}"
 
         # Verify the file was written
         images_dir = tmp_path / "_images"
@@ -1189,7 +1188,7 @@ class TestResolveTarget:
         assert d1._resolve_target("<svg/>") != d2._resolve_target("<svg/>")
 
 
-@pytest.mark.parametrize("buildername", ["html", "dirhtml"])
+@pytest.mark.parametrize("buildername", ["html", "dirhtml", "singlehtml"])
 @pytest.mark.parametrize("docname", ["index", "guide/overview", "guide/index"])
 def test_sphinx_zoom_link_resolves_under_documentation_prefix(
     tmp_path, request, buildername, docname
@@ -1218,7 +1217,11 @@ def test_sphinx_zoom_link_resolves_under_documentation_prefix(
     app.build()
     assert app.statuscode == 0
     assert app.warning.getvalue() == ""
-    page = app.builder.get_outfilename(docname)
+    page = (
+        app.outdir / "index.html"
+        if buildername == "singlehtml"
+        else app.builder.get_outfilename(docname)
+    )
     with open(page, encoding="utf-8") as f:
         match = re.search(r'href="([^"]*statemachine-[^"]+\.svg)"', f.read())
     assert match is not None
@@ -1228,6 +1231,53 @@ def test_sphinx_zoom_link_resolves_under_documentation_prefix(
     page_url = urljoin(prefix, app.builder.get_target_uri(docname))
     assert urljoin(page_url, href) == f"{prefix}_images/{filename}"
     assert (app.outdir / "_images" / filename).is_file()
+
+
+class TestResolveZoomLinks:
+    """Tests for the ``doctree-resolved`` handler that relativizes zoom hrefs."""
+
+    def _doctree(self, html):
+        doctree = nodes.document(None, None)
+        raw = nodes.raw("", html, format="html")
+        doctree += raw
+        return doctree, raw
+
+    def _app(self, fmt="html", page_uri="guide/overview.html"):
+        app = mock.MagicMock()
+        app.builder.format = fmt
+        app.builder.get_target_uri.return_value = page_uri
+        return app
+
+    def test_rewrites_href_relative_to_page(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="_images/statemachine-abc.svg">x</a>')
+        raw["zoom_filename"] = "statemachine-abc.svg"
+        _resolve_zoom_links(self._app(), doctree, "guide/overview")
+        assert raw.astext() == '<a href="../_images/statemachine-abc.svg">x</a>'
+
+    def test_strips_fragment_from_singlehtml_page_uri(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="_images/statemachine-abc.svg">x</a>')
+        raw["zoom_filename"] = "statemachine-abc.svg"
+        _resolve_zoom_links(self._app(page_uri="#document-index"), doctree, "index")
+        assert raw.astext() == '<a href="_images/statemachine-abc.svg">x</a>'
+
+    def test_skips_raw_nodes_without_zoom_file(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="https://example.com/x.svg">x</a>')
+        _resolve_zoom_links(self._app(), doctree, "guide/overview")
+        assert raw.astext() == '<a href="https://example.com/x.svg">x</a>'
+
+    def test_skips_non_html_builders(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="_images/statemachine-abc.svg">x</a>')
+        raw["zoom_filename"] = "statemachine-abc.svg"
+        _resolve_zoom_links(self._app(fmt="latex"), doctree, "guide/overview")
+        assert raw.astext() == '<a href="_images/statemachine-abc.svg">x</a>'
 
 
 class TestDirectiveRun:
@@ -1244,8 +1294,6 @@ class TestDirectiveRun:
         directive.state_machine = mock.MagicMock()
         directive.state = mock.MagicMock()
         directive.state.document.settings.env.app.outdir = str(tmp_path)
-        directive.env.docname = "index"
-        directive.env.app.builder.get_target_uri.return_value = "index.html"
         directive.content_offset = 0
         return directive
 
