@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
@@ -366,26 +367,18 @@ class InstanceState(State):
         self,
         state: State,
         machine: "StateChart",
+        instance_states: "Mapping[Any, State]",
     ):
         self._state = state
         self._machine = ref(machine)
+        self._instance_states = instance_states
         self._hash = hash(state)
-        # Children are resolved lazily by __getattr__ to their per-instance
-        # proxies. Running _init_states() here would instead cache the raw
-        # child States and mutate their shared ``parent`` to point at this
-        # proxy — so it is deliberately skipped.
+        # No _init_states(): it would rebind the shared children's ``parent`` to this proxy.
 
     def __getattr__(self, name: str):
         value = getattr(self._state, name)
-        if isinstance(value, State) and (
-            value in self._state.states or value in self._state.history
-        ):
-            # A nested child state resolves to its per-instance proxy, so
-            # instance-scoped attributes (e.g. is_active) stay consistent
-            # whether accessed directly or through an attribute chain.
-            machine = self._machine()
-            assert machine is not None
-            value = machine._config.instance_state(value.value) or value
+        if isinstance(value, State):
+            value = self._instance_states.get(value.value, value)
         self.__dict__[name] = value
         return value
 

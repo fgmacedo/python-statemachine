@@ -207,7 +207,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         instance_states: dict[Any, Any] = {}
         events = self.__class__._events
         for state in self.states_map.values():
-            ist = InstanceState(state, self)
+            ist = InstanceState(state, self, instance_states)
             instance_states[state.value] = ist
             if state.id not in events:
                 vars(self)[state.id] = ist
