@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
@@ -384,14 +385,18 @@ class InstanceState(State):
         self,
         state: State,
         machine: "StateChart",
+        instance_states: "Mapping[Any, State]",
     ):
         self._state = state
         self._machine = ref(machine)
+        self._instance_states = instance_states
         self._hash = hash(state)
-        self._init_states()
+        # No _init_states(): it would rebind the shared children's ``parent`` to this proxy.
 
     def __getattr__(self, name: str):
         value = getattr(self._state, name)
+        if isinstance(value, State):
+            value = self._instance_states.get(value.value, value)
         self.__dict__[name] = value
         return value
 

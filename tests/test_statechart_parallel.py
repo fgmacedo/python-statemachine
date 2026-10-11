@@ -64,7 +64,7 @@ class TestParallelStates:
         sm = await sm_runner.start(WarWithExit)
         assert "war" in sm.configuration_values
         await sm_runner.send(sm, "truce")
-        assert {"peace"} == set(sm.configuration_values)
+        assert set(sm.configuration_values) == {"peace"}
 
     async def test_event_in_one_region_no_effect_on_others(self, sm_runner):
         """Region isolation: events affect only the targeted region."""
@@ -106,7 +106,7 @@ class TestParallelStates:
 
         await sm_runner.send(sm, "flood")
         # Both regions are final -> done.state.battle fires
-        assert {"aftermath"} == set(sm.configuration_values)
+        assert set(sm.configuration_values) == {"aftermath"}
 
     async def test_parallel_not_done_when_one_region_final(self, sm_runner):
         """Parallel not done when only one region reaches final."""
@@ -142,7 +142,7 @@ class TestParallelStates:
         await sm_runner.send(sm, "close_ui")
         await sm_runner.send(sm, "stop_backend")
         # done.state.session fires, transitions to finished, then terminates
-        assert {"finished"} == set(sm.configuration_values)
+        assert set(sm.configuration_values) == {"finished"}
         assert sm.is_terminated is True
 
     async def test_from_enum_inside_parallel(self, sm_runner):
@@ -173,7 +173,7 @@ class TestParallelStates:
             finish = work.to(done)
 
         sm = await sm_runner.start(SC)
-        assert {"start"} == set(sm.configuration_values)
+        assert set(sm.configuration_values) == {"start"}
 
         await sm_runner.send(sm, "begin")
         vals = set(sm.configuration_values)
@@ -188,9 +188,8 @@ class TestParallelStates:
 
         await sm_runner.send(sm, "go_b")
         # Both regions final -> done.state.work fires
-        assert {RegionA.ACTIVE, RegionB.ON} <= set(sm.configuration_values) or {"done"} == set(
-            sm.configuration_values
-        )
+        vals = set(sm.configuration_values)
+        assert {RegionA.ACTIVE, RegionB.ON} <= vals or vals == {"done"}
 
     async def test_top_level_parallel_not_terminated_when_one_region_pending(self, sm_runner):
         """Machine keeps running when only one region reaches final."""
@@ -199,3 +198,44 @@ class TestParallelStates:
         assert sm.is_terminated is False
         assert "closed" in sm.configuration_values
         assert "running" in sm.configuration_values
+
+
+@pytest.mark.timeout(5)
+class TestNestedIsActive:
+    class Microwave(StateChart):
+        class microwave(State.Parallel):
+            my_state = State(initial=True)
+
+            class door(State.Compound):
+                shut = State(initial=True)
+                opened = State()
+
+                toggle = shut.to(opened) | opened.to(shut)
+
+    async def test_nested_child_resolves_to_the_same_proxy_on_every_path(self, sm_runner):
+        """A compound child nested inside a parallel region reports ``is_active``
+        consistently whether reached directly (``sm.shut``), through its parent
+        (``sm.door.shut``) or back through ``parent``."""
+        sm = await sm_runner.start(self.Microwave)
+
+        assert sm.my_state.is_active
+        assert sm.door.is_active
+        assert "shut" in sm.configuration_values
+        assert sm.shut.is_active
+        assert sm.door.shut.is_active
+        assert sm.door.shut is sm.shut
+        assert sm.door.shut.parent.is_active
+        assert sm.shut.parent is sm.door
+
+    async def test_nested_child_is_isolated_between_instances(self, sm_runner):
+        """Each machine resolves nested children to its own proxies, so one
+        instance toggling a region does not leak into another."""
+        sm = await sm_runner.start(self.Microwave)
+        other = await sm_runner.start(self.Microwave)
+
+        await sm_runner.send(other, "toggle")
+
+        assert other.door.opened.is_active
+        assert not other.door.shut.is_active
+        assert sm.door.shut.is_active
+        assert not sm.door.opened.is_active
