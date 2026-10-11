@@ -1,10 +1,12 @@
 import re
 from contextlib import contextmanager
 from unittest import mock
+from urllib.parse import urljoin
 from xml.etree import ElementTree
 
 import pytest
 from docutils import nodes
+from sphinx.testing.util import SphinxTestApp
 from statemachine.contrib.diagram import DotGraphMachine
 from statemachine.contrib.diagram import main
 from statemachine.contrib.diagram import quickchart_write_svg
@@ -1150,19 +1152,20 @@ class TestResolveTarget:
 
     def test_no_target_option(self):
         directive = self._make_directive()
-        assert directive._resolve_target("<svg/>") == ""
+        assert directive._resolve_target("<svg/>") == ("", "")
 
     def test_explicit_target_url(self):
         directive = self._make_directive({"target": "https://example.com/diagram.svg"})
-        assert directive._resolve_target("<svg/>") == "https://example.com/diagram.svg"
+        assert directive._resolve_target("<svg/>") == ("https://example.com/diagram.svg", "")
 
     def test_empty_target_generates_file(self, tmp_path):
         directive = self._make_directive({"target": ""}, tmp_path=tmp_path)
         svg_data = "<svg><rect/></svg>"
-        result = directive._resolve_target(svg_data)
+        href, filename = directive._resolve_target(svg_data)
 
-        assert result.startswith("/_images/statemachine-")
-        assert result.endswith(".svg")
+        assert filename.startswith("statemachine-")
+        assert filename.endswith(".svg")
+        assert href == f"_images/{filename}"
 
         # Verify the file was written
         images_dir = tmp_path / "_images"
@@ -1183,6 +1186,98 @@ class TestResolveTarget:
         d1 = self._make_directive({"target": "", "events": "a"}, tmp_path=tmp_path)
         d2 = self._make_directive({"target": "", "events": "b"}, tmp_path=tmp_path)
         assert d1._resolve_target("<svg/>") != d2._resolve_target("<svg/>")
+
+
+@pytest.mark.parametrize("buildername", ["html", "dirhtml", "singlehtml"])
+@pytest.mark.parametrize("docname", ["index", "guide/overview", "guide/index"])
+def test_sphinx_zoom_link_resolves_under_documentation_prefix(
+    tmp_path, request, buildername, docname
+):
+    srcdir = tmp_path / "src"
+    srcdir.mkdir()
+    (srcdir / "conf.py").write_text(
+        'extensions = ["statemachine.contrib.diagram.sphinx_ext"]\n', encoding="utf-8"
+    )
+    document = srcdir / f"{docname}.rst"
+    document.parent.mkdir(parents=True, exist_ok=True)
+    document.write_text(
+        "Diagram\n=======\n\n"
+        ".. statemachine-diagram:: tests.examples.traffic_light_machine.TrafficLightMachine\n"
+        "   :target:\n",
+        encoding="utf-8",
+    )
+    if docname != "index":
+        (srcdir / "index.rst").write_text(
+            f"Index\n=====\n\n.. toctree::\n\n   {docname}\n", encoding="utf-8"
+        )
+    app = SphinxTestApp(
+        buildername=buildername, srcdir=srcdir, builddir=tmp_path / "build", freshenv=True
+    )
+    request.addfinalizer(app.cleanup)
+    app.build()
+    assert app.statuscode == 0
+    assert app.warning.getvalue() == ""
+    page = (
+        app.outdir / "index.html"
+        if buildername == "singlehtml"
+        else app.builder.get_outfilename(docname)
+    )
+    with open(page, encoding="utf-8") as f:
+        match = re.search(r'href="([^"]*statemachine-[^"]+\.svg)"', f.read())
+    assert match is not None
+    href = match.group(1)
+    filename = href.rsplit("/", 1)[-1]
+    prefix = "https://example.com/project/en/stable/"
+    page_url = urljoin(prefix, app.builder.get_target_uri(docname))
+    assert urljoin(page_url, href) == f"{prefix}_images/{filename}"
+    assert (app.outdir / "_images" / filename).is_file()
+
+
+class TestResolveZoomLinks:
+    """Tests for the ``doctree-resolved`` handler that relativizes zoom hrefs."""
+
+    def _doctree(self, html):
+        doctree = nodes.document(None, None)
+        raw = nodes.raw("", html, format="html")
+        doctree += raw
+        return doctree, raw
+
+    def _app(self, fmt="html", page_uri="guide/overview.html"):
+        app = mock.MagicMock()
+        app.builder.format = fmt
+        app.builder.get_target_uri.return_value = page_uri
+        return app
+
+    def test_rewrites_href_relative_to_page(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="_images/statemachine-abc.svg">x</a>')
+        raw["zoom_filename"] = "statemachine-abc.svg"
+        _resolve_zoom_links(self._app(), doctree, "guide/overview")
+        assert raw.astext() == '<a href="../_images/statemachine-abc.svg">x</a>'
+
+    def test_strips_fragment_from_singlehtml_page_uri(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="_images/statemachine-abc.svg">x</a>')
+        raw["zoom_filename"] = "statemachine-abc.svg"
+        _resolve_zoom_links(self._app(page_uri="#document-index"), doctree, "index")
+        assert raw.astext() == '<a href="_images/statemachine-abc.svg">x</a>'
+
+    def test_skips_raw_nodes_without_zoom_file(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="https://example.com/x.svg">x</a>')
+        _resolve_zoom_links(self._app(), doctree, "guide/overview")
+        assert raw.astext() == '<a href="https://example.com/x.svg">x</a>'
+
+    def test_skips_non_html_builders(self):
+        from statemachine.contrib.diagram.sphinx_ext import _resolve_zoom_links
+
+        doctree, raw = self._doctree('<a href="_images/statemachine-abc.svg">x</a>')
+        raw["zoom_filename"] = "statemachine-abc.svg"
+        _resolve_zoom_links(self._app(fmt="latex"), doctree, "guide/overview")
+        assert raw.astext() == '<a href="_images/statemachine-abc.svg">x</a>'
 
 
 class TestDirectiveRun:
@@ -1273,7 +1368,7 @@ class TestDirectiveRun:
         """Empty target auto-generates a zoom SVG file."""
         _, result = self._run(tmp_path, options={"target": ""})
 
-        assert 'href="/_images/statemachine-' in result[0].astext()
+        assert 'href="_images/statemachine-' in result[0].astext()
         images_dir = tmp_path / "_images"
         assert any(images_dir.glob("statemachine-*.svg"))
 
