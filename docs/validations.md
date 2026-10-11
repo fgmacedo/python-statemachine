@@ -183,6 +183,26 @@ The `donedata` parameter can only be used on states marked as `final=True`:
 ```
 
 
+### Deferred events
+
+A final state cannot defer events, since a terminated machine processes none:
+
+```py
+>>> try:
+...     class Bad(StateChart):
+...         a = State(initial=True)
+...         b = State(final=True, defer=["go"])
+...         go = a.to(b)
+... except InvalidDefinition as e:
+...     print(e)
+Cannot defer events on final states.
+
+```
+
+Optionally, set `validate_deferred_events = True` to also require every deferred event id to
+be a declared event. See {ref}`validating-deferred-events`.
+
+
 ### Invalid listener entries
 
 Entries in the `listeners` class attribute must be classes, callables, or
@@ -279,9 +299,11 @@ Expressions support `and`, `or`, `not`, and parentheses. See
 | Internal transition targets       | Class definition| No                         |
 | Initial transitions have no cond  | Class definition| No                         |
 | `donedata` on final states only   | Class definition| No                         |
+| Final states do not defer events  | Class definition| No                         |
+| Deferred events are declared      | Class definition| `validate_deferred_events` (off by default) |
 | Invalid listener entries          | Class definition| No                         |
 | Callback resolution               | Instance creation | No                       |
 | Boolean expression parsing        | Instance creation | No                       |
 
-All configurable flags default to `True`. Set them to `False` on the class
-to disable the corresponding check.
+All configurable flags default to `True`, except `validate_deferred_events`, which is opt-in.
+Set a flag to `False` on the class to disable the corresponding check.

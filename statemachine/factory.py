@@ -32,6 +32,10 @@ class StateMachineMetaclass(type):
     """If ``True`` and final states exist, non-final states without a path to any final
     state raise ``InvalidDefinition``."""
 
+    validate_deferred_events: bool = False
+    """If ``True``, deferred event IDs on states are validated against declared
+    events at class construction time. Unknown event IDs raise ``InvalidDefinition``."""
+
     def __init__(
         cls,
         name: str,
@@ -182,6 +186,7 @@ class StateMachineMetaclass(type):
 
         cls._check_initial_state()
         cls._check_final_states()
+        cls._check_deferred_events()
         cls._check_disconnected_state()
         cls._check_trap_states()
         cls._check_reachable_final_states()
@@ -210,6 +215,26 @@ class StateMachineMetaclass(type):
                     [s.id for s in final_state_with_invalid_transitions]
                 )
             )
+
+    def _check_deferred_events(cls):
+        if not cls.validate_deferred_events:
+            return
+        known_event_ids = {str(e.id) for e in cls._events}
+        for state in iterate_states(cls.states):
+            if not state.deferred_events:
+                continue
+            unknown = set(state.deferred_events) - known_event_ids
+            if unknown:
+                raise InvalidDefinition(
+                    _(
+                        "State '{state}' defers unknown event(s): {events}. "
+                        "Declared events are: {known}"
+                    ).format(
+                        state=state.id,
+                        events=sorted(unknown),
+                        known=sorted(known_event_ids),
+                    )
+                )
 
     def _check_trap_states(cls):
         if not cls.validate_trap_states:

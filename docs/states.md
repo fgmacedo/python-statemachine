@@ -41,6 +41,9 @@ True
 | `enter` | `None` | Callback(s) to run when entering this state. See {ref}`state-actions`. |
 | `exit` | `None` | Callback(s) to run when leaving this state. See {ref}`state-actions`. |
 | `invoke` | `None` | Background work spawned on entry, cancelled on exit. See {ref}`invoke-actions`. |
+| `defer` | `None` | Ids of events to keep in a queue, instead of discarding them, while this state is active. See {ref}`deferral`. |
+| `on_defer` | `None` | Callback(s) to run when an event is deferred by this state. See {ref}`deferral`. |
+| `on_replay` | `None` | Callback(s) to run when a deferred event is sent again. See {ref}`deferral`. |
 
 ```py
 >>> class CampaignMachine(StateChart):

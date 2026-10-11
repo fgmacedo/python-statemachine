@@ -529,6 +529,8 @@ The full list of generic callbacks:
 | `on_enter_state()` | Enter | Runs when entering any state. |
 | `on_invoke_state()` | Invoke | Runs when spawning invoke handlers for any state. See {ref}`invoke`. |
 | `after_transition()` | After | Runs after all state changes. |
+| `on_defer_event()` | Defer | Runs when a state defers an event. See {ref}`deferral`. |
+| `on_replay_event()` | Replay | Runs when a deferred event is sent again. See {ref}`deferral`. |
 
 ```{note}
 `prepare_event()` is also a generic callback, but it serves a special purpose —
