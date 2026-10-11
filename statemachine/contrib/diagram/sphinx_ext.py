@@ -24,6 +24,7 @@ from typing import ClassVar
 from docutils import nodes
 from docutils.parsers.rst import directives
 from sphinx.util.docutils import SphinxDirective
+from sphinx.util.osutil import relative_uri
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -118,7 +119,7 @@ class StateMachineDiagram(SphinxDirective):
         svg_tag = svg_tag.replace("<svg ", f"<svg {svg_styles} ", 1)
 
         alt_text = html_mod.escape(self.options.get("alt", qualname.rsplit(".", 1)[-1]))
-        target = self._resolve_target(svg_text)
+        target, zoom_filename = self._resolve_target(svg_text)
 
         img_html = f'<div role="img" aria-label="{alt_text}">{svg_tag}</div>'
         if target:
@@ -142,6 +143,7 @@ class StateMachineDiagram(SphinxDirective):
             html = f"<div{class_attr}>{img_html}</div>"
 
         raw_node = nodes.raw("", html, format="html")
+        raw_node["zoom_filename"] = zoom_filename
 
         if "name" in self.options:
             self.add_name(raw_node)
@@ -232,18 +234,21 @@ class StateMachineDiagram(SphinxDirective):
 
         return f'style="{"; ".join(parts)}"'
 
-    def _resolve_target(self, svg_text: str) -> str:
-        """Return the href for the wrapper ``<a>`` tag, if any.
+    def _resolve_target(self, svg_text: str) -> tuple[str, str]:
+        """Return ``(href, zoom_filename)`` for the wrapper ``<a>`` tag.
 
         When ``:target:`` is given without a value (or as empty string), the
         raw SVG is written to ``_images/`` and linked so the user can open
-        the full diagram in a new browser tab for zooming.
+        the full diagram in a new browser tab for zooming. The href is
+        root-relative at this point; ``_resolve_zoom_links`` rewrites it
+        relative to each page at write time, once the builder knows the
+        page's final URI.
         """
         if "target" not in self.options:
-            return ""
+            return "", ""
         target = (self.options["target"] or "").strip()
         if target:
-            return target
+            return target, ""
 
         # Auto-generate a standalone SVG file for zoom.
         qualname = self.arguments[0]
@@ -258,7 +263,7 @@ class StateMachineDiagram(SphinxDirective):
         with open(outpath, "w", encoding="utf-8") as f:
             f.write(svg_text)
 
-        return f"/_images/{filename}"
+        return f"_images/{filename}", filename
 
     def _build_wrapper_classes(self) -> list[str]:
         """Build CSS class list for the outer wrapper element."""
@@ -275,6 +280,22 @@ def _split_length(value: str) -> tuple[float, str]:
     return 0.0, value
 
 
+def _resolve_zoom_links(app: "Sphinx", doctree: nodes.document, docname: str) -> None:
+    """Rewrite auto-generated zoom hrefs relative to the page being written."""
+    builder = app.builder
+    if builder.format != "html":
+        return
+    page_uri = builder.get_target_uri(docname).split("#", 1)[0]
+    for node in doctree.findall(nodes.raw):
+        filename = node.get("zoom_filename")
+        if not filename:
+            continue
+        href = relative_uri(page_uri, f"_images/{filename}")
+        html = node.astext().replace(f'href="_images/{filename}"', f'href="{href}"')
+        node[0] = nodes.Text(html)
+
+
 def setup(app: "Sphinx") -> dict[str, Any]:
     app.add_directive("statemachine-diagram", StateMachineDiagram)
+    app.connect("doctree-resolved", _resolve_zoom_links)
     return {"version": "0.1", "parallel_read_safe": True, "parallel_write_safe": True}

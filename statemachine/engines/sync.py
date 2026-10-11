@@ -1,6 +1,7 @@
+from collections.abc import Callable
+from itertools import chain
+from time import monotonic
 from time import sleep
-from time import time
-from typing import TYPE_CHECKING
 
 from statemachine.event import BoundEvent
 from statemachine.orderedset import OrderedSet
@@ -8,26 +9,12 @@ from statemachine.orderedset import OrderedSet
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
 from ..exceptions import TransitionNotAllowed
+from ..state import State
+from ..transition import Transition
 from .base import BaseEngine
-
-if TYPE_CHECKING:
-    from ..transition import Transition
 
 
 class SyncEngine(BaseEngine):
-    def _run_microstep(self, enabled_transitions, trigger_data):
-        """Run a microstep for internal/eventless transitions with error handling.
-
-        Note: microstep() handles its own errors internally, so this try/except
-        is a safety net that is not expected to be reached in normal operation.
-        """
-        try:
-            self.microstep(list(enabled_transitions), trigger_data)
-        except InvalidDefinition:
-            raise
-        except Exception as e:  # pragma: no cover
-            self._handle_error(e, trigger_data)
-
     def start(self, **kwargs):
         if self.sm.current_state_value is not None:
             return
@@ -56,7 +43,7 @@ class SyncEngine(BaseEngine):
                 self._processing.release()
         return self.processing_loop()
 
-    def processing_loop(self, caller_future=None):  # noqa: C901
+    def processing_loop(self):
         """Process event triggers.
 
         The event is put on a queue, and only the first event will have the result collected.
@@ -80,100 +67,215 @@ class SyncEngine(BaseEngine):
             took_events = True
             while took_events and self.running:
                 self.clear_cache()
-                took_events = False
-                # Execute the triggers in the queue in FIFO order until the queue is empty
-                # while self._running and not self.external_queue.is_empty():
-                macrostep_done = False
-                enabled_transitions: "OrderedSet[Transition] | None" = None
-
-                # handles eventless transitions and internal events
-                while not macrostep_done:
-                    self._microstep_count = 0
-                    self._debug(
-                        "%s Macrostep %d: eventless/internal queue",
-                        self._log_id,
-                        self._macrostep_count,
-                    )
-
-                    self.clear_cache()
-                    internal_event = TriggerData(
-                        self.sm, event=None
-                    )  # this one is a "null object"
-                    enabled_transitions = self.select_eventless_transitions(internal_event)
-                    if not enabled_transitions:
-                        if self.internal_queue.is_empty():
-                            macrostep_done = True
-                        else:
-                            internal_event = self.internal_queue.pop()
-                            enabled_transitions = self.select_transitions(internal_event)
-                    if enabled_transitions:
-                        self._debug(
-                            "%s Enabled transitions: %s", self._log_id, enabled_transitions
-                        )
-                        took_events = True
-                        self._run_microstep(enabled_transitions, internal_event)
+                took_events = self._run_macrostep()
 
                 # Spawn invoke handlers for states entered during this macrostep.
                 self._invoke_manager.spawn_pending_sync()
                 self._check_root_final_state()
 
-                # Process remaining internal events before external events.
-                # Note: the macrostep loop above already drains the internal queue,
-                # so this is a safety net per SCXML spec for invoke-generated events.
-                while not self.internal_queue.is_empty():  # pragma: no cover
-                    internal_event = self.internal_queue.pop()
-                    enabled_transitions = self.select_transitions(internal_event)
-                    if enabled_transitions:
-                        self._run_microstep(enabled_transitions, internal_event)
-
-                # Process external events
-                self._debug("%s Macrostep %d: external queue", self._log_id, self._macrostep_count)
-                while not self.external_queue.is_empty():
-                    self.clear_cache()
-                    took_events = True
-                    external_event = self.external_queue.pop()
-                    current_time = time()
-                    if external_event.execution_time > current_time:
-                        self.put(external_event, _delayed=True)
-                        sleep(self.sm._loop_sleep_in_ms)
-                        # Break to Phase 1 so internal events and eventless
-                        # transitions can be processed while we wait.
-                        break
-
-                    self._macrostep_count += 1
-                    self._microstep_count = 0
-                    self._debug(
-                        "%s macrostep %d: event=%s",
-                        self._log_id,
-                        self._macrostep_count,
-                        external_event.event,
-                    )
-
-                    # Finalize + autoforward for active invocations
-                    self._invoke_manager.handle_external_event(external_event)
-
-                    enabled_transitions = self.select_transitions(external_event)
-                    self._debug("%s Enabled transitions: %s", self._log_id, enabled_transitions)
-                    if enabled_transitions:
-                        try:
-                            result = self.microstep(list(enabled_transitions), external_event)
-                            if first_result is self._sentinel:
-                                first_result = result
-
-                        except Exception:
-                            # We clear the queue as we don't have an expected behavior
-                            # and cannot keep processing
-                            self.clear()
-                            raise
-
-                    else:
-                        if not self.sm.allow_event_without_transition:
-                            raise TransitionNotAllowed(external_event.event, self.sm.configuration)
-
+                took_external_events, first_result = self._take_external_events(first_result)
+                took_events = took_events or took_external_events
         finally:
             self._processing.release()
         self._debug("%s Processing loop ended", self._log_id)
         return first_result if first_result is not self._sentinel else None
+
+    def _run_macrostep(self) -> bool:
+        """Take eventless transitions and internal events until neither enables a transition.
+
+        Returns whether any transition was taken. The internal queue is empty on return.
+        """
+        took_events = False
+        while True:
+            self._microstep_count = 0
+            self._debug(
+                "%s Macrostep %d: eventless/internal queue",
+                self._log_id,
+                self._macrostep_count,
+            )
+
+            self.clear_cache()
+            internal_event = TriggerData(self.sm, event=None)  # this one is a "null object"
+            enabled_transitions = self.select_eventless_transitions(internal_event)
+            if not enabled_transitions:
+                if self.internal_queue.is_empty():
+                    return took_events
+                internal_event = self.internal_queue.pop()
+                enabled_transitions = self.select_transitions(internal_event)
+            if enabled_transitions:
+                self._debug("%s Enabled transitions: %s", self._log_id, enabled_transitions)
+                took_events = True
+                self.microstep(list(enabled_transitions), internal_event)
+
+    def _take_external_events(self, first_result):
+        """Take external events in due order until the queue is empty or holds one not yet due.
+
+        Returns whether any event was taken from the queue, and ``first_result`` updated with
+        the result of the first event that enabled a transition.
+        """
+        self._debug("%s Macrostep %d: external queue", self._log_id, self._macrostep_count)
+        took_events = False
+        while not self.external_queue.is_empty():
+            self.clear_cache()
+            took_events = True
+            external_event = self.external_queue.pop_due(monotonic())
+            if external_event is None:
+                sleep(self.sm._loop_sleep_in_ms)
+                # Break to the macrostep so internal events and eventless
+                # transitions can be processed while we wait.
+                break
+
+            self._macrostep_count += 1
+            self._microstep_count = 0
+            self._debug(
+                "%s macrostep %d: event=%s",
+                self._log_id,
+                self._macrostep_count,
+                external_event.event,
+            )
+
+            result = self._take_external_event(external_event)
+            if first_result is self._sentinel:
+                first_result = result
+        return took_events, first_result
+
+    def _take_external_event(self, external_event: TriggerData):
+        """Run one external event.
+
+        Returns the event's microstep result, or the sentinel when it enabled no transition.
+        """
+        # Finalize + autoforward for active invocations
+        self._invoke_manager.handle_external_event(external_event)
+
+        enabled_transitions = self.select_transitions(external_event)
+        self._debug("%s Enabled transitions: %s", self._log_id, enabled_transitions)
+        if not enabled_transitions:
+            if not self.sm.allow_event_without_transition:
+                raise TransitionNotAllowed(external_event.event, self.sm.configuration)
+            return self._sentinel
+
+        try:
+            return self.microstep(list(enabled_transitions), external_event)
+        except Exception:
+            # We clear the queue as we don't have an expected behavior
+            # and cannot keep processing
+            self.clear()
+            raise
+
+    def select_eventless_transitions(self, trigger_data: TriggerData):
+        """
+        Select the eventless transitions that match the trigger data.
+        """
+        return self._select_transitions(trigger_data, lambda t, _e: t.is_eventless)
+
+    def select_transitions(self, trigger_data: TriggerData) -> OrderedSet[Transition]:
+        """
+        Select the transitions that match the trigger data.
+        """
+        return self._select_transitions(trigger_data, lambda t, e: t.match(e))
+
+    def _first_transition_that_matches(
+        self,
+        state: State,
+        trigger_data: TriggerData,
+        predicate: Callable,
+    ) -> "Transition | None":
+        for s in chain([state], state.ancestors()):
+            transition: Transition
+            for transition in s.transitions:
+                if (
+                    not transition.initial
+                    and predicate(transition, trigger_data.event)
+                    and self._conditions_match(transition, trigger_data)
+                ):
+                    return transition
+        return None
+
+    def _select_transitions(
+        self, trigger_data: TriggerData, predicate: Callable
+    ) -> OrderedSet[Transition]:
+        """Select the transitions that match the trigger data."""
+        enabled_transitions = OrderedSet[Transition]()
+
+        # Get atomic states, TODO: sorted by document order
+        atomic_states = (state for state in self.sm.configuration if state.is_atomic)
+
+        for state in atomic_states:
+            transition = self._first_transition_that_matches(state, trigger_data, predicate)
+            if transition is not None:
+                enabled_transitions.add(transition)
+
+        return self._filter_conflicting_transitions(enabled_transitions)
+
+    def microstep(self, transitions: list[Transition], trigger_data: TriggerData):
+        """Process a single set of transitions in a 'lock step'.
+        This includes exiting states, executing transition content, and entering states.
+        """
+        self._microstep_count += 1
+        self._debug(
+            "%s macro:%d micro:%d transitions: %s",
+            self._log_id,
+            self._macrostep_count,
+            self._microstep_count,
+            transitions,
+        )
+        previous_configuration = self.sm.configuration
+        try:
+            result = self._execute_transition_content(
+                transitions, trigger_data, lambda t: t.before.key
+            )
+
+            states_to_exit = self._exit_states(transitions, trigger_data)
+            result += self._enter_states(
+                transitions, trigger_data, states_to_exit, previous_configuration
+            )
+        except InvalidDefinition:
+            self.sm.configuration = previous_configuration
+            raise
+        except Exception as e:
+            self.sm.configuration = previous_configuration
+            self._handle_error(e, trigger_data)
+            return None
+
+        try:
+            self._execute_transition_content(
+                transitions,
+                trigger_data,
+                lambda t: t.after.key,
+                set_target_as_state=True,
+            )
+        except InvalidDefinition:
+            raise
+        except Exception as e:
+            self._handle_error(e, trigger_data)
+
+        if len(result) == 0:
+            result = None
+        elif len(result) == 1:
+            result = result[0]
+
+        return result
+
+    def _exit_states(
+        self, enabled_transitions: list[Transition], trigger_data: TriggerData
+    ) -> OrderedSet[State]:
+        """Compute and process the states to exit for the given transitions."""
+        ordered_states, result = self._prepare_exit_states(enabled_transitions)
+        on_error = self._on_error_handler()
+
+        for info in ordered_states:
+            # Cancel invocations for this state before executing exit handlers.
+            self._invoke_manager.cancel_for_state(info.state)
+
+            args, kwargs = self._get_args_kwargs(info.transition, trigger_data, source=info.state)
+
+            # Execute `onexit` handlers — same per-block error isolation as onentry.
+            self._debug("%s Exiting state: %s", self._log_id, info.state)
+            self.sm._callbacks.call(info.state.exit.key, *args, on_error=on_error, **kwargs)
+
+            self._remove_state_from_configuration(info.state)
+
+        return result
 
     def enabled_events(self, *args, **kwargs):
         sm = self.sm

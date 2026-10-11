@@ -120,10 +120,11 @@ from statemachine import State
 
 class CampaignMachine(StateChart):
     "A workflow machine"
-    draft = State('Draft', initial=True, value=1)
-    producing = State('Being produced', value=2)
-    closed = State('Closed', value=3)
-    cancelled = State('Cancelled', value=4)
+
+    draft = State("Draft", initial=True, value=1)
+    producing = State("Being produced", value=2)
+    closed = State("Closed", value=3)
+    cancelled = State("Cancelled", value=4)
 
     add_job = draft.to.itself() | producing.to.itself()
     produce = draft.to(producing)
@@ -142,9 +143,9 @@ from statemachine.mixins import MachineMixin
 
 
 class Campaign(models.Model, MachineMixin):
-    state_machine_name = 'campaign.statemachines.CampaignMachine'
-    state_machine_attr = 'sm'
-    state_field_name = 'step'
+    state_machine_name = "campaign.statemachines.CampaignMachine"
+    state_machine_attr = "sm"
+    state_field_name = "step"
 
     name = models.CharField(max_length=30)
     step = models.IntegerField()

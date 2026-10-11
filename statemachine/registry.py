@@ -1,4 +1,9 @@
+from typing import TYPE_CHECKING
+
 from .utils import qualname
+
+if TYPE_CHECKING:
+    from .statemachine import StateMachine
 
 try:
     from django.utils.module_loading import autodiscover_modules
@@ -8,7 +13,7 @@ except ImportError:  # pragma: no cover
         pass
 
 
-_REGISTRY = {}
+_REGISTRY: "dict[str, type[StateMachine]]" = {}
 _initialized = False
 
 

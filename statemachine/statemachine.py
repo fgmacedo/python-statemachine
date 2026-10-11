@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Generic
 from typing import TypeVar
+from typing import cast
 
 from statemachine.orderedset import OrderedSet
 
@@ -146,7 +147,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         listeners: "list[object] | None" = None,
         **kwargs: Any,
     ):
-        self.model: TModel = model if model is not None else Model()  # type: ignore[assignment]
+        self.model: TModel = model if model is not None else cast(TModel, Model())
         """The external model object that holds domain state, or an internal
         :class:`Model` instance when none is provided.  See :ref:`domain models`."""
 
@@ -225,7 +226,11 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         return run_async_from_sync(result)
 
     def _processing_loop(self, caller_future: "Any | None" = None) -> Any:
-        result = self._engine.processing_loop(caller_future)
+        # Only the async engine gives an event a future, for its caller to await the result by.
+        if isinstance(self._engine, AsyncEngine):
+            result = self._engine.processing_loop(caller_future)
+        else:
+            result = self._engine.processing_loop()
         if not isawaitable(result):
             return result
         return run_async_from_sync(result)
@@ -259,7 +264,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         listeners = state.pop("_listeners")
-        self.__dict__.update(state)  # type: ignore[attr-defined]
+        vars(self).update(state)
         self._callbacks = CallbacksRegistry()
         self._config = self._build_configuration()
         self._listeners = {}
@@ -273,11 +278,11 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         self._engine.start()
 
     def _get_initial_configuration(self):
-        initial_state_values = (
-            self.start_configuration_values
-            if self.start_configuration_values
-            else [self.initial_state.value]  # type: ignore[union-attr]
-        )
+        initial_state_values = self.start_configuration_values
+        if not initial_state_values:
+            # Only a machine with no states has no initial state, and none can be created.
+            assert self.initial_state is not None
+            initial_state_values = [self.initial_state.value]
         try:
             return [self.states_map[value] for value in initial_state_values]
         except KeyError as err:
@@ -362,7 +367,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         return f'<div class="statemachine">{self._repr_svg_()}</div>'
 
     def _repr_svg_(self):
-        return self._graph().create_svg().decode()  # type: ignore[attr-defined]
+        return format(self, "svg")
 
     def _graph(self):
         from .contrib.diagram import DotGraphMachine
@@ -507,7 +512,10 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         return self.send(event, *args, delay=delay, send_id=send_id, internal=True, **kwargs)
 
     def cancel_event(self, send_id: str):
-        """Cancel all the delayed events with the given ``send_id``."""
+        """Cancel all the delayed events with the given ``send_id``.
+
+        A caller awaiting one of them gets ``None``.
+        """
         self._engine.cancel_event(send_id)
 
     @property

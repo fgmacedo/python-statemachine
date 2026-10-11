@@ -1,5 +1,6 @@
 import pytest
 from statemachine.orderedset import OrderedSet
+from statemachine.states import States
 
 from statemachine import State
 from statemachine import StateChart
@@ -83,3 +84,11 @@ def test_ordered_set_union():
     s1 = OrderedSet([1, 2])
     result = s1.union([3, 4], [5, 6])
     assert list(result) == [1, 2, 3, 4, 5, 6]
+
+
+def test_states_getattr_unknown_name():
+    """States exposes its members as attributes and rejects anything else."""
+    states = States({"draft": State("Draft")})
+    assert states.draft.name == "Draft"
+    with pytest.raises(AttributeError, match="published not found in States"):
+        _ = states.published

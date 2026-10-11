@@ -227,6 +227,43 @@ def sm_runner(request):
     return SMRunner(is_async=request.param == "async")
 
 
+_CLOCKS = ("statemachine.event_data", "statemachine.engines.sync", "statemachine.engines.async_")
+"""Every module that reads ``time.monotonic`` to stamp a trigger or to check whether it is due."""
+
+
+class FakeClock:
+    """A monotonic clock that moves only when the test moves it.
+
+    Set ``now`` to jump, or ``step`` to make every reading later than the last by that much.
+    ``reads`` counts the readings.
+    """
+
+    def __init__(self):
+        self.now: float = 1000.0
+        self.step: float = 0.0
+        self.reads: int = 0
+
+    def __call__(self) -> float:
+        self.reads += 1
+        reading = self.now
+        self.now += self.step
+        return reading
+
+
+@pytest.fixture()
+def clock(monkeypatch) -> FakeClock:
+    """Run the test on a :class:`FakeClock`, read by every module that stamps or checks triggers.
+
+    Patching one module and not the others stamps triggers on one clock and checks them on
+    another: on a freshly booted machine the real monotonic clock is below the fake one, so
+    every event waits for the real clock to catch up.
+    """
+    fake = FakeClock()
+    for module in _CLOCKS:
+        monkeypatch.setattr(f"{module}.monotonic", fake)
+    return fake
+
+
 @pytest.fixture(autouse=True)
 def _check_leaked_threads():
     """Detect threads leaked by test cases (e.g. invoke daemon threads).
