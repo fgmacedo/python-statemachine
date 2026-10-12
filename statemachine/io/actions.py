@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from ..event import BoundEvent
 from ..event import Event
+from ..event import raise_delayed_internal
 from ..statemachine import StateChart
 from .evaluators import Evaluator
 from .evaluators import protected_attrs
@@ -400,6 +401,9 @@ def create_send_action_callable(  # noqa: C901
 ) -> Callable:
     content: Any = ()
     _valid_targets = (None, "#_internal", "internal", "#_parent", "parent")
+    internal = action.target in ("#_internal", "internal")
+    if internal and (action.delay or action.delayexpr):
+        raise_delayed_internal(action.event or action.eventexpr or "")
     if action.content:
         content = (evaluator.eval_literal(action.content),)
     delay_expr = (
@@ -432,8 +436,6 @@ def create_send_action_callable(  # noqa: C901
         if target == "#_parent":
             _send_to_parent(action, evaluator, **kwargs)
             return
-
-        internal = target in ("#_internal", "internal")
 
         send_id = None
         if action.id:

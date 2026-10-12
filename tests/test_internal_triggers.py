@@ -10,6 +10,7 @@ Theme: the beacons of Gondor, lit from inside the chain or called for from afar.
 """
 
 import asyncio
+import json
 import threading
 from inspect import isawaitable
 
@@ -17,6 +18,7 @@ import pytest
 from statemachine.engines.base import _running_engine
 from statemachine.exceptions import InvalidDefinition
 from statemachine.exceptions import TransitionNotAllowed
+from statemachine.io.loader import load
 from statemachine.io.scxml.processor import SCXMLProcessor
 
 from statemachine import Event
@@ -80,6 +82,26 @@ class TestFromACallback:
         sm = await sm_runner.start(Watch)
 
         assert sm.configuration_values == {"lit"}
+
+    def test_send_with_internal_false_overrides_the_declaration(self):
+        class Muster(StateChart):
+            camp = State(initial=True)
+            riding = State(final=True)
+            besieged = State(final=True)
+
+            summon = camp.to.itself(internal=True, on="call")
+            ride = Event(camp.to(riding), internal=True)
+            siege = camp.to(besieged)
+
+            def call(self):
+                self.send("siege")
+                self.send("ride", internal=False)
+
+        sm = Muster()
+
+        sm.send("summon")
+
+        assert sm.configuration_values == {"besieged"}
 
 
 class TestFromOutside:
@@ -250,6 +272,34 @@ class TestWhoIsRunningTheStep:
         assert await settle(await sm_runner.send(sm, "reach")) == "kindled"
         assert other.configuration_values == {"lit"}
 
+    async def test_a_callback_triggering_a_disallowed_event_on_another_machine_raises(
+        self, sm_runner
+    ):
+        class StrictBeacons(StateMachine):
+            dark = State(initial=True)
+            lit = State()
+
+            light = dark.to(lit)
+            douse = Event(lit.to(dark), internal=True)
+
+        other = await sm_runner.start(StrictBeacons)
+
+        class Douser(StateChart):
+            catch_errors_as_events = False
+
+            idle = State(initial=True)
+            done = State(final=True)
+
+            reach = idle.to(done, on="douse_other")
+
+            def douse_other(self):
+                return other.douse()
+
+        sm = await sm_runner.start(Douser)
+
+        with pytest.raises(TransitionNotAllowed):
+            await settle(await sm_runner.send(sm, "reach"))
+
 
 class TestDelayedInternal:
     def test_a_declaration_cannot_be_both_delayed_and_internal(self):
@@ -287,20 +337,45 @@ class TestDelayedInternal:
 
         assert sm.configuration_values == {"dark"}
 
-    def test_an_scxml_send_to_internal_cannot_have_a_delay(self):
-        scxml = """
+    @pytest.mark.timeout(10)
+    async def test_a_declared_internal_event_can_be_sent_later_as_external(self, sm_runner):
+        sm = await sm_runner.start(Beacons)
+
+        assert await sm_runner.send(sm, "light", delay=10, internal=False) == "kindled"
+
+    @pytest.mark.parametrize("delay", ['delay="50ms"', "delayexpr=\"'50ms'\""])
+    @pytest.mark.parametrize("target", ["#_internal", "internal"])
+    def test_an_scxml_send_to_internal_with_a_delay_fails_to_load(self, target, delay):
+        scxml = f"""
         <scxml xmlns="http://www.w3.org/2005/07/scxml" initial="dark">
           <state id="dark">
             <onentry>
-              <send event="light" target="#_internal" delay="50ms"/>
+              <send event="light" target="{target}" {delay}/>
             </onentry>
             <transition event="light" target="lit"/>
           </state>
           <final id="lit"/>
         </scxml>
         """
-        processor = SCXMLProcessor()
-        processor.parse_scxml("delayed_internal", scxml)
 
         with pytest.raises(InvalidDefinition, match=DELAYED_INTERNAL):
-            processor.start()
+            SCXMLProcessor().parse_scxml("delayed_internal", scxml)
+
+    @pytest.mark.parametrize("validate", [True, False])
+    def test_a_native_send_to_internal_with_a_delay_fails_to_load(self, validate):
+        document = {
+            "name": "DelayedInternal",
+            "states": {
+                "dark": {
+                    "initial": True,
+                    "enter": [
+                        {"send": {"event": "light", "target": "#_internal", "delay": "50ms"}}
+                    ],
+                    "transitions": [{"event": "light", "target": "lit"}],
+                },
+                "lit": {"final": True},
+            },
+        }
+
+        with pytest.raises(InvalidDefinition):
+            load(json.dumps(document), format="json", validate=validate)

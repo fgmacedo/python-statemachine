@@ -46,6 +46,20 @@ _event_data_kwargs = {
 }
 
 
+def raise_delayed_internal(event_id: str):
+    """Reject an event that asks to be both delayed and internal.
+
+    The internal queue runs within the current macrostep, which takes no time.
+    """
+    raise InvalidDefinition(
+        _(
+            "Event {id!r} cannot be both delayed and internal: the internal queue runs "
+            "within the current macrostep, which takes no time. Drop 'internal' to "
+            "deliver it later on the external queue, or drop 'delay' to run it now."
+        ).format(id=event_id)
+    )
+
+
 class Event(AddCallbacksMixin, str):
     """An event triggers a signal that something has happened.
 
@@ -101,13 +115,7 @@ class Event(AddCallbacksMixin, str):
         id = str(id) if _has_real_id else f"__event__{uuid4().hex}"
 
         if delay and internal:
-            raise InvalidDefinition(
-                _(
-                    "Event {id!r} cannot be both delayed and internal: the internal queue runs "
-                    "within the current macrostep, which takes no time. Drop 'internal' to "
-                    "deliver it later on the external queue, or drop 'delay' to run it now."
-                ).format(id=id)
-            )
+            raise_delayed_internal(id)
 
         instance = super().__new__(cls, id)
         instance.id = id

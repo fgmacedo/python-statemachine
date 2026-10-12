@@ -117,7 +117,14 @@
             "params": { "type": "array", "items": { "$ref": "#/$defs/param" } },
             "content": { "type": "string" }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "if": {
+            "required": ["target"],
+            "properties": { "target": { "enum": ["#_internal", "internal"] } }
+          },
+          "then": {
+            "not": { "anyOf": [{ "required": ["delay"] }, { "required": ["delayexpr"] }] }
+          }
         },
         "foreach": {
           "type": "object",

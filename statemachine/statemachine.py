@@ -467,7 +467,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         *args,
         delay: float = 0,
         send_id: "str | None" = None,
-        internal: bool = False,
+        internal: "bool | None" = None,
         **kwargs,
     ) -> Any:
         """Send an :ref:`Event` to the state machine.
@@ -492,7 +492,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         delay = (
             delay if delay else know_event and know_event.delay or 0
         )  # first the param, then the event, or 0
-        internal = internal or bool(know_event and know_event.internal)
+        if internal is None:
+            internal = bool(know_event and know_event.internal)
         event_instance = BoundEvent(
             id=event, name=event_name, delay=delay, internal=internal, _sm=self
         )
