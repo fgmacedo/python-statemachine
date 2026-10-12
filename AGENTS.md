@@ -303,9 +303,9 @@ enforced, so when you add or change native vocabulary:
 
 ## Git workflow
 
-- Main branch: `develop`
-- PRs target `develop`
-- Releases are tagged as `v*.*.*`
+- Trunk based development: `main` is the only long-lived branch, PRs target `main`
+- Releases are tags `vX.Y.Z` on `main`; the `latest` tag moves to every release
+- Hotfixes: `release/X.Y.x` branch cut from the tag, fixes cherry-picked from `main`
 - Signed commits preferred (`git commit -s`)
 - Use [Conventional Commits](https://www.conventionalcommits.org/) messages
   (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`)

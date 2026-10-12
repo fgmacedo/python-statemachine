@@ -5,9 +5,9 @@ name: Python checks
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "main", "release/**" ]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "main" ]
 
 permissions:
   contents: read
@@ -22,7 +22,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
-    - run: git fetch origin develop
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v7
       with:
