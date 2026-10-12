@@ -525,8 +525,7 @@ class TestCallbackNameCollision:
 
         assert str(exc_info.value) == (
             "Callback 'go' is declared in both the 'quest' and the 'battle' state bodies. "
-            "Nested state bodies share one namespace, so only the last one would run. "
-            "Rename one of them."
+            "Nested state bodies share the class namespace. Rename one of them."
         )
 
     def test_plain_callback_in_sibling_regions(self):
@@ -588,8 +587,8 @@ class TestCallbackNameCollision:
 
         assert str(exc_info.value) == (
             "Callback 'on_enter_green_dragon' is declared in both the 'shire' state body and "
-            "the 'Journey' class body. Nested state bodies share one namespace, so only the "
-            "last one would run. Rename one of them."
+            "the 'Journey' class body. Nested state bodies share the class namespace. "
+            "Rename one of them."
         )
 
     def test_decorator_event_in_state_body_and_class_body(self):
@@ -655,6 +654,76 @@ class TestCallbackNameCollision:
         sm = await sm_runner.start(Journey)
         await sm_runner.send(sm, "visit_pub")
         assert log == ["arrived"]
+
+    async def test_same_bound_method_in_sibling_regions_is_not_a_collision(self, sm_runner):
+        class Chronicle:
+            def __init__(self):
+                self.log = []
+
+            def arrive(self):
+                self.log.append("arrived")
+
+        chronicle = Chronicle()
+
+        class War(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+                    go = start.to(end)
+
+                    on_enter_end = chronicle.arrive
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+                    victory = fighting.to(won)
+
+                    on_enter_end = chronicle.arrive
+
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert chronicle.log == ["arrived"]
+
+    def test_callback_named_as_an_event_of_a_sibling_region(self):
+        with pytest.raises(InvalidDefinition) as exc_info:
+
+            class War(StateChart):
+                class war(State.Parallel):
+                    class quest(State.Compound):
+                        start = State(initial=True)
+                        end = State(final=True)
+                        step = start.to(end, cond="go")
+
+                        def go(self):
+                            return True
+
+                    class battle(State.Compound):
+                        fighting = State(initial=True)
+                        won = State(final=True)
+                        go = fighting.to(won)
+
+        assert str(exc_info.value) == (
+            "Callback 'go' in the 'quest' state body clashes with the event 'go'. "
+            "Nested state bodies share the class namespace. Rename one of them."
+        )
+
+    def test_callback_named_as_a_class_attribute(self):
+        with pytest.raises(InvalidDefinition) as exc_info:
+
+            class Journey(StateChart):
+                class shire(State.Compound):
+                    bag_end = State(initial=True)
+                    green_dragon = State(final=True)
+                    visit_pub = bag_end.to(green_dragon, on="name")
+
+                    def name(self):
+                        return "Frodo"
+
+        assert str(exc_info.value) == (
+            "Callback 'name' in the 'shire' state body clashes with the 'name' attribute of "
+            "'Journey'. Nested state bodies share the class namespace. Rename one of them."
+        )
 
     async def test_distinct_names_in_sibling_regions_both_run(self, sm_runner):
         log = []

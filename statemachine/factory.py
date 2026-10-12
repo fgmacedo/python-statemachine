@@ -59,7 +59,7 @@ class StateMachineMetaclass(type):
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
         cls._collect_class_listeners(attrs, bases)
-        cls._unpack_builders_callbacks()
+        cls._unpack_builders_callbacks(attrs)
         cls._update_event_references()
 
         if not cls.states:
@@ -163,13 +163,19 @@ class StateMachineMetaclass(type):
             if not any(t for t in parent.transitions if t.initial and t.target == state):
                 parent.to(state, initial=True)  # pragma: no cover
 
-    def _unpack_builders_callbacks(cls):
-        callbacks = {}
+    def _unpack_builders_callbacks(cls, attrs: dict[str, Any]):
+        callbacks: dict[str, Any] = {}
         owners: dict[str, State] = {}
+        class_body_names = set(attrs)
+        class_body_names.update(
+            value.attr_name for value in attrs.values() if getattr(value, "attr_name", None)
+        )
         for state in iterate_states(cls.states):
             if state._callbacks:
                 for attr_name, func in state._callbacks.items():
-                    cls._check_callback_collision(attr_name, func, state, callbacks, owners)
+                    cls._check_callback_collision(
+                        attr_name, func, state, callbacks, owners, class_body_names
+                    )
                     owners[attr_name] = state
                 callbacks.update(state._callbacks)
                 del state._callbacks
@@ -183,29 +189,39 @@ class StateMachineMetaclass(type):
         state: State,
         callbacks: dict[str, Any],
         owners: dict[str, State],
+        class_body_names: set[str],
     ):
         """Nested state bodies are flattened into the class namespace, so a name declared
-        in two bodies (or in a body and the class body) keeps only the last one."""
+        in two bodies, or in a body and the class body, keeps only the last one."""
         if attr_name in callbacks:
             existing = callbacks[attr_name]
-            declared_in = _("the '{}' and the '{}' state bodies").format(
+            conflict = _("is declared in both the '{}' and the '{}' state bodies").format(
                 owners[attr_name].id, state.id
             )
         elif attr_name in cls.__dict__:
             existing = cls.__dict__[attr_name]
-            declared_in = _("the '{}' state body and the '{}' class body").format(
-                state.id, cls.__name__
-            )
+            if attr_name in class_body_names:
+                conflict = _(
+                    "is declared in both the '{}' state body and the '{}' class body"
+                ).format(state.id, cls.__name__)
+            elif isinstance(existing, Event):
+                conflict = _("in the '{}' state body clashes with the event '{}'").format(
+                    state.id, existing.id
+                )
+            else:
+                conflict = _(
+                    "in the '{}' state body clashes with the '{}' attribute of '{}'"
+                ).format(state.id, attr_name, cls.__name__)
         else:
             return
-        if existing is func:
+        if existing == func:
             return
         name = func.__name__ if getattr(func, "is_event", False) else attr_name
         raise InvalidDefinition(
             _(
-                "Callback '{}' is declared in both {}. Nested state bodies share one "
-                "namespace, so only the last one would run. Rename one of them."
-            ).format(name, declared_in)
+                "Callback '{}' {}. Nested state bodies share the class namespace. "
+                "Rename one of them."
+            ).format(name, conflict)
         )
 
     def _check(cls):

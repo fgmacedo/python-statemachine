@@ -212,11 +212,12 @@ and with the class body. The same name declared twice would keep only the last b
 ...                     print("battle")
 ... except InvalidDefinition as e:
 ...     print(e)
-Callback 'go' is declared in both the 'quest' and the 'battle' state bodies. Nested state bodies share one namespace, so only the last one would run. Rename one of them.
+Callback 'go' is declared in both the 'quest' and the 'battle' state bodies. Nested state bodies share the class namespace. Rename one of them.
 
 ```
 
-The same function object assigned under one name in several bodies is not a collision.
+The same callable assigned under one name in several bodies is not a collision. A name
+that an event or another attribute of the class already uses is also rejected.
 
 ### Invalid listener entries
 
@@ -315,7 +316,7 @@ Expressions support `and`, `or`, `not`, and parentheses. See
 | Initial transitions have no cond  | Class definition| No                         |
 | `donedata` on final states only   | Class definition| No                         |
 | Invalid listener entries          | Class definition| No                         |
-| Callback names across nested bodies | Class definition| No                       |
+| Callback names in nested bodies   | Class definition| No                         |
 | Callback resolution               | Instance creation | No                       |
 | Boolean expression parsing        | Instance creation | No                       |
 
