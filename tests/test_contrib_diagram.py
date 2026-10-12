@@ -1896,3 +1896,95 @@ class TestDirectiveMermaidFormat:
         directive.state_machine.reporter.warning.assert_called_once()
         call_args = directive.state_machine.reporter.warning.call_args
         assert "failed to generate mermaid" in call_args[0][0]
+
+
+class TestGraphvizErrors:
+    """Issue #649: a failing ``dot`` must report what Graphviz wrote to stderr."""
+
+    _QUALNAME = "tests.examples.traffic_light_machine.TrafficLightMachine"
+    _MALFORMED_DOT = "digraph { a -> ; }"
+
+    @pytest.fixture()
+    def malformed_dot(self):
+        with mock.patch("pydot.Dot.to_string", return_value=self._MALFORMED_DOT):
+            yield
+
+    def test_run_graphviz_reports_stderr_and_format(self):
+        from statemachine.contrib.diagram import GraphvizError
+        from statemachine.contrib.diagram.graphviz import run_graphviz
+
+        with pytest.raises(GraphvizError) as excinfo:
+            run_graphviz(self._MALFORMED_DOT, "svg")
+
+        message = str(excinfo.value)
+        assert "dot -Tsvg" in message
+        assert "exit code 1" in message
+        assert "syntax error" in message
+        assert "near ';'" in message
+
+    def test_run_graphviz_succeeds(self):
+        from statemachine.contrib.diagram.graphviz import run_graphviz
+
+        svg = run_graphviz("digraph { a -> b }", "svg")
+        assert svg.startswith(b"<?xml")
+        png = run_graphviz("digraph { a -> b }", "png")
+        assert png.startswith(b"\x89PNG")
+
+    @pytest.mark.usefixtures("malformed_dot")
+    def test_format_svg_surfaces_stderr(self):
+        from statemachine.contrib.diagram import GraphvizError
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        with pytest.raises(GraphvizError, match="syntax error"):
+            format(TrafficLightMachine(), "svg")
+
+    @pytest.mark.usefixtures("malformed_dot")
+    def test_repr_svg_surfaces_stderr(self):
+        from statemachine.contrib.diagram import GraphvizError
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        with pytest.raises(GraphvizError, match="syntax error"):
+            TrafficLightMachine()._repr_svg_()
+
+    @pytest.mark.usefixtures("malformed_dot")
+    def test_write_image_to_file_surfaces_stderr(self, tmp_path):
+        from statemachine.contrib.diagram import GraphvizError
+
+        out = tmp_path / "sm.png"
+        with pytest.raises(GraphvizError, match=r"(?s)dot -Tpng failed.*syntax error"):
+            main([self._QUALNAME, str(out)])
+
+        assert not out.exists()
+
+    @pytest.mark.usefixtures("malformed_dot")
+    def test_write_image_to_stdout_surfaces_stderr(self, capsysbinary):
+        from statemachine.contrib.diagram import GraphvizError
+
+        with pytest.raises(GraphvizError, match=r"(?s)dot -Tsvg failed.*syntax error"):
+            main([self._QUALNAME, "-"])
+
+        assert capsysbinary.readouterr().out == b""
+
+    @pytest.mark.usefixtures("malformed_dot")
+    def test_sphinx_warning_surfaces_stderr(self, tmp_path):
+        from statemachine.contrib.diagram.sphinx_ext import StateMachineDiagram
+
+        directive = StateMachineDiagram.__new__(StateMachineDiagram)
+        directive.options = {}
+        directive.lineno = 1
+        directive.state_machine = mock.MagicMock()
+        directive.state = mock.MagicMock()
+        directive.state.document.settings.env.app.outdir = str(tmp_path)
+        directive.content_offset = 0
+        directive.arguments = [self._QUALNAME]
+
+        result = directive.run()
+
+        assert len(result) == 1
+        directive.state_machine.reporter.warning.assert_called_once()
+        message = directive.state_machine.reporter.warning.call_args[0][0]
+        assert "failed to generate diagram" in message
+        assert "dot -Tsvg failed" in message
+        assert "syntax error" in message
