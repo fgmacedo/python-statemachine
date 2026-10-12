@@ -708,21 +708,27 @@ class TestCallbackNameCollision:
             "Nested state bodies share the class namespace. Rename one of them."
         )
 
-    def test_callback_named_as_a_class_attribute(self):
+    @pytest.mark.parametrize("attribute", ["name", "states"])
+    def test_callback_named_as_a_class_attribute(self, attribute):
+        def callback(self):
+            return "Frodo"
+
+        callback.__name__ = attribute
+
         with pytest.raises(InvalidDefinition) as exc_info:
 
             class Journey(StateChart):
                 class shire(State.Compound):
                     bag_end = State(initial=True)
                     green_dragon = State(final=True)
-                    visit_pub = bag_end.to(green_dragon, on="name")
+                    visit_pub = bag_end.to(green_dragon, on=attribute)
 
-                    def name(self):
-                        return "Frodo"
+                    locals()[attribute] = callback
 
         assert str(exc_info.value) == (
-            "Callback 'name' in the 'shire' state body clashes with the 'name' attribute of "
-            "'Journey'. Nested state bodies share the class namespace. Rename one of them."
+            f"Callback '{attribute}' in the 'shire' state body clashes with the "
+            f"'{attribute}' attribute of 'Journey'. Nested state bodies share the class "
+            "namespace. Rename one of them."
         )
 
     async def test_distinct_names_in_sibling_regions_both_run(self, sm_runner):

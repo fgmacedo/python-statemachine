@@ -214,7 +214,7 @@ class StateMachineMetaclass(type):
                 ).format(state.id, attr_name, cls.__name__)
         else:
             return
-        if existing == func:
+        if type(existing) is type(func) and existing == func:
             return
         name = func.__name__ if getattr(func, "is_event", False) else attr_name
         raise InvalidDefinition(
