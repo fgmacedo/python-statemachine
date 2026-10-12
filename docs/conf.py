@@ -174,7 +174,7 @@ html_theme_options = {
     "navigation_with_keys": True,
     "top_of_page_buttons": ["view", "edit"],
     "source_repository": "https://github.com/fgmacedo/python-statemachine/",
-    # "source_branch": "develop",
+    # "source_branch": "main",
     "source_directory": "docs/",
 }
 
@@ -271,7 +271,7 @@ html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "fgmacedo",  # Username
     "github_repo": "python-statemachine",  # Repo name
-    "github_version": "develop",  # Version
+    "github_version": "main",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
 

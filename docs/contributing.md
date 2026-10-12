@@ -104,9 +104,11 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
 
         pre-commit install
 
-3. Create a branch for local development:
+3. Create a branch for local development, starting from an up-to-date `main`:
 
-        git checkout -b <name-of-your-bugfix-or-feature>
+        git switch main
+        git pull --ff-only origin main
+        git switch -c <name-of-your-bugfix-or-feature>
 
 4. Make changes to the code.
 
@@ -144,8 +146,9 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
         git commit -s -m "Your detailed description of your changes."
         git push origin name-of-your-bugfix-or-feature
 
-1. Create a pull request on the original repository for your changes to be reviewed and potentially
-merged. Be sure to follow the project's code of conduct and contributing guidelines.
+1. Create a pull request on the original repository, targeting the `main` branch, for your
+changes to be reviewed and potentially merged. Be sure to follow the project's code of conduct
+and contributing guidelines.
 
 1. Use `exit` to leave the virtual environment.
 
@@ -162,44 +165,34 @@ Before you submit a pull request, check that it meets these guidelines:
 
 ## Releasing a New Version
 
-This project uses [git-flow](https://github.com/nvie/gitflow) for release management and
-publishes to PyPI automatically via GitHub Actions when a version tag is pushed.
+This project follows [trunk based development](https://trunkbaseddevelopment.com/): `main` is
+the only long-lived branch and every release is a tag on it. Pushing a `vX.Y.Z` tag triggers
+the GitHub Actions workflow that publishes to PyPI.
 
 ### Prerequisites
 
-- You must be on the `develop` branch with a clean working tree.
-- `git-flow` must be installed and initialized:
+- You must be on the `main` branch with a clean working tree, up to date with `origin/main`:
 
   ```shell
-  brew install git-flow   # macOS
-  git flow init           # use main for production, develop for next release
+  git switch main
+  git pull --ff-only origin main
   ```
 
-- All changes intended for the release must already be merged into `develop`.
+- All changes intended for the release must already be merged into `main`.
 
 ### Step-by-step release process
 
 The following steps use version `X.Y.Z` as a placeholder. Replace it with the actual version
 number (e.g., `2.6.0`).
 
-#### 1. Start the release branch
-
-```shell
-git checkout develop
-git pull origin develop
-git flow release start X.Y.Z
-```
-
-This creates and switches to a `release/X.Y.Z` branch based on `develop`.
-
-#### 2. Bump the version number
+#### 1. Bump the version number
 
 Update the version string in **both** files:
 
 - `pyproject.toml` — the `version` field under `[project]`
 - `statemachine/__init__.py` — the `__version__` variable
 
-#### 3. Update translations
+#### 2. Update translations
 
 Extract new translatable strings, merge them into all existing `.po` files, translate the
 new entries, and compile:
@@ -218,7 +211,7 @@ language (error messages will appear translated instead of in English). Delete t
 verifying translations work: `rm -f statemachine/locale/*/LC_MESSAGES/statemachine.mo`
 ```
 
-#### 4. Write release notes
+#### 3. Write release notes
 
 Create `docs/releases/X.Y.Z.md` documenting all changes since the previous release. Include
 sections for new features, bugfixes, performance improvements, and miscellaneous changes.
@@ -230,7 +223,7 @@ major version section).
 Update any related documentation pages (e.g., if a bugfix adds a new behavior that users
 should know about).
 
-#### 5. Run linters and tests
+#### 4. Run linters and tests
 
 ```shell
 uv run ruff check .
@@ -241,7 +234,7 @@ uv run pytest -n auto
 
 All checks must pass before committing.
 
-#### 6. Commit
+#### 5. Commit
 
 Stage all changed files and commit. The pre-commit hooks will run ruff, mypy, and pytest
 automatically.
@@ -251,33 +244,25 @@ git add <files>
 git commit -m "chore: prepare release X.Y.Z"
 ```
 
-#### 7. Finish the release
+#### 6. Tag the release
+
+Create an annotated `vX.Y.Z` tag and move the `latest` tag to the same commit:
 
 ```shell
-git flow release finish X.Y.Z -m "vX.Y.Z"
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git tag -f latest
 ```
 
-This will:
-- Merge `release/X.Y.Z` into `main`
-- Create an annotated tag `X.Y.Z` on `main`
-- Merge `main` back into `develop`
-- Delete the `release/X.Y.Z` branch
-
-```{note}
-If tagging fails (e.g., GPG or editor issues), create the tag manually and re-run:
-`git tag -a X.Y.Z -m "vX.Y.Z"` then `git flow release finish X.Y.Z -m "vX.Y.Z"`.
-```
-
-#### 8. Update the `latest` tag and push
+#### 7. Push
 
 ```shell
-git tag latest -f
-git push origin main develop --tags -f
+git push origin main vX.Y.Z
+git push -f origin latest
 ```
 
-Force-pushing tags is needed to move the `latest` tag.
+Force-pushing is needed only to move the `latest` tag.
 
-#### 9. Verify the release
+#### 8. Verify the release
 
 The tag push triggers the `release` GitHub Actions workflow (`.github/workflows/release.yml`),
 which will:
@@ -290,7 +275,7 @@ which will:
 Monitor the workflow run at `https://github.com/fgmacedo/python-statemachine/actions` to
 confirm the release was published successfully.
 
-#### 10. Publish the GitHub release
+#### 9. Publish the GitHub release
 
 Create the GitHub release from the freshly pushed tag using the release notes file as the
 body. Two adjustments are needed when going from MyST/Sphinx markdown to GitHub-flavored
@@ -312,9 +297,43 @@ Then create the release. Use the converted notes as the body:
 gh release create vX.Y.Z \
   --title "vX.Y.Z" \
   --notes-file /tmp/release-X.Y.Z-notes.md \
-  --target main \
   --verify-tag
 ```
 
 Confirm the rendered release at
 `https://github.com/fgmacedo/python-statemachine/releases/tag/vX.Y.Z`.
+
+### Hotfix releases
+
+Use a hotfix release when `main` already has unreleased changes that must not ship yet, but a
+fix needs to reach users of the last release. If `main` is releasable as is, just cut a
+regular release from it.
+
+1. Land the fix on `main` first, through a regular pull request with tests.
+
+1. Create the release branch from the released tag (or reuse it if it already exists):
+
+        git switch -c release/X.Y.x vX.Y.Z
+
+1. Cherry-pick the fix commits from `main`, keeping a reference to their origin:
+
+        git cherry-pick -x <sha>
+
+1. On the release branch, bump the patch version and write the release notes, then commit
+   `chore: prepare release X.Y.Z` exactly as in the regular process.
+
+1. Tag and push. Pushing the branch runs the `Python checks` workflow before you tag; move
+   `latest` only if this is the highest version released so far:
+
+        git push -u origin release/X.Y.x
+        git tag -a vX.Y.Z -m "vX.Y.Z"
+        git push origin vX.Y.Z
+        git tag -f latest && git push -f origin latest
+
+1. Publish the GitHub release as in the regular process.
+
+1. Cherry-pick the `chore: prepare release X.Y.Z` commit back into `main` so the version and
+   release notes stay in sync. A conflict only happens if `main` was already bumped; keep
+   `main`'s version and take the release notes.
+
+The release branch can be deleted once the tag exists; the tag keeps the commits reachable.

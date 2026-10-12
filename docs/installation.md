@@ -45,7 +45,7 @@ The sources for Python State Machine can be downloaded from the [Github repo](ht
 You can either clone the public repository:
 
 ```shell
-git clone git://github.com/fgmacedo/python-statemachine
+git clone https://github.com/fgmacedo/python-statemachine.git
 ```
 
 Or download the `tarball`:

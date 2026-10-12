@@ -3,15 +3,15 @@
 [![pypi](https://img.shields.io/pypi/v/python-statemachine.svg)](https://pypi.python.org/pypi/python-statemachine)
 [![downloads total](https://static.pepy.tech/badge/python-statemachine)](https://pepy.tech/project/python-statemachine)
 [![downloads](https://img.shields.io/pypi/dm/python-statemachine.svg)](https://pypi.python.org/pypi/python-statemachine)
-[![Coverage report](https://codecov.io/gh/fgmacedo/python-statemachine/branch/develop/graph/badge.svg)](https://codecov.io/gh/fgmacedo/python-statemachine)
+[![Coverage report](https://codecov.io/gh/fgmacedo/python-statemachine/branch/main/graph/badge.svg)](https://codecov.io/gh/fgmacedo/python-statemachine)
 [![Documentation Status](https://readthedocs.org/projects/python-statemachine/badge/?version=latest)](https://python-statemachine.readthedocs.io/en/latest/?badge=latest)
-[![GitHub commits since last release (main)](https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/main/develop)](https://github.com/fgmacedo/python-statemachine/compare/main...develop)
+[![GitHub commits since last release](https://img.shields.io/github/commits-since/fgmacedo/python-statemachine/latest?sort=semver)](https://github.com/fgmacedo/python-statemachine/compare/latest...main)
 
 Expressive [statecharts](https://statecharts.dev/) and [FSMs](https://en.wikipedia.org/wiki/Finite-state_machine) for modern Python.
 
 <div align="center">
 
-![](https://github.com/fgmacedo/python-statemachine/blob/develop/docs/images/python-statemachine.png?raw=true)
+![](https://github.com/fgmacedo/python-statemachine/blob/main/docs/images/python-statemachine.png?raw=true)
 
 </div>
 
@@ -94,7 +94,7 @@ Generate a diagram or get a text representation with f-strings:
 sm._graph().write_png("traffic_light.png")
 ```
 
-![](https://raw.githubusercontent.com/fgmacedo/python-statemachine/develop/docs/images/readme_trafficlightmachine.png)
+![](https://raw.githubusercontent.com/fgmacedo/python-statemachine/main/docs/images/readme_trafficlightmachine.png)
 
 Parameters are injected into callbacks automatically — the library inspects the
 signature and provides only the arguments each callback needs:

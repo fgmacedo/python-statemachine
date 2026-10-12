@@ -6,7 +6,7 @@ name: pages
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
     paths:
       - statemachine/io/schemas/statechart.schema.json
       - .github/workflows/pages.yml

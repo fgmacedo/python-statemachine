@@ -13,8 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - run: git fetch origin develop
-
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
