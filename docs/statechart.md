@@ -92,10 +92,17 @@ Called from outside a callback, `raise_()` has no macrostep to join, so it
 behaves like `send()` and returns the result:
 
 ```py
->>> sm = WithInternalEvent()
->>> sm.raise_("go")
->>> sm.c.is_active
-True
+>>> class Greeter(StateChart):
+...     idle = State(initial=True)
+...     done = State(final=True)
+...
+...     greet = idle.to(done, on="say_hello")
+...
+...     def say_hello(self):
+...         return "hello"
+
+>>> Greeter().raise_("greet")
+'hello'
 
 ```
 
