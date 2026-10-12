@@ -155,10 +155,11 @@ resolves each event's future as it processes the queue. Callers that didn't
 acquire the lock simply `await` their future.
 
 ```{note}
-Futures are only created for **external** events sent from outside the
-processing loop. Events triggered from within callbacks (via `send()` or
-`raise_()`) follow the {ref}`run-to-completion <rtc-model>` model — they
-are enqueued and processed within the current macrostep.
+Futures are created for every event sent from outside the processing loop,
+including one declared `internal=True`, which goes to the external queue
+when there is no macrostep to join. Events triggered from within callbacks
+(via `send()` or `raise_()`) follow the {ref}`run-to-completion <rtc-model>`
+model: they are enqueued and processed by the running loop.
 ```
 
 If an exception occurs during processing (with `catch_errors_as_events=False`),

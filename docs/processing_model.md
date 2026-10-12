@@ -76,17 +76,51 @@ After the macrostep completes, the engine picks the next event from the
 
 ### Event queues
 
-The engine maintains two separate FIFO queues:
+The engine maintains two separate queues, each ordered by due time. Events due at the same
+moment run in the order they were sent.
 
 | Queue | How to enqueue | When processed |
 |---|---|---|
-| **Internal** | {func}`raise_() <StateMachine.raise_>`, `send(..., internal=True)`, or an event declared with `Event(..., internal=True)` | Within the current macrostep |
-| **External** | {func}`send() <StateMachine.send>` | After the current macrostep ends |
+| **Internal** | {func}`raise_() <StateMachine.raise_>`, `send(..., internal=True)`, or an event declared with `Event(..., internal=True)`, from a callback | Within the current macrostep |
+| **External** | {func}`send() <StateMachine.send>`, and any event triggered from outside a callback | After the current macrostep ends |
 
 This distinction matters when you trigger events from inside callbacks.
 Using `raise_()` ensures the event is handled as part of the current
 processing cycle, while `send()` defers it to after the machine reaches
-a stable configuration.
+a stable configuration. An event declared `internal=True` behaves like
+`raise_()` without spelling it at each call:
+
+```py
+>>> from statemachine import Event, State, StateChart
+
+>>> class Muster(StateChart):
+...     camp = State(initial=True)
+...     riding = State(final=True)
+...     besieged = State(final=True)
+...
+...     summon = camp.to.itself(internal=True, on="call")
+...     ride = Event(camp.to(riding), internal=True)
+...     siege = camp.to(besieged)
+...
+...     def call(self):
+...         self.send("siege")  # after this macrostep
+...         self.ride()         # within this macrostep, so first
+
+>>> sm = Muster()
+>>> sm.send("summon")
+>>> sm.riding.is_active
+True
+
+```
+
+The internal queue belongs to the macrostep in progress. Triggered from
+outside a callback, there is no macrostep to join: an internal event goes
+to the external queue, and the call returns its result like `send()`.
+
+A delay cannot be internal, since a macrostep takes no time. Declaring or
+sending an event with both `delay` and `internal=True`, or calling
+`raise_()` with a `delay`, raises {class}`~statemachine.exceptions.InvalidDefinition`.
+Use `send(..., delay=...)` to deliver an event later.
 
 ```{seealso}
 See {ref}`sending-events` for examples of `send()` vs `raise_()`.

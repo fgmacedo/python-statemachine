@@ -88,6 +88,17 @@ True
 
 ```
 
+Called from outside a callback, `raise_()` has no macrostep to join, so it
+behaves like `send()` and returns the result:
+
+```py
+>>> sm = WithInternalEvent()
+>>> sm.raise_("go")
+>>> sm.c.is_active
+True
+
+```
+
 Both methods accept arbitrary keyword arguments that are forwarded to all
 callbacks via {ref}`dependency injection <dependency-injection>`.
 
@@ -114,6 +125,10 @@ sm.cancel_event("my_timeout")
 ```
 
 On the async engine, a coroutine awaiting the `send()` of a cancelled event gets `None`.
+
+Only `send()` takes a delay. An internal event runs within the current macrostep,
+which takes no time, so `raise_(..., delay=...)` and `send(..., delay=..., internal=True)`
+raise {class}`~statemachine.exceptions.InvalidDefinition`.
 
 ```{note}
 The delay is **blocking** in the sync engine — the processing loop sleeps until the
