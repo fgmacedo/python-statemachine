@@ -162,6 +162,11 @@ True
 
 ```
 
+Regions run independently, but their class bodies do not form separate namespaces: every
+callback declared inside a nested body is attached to the statechart class under its own name.
+Declaring the same callback name in two nested bodies, or in a nested body and the class body,
+raises `InvalidDefinition` (see {ref}`callback-name-collision`).
+
 ```{seealso}
 See {ref}`done-state-events` for how `done.state` events work with parallel
 states (all regions must reach a final state).

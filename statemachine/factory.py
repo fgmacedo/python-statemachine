@@ -165,12 +165,48 @@ class StateMachineMetaclass(type):
 
     def _unpack_builders_callbacks(cls):
         callbacks = {}
+        owners: dict[str, State] = {}
         for state in iterate_states(cls.states):
             if state._callbacks:
+                for attr_name, func in state._callbacks.items():
+                    cls._check_callback_collision(attr_name, func, state, callbacks, owners)
+                    owners[attr_name] = state
                 callbacks.update(state._callbacks)
                 del state._callbacks
         for key, value in callbacks.items():
             setattr(cls, key, value)
+
+    def _check_callback_collision(
+        cls,
+        attr_name: str,
+        func: Any,
+        state: State,
+        callbacks: dict[str, Any],
+        owners: dict[str, State],
+    ):
+        """Nested state bodies are flattened into the class namespace, so a name declared
+        in two bodies (or in a body and the class body) keeps only the last one."""
+        if attr_name in callbacks:
+            existing = callbacks[attr_name]
+            declared_in = _("the '{}' and the '{}' state bodies").format(
+                owners[attr_name].id, state.id
+            )
+        elif attr_name in cls.__dict__:
+            existing = cls.__dict__[attr_name]
+            declared_in = _("the '{}' state body and the '{}' class body").format(
+                state.id, cls.__name__
+            )
+        else:
+            return
+        if existing is func:
+            return
+        name = func.__name__ if getattr(func, "is_event", False) else attr_name
+        raise InvalidDefinition(
+            _(
+                "Callback '{}' is declared in both {}. Nested state bodies share one "
+                "namespace, so only the last one would run. Rename one of them."
+            ).format(name, declared_in)
+        )
 
     def _check(cls):
         has_states = bool(cls.states)
