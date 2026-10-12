@@ -477,6 +477,10 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         :param delay: A time delay in milliseconds to process the event. Default is 0.
         :param send_id: An identifier for the event, used with ``cancel_event()`` to cancel
             delayed events.
+        :param internal: Put the event on the internal queue, so it runs within the current
+            macrostep. Defaults to the event's declaration. Honored from a callback; sent from
+            outside a step, the event goes to the external queue and its result is returned.
+            Cannot be combined with ``delay``.
         :param kwargs: Additional keyword arguments to pass to the event.
 
         .. seealso::
@@ -504,7 +508,9 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
         Events on the internal queue are processed immediately within the current
         macrostep, before any pending external events. This is equivalent to calling
-        ``send(..., internal=True)``.
+        ``send(..., internal=True)``: called from outside a callback, there is no macrostep
+        to join, so the event goes to the external queue and its result is returned. A
+        ``delay`` other than 0 is an :class:`~statemachine.exceptions.InvalidDefinition`.
 
         .. seealso::
 

@@ -12,6 +12,7 @@ from ..exceptions import TransitionNotAllowed
 from ..state import State
 from ..transition import Transition
 from .base import BaseEngine
+from .base import _processing_step
 
 
 class SyncEngine(BaseEngine):
@@ -38,7 +39,8 @@ class SyncEngine(BaseEngine):
             transitions = self._initial_transitions(trigger_data)
             self._processing.acquire(blocking=False)
             try:
-                self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
+                with _processing_step():
+                    self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
             finally:
                 self._processing.release()
         return self.processing_loop()
@@ -64,17 +66,20 @@ class SyncEngine(BaseEngine):
         self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
         try:
-            took_events = True
-            while took_events and self.running:
-                self.clear_cache()
-                took_events = self._run_macrostep()
+            with _processing_step():
+                took_events = True
+                while took_events and self.running:
+                    self.clear_cache()
+                    took_events = self._run_macrostep()
 
-                # Spawn invoke handlers for states entered during this macrostep.
-                self._invoke_manager.spawn_pending_sync()
-                self._check_root_final_state()
+                    # Spawn invoke handlers for states entered during this macrostep.
+                    self._invoke_manager.spawn_pending_sync()
+                    self._check_root_final_state()
 
-                took_external_events, first_result = self._take_due_external_event(first_result)
-                took_events = took_events or took_external_events
+                    took_external_events, first_result = self._take_due_external_event(
+                        first_result
+                    )
+                    took_events = took_events or took_external_events
         finally:
             self._processing.release()
         self._debug("%s Processing loop ended", self._log_id)

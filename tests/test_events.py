@@ -59,42 +59,25 @@ class TestExplicitEvent:
         assert [e.name for e in StartMachine.events] == ["Start the machine"]
         assert StartMachine.start.name == "Start the machine"
 
-    def test_accept_delay_and_internal(self):
+    @pytest.mark.parametrize(
+        ("declared", "expected"),
+        [
+            pytest.param({"delay": 50}, (50, False), id="delay"),
+            pytest.param({"internal": True}, (0, True), id="internal"),
+        ],
+    )
+    def test_accept_delay_or_internal(self, declared, expected):
         class BeaconsOfGondor(StateChart):
             dark = State(initial=True)
             lit = State(final=True)
 
-            light = Event(dark.to(lit), delay=50, internal=True)
+            light = Event(dark.to(lit), **declared)
 
         (registered,) = BeaconsOfGondor.events
-        assert (registered.delay, registered.internal) == (50, True)
-        assert BeaconsOfGondor.light.delay == 50
-        assert BeaconsOfGondor().light.delay == 50
-
-    @pytest.mark.parametrize("trigger", ["method", "send"])
-    def test_declared_internal_puts_on_the_internal_queue(self, trigger):
-        class BeaconsOfGondor(StateChart):
-            dark = State(initial=True)
-            lit = State(final=True)
-
-            light = Event(dark.to(lit), internal=True)
-
-        sm = BeaconsOfGondor()
-        queued = []
-        put = sm._engine.put
-
-        def spy(trigger_data, internal=False, **kwargs):
-            queued.append(internal)
-            return put(trigger_data, internal=internal, **kwargs)
-
-        sm._engine.put = spy
-        if trigger == "method":
-            sm.light()
-        else:
-            sm.send("light")
-
-        assert queued == [True]
-        assert sm.lit.is_active
+        bound = BeaconsOfGondor().light
+        assert (registered.delay, registered.internal) == expected
+        assert (BeaconsOfGondor.light.delay, BeaconsOfGondor.light.internal) == expected
+        assert (bound.delay, bound.internal) == expected
 
     def test_derive_name_from_id(self):
         class StartMachine(StateChart):

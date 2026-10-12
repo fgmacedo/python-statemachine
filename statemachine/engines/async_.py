@@ -1,5 +1,4 @@
 import asyncio
-import contextvars
 from collections.abc import Callable
 from itertools import chain
 from time import monotonic
@@ -13,18 +12,11 @@ from ..orderedset import OrderedSet
 from ..state import State
 from .base import _ERROR_EXECUTION
 from .base import BaseEngine
+from .base import _in_processing_loop
+from .base import _processing_step
 
 if TYPE_CHECKING:
     from ..transition import Transition
-
-# ContextVar to distinguish reentrant calls (from within callbacks) from
-# concurrent external calls. asyncio propagates context to child tasks
-# (e.g., those created by asyncio.gather in the callback system), so a
-# ContextVar set in the processing loop is visible in all callbacks.
-# Independent external coroutines have their own context where this is False.
-_in_processing_loop: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    "_in_processing_loop", default=False
-)
 
 
 class AsyncEngine(BaseEngine):
@@ -35,16 +27,16 @@ class AsyncEngine(BaseEngine):
     """
 
     def put(self, trigger_data: TriggerData, internal: bool = False):
-        """Override to attach an asyncio.Future for external events.
+        """Override to attach an asyncio.Future to a trigger put from outside the loop.
 
-        Futures are only created when:
-        - The event is external (not internal)
+        Such a trigger always lands on the external queue, and its caller awaits the future
+        for its result. Futures are only created when:
         - No future is already attached
         - There is a running asyncio loop
         - The call is NOT from within the processing loop (reentrant calls
           from callbacks must not get futures, as that would deadlock)
         """
-        if not internal and trigger_data.future is None and not _in_processing_loop.get():
+        if trigger_data.future is None and not _in_processing_loop.get():
             try:
                 loop = asyncio.get_running_loop()
                 trigger_data.future = loop.create_future()
@@ -357,23 +349,23 @@ class AsyncEngine(BaseEngine):
                 return await caller_future
             return None
 
-        _ctx_token = _in_processing_loop.set(True)
         self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
         try:
-            took_events = True
-            while took_events and self.running:
-                self.clear_cache()
-                took_events = await self._run_macrostep()
+            with _processing_step():
+                took_events = True
+                while took_events and self.running:
+                    self.clear_cache()
+                    took_events = await self._run_macrostep()
 
-                # Spawn invoke handlers for states entered during this macrostep.
-                await self._invoke_manager.spawn_pending_async()
-                self._check_root_final_state()
+                    # Spawn invoke handlers for states entered during this macrostep.
+                    await self._invoke_manager.spawn_pending_async()
+                    self._check_root_final_state()
 
-                took_external_events, first_result = await self._take_due_external_event(
-                    first_result
-                )
-                took_events = took_events or took_external_events
+                    took_external_events, first_result = await self._take_due_external_event(
+                        first_result
+                    )
+                    took_events = took_events or took_external_events
 
         except Exception as exc:
             if caller_future is not None:
@@ -387,7 +379,6 @@ class AsyncEngine(BaseEngine):
             else:
                 raise
         finally:
-            _in_processing_loop.reset(_ctx_token)
             self._processing.release()
 
         self._debug("%s Processing loop ended", self._log_id)

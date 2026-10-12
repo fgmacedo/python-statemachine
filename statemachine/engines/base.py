@@ -1,5 +1,8 @@
 import logging
 from collections.abc import Callable
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from dataclasses import field
 from heapq import heappop
@@ -25,6 +28,23 @@ if TYPE_CHECKING:
     from ..statemachine import StateChart
 
 logger = logging.getLogger(__name__)
+
+_in_processing_loop: ContextVar[bool] = ContextVar("_in_processing_loop", default=False)
+"""Whether the current context is running a step of an engine.
+
+asyncio copies the context into the tasks a step creates, so callbacks see it set. A new
+thread or an independent coroutine starts without it.
+"""
+
+
+@contextmanager
+def _processing_step() -> Iterator[None]:
+    """Mark the current context as running a step of an engine, until the block ends."""
+    token = _in_processing_loop.set(True)
+    try:
+        yield
+    finally:
+        _in_processing_loop.reset(token)
 
 
 @dataclass(frozen=True, unsafe_hash=True, eq=True)
@@ -133,10 +153,16 @@ class BaseEngine:
         self._cache.clear()
 
     def put(self, trigger_data: TriggerData, internal: bool = False):
-        """Put the trigger on the queue without blocking the caller."""
+        """Put the trigger on the queue without blocking the caller.
+
+        An ``internal`` trigger joins the internal queue only when the machine raises it while
+        running a step. Put from outside, there is no macrostep to join, so it goes to the
+        external queue, where its caller gets its result.
+        """
         if not self.running and not self.sm.allow_event_without_transition:
             raise TransitionNotAllowed(trigger_data.event, self.sm.configuration)
 
+        internal = internal and _in_processing_loop.get()
         if internal:
             self.internal_queue.put(trigger_data)
         else:
