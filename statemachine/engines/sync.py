@@ -39,7 +39,7 @@ class SyncEngine(BaseEngine):
             transitions = self._initial_transitions(trigger_data)
             self._processing.acquire(blocking=False)
             try:
-                with _processing_step():
+                with _processing_step(self):
                     self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
             finally:
                 self._processing.release()
@@ -66,7 +66,7 @@ class SyncEngine(BaseEngine):
         self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
         try:
-            with _processing_step():
+            with _processing_step(self):
                 took_events = True
                 while took_events and self.running:
                     self.clear_cache()

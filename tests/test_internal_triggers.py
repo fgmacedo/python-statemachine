@@ -9,10 +9,12 @@ no time; asking for both is an invalid definition.
 Theme: the beacons of Gondor, lit from inside the chain or called for from afar.
 """
 
+import asyncio
+import threading
 from inspect import isawaitable
 
 import pytest
-from statemachine.engines.base import _in_processing_loop
+from statemachine.engines.base import _running_engine
 from statemachine.exceptions import InvalidDefinition
 from statemachine.exceptions import TransitionNotAllowed
 from statemachine.io.scxml.processor import SCXMLProcessor
@@ -159,8 +161,94 @@ class TestFromOutside:
             with pytest.raises(RuntimeError, match="stumbled"):
                 await sm_runner.send(sm, "fail")
 
-        assert _in_processing_loop.get() is False
+        assert _running_engine.get() is None
         assert await settle(sm.raise_("light")) == "kindled"
+
+
+class TestWhoIsRunningTheStep:
+    """The internal queue belongs to the step of one machine, in one thread or task."""
+
+    @pytest.mark.timeout(10)
+    async def test_a_coroutine_outside_the_loop_gets_its_result_while_another_holds_it(self):
+        paused = asyncio.Event()
+        resume = asyncio.Event()
+
+        class Relay(StateChart):
+            dark = State(initial=True)
+            waiting = State()
+            lit = State(final=True)
+
+            hold = dark.to(waiting, on="pause")
+            light = Event(waiting.to(lit, on="kindle"), internal=True)
+
+            async def pause(self):
+                paused.set()
+                await resume.wait()
+                return "held"
+
+            def kindle(self):
+                return "kindled"
+
+        async def light():
+            return await sm.light()
+
+        sm = Relay()
+        await sm.activate_initial_state()
+        holding = asyncio.create_task(sm.send("hold"))
+        await paused.wait()
+        lighting = asyncio.create_task(light())
+        await asyncio.sleep(0)
+        resume.set()
+
+        assert await asyncio.gather(holding, lighting) == ["held", "kindled"]
+
+    @pytest.mark.timeout(10)
+    def test_a_thread_raising_while_another_runs_the_loop_queues_behind_its_sends(self):
+        in_step = threading.Event()
+        release = threading.Event()
+
+        class Watch(StateChart):
+            dark = State(initial=True)
+            waiting = State()
+            lit = State(final=True)
+            besieged = State(final=True)
+
+            hold = dark.to(waiting, on="pause")
+            light = waiting.to(lit)
+            siege = waiting.to(besieged)
+
+            def pause(self):
+                in_step.set()
+                release.wait(timeout=5)
+
+        sm = Watch()
+        holder = threading.Thread(target=sm.send, args=("hold",))
+        holder.start()
+        assert in_step.wait(timeout=5)
+
+        sm.send("siege")
+        sm.raise_("light")
+        release.set()
+        holder.join(timeout=5)
+
+        assert sm.configuration_values == {"besieged"}
+
+    async def test_a_callback_raising_on_another_machine_gets_its_result(self, sm_runner):
+        other = await sm_runner.start(Beacons)
+
+        class Lighter(StateChart):
+            idle = State(initial=True)
+            done = State(final=True)
+
+            reach = idle.to(done, on="light_other")
+
+            def light_other(self):
+                return other.raise_("light")
+
+        sm = await sm_runner.start(Lighter)
+
+        assert await settle(await sm_runner.send(sm, "reach")) == "kindled"
+        assert other.configuration_values == {"lit"}
 
 
 class TestDelayedInternal:

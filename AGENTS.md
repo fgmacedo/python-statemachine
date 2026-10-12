@@ -41,7 +41,8 @@ The engine follows the SCXML run-to-completion (RTC) model with two processing l
 - `send()` → **external queue** (processed after current macrostep ends).
 - `raise_()`, `send(internal=True)`, `Event(internal=True)` → **internal queue** (processed
   within the current macrostep, before external events), but only when raised while the
-  machine runs a step (`_in_processing_loop` in `engines/base.py`). From outside a step there
+  machine runs a step in the same thread or task (`_running_engine` in `engines/base.py`, a
+  `ContextVar` so it is right for threads and coroutines alike). From outside a step there
   is no macrostep to join: the trigger goes to the external queue, so its caller gets the
   result, the exception or `TransitionNotAllowed`.
 - `delay` and `internal` together raise `InvalidDefinition`: a step takes no time.

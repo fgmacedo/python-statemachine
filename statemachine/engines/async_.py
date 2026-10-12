@@ -12,8 +12,8 @@ from ..orderedset import OrderedSet
 from ..state import State
 from .base import _ERROR_EXECUTION
 from .base import BaseEngine
-from .base import _in_processing_loop
 from .base import _processing_step
+from .base import _running_engine
 
 if TYPE_CHECKING:
     from ..transition import Transition
@@ -36,7 +36,7 @@ class AsyncEngine(BaseEngine):
         - The call is NOT from within the processing loop (reentrant calls
           from callbacks must not get futures, as that would deadlock)
         """
-        if trigger_data.future is None and not _in_processing_loop.get():
+        if trigger_data.future is None and _running_engine.get() is None:
             try:
                 loop = asyncio.get_running_loop()
                 trigger_data.future = loop.create_future()
@@ -352,7 +352,7 @@ class AsyncEngine(BaseEngine):
         self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
         try:
-            with _processing_step():
+            with _processing_step(self):
                 took_events = True
                 while took_events and self.running:
                     self.clear_cache()

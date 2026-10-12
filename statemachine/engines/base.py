@@ -29,22 +29,23 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_in_processing_loop: ContextVar[bool] = ContextVar("_in_processing_loop", default=False)
-"""Whether the current context is running a step of an engine.
+_running_engine: "ContextVar[BaseEngine | None]" = ContextVar("_running_engine", default=None)
+"""The engine whose step the current thread or task is running, if any.
 
-asyncio copies the context into the tasks a step creates, so callbacks see it set. A new
-thread or an independent coroutine starts without it.
+A context variable is per thread and per asyncio task: asyncio copies it into the tasks a
+step creates, so callbacks see it, while another thread or an independent coroutine sending
+to the same machine does not.
 """
 
 
 @contextmanager
-def _processing_step() -> Iterator[None]:
-    """Mark the current context as running a step of an engine, until the block ends."""
-    token = _in_processing_loop.set(True)
+def _processing_step(engine: "BaseEngine") -> Iterator[None]:
+    """Mark the current context as running a step of ``engine``, until the block ends."""
+    token = _running_engine.set(engine)
     try:
         yield
     finally:
-        _in_processing_loop.reset(token)
+        _running_engine.reset(token)
 
 
 @dataclass(frozen=True, unsafe_hash=True, eq=True)
@@ -155,14 +156,15 @@ class BaseEngine:
     def put(self, trigger_data: TriggerData, internal: bool = False):
         """Put the trigger on the queue without blocking the caller.
 
-        An ``internal`` trigger joins the internal queue only when the machine raises it while
-        running a step. Put from outside, there is no macrostep to join, so it goes to the
-        external queue, where its caller gets its result.
+        An ``internal`` trigger joins the internal queue only when this machine raises it while
+        running a step. Put from outside, including from a step of another machine, there is
+        no macrostep to join, so it goes to the external queue, where its caller gets its
+        result.
         """
         if not self.running and not self.sm.allow_event_without_transition:
             raise TransitionNotAllowed(trigger_data.event, self.sm.configuration)
 
-        internal = internal and _in_processing_loop.get()
+        internal = internal and _running_engine.get() is self
         if internal:
             self.internal_queue.put(trigger_data)
         else:
