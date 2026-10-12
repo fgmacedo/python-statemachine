@@ -370,7 +370,9 @@ class AsyncEngine(BaseEngine):
                 await self._invoke_manager.spawn_pending_async()
                 self._check_root_final_state()
 
-                took_external_events, first_result = await self._take_external_events(first_result)
+                took_external_events, first_result = await self._take_due_external_event(
+                    first_result
+                )
                 took_events = took_events or took_external_events
 
         except Exception as exc:
@@ -424,45 +426,44 @@ class AsyncEngine(BaseEngine):
                 took_events = True
                 await self.microstep(list(enabled_transitions), internal_event)
 
-    async def _take_external_events(self, first_result):
-        """Take external events in due order until the queue is empty or holds one not yet due.
+    async def _take_due_external_event(self, first_result):
+        """Take the external event at the head of the queue, if it is due.
 
-        Returns whether any event was taken from the queue, and ``first_result`` updated with
-        the result of the first event that enabled a transition.
+        One at a time, so the macrostep that follows runs the internal events and eventless
+        transitions it enabled before the next external event is taken.
+
+        Returns whether the queue held an event, and ``first_result`` updated with the result
+        of the first event that enabled a transition.
         """
         self._debug("%s Macrostep %d: external queue", self._log_id, self._macrostep_count)
-        took_events = False
-        while not self.external_queue.is_empty():
-            self.clear_cache()
-            took_events = True
-            external_event = self.external_queue.pop_due(monotonic())
-            if external_event is None:
-                await asyncio.sleep(self.sm._loop_sleep_in_ms)
-                # Break to the macrostep so internal events and eventless
-                # transitions can be processed while we wait.
-                break
+        if self.external_queue.is_empty():
+            return False, first_result
 
-            self._macrostep_count += 1
-            self._microstep_count = 0
-            self._debug(
-                "%s macrostep %d: event=%s",
-                self._log_id,
-                self._macrostep_count,
-                external_event.event,
-            )
+        self.clear_cache()
+        external_event = self.external_queue.pop_due(monotonic())
+        if external_event is None:
+            await asyncio.sleep(self.sm._loop_sleep_in_ms)
+            return True, first_result
 
-            # Handle lazy initial state activation.
-            # Break to the macrostep so internal events queued during
-            # initial entry are processed before any external events.
-            if external_event.event == "__initial__":
-                transitions = self._initial_transitions(external_event)
-                await self._enter_states(transitions, external_event, OrderedSet(), OrderedSet())
-                break
+        self._macrostep_count += 1
+        self._microstep_count = 0
+        self._debug(
+            "%s macrostep %d: event=%s",
+            self._log_id,
+            self._macrostep_count,
+            external_event.event,
+        )
 
-            result = await self._take_external_event(external_event)
-            if first_result is self._sentinel:
-                first_result = result
-        return took_events, first_result
+        # Handle lazy initial state activation.
+        if external_event.event == "__initial__":
+            transitions = self._initial_transitions(external_event)
+            await self._enter_states(transitions, external_event, OrderedSet(), OrderedSet())
+            return True, first_result
+
+        result = await self._take_external_event(external_event)
+        if first_result is self._sentinel:
+            first_result = result
+        return True, first_result
 
     async def _take_external_event(self, external_event: TriggerData):
         """Run one external event and settle its future.

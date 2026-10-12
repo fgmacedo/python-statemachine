@@ -2,7 +2,8 @@
 
 Both queues are priority queues ordered by each trigger's due time. Triggers
 stamped with the same time, as a coarse clock stamps events sent close together,
-must still come out in the order they went in.
+must still come out in the order they went in. And each external event gets its
+own macrostep: what it enables runs before the next external event is taken.
 
 Theme: the Riders of Rohan answering the muster, each in turn.
 """
@@ -56,3 +57,53 @@ class TestEventsDueTogether:
         await sm_runner.processing_loop(sm)
 
         assert sm.answered == list(range(riders))
+
+
+class RelayedBeacons(StateChart):
+    dark = State(initial=True)
+    lit = State(final=True)
+    besieged = State(final=True)
+
+    signal = dark.to.itself(internal=True, on="relay")
+    light = dark.to(lit)
+    siege = dark.to(besieged)
+
+    def relay(self):
+        BoundEvent(id="light", name="Light", internal=True, _sm=self).put()
+
+
+class WatchedBeacons(StateChart):
+    dark = State(initial=True)
+    lit = State(final=True)
+    besieged = State(final=True)
+
+    signal = dark.to.itself(internal=True, on="relay")
+    dark.to(lit, cond="seen")
+    siege = dark.to(besieged)
+
+    def __init__(self, *args, **kwargs):
+        self.seen = False
+        super().__init__(*args, **kwargs)
+
+    def relay(self):
+        self.seen = True
+
+
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize(
+    "machine",
+    [
+        pytest.param(RelayedBeacons, id="internal-event"),
+        pytest.param(WatchedBeacons, id="eventless-transition"),
+    ],
+)
+async def test_what_an_external_event_enables_runs_before_the_next_external_event(
+    sm_runner, machine
+):
+    sm = await sm_runner.start(machine)
+    BoundEvent(id="signal", name="Signal", _sm=sm).put()
+    BoundEvent(id="siege", name="Siege", _sm=sm).put()
+
+    await sm_runner.processing_loop(sm)
+
+    assert sm.configuration_values == {"lit"}
