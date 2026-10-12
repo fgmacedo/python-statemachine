@@ -337,19 +337,24 @@ class TestEventClassInsideCompound:
         await sm_runner.send(sm, "visit_pub")
         assert {"shire", "green_dragon"} == set(sm.configuration_values)
 
-    def test_name_delay_and_internal_are_preserved(self):
+    @pytest.mark.parametrize(
+        ("declared", "expected"),
+        [
+            pytest.param({"delay": 50}, (50, False), id="delay"),
+            pytest.param({"internal": True}, (0, True), id="internal"),
+        ],
+    )
+    def test_name_delay_and_internal_are_preserved(self, declared, expected):
         class NamedEvent(StateChart):
             class shire(State.Compound):
                 bag_end = State(initial=True)
                 green_dragon = State(final=True)
 
-                visit_pub = Event(
-                    bag_end.to(green_dragon), name="Visit the pub", delay=50, internal=True
-                )
+                visit_pub = Event(bag_end.to(green_dragon), name="Visit the pub", **declared)
 
         (registered,) = NamedEvent.events
         assert (registered.id, registered.name) == ("visit_pub", "Visit the pub")
-        assert (registered.delay, registered.internal) == (50, True)
+        assert (registered.delay, registered.internal) == expected
         assert NamedEvent.visit_pub.name == "Visit the pub"
 
     def test_expanded_id_drops_the_declared_arguments(self):

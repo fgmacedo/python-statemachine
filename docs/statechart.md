@@ -88,6 +88,24 @@ True
 
 ```
 
+Called from outside a callback, `raise_()` has no macrostep to join, so it
+behaves like `send()` and returns the result:
+
+```py
+>>> class Greeter(StateChart):
+...     idle = State(initial=True)
+...     done = State(final=True)
+...
+...     greet = idle.to(done, on="say_hello")
+...
+...     def say_hello(self):
+...         return "hello"
+
+>>> Greeter().raise_("greet")
+'hello'
+
+```
+
 Both methods accept arbitrary keyword arguments that are forwarded to all
 callbacks via {ref}`dependency injection <dependency-injection>`.
 
@@ -114,6 +132,10 @@ sm.cancel_event("my_timeout")
 ```
 
 On the async engine, a coroutine awaiting the `send()` of a cancelled event gets `None`.
+
+Only `send()` takes a delay. An internal event runs within the current macrostep,
+which takes no time, so `raise_(..., delay=...)` and `send(..., delay=..., internal=True)`
+raise {class}`~statemachine.exceptions.InvalidDefinition`.
 
 ```{note}
 The delay is **blocking** in the sync engine — the processing loop sleeps until the

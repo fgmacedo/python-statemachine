@@ -166,6 +166,19 @@ class TestValidateDocument:
                 }
             )
 
+    @pytest.mark.parametrize("target", ["#_internal", "internal"])
+    @pytest.mark.parametrize("delay", ["delay", "delayexpr"])
+    def test_invalid_delayed_send_to_internal(self, target, delay):
+        send = {"event": "e", "target": target, delay: "1s"}
+        with pytest.raises(InvalidDefinition, match="failed schema validation"):
+            validate_document({"states": {"a": {"initial": True, "enter": [{"send": send}]}}})
+
+    @pytest.mark.parametrize(
+        "send", [{"event": "e", "target": "#_internal"}, {"event": "e", "delay": "1s"}]
+    )
+    def test_valid_send_to_internal_or_delayed(self, send):
+        validate_document({"states": {"a": {"initial": True, "enter": [{"send": send}]}}})
+
     def test_invalid_invoke_extra_key(self):
         with pytest.raises(InvalidDefinition, match="failed schema validation"):
             validate_document({"states": {"a": {"initial": True, "invoke": {"bogus": 1}}}})

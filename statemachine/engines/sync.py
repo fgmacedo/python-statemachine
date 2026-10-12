@@ -12,6 +12,7 @@ from ..exceptions import TransitionNotAllowed
 from ..state import State
 from ..transition import Transition
 from .base import BaseEngine
+from .base import _processing_step
 
 
 class SyncEngine(BaseEngine):
@@ -38,7 +39,8 @@ class SyncEngine(BaseEngine):
             transitions = self._initial_transitions(trigger_data)
             self._processing.acquire(blocking=False)
             try:
-                self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
+                with _processing_step(self):
+                    self._enter_states(transitions, trigger_data, OrderedSet(), OrderedSet())
             finally:
                 self._processing.release()
         return self.processing_loop()
@@ -64,17 +66,20 @@ class SyncEngine(BaseEngine):
         self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
         try:
-            took_events = True
-            while took_events and self.running:
-                self.clear_cache()
-                took_events = self._run_macrostep()
+            with _processing_step(self):
+                took_events = True
+                while took_events and self.running:
+                    self.clear_cache()
+                    took_events = self._run_macrostep()
 
-                # Spawn invoke handlers for states entered during this macrostep.
-                self._invoke_manager.spawn_pending_sync()
-                self._check_root_final_state()
+                    # Spawn invoke handlers for states entered during this macrostep.
+                    self._invoke_manager.spawn_pending_sync()
+                    self._check_root_final_state()
 
-                took_external_events, first_result = self._take_external_events(first_result)
-                took_events = took_events or took_external_events
+                    took_external_events, first_result = self._take_due_external_event(
+                        first_result
+                    )
+                    took_events = took_events or took_external_events
         finally:
             self._processing.release()
         self._debug("%s Processing loop ended", self._log_id)
@@ -107,37 +112,38 @@ class SyncEngine(BaseEngine):
                 took_events = True
                 self.microstep(list(enabled_transitions), internal_event)
 
-    def _take_external_events(self, first_result):
-        """Take external events in due order until the queue is empty or holds one not yet due.
+    def _take_due_external_event(self, first_result):
+        """Take the external event at the head of the queue, if it is due.
 
-        Returns whether any event was taken from the queue, and ``first_result`` updated with
-        the result of the first event that enabled a transition.
+        One at a time, so the macrostep that follows runs the internal events and eventless
+        transitions it enabled before the next external event is taken.
+
+        Returns whether the queue held an event, and ``first_result`` updated with the result
+        of the first event that enabled a transition.
         """
         self._debug("%s Macrostep %d: external queue", self._log_id, self._macrostep_count)
-        took_events = False
-        while not self.external_queue.is_empty():
-            self.clear_cache()
-            took_events = True
-            external_event = self.external_queue.pop_due(monotonic())
-            if external_event is None:
-                sleep(self.sm._loop_sleep_in_ms)
-                # Break to the macrostep so internal events and eventless
-                # transitions can be processed while we wait.
-                break
+        if self.external_queue.is_empty():
+            return False, first_result
 
-            self._macrostep_count += 1
-            self._microstep_count = 0
-            self._debug(
-                "%s macrostep %d: event=%s",
-                self._log_id,
-                self._macrostep_count,
-                external_event.event,
-            )
+        self.clear_cache()
+        external_event = self.external_queue.pop_due(monotonic())
+        if external_event is None:
+            sleep(self.sm._loop_sleep_in_ms)
+            return True, first_result
 
-            result = self._take_external_event(external_event)
-            if first_result is self._sentinel:
-                first_result = result
-        return took_events, first_result
+        self._macrostep_count += 1
+        self._microstep_count = 0
+        self._debug(
+            "%s macrostep %d: event=%s",
+            self._log_id,
+            self._macrostep_count,
+            external_event.event,
+        )
+
+        result = self._take_external_event(external_event)
+        if first_result is self._sentinel:
+            first_result = result
+        return True, first_result
 
     def _take_external_event(self, external_event: TriggerData):
         """Run one external event.

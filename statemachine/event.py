@@ -46,6 +46,20 @@ _event_data_kwargs = {
 }
 
 
+def raise_delayed_internal(event_id: str):
+    """Reject an event that asks to be both delayed and internal.
+
+    The internal queue runs within the current macrostep, which takes no time.
+    """
+    raise InvalidDefinition(
+        _(
+            "Event {id!r} cannot be both delayed and internal: the internal queue runs "
+            "within the current macrostep, which takes no time. Drop 'internal' to "
+            "deliver it later on the external queue, or drop 'delay' to run it now."
+        ).format(id=event_id)
+    )
+
+
 class Event(AddCallbacksMixin, str):
     """An event triggers a signal that something has happened.
 
@@ -100,6 +114,9 @@ class Event(AddCallbacksMixin, str):
         _has_real_id = id is not None
         id = str(id) if _has_real_id else f"__event__{uuid4().hex}"
 
+        if delay and internal:
+            raise_delayed_internal(id)
+
         instance = super().__new__(cls, id)
         instance.id = id
         instance.delay = delay
@@ -146,7 +163,9 @@ class Event(AddCallbacksMixin, str):
         """
         if instance is None:
             return self
-        return BoundEvent(id=self.id, name=self.name, delay=self.delay, _sm=instance)
+        return BoundEvent(
+            id=self.id, name=self.name, delay=self.delay, internal=self.internal, _sm=instance
+        )
 
     def put(self, *args, send_id: "str | None" = None, **kwargs):
         # The `__call__` is declared here to help IDEs knowing that an `Event`

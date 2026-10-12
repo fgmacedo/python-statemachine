@@ -59,17 +59,25 @@ class TestExplicitEvent:
         assert [e.name for e in StartMachine.events] == ["Start the machine"]
         assert StartMachine.start.name == "Start the machine"
 
-    def test_accept_delay_and_internal(self):
+    @pytest.mark.parametrize(
+        ("declared", "expected"),
+        [
+            pytest.param({"delay": 50}, (50, False), id="delay"),
+            pytest.param({"internal": True}, (0, True), id="internal"),
+        ],
+    )
+    def test_accept_delay_or_internal(self, declared, expected):
         class BeaconsOfGondor(StateChart):
             dark = State(initial=True)
             lit = State(final=True)
 
-            light = Event(dark.to(lit), delay=50, internal=True)
+            light = Event(dark.to(lit), **declared)
 
         (registered,) = BeaconsOfGondor.events
-        assert (registered.delay, registered.internal) == (50, True)
-        assert BeaconsOfGondor.light.delay == 50
-        assert BeaconsOfGondor().light.delay == 50
+        bound = BeaconsOfGondor().light
+        assert (registered.delay, registered.internal) == expected
+        assert (BeaconsOfGondor.light.delay, BeaconsOfGondor.light.internal) == expected
+        assert (bound.delay, bound.internal) == expected
 
     def test_derive_name_from_id(self):
         class StartMachine(StateChart):
