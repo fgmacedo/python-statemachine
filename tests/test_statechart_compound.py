@@ -495,3 +495,177 @@ class TestDecoratorEventInsideCompound:
         sm = await sm_runner.start(Gate)
         await sm_runner.send(sm, "coin")
         assert log == ["clink"]
+
+
+def _journey_with_callback(form: str, log: list):
+    """A chart whose compound body declares one callback in the given ``form``.
+
+    Every form appends ``"base"`` to ``log`` when ``visit_pub`` runs.
+    """
+
+    class Journey(StateChart):
+        class shire(State.Compound):
+            bag_end = State(initial=True)
+            green_dragon = State()
+
+            visit_pub = bag_end.to(green_dragon)
+
+            if form == "method":
+
+                def on_enter_green_dragon(self):
+                    log.append("base")
+
+            elif form == "on":
+
+                @visit_pub.on
+                def toast(self):
+                    log.append("base")
+
+            elif form == "cond":
+
+                @visit_pub.cond
+                def pub_open(self):
+                    log.append("base")
+                    return True
+
+        road = State(final=True)
+        depart = shire.to(road)
+
+    return Journey
+
+
+@pytest.mark.timeout(5)
+class TestSubclassingCompoundWithCallbacks:
+    """Subclassing a chart whose compound body declares callbacks.
+
+    The base class and its subclasses share the same nested ``State`` objects, so unpacking
+    the callbacks of the body must not break the next class built from them.
+    """
+
+    FORMS = ["method", "on", "cond"]
+
+    @pytest.fixture(params=FORMS)
+    def form(self, request):
+        return request.param
+
+    @pytest.fixture()
+    def log(self):
+        return []
+
+    @pytest.fixture()
+    def Journey(self, form, log):
+        return _journey_with_callback(form, log)
+
+    async def test_subclass_inherits_the_nested_callback(self, sm_runner, Journey, log):
+        class Child(Journey):
+            pass
+
+        assert Child.shire is Journey.shire
+
+        sm = await sm_runner.start(Child)
+        await sm_runner.send(sm, "visit_pub")
+        assert log == ["base"]
+        assert "green_dragon" in sm.configuration_values
+
+    async def test_base_keeps_working_after_being_subclassed(self, sm_runner, Journey, log):
+        """Building the subclass must not consume the callbacks the base still runs."""
+
+        class Child(Journey):
+            pass
+
+        sm = await sm_runner.start(Journey)
+        await sm_runner.send(sm, "visit_pub")
+        assert log == ["base"]
+
+    async def test_second_level_subclass(self, sm_runner, Journey, log):
+        class Child(Journey):
+            pass
+
+        class GrandChild(Child):
+            pass
+
+        sm = await sm_runner.start(GrandChild)
+        await sm_runner.send(sm, "visit_pub")
+        assert log == ["base"]
+
+    @pytest.mark.parametrize("form", ["method"])
+    async def test_subclass_overrides_the_nested_callback(self, sm_runner, Journey, log):
+        """Only the naming convention supports overriding, in a nested body as at the top level.
+
+        A callback declared through ``@<event>.on`` or ``@<event>.cond`` is resolved by the
+        identity of the decorated function: a subclass method of the same name is not picked
+        up, and the original is dropped with it.
+        """
+
+        class Child(Journey):
+            def on_enter_green_dragon(self):
+                log.append("child")
+
+        sm = await sm_runner.start(Child)
+        await sm_runner.send(sm, "visit_pub")
+        assert log == ["child"]
+
+        log.clear()
+        sm = await sm_runner.start(Journey)
+        await sm_runner.send(sm, "visit_pub")
+        assert log == ["base"]
+
+    @pytest.mark.parametrize("form", ["method"])
+    async def test_second_level_subclass_keeps_the_override(self, sm_runner, Journey, log):
+        class Child(Journey):
+            def on_enter_green_dragon(self):
+                log.append("child")
+
+        class GrandChild(Child):
+            pass
+
+        sm = await sm_runner.start(GrandChild)
+        await sm_runner.send(sm, "visit_pub")
+        assert log == ["child"]
+
+    @pytest.mark.parametrize("form", ["method"])
+    async def test_second_level_subclass_keeps_the_callback_disabled(
+        self, sm_runner, Journey, log
+    ):
+        class Child(Journey):
+            on_enter_green_dragon = None
+
+        class GrandChild(Child):
+            pass
+
+        sm = await sm_runner.start(GrandChild)
+        await sm_runner.send(sm, "visit_pub")
+        assert log == []
+        assert "green_dragon" in sm.configuration_values
+
+    async def test_subclass_adds_its_own_callback(self, sm_runner, Journey, log, form):
+        class Child(Journey):
+            def on_exit_bag_end(self):
+                log.append("child")
+
+        sm = await sm_runner.start(Child)
+        await sm_runner.send(sm, "visit_pub")
+        guard_runs_first = form == "cond"
+        assert log == (["base", "child"] if guard_runs_first else ["child", "base"])
+
+    async def test_parallel_body_with_callback(self, sm_runner, log):
+        class Beacons(StateChart):
+            class beacons(State.Parallel):
+                class amon_din(State.Compound):
+                    dark = State(initial=True)
+                    lit = State()
+
+                    kindle = dark.to(lit)
+
+                    def on_enter_lit(self):
+                        log.append("base")
+
+                class eilenach(State.Compound):
+                    idle = State(initial=True)
+
+        class Child(Beacons):
+            pass
+
+        sm = await sm_runner.start(Child)
+        await sm_runner.send(sm, "kindle")
+        assert log == ["base"]
