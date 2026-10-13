@@ -8,6 +8,8 @@ from enum import IntFlag
 from enum import auto
 from functools import partial
 from inspect import isawaitable
+from inspect import isfunction
+from typing import Any
 
 from .exceptions import AttrNotFound
 from .i18n import _
@@ -16,6 +18,12 @@ from .utils import ensure_iterable
 
 def allways_true(*args, **kwargs):
     return True
+
+
+def is_unbounded_reference(func: Any) -> bool:
+    """Whether ``func`` is a function a `CallbackSpec` holds by object, to be bound to the
+    machine through the attribute named by ``func.attr_name``."""
+    return isfunction(func) and hasattr(func, "attr_name")
 
 
 class CallbackPriority(IntEnum):

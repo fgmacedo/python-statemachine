@@ -5,6 +5,7 @@ from . import registry
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .callbacks import is_unbounded_reference
 from .event import Event
 from .event import _expand_event_id
 from .exceptions import InvalidDefinition
@@ -170,17 +171,36 @@ class StateMachineMetaclass(type):
         class_body_names.update(
             value.attr_name for value in attrs.values() if getattr(value, "attr_name", None)
         )
+        declared: list[tuple[State, str, Any]] = []
         for state in iterate_states(cls.states):
             if state._callbacks:
-                for attr_name, func in state._callbacks.items():
-                    cls._check_callback_collision(
-                        attr_name, func, state, callbacks, owners, class_body_names
-                    )
-                    owners[attr_name] = state
-                callbacks.update(state._callbacks)
+                declared.extend((state, name, func) for name, func in state._callbacks.items())
                 del state._callbacks
+
+        for state, attr_name, func in declared:
+            if is_unbounded_reference(func):
+                continue
+            cls._check_callback_collision(
+                attr_name, func, state, callbacks, owners, class_body_names
+            )
+            owners[attr_name] = state
+            callbacks[attr_name] = func
         for key, value in callbacks.items():
             setattr(cls, key, value)
+
+        for state, attr_name, func in declared:
+            if is_unbounded_reference(func):
+                cls._store_unbounded_reference(attr_name, func, state)
+
+    def _store_unbounded_reference(cls, attr_name: str, func: Any, state: State):
+        """Callbacks are resolved through ``func.attr_name``, so a name already taken moves
+        the function to a key unique to its owning state instead of replacing the other."""
+        existing = cls.__dict__.get(attr_name)
+        if existing is None:
+            setattr(cls, attr_name, func)
+        elif existing is not func:
+            func.attr_name = f"{state.id}:{attr_name}"
+            setattr(cls, func.attr_name, func)
 
     def _check_callback_collision(
         cls,

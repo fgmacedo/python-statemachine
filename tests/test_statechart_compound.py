@@ -499,34 +499,138 @@ class TestDecoratorEventInsideCompound:
 
 
 class TestCallbackNameCollision:
-    """Nested state bodies share one namespace: the same callback name in two bodies is an
-    error instead of a silently discarded body (#653)."""
+    """A callback referenced by object runs in every nested body that declares it; a name
+    resolved by name in two bodies is an error instead of a silently discarded body (#653)."""
 
-    def test_decorator_event_in_sibling_regions(self):
-        with pytest.raises(InvalidDefinition) as exc_info:
+    async def test_decorator_event_in_sibling_regions(self, sm_runner):
+        log = []
 
-            class War(StateChart):
-                class war(State.Parallel):
-                    class quest(State.Compound):
-                        start = State(initial=True)
-                        end = State(final=True)
+        class War(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
 
-                        @start.to(end)
-                        def go(self):
-                            return "quest"
+                    @start.to(end)
+                    def go(self):
+                        log.append("quest")
 
-                    class battle(State.Compound):
-                        fighting = State(initial=True)
-                        won = State(final=True)
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
 
-                        @fighting.to(won)
-                        def go(self):
-                            return "battle"
+                    @fighting.to(won)
+                    def go(self):
+                        log.append("battle")
 
-        assert str(exc_info.value) == (
-            "Callback 'go' is declared in both the 'quest' and the 'battle' state bodies. "
-            "Nested state bodies share the class namespace. Rename one of them."
-        )
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert sorted(log) == ["battle", "quest"]
+        assert {"end", "won"} <= set(sm.configuration_values)
+
+    async def test_decorated_action_in_sibling_regions(self, sm_runner):
+        log = []
+
+        class War(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+                    go = start.to(end)
+
+                    @start.exit
+                    def leave(self):
+                        log.append("quest")
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+                    go = fighting.to(won)
+
+                    @fighting.exit
+                    def leave(self):
+                        log.append("battle")
+
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert sorted(log) == ["battle", "quest"]
+
+    async def test_guard_object_in_sibling_regions(self, sm_runner):
+        class War(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+
+                    def ready(self):
+                        return True
+
+                    go = start.to(end, cond=ready)
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+
+                    def ready(self):
+                        return False
+
+                    go = fighting.to(won, cond=ready)
+
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert "end" in sm.configuration_values
+        assert "fighting" in sm.configuration_values
+
+    async def test_decorated_callback_keeps_class_body_name(self, sm_runner):
+        log = []
+
+        class Journey(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State(final=True)
+                visit_pub = bag_end.to(green_dragon)
+
+                @bag_end.exit
+                def ready(self):
+                    log.append("shire")
+
+            road = State(final=True)
+            leave = shire.to(road, cond="ready")
+
+            def ready(self):
+                log.append("class")
+                return True
+
+        sm = await sm_runner.start(Journey)
+        await sm_runner.send(sm, "visit_pub")
+        await sm_runner.send(sm, "leave")
+        assert log == ["shire", "class"]
+        assert "road" in sm.configuration_values
+
+    async def test_decorated_callback_named_as_a_sibling_event(self, sm_runner):
+        log = []
+
+        class War(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+                    step = start.to(end)
+
+                    @start.exit
+                    def go(self):
+                        log.append("quest")
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+                    go = fighting.to(won)
+
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert "won" in sm.configuration_values
+        await sm_runner.send(sm, "step")
+        assert log == ["quest"]
 
     def test_plain_callback_in_sibling_regions(self):
         with pytest.raises(InvalidDefinition, match="Callback 'on_enter_end' is declared in both"):
@@ -591,23 +695,29 @@ class TestCallbackNameCollision:
             "Rename one of them."
         )
 
-    def test_decorator_event_in_state_body_and_class_body(self):
-        with pytest.raises(InvalidDefinition, match="Callback 'go' is declared in both"):
+    async def test_decorator_event_in_state_body_and_class_body(self, sm_runner):
+        log = []
 
-            class Journey(StateChart):
-                class shire(State.Compound):
-                    bag_end = State(initial=True)
-                    green_dragon = State()
+        class Journey(StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State()
 
-                    @bag_end.to(green_dragon)
-                    def go(self):
-                        return "shire"
-
-                road = State(final=True)
-
-                @shire.to(road)
+                @bag_end.to(green_dragon)
                 def go(self):
-                    return "class"
+                    log.append("shire")
+
+            road = State(final=True)
+
+            @shire.to(road)
+            def go(self):
+                log.append("class")
+
+        sm = await sm_runner.start(Journey)
+        await sm_runner.send(sm, "go")
+        assert log == ["shire"]
+        await sm_runner.send(sm, "go")
+        assert log == ["shire", "class"]
 
     async def test_same_function_in_sibling_regions_is_not_a_collision(self, sm_runner):
         log = []
@@ -654,6 +764,32 @@ class TestCallbackNameCollision:
         sm = await sm_runner.start(Journey)
         await sm_runner.send(sm, "visit_pub")
         assert log == ["arrived"]
+
+    async def test_same_decorated_function_in_sibling_regions(self, sm_runner):
+        log = []
+
+        def arrive(self):
+            log.append("arrived")
+
+        class War(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+                    go = start.to(end)
+
+                    on_arrive = end.enter(arrive)
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+                    go = fighting.to(won)
+
+                    on_arrive = won.enter(arrive)
+
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert log == ["arrived", "arrived"]
 
     async def test_same_bound_method_in_sibling_regions_is_not_a_collision(self, sm_runner):
         class Chronicle:

@@ -189,7 +189,9 @@ The `donedata` parameter can only be used on states marked as `final=True`:
 
 Callbacks declared inside a `State.Compound` or `State.Parallel` body are attached to the
 statechart class under their own names, so nested bodies share one namespace with each other
-and with the class body. The same name declared twice would keep only the last body:
+and with the class body. A callback found by its name (a naming convention such as
+`on_enter_<state>`, or a string reference such as `cond="ready"`) declared twice would keep
+only the last body:
 
 ```py
 >>> try:
@@ -198,26 +200,28 @@ and with the class body. The same name declared twice would keep only the last b
 ...             class quest(State.Compound):
 ...                 start = State(initial=True)
 ...                 end = State(final=True)
+...                 go = start.to(end)
 ...
-...                 @start.to(end)
-...                 def go(self):
+...                 def on_enter_end(self):
 ...                     print("quest")
 ...
 ...             class battle(State.Compound):
 ...                 fighting = State(initial=True)
 ...                 won = State(final=True)
+...                 go = fighting.to(won)
 ...
-...                 @fighting.to(won)
-...                 def go(self):
+...                 def on_enter_end(self):
 ...                     print("battle")
 ... except InvalidDefinition as e:
 ...     print(e)
-Callback 'go' is declared in both the 'quest' and the 'battle' state bodies. Nested state bodies share the class namespace. Rename one of them.
+Callback 'on_enter_end' is declared in both the 'quest' and the 'battle' state bodies. Nested state bodies share the class namespace. Rename one of them.
 
 ```
 
 The same callable assigned under one name in several bodies is not a collision. A name
-that an event or another attribute of the class already uses is also rejected.
+that an event or another attribute of the class already uses is also rejected. Callbacks
+attached by reference, through a decorator or by passing the function itself, never collide:
+each one runs in the body that declares it.
 
 ### Invalid listener entries
 
