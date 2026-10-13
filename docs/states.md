@@ -162,11 +162,10 @@ True
 
 ```
 
-Regions run independently, but their class bodies do not form separate namespaces for
-callbacks found by name. Declaring the same naming-convention callback or string-referenced
-name in two nested bodies, or in a nested body and the class body, raises `InvalidDefinition`
-(see {ref}`callback-name-collision`). Callbacks attached through a decorator run in their own
-body whatever their name.
+Regions run independently, but their class bodies share one namespace. Callbacks attached
+through a decorator, or by passing the function itself, may reuse a name across bodies and each
+runs in its own body. Any other reuse of a name, such as a naming-convention callback, a string
+reference or a plain method, raises `InvalidDefinition` (see {ref}`callback-name-collision`).
 
 ```{seealso}
 See {ref}`done-state-events` for how `done.state` events work with parallel

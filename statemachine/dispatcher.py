@@ -161,7 +161,7 @@ class Listeners:
         # if the attr is an unbounded method, we'll try to find the bounded method
         # on the self
         if not spec.is_bounded:
-            attr_name = spec.func.attr_name
+            attr_name = spec.lookup_name
             for listener in self.items:
                 func = getattr(listener.obj, attr_name, None)
                 # ``getattr`` may return a non-method that happens to share the name

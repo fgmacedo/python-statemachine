@@ -189,9 +189,9 @@ The `donedata` parameter can only be used on states marked as `final=True`:
 
 Callbacks declared inside a `State.Compound` or `State.Parallel` body are attached to the
 statechart class under their own names, so nested bodies share one namespace with each other
-and with the class body. A callback found by its name (a naming convention such as
-`on_enter_<state>`, or a string reference such as `cond="ready"`) declared twice would keep
-only the last body:
+and with the class body. A name reached by name (a naming convention such as
+`on_enter_<state>`, a string reference such as `cond="ready"`, or a plain method called as
+`self.ready()`) declared twice would keep only the last body:
 
 ```py
 >>> try:
@@ -220,8 +220,9 @@ Callback 'on_enter_end' is declared in both the 'quest' and the 'battle' state b
 
 The same callable assigned under one name in several bodies is not a collision. A name
 that an event or another attribute of the class already uses is also rejected. Callbacks
-attached by reference, through a decorator or by passing the function itself, never collide:
-each one runs in the body that declares it.
+attached through a decorator, or by passing the function itself, may share a name: each runs in
+the body that declares it, as long as no naming convention, string reference or plain method
+uses that name.
 
 ### Invalid listener entries
 

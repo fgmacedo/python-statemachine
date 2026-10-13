@@ -581,31 +581,149 @@ class TestCallbackNameCollision:
         assert "end" in sm.configuration_values
         assert "fighting" in sm.configuration_values
 
-    async def test_decorated_callback_keeps_class_body_name(self, sm_runner):
-        log = []
+    def test_decorated_callback_named_as_a_class_body_method(self):
+        with pytest.raises(InvalidDefinition) as exc_info:
 
-        class Journey(StateChart):
-            class shire(State.Compound):
-                bag_end = State(initial=True)
-                green_dragon = State(final=True)
-                visit_pub = bag_end.to(green_dragon)
+            class Journey(StateChart):
+                class shire(State.Compound):
+                    bag_end = State(initial=True)
+                    green_dragon = State(final=True)
+                    visit_pub = bag_end.to(green_dragon)
 
-                @bag_end.exit
+                    @bag_end.exit
+                    def ready(self):
+                        return "shire"
+
+                road = State(final=True)
+                leave = shire.to(road)
+
                 def ready(self):
-                    log.append("shire")
+                    return "class"
 
-            road = State(final=True)
-            leave = shire.to(road, cond="ready")
+        assert str(exc_info.value) == (
+            "Callback 'ready' is declared in both the 'shire' state body and the 'Journey' "
+            "class body. Nested state bodies share the class namespace. Rename one of them."
+        )
 
+    def test_decorated_callback_named_as_an_inherited_method(self):
+        class Guards:
             def ready(self):
-                log.append("class")
                 return True
 
-        sm = await sm_runner.start(Journey)
-        await sm_runner.send(sm, "visit_pub")
-        await sm_runner.send(sm, "leave")
-        assert log == ["shire", "class"]
-        assert "road" in sm.configuration_values
+        with pytest.raises(InvalidDefinition, match="clashes with the 'ready' attribute"):
+
+            class Journey(Guards, StateChart):
+                class shire(State.Compound):
+                    bag_end = State(initial=True)
+                    green_dragon = State()
+                    road = State(final=True)
+                    visit_pub = bag_end.to(green_dragon, cond="ready")
+                    leave = green_dragon.to(road)
+
+                    @green_dragon.enter
+                    def ready(self):
+                        return False
+
+    def test_decorated_callback_beside_a_plain_helper_of_the_same_name(self):
+        with pytest.raises(InvalidDefinition, match="Callback 'limit' is declared in both"):
+
+            class War(StateChart):
+                class war(State.Parallel):
+                    class quest(State.Compound):
+                        start = State(initial=True)
+                        end = State(final=True)
+
+                        def limit(self):
+                            return 10
+
+                        go = start.to(end, cond=limit)
+
+                    class battle(State.Compound):
+                        fighting = State(initial=True)
+                        won = State(final=True)
+                        victory = fighting.to(won)
+
+                        def limit(self):
+                            return 0
+
+    def test_decorated_callback_whose_name_is_used_by_a_string_reference(self):
+        with pytest.raises(InvalidDefinition, match="Callback 'ok' is declared in both"):
+
+            class War(StateChart):
+                class war(State.Parallel):
+                    class quest(State.Compound):
+                        start = State(initial=True)
+                        end = State(final=True)
+                        go = start.to(end, cond="ok")
+
+                        @start.enter
+                        def ok(self):
+                            return True
+
+                    class battle(State.Compound):
+                        fighting = State(initial=True)
+                        won = State(final=True)
+                        victory = fighting.to(won)
+
+                        @fighting.enter
+                        def ok(self):
+                            return False
+
+    def test_decorated_callbacks_named_by_a_naming_convention(self):
+        with pytest.raises(InvalidDefinition, match="Callback 'on_enter_end' is declared in both"):
+
+            class War(StateChart):
+                class war(State.Parallel):
+                    class battle(State.Compound):
+                        fighting = State(initial=True)
+                        won = State(final=True)
+                        go = fighting.to(won)
+
+                        @won.enter
+                        def on_enter_end(self):
+                            return "battle"
+
+                    class quest(State.Compound):
+                        start = State(initial=True)
+                        end = State(final=True)
+                        go = start.to(end)
+
+                        @end.enter
+                        def on_enter_end(self):
+                            return "quest"
+
+    async def test_stored_apart_callback_survives_reuse_by_another_machine(self, sm_runner):
+        log = []
+
+        def arrive(self):
+            log.append("quest")
+
+        class War(StateChart):
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+                    go = start.to(end)
+
+                    on_arrive = end.enter(arrive)
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+                    go = fighting.to(won)
+
+                    @won.enter
+                    def arrive(self):
+                        log.append("battle")
+
+        class Errand(StateChart):
+            home = State(initial=True)
+            market = State(final=True)
+            go = home.to(market, on=arrive)
+
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert sorted(log) == ["battle", "quest"]
 
     async def test_decorated_callback_named_as_a_sibling_event(self, sm_runner):
         log = []

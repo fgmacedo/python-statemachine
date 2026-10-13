@@ -21,8 +21,7 @@ def allways_true(*args, **kwargs):
 
 
 def is_unbounded_reference(func: Any) -> bool:
-    """Whether ``func`` is a function a `CallbackSpec` holds by object, to be bound to the
-    machine through the attribute named by ``func.attr_name``."""
+    """Whether ``func`` is a function that a `CallbackSpec` holds by object."""
     return isfunction(func) and hasattr(func, "attr_name")
 
 
@@ -110,6 +109,10 @@ class CallbackSpec:
             and self.group == CallbackGroup.COND
             and self.reference == SpecReference.NAME
         )
+
+        self.lookup_name: str = self.attr_name
+        """Attribute of the machine holding an unbounded callable. Differs from `attr_name`
+        when nested state bodies share the name and each function is stored apart."""
 
     def __repr__(self):
         return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"
