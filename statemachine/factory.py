@@ -168,7 +168,7 @@ class StateMachineMetaclass(type):
         for state in iterate_states(cls.states):
             if state._callbacks:
                 callbacks.update(state._callbacks)
-                del state._callbacks
+                state._callbacks = None
         for key, value in callbacks.items():
             setattr(cls, key, value)
 
