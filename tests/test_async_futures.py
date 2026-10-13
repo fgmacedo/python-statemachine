@@ -12,9 +12,12 @@ import asyncio
 import pytest
 from statemachine.engines.base import EventQueue
 from statemachine.event_data import TriggerData
+from statemachine.exceptions import TransitionNotAllowed
 
+from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
+from statemachine import StateMachine
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -322,6 +325,218 @@ class TestFutureEdgeCases:
         assert results["fn1"] == "noop ok"
         assert "fn2" in errors
         assert str(errors["fn2"]) == "noop2 is not allowed"
+
+
+def mount_doom_quest(base):
+    class MountDoom(base):
+        road = State(initial=True)
+        orodruin = State()
+        destroyed = State(final=True)
+
+        climb = road.to(orodruin) | orodruin.to.itself()
+        cast_ring = road.to(destroyed) | orodruin.to(destroyed)
+
+        def __init__(self, *args, **kwargs):
+            self.ring_falls = asyncio.Event()
+            super().__init__(*args, **kwargs)
+
+        async def on_cast_ring(self):
+            await self.ring_falls.wait()
+            return "destroyed"
+
+    return MountDoom
+
+
+def shire_journey(base):
+    class Shire(base):
+        bag_end = State(initial=True)
+        rivendell = State()
+        grey_havens = State(final=True)
+
+        journey = bag_end.to(rivendell)
+        long_journey = Event(bag_end.to(rivendell), delay=60000)
+        sail = bag_end.to(grey_havens, on="say_goodbye") | rivendell.to(grey_havens)
+
+        def __init__(self, *args, **kwargs):
+            self.journeys = 0
+            super().__init__(*args, **kwargs)
+
+        def say_goodbye(self):
+            self.journey.put()
+            self.long_journey.put()
+
+        def on_enter_rivendell(self):
+            self.journeys += 1
+
+    return Shire
+
+
+async def start_casting_the_ring(sm):
+    """Start ``cast_ring`` in a task that holds the processing lock until ``ring_falls``."""
+    await sm.activate_initial_state()
+    holder = asyncio.ensure_future(sm.send("cast_ring"))
+    await asyncio.sleep(0)
+    return holder
+
+
+async def queue_behind(sm, *sends):
+    waiters = [asyncio.ensure_future(sm.send(event, **kwargs)) for event, kwargs in sends]
+    await asyncio.sleep(0)
+    return waiters
+
+
+class TestEventsDroppedAtFinalState:
+    """Events still queued when the machine reaches a top-level final state are not run,
+    and a coroutine awaiting one gets what a terminated machine answers to a new event.
+
+    See: https://github.com/fgmacedo/python-statemachine/issues/678
+    """
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_statechart_callers_get_none(self):
+        sm = mount_doom_quest(StateChart)()
+        holder = await start_casting_the_ring(sm)
+        waiters = await queue_behind(sm, ("climb", {}), ("climb", {}), ("climb", {"delay": 60000}))
+
+        sm.ring_falls.set()
+
+        assert await holder == "destroyed"
+        assert await asyncio.gather(*waiters) == [None, None, None]
+        assert sm.configuration_values == {"destroyed"}
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_statemachine_callers_get_transition_not_allowed(self):
+        sm = mount_doom_quest(StateMachine)()
+        holder = await start_casting_the_ring(sm)
+        waiters = await queue_behind(sm, ("climb", {}), ("climb", {}), ("climb", {"delay": 60000}))
+
+        sm.ring_falls.set()
+
+        assert await holder == "destroyed"
+        results = await asyncio.gather(*waiters, return_exceptions=True)
+        assert all(isinstance(result, TransitionNotAllowed) for result in results)
+        assert [result.event.id for result in results] == ["climb", "climb", "climb"]
+        assert sm.configuration_values == {"destroyed"}
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_each_caller_gets_its_own_event(self):
+        sm = mount_doom_quest(StateMachine)()
+        holder = await start_casting_the_ring(sm)
+        waiters = await queue_behind(sm, ("climb", {}), ("cast_ring", {}))
+
+        sm.ring_falls.set()
+
+        assert await holder == "destroyed"
+        results = await asyncio.gather(*waiters, return_exceptions=True)
+        assert [result.event.id for result in results] == ["climb", "cast_ring"]
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_cancelled_caller_does_not_stop_the_others(self):
+        sm = mount_doom_quest(StateChart)()
+        holder = await start_casting_the_ring(sm)
+        gives_up, *waiters = await queue_behind(
+            sm, ("climb", {}), ("climb", {}), ("climb", {"delay": 60000})
+        )
+        gives_up.cancel()
+        await asyncio.sleep(0)
+
+        sm.ring_falls.set()
+
+        assert await holder == "destroyed"
+        assert await asyncio.gather(*waiters) == [None, None]
+        assert gives_up.cancelled()
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.parametrize("base", [StateChart, StateMachine])
+    async def test_events_queued_behind_final_state_leave_no_trigger(self, sm_runner, base):
+        Shire = shire_journey(base)
+        sm = await sm_runner.start(Shire)
+        await sm_runner.send(sm, "sail")
+
+        assert sm.configuration_values == {"grey_havens"}
+        assert sm.journeys == 0
+        assert sm._engine.external_queue.is_empty()
+
+    @pytest.mark.timeout(5)
+    async def test_statechart_send_after_final_state_leaves_no_trigger(self, sm_runner):
+        sm = await sm_runner.start(shire_journey(StateChart))
+        await sm_runner.send(sm, "sail")
+
+        assert await sm_runner.send(sm, "journey") is None
+        assert await sm_runner.send(sm, "journey", delay=60000) is None
+        assert sm.journeys == 0
+        assert sm._engine.external_queue.is_empty()
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.parametrize("base", [StateChart, StateMachine])
+    async def test_events_queued_behind_root_parallel_completion_are_dropped(
+        self, sm_runner, base
+    ):
+        class LastAlliance(base):
+            class war(State.Parallel):
+                class mordor(State.Compound):
+                    besieged = State(initial=True)
+                    fallen = State(final=True)
+                    victory = besieged.to(fallen)
+
+                class barad_dur(State.Compound):
+                    standing = State(initial=True)
+                    ruined = State(final=True)
+                    victory = standing.to(ruined)
+
+            rally = war.to.itself()
+
+            def __init__(self, *args, **kwargs):
+                self.rallies = 0
+                super().__init__(*args, **kwargs)
+
+            def on_victory(self):
+                self.rally.put()
+
+            def on_rally(self):
+                self.rallies += 1
+
+        sm = await sm_runner.start(LastAlliance)
+        await sm_runner.send(sm, "victory")
+
+        assert sm.is_terminated
+        assert sm.rallies == 0
+        assert sm._engine.external_queue.is_empty()
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.parametrize("base", [StateChart, StateMachine])
+    async def test_events_queued_behind_an_eventless_final_transition_are_dropped(
+        self, sm_runner, base
+    ):
+        class Fellowship(base):
+            rivendell = State(initial=True)
+            moria = State()
+            lothlorien = State(final=True)
+
+            enter_moria = rivendell.to(moria, on="hear_drums")
+            moria.to(lothlorien)
+            rest = rivendell.to(lothlorien)
+
+            def __init__(self, *args, **kwargs):
+                self.rests = 0
+                super().__init__(*args, **kwargs)
+
+            def hear_drums(self):
+                self.rest.put()
+
+            def on_rest(self):
+                self.rests += 1
+
+        sm = await sm_runner.start(Fellowship)
+        await sm_runner.send(sm, "enter_moria")
+
+        assert sm.configuration_values == {"lothlorien"}
+        assert sm.rests == 0
+        assert sm._engine.external_queue.is_empty()
 
 
 class TestEventQueueRejectFutures:

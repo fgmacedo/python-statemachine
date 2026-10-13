@@ -105,6 +105,13 @@ class EventQueue:
         with self.queue.mutex:
             self.queue.queue.clear()
 
+    def drain(self) -> list[TriggerData]:
+        """Remove every trigger from the queue and return those not cancelled."""
+        with self.queue.mutex:
+            triggers = [trigger for trigger in self.queue.queue if not trigger.cancelled]
+            self.queue.queue.clear()
+        return triggers
+
     def reject_futures(self, exc: Exception):
         """Reject all unresolved futures in the queue.
 
@@ -179,6 +186,20 @@ class BaseEngine:
 
     def clear(self):
         self.external_queue.clear()
+
+    def _drop_external_events(self):
+        """Drop the external events left once the machine has stopped, answering a caller
+        awaiting one as the stopped machine answers a new event."""
+        for trigger_data in self.external_queue.drain():
+            future = trigger_data.future
+            if future is None or future.done():
+                continue
+            if self.sm.allow_event_without_transition:
+                future.set_result(None)
+            else:
+                future.set_exception(
+                    TransitionNotAllowed(trigger_data.event, self.sm.configuration)
+                )
 
     def cancel_event(self, send_id: str):
         """Cancel the event with the given send_id."""

@@ -75,11 +75,16 @@ class SyncEngine(BaseEngine):
                     # Spawn invoke handlers for states entered during this macrostep.
                     self._invoke_manager.spawn_pending_sync()
                     self._check_root_final_state()
+                    if not self.running:
+                        break
 
                     took_external_events, first_result = self._take_due_external_event(
                         first_result
                     )
                     took_events = took_events or took_external_events
+
+                if not self.running:
+                    self._drop_external_events()
         finally:
             self._processing.release()
         self._debug("%s Processing loop ended", self._log_id)
