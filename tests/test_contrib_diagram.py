@@ -1936,8 +1936,9 @@ class TestGraphvizErrors:
 
         from tests.examples.traffic_light_machine import TrafficLightMachine
 
+        sm = TrafficLightMachine()
         with pytest.raises(GraphvizError, match="syntax error"):
-            format(TrafficLightMachine(), "svg")
+            format(sm, "svg")
 
     @pytest.mark.usefixtures("malformed_dot")
     def test_repr_svg_surfaces_stderr(self):
@@ -1945,8 +1946,9 @@ class TestGraphvizErrors:
 
         from tests.examples.traffic_light_machine import TrafficLightMachine
 
+        sm = TrafficLightMachine()
         with pytest.raises(GraphvizError, match="syntax error"):
-            TrafficLightMachine()._repr_svg_()
+            sm._repr_svg_()
 
     @pytest.mark.usefixtures("malformed_dot")
     def test_write_image_to_file_surfaces_stderr(self, tmp_path):

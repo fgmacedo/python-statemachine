@@ -209,18 +209,19 @@ def write_image(qualname, out, events=None, fmt=None):
         else:
             with open(out, "w") as f:
                 f.write(text)
+    elif out == "-":
+        sys.stdout.buffer.write(_render_image(machine, "svg"))
     else:
-        dot_source = DotGraphMachine(machine).get_graph().to_string()
-        if out == "-":
-            sys.stdout.buffer.write(run_graphviz(dot_source, "svg"))
-        else:
-            out_extension = out.rsplit(".", 1)[1]
-            if out_extension == "raw":
-                image = dot_source.encode("utf-8")
-            else:
-                image = run_graphviz(dot_source, out_extension)
-            with open(out, "wb") as f:
-                f.write(image)
+        image = _render_image(machine, out.rsplit(".", 1)[1])
+        with open(out, "wb") as f:
+            f.write(image)
+
+
+def _render_image(machine, fmt: str) -> bytes:
+    dot_source: str = DotGraphMachine(machine).get_graph().to_string()
+    if fmt == "raw":
+        return dot_source.encode("utf-8")
+    return run_graphviz(dot_source, fmt)
 
 
 def main(argv=None):
