@@ -1,7 +1,7 @@
 import os
 import re
 
-from statemachine.contrib.diagram import DotGraphMachine
+from statemachine.contrib.diagram import formatter
 from statemachine.factory import StateMachineMetaclass
 
 from .helpers import import_module_by_path
@@ -31,7 +31,7 @@ class MachineScraper:
     def generate_image(self, sm_class, original_path):
         image_path = self.re_replace_png_extension.sub(".svg", original_path)
 
-        svg = DotGraphMachine(sm_class).get_graph().create_svg().decode()
+        svg = formatter.render(sm_class, "svg")
         with open(image_path, "w") as f:
             f.write(svg)
         return image_path

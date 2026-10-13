@@ -19,6 +19,8 @@ A module-level :data:`formatter` instance is the single public entry point::
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from .graphviz import run_graphviz
+
 if TYPE_CHECKING:
     from typing import TypeAlias
 
@@ -108,8 +110,8 @@ def _render_dot(machine_or_class: "MachineRef") -> str:
 def _render_svg(machine_or_class: "MachineRef") -> str:
     from statemachine.contrib.diagram import DotGraphMachine
 
-    svg_bytes: bytes = DotGraphMachine(machine_or_class).get_graph().create_svg()  # type: ignore[attr-defined]
-    return svg_bytes.decode("utf-8")
+    dot_source = DotGraphMachine(machine_or_class).get_graph().to_string()
+    return run_graphviz(dot_source, "svg").decode("utf-8")
 
 
 @formatter.register_format("mermaid")
