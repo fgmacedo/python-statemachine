@@ -1,5 +1,6 @@
 """Issue #649: ``run_graphviz`` errors that need no Graphviz installed."""
 
+import errno
 import subprocess
 import sys
 
@@ -46,6 +47,37 @@ class TestGraphvizWithoutDot:
         assert "graphviz.org/download" in str(excinfo.value)
         assert isinstance(excinfo.value.__cause__, FileNotFoundError)
 
+    def test_missing_dot_is_still_a_file_not_found_error(self, monkeypatch, tmp_path):
+        from statemachine.contrib.diagram import GraphvizError
+        from statemachine.contrib.diagram import GraphvizNotFoundError
+        from statemachine.contrib.diagram.graphviz import run_graphviz
+
+        monkeypatch.setenv("PATH", str(tmp_path))
+
+        with pytest.raises(FileNotFoundError) as excinfo:
+            run_graphviz("digraph {}", "svg")
+
+        error = excinfo.value
+        assert isinstance(error, GraphvizNotFoundError)
+        assert isinstance(error, GraphvizError)
+        assert error.errno == errno.ENOENT
+        assert str(error) == (
+            "'dot' not found in PATH. Install Graphviz from https://graphviz.org/download/ "
+            "to generate diagrams."
+        )
+
+    def test_missing_dot_from_format_svg_is_a_file_not_found_error(self, monkeypatch, tmp_path):
+        from statemachine.contrib.diagram import GraphvizNotFoundError
+
+        from tests.examples.traffic_light_machine import TrafficLightMachine
+
+        monkeypatch.setenv("PATH", str(tmp_path))
+
+        with pytest.raises(FileNotFoundError) as excinfo:
+            format(TrafficLightMachine(), "svg")
+
+        assert isinstance(excinfo.value, GraphvizNotFoundError)
+
     @pytest.mark.skipif(sys.platform == "win32", reason="file mode bits are POSIX only")
     def test_run_graphviz_with_dot_that_cannot_run(self, monkeypatch, tmp_path):
         from statemachine.contrib.diagram import GraphvizError
@@ -54,14 +86,32 @@ class TestGraphvizWithoutDot:
         (tmp_path / "dot").write_text("")
         monkeypatch.setenv("PATH", str(tmp_path))
 
-        with pytest.raises(GraphvizError, match="'dot' could not be run: .*Permission denied"):
+        with pytest.raises(
+            GraphvizError, match="'dot' could not be run: .*Permission denied"
+        ) as excinfo:
             run_graphviz("digraph {}", "svg")
+
+        assert not isinstance(excinfo.value, FileNotFoundError)
 
     def test_graphviz_error_is_a_statemachine_error(self):
         from statemachine.contrib.diagram import GraphvizError
         from statemachine.exceptions import StateMachineError
 
         assert issubclass(GraphvizError, StateMachineError)
+
+    def test_graphviz_error_for_a_failing_dot_is_not_a_file_not_found_error(self, monkeypatch):
+        from statemachine.contrib.diagram import GraphvizError
+        from statemachine.contrib.diagram.graphviz import run_graphviz
+
+        monkeypatch.setattr(
+            "subprocess.run",
+            lambda *args, **kwargs: subprocess.CompletedProcess(args, 1, b"", b"boom"),
+        )
+
+        with pytest.raises(GraphvizError) as excinfo:
+            run_graphviz("digraph {}", "svg")
+
+        assert not isinstance(excinfo.value, OSError)
 
     def test_write_image_raw_writes_dot_source_without_running_dot(self, tmp_path, monkeypatch):
         monkeypatch.setenv("PATH", str(tmp_path))

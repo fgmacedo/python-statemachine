@@ -496,11 +496,30 @@ what Graphviz wrote to stderr, such as
 `Error: <stdin>: syntax error in line 25 near ','`. The Sphinx directive reports the same
 text as a build warning.
 
+A missing program raises {class}`~statemachine.contrib.diagram.GraphvizNotFoundError`, a
+subclass of both `GraphvizError` and {class}`FileNotFoundError`. Catch `GraphvizError` to
+handle every case; code that skips diagrams with `except FileNotFoundError` when Graphviz is
+not installed keeps working:
+
+```py
+>>> from statemachine.contrib.diagram import GraphvizError
+>>> from statemachine.contrib.diagram import GraphvizNotFoundError
+
+>>> issubclass(GraphvizNotFoundError, GraphvizError)
+True
+
+>>> issubclass(GraphvizNotFoundError, FileNotFoundError)
+True
+
+```
+
 Formats requested directly on the `pydot.Dot` object (`write_png()`, `create_svg()`, ...)
 are run by pydot, which reports only the exit code.
 
 ```{eval-rst}
 .. autoexception:: statemachine.contrib.diagram.GraphvizError
+
+.. autoexception:: statemachine.contrib.diagram.GraphvizNotFoundError
 ```
 
 
