@@ -66,9 +66,9 @@ recovering.
 ### The `error_` naming convention
 
 Since Python identifiers cannot contain dots, any event attribute starting
-with `error_` automatically matches both the underscore and dot-notation
-forms. For example, `error_execution` matches both `"error_execution"` and
-`"error.execution"`:
+with `error_` automatically registers both the underscore and dot-notation
+forms as events. For example, `error_execution` declares both `"error_execution"` and
+`"error.execution"`, and either id triggers the transition:
 
 ```py
 >>> from statemachine import State, StateChart

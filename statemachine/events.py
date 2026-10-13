@@ -18,6 +18,9 @@ class Events:
     def __iter__(self):
         return iter(self._items)
 
+    def __contains__(self, event):
+        return event in self._items
+
     def add(self, events):
         if events is None:
             return self
@@ -39,9 +42,9 @@ class Events:
             return self.is_empty
         return any(e.match(event) for e in self)
 
-    def _replace(self, old, new):
+    def _replace(self, old, new_events):
         self._items.remove(old)
-        self._items.append(new)
+        self.add(new_events)
 
     @property
     def is_empty(self):

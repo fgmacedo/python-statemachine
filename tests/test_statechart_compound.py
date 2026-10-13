@@ -357,14 +357,7 @@ class TestEventClassInsideCompound:
         assert (registered.delay, registered.internal) == expected
         assert NamedEvent.visit_pub.name == "Visit the pub"
 
-    def test_expanded_id_drops_the_declared_arguments(self):
-        """A space-separated id declares distinct events, so each one names itself.
-
-        The ``error_`` prefix expands to ``"error_foo error.foo"``, which reuses that format
-        to mean two spellings of a single event. See
-        ``test_multiple_ids_from_the_same_event_will_be_converted_to_multiple_events``.
-        """
-
+    def test_expanded_id_keeps_the_declared_arguments_on_both_ids(self):
         class ErrorEvent(StateChart):
             class shire(State.Compound):
                 bag_end = State(initial=True)
@@ -373,8 +366,8 @@ class TestEventClassInsideCompound:
                 error_foo = Event(bag_end.to(green_dragon), name="Boom", delay=50)
 
         assert [event.id for event in ErrorEvent.events] == ["error_foo", "error.foo"]
-        assert [event.name for event in ErrorEvent.events] == ["Error foo", "Error foo"]
-        assert [event.delay for event in ErrorEvent.events] == [0, 0]
+        assert [event.name for event in ErrorEvent.events] == ["Boom", "Boom"]
+        assert [event.delay for event in ErrorEvent.events] == [50, 50]
 
     async def test_explicit_id_wins_over_the_attribute_name(self, sm_runner):
         class ExplicitId(StateChart):

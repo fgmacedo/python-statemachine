@@ -16,22 +16,22 @@ if TYPE_CHECKING:
     from .transition_list import TransitionList
 
 
-def _expand_event_id(key: str) -> str:
-    """Apply naming conventions for special event prefixes.
+def _expand_event_id(key: str) -> list[str]:
+    """Return the event ids an attribute name declares.
 
-    Converts underscore-based Python attribute names to their dot-separated
-    event equivalents. Returns a space-separated string so ``Events.add()``
-    registers both forms.
+    ``done_invoke_X``, ``done_state_X`` and ``error_X`` also declare their SCXML dotted form
+    (``done.invoke.X``, ``done.state.X``, ``error.X``), each registered as its own event. Any
+    other name declares only itself.
     """
     if key.startswith("done_invoke_"):
         suffix = key[len("done_invoke_") :]
-        return f"{key} done.invoke.{suffix}"
+        return [key, f"done.invoke.{suffix}"]
     if key.startswith("done_state_"):
         suffix = key[len("done_state_") :]
-        return f"{key} done.state.{suffix}"
+        return [key, f"done.state.{suffix}"]
     if key.startswith("error_"):
-        return f"{key} {key.replace('_', '.')}"
-    return key
+        return [key, key.replace("_", ".")]
+    return [key]
 
 
 _event_data_kwargs = {
