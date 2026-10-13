@@ -1022,7 +1022,7 @@ class TestCancelledLockHolder:
 
     @pytest.mark.timeout(5)
     @pytest.mark.asyncio()
-    async def test_caller_of_the_interrupted_event_is_cancelled(self):
+    async def test_caller_of_the_interrupted_event_gets_a_state_machine_error(self):
         sm = stalled_road()()
         await sm.activate_initial_state()
         holder = asyncio.ensure_future(sm.send("go"))

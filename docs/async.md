@@ -169,13 +169,14 @@ whose events were still pending will also receive the exception, since the
 processing loop clears the queue on failure. A caller is answered once the
 macrostep of its event ends, so an exception raised by the internal events or
 eventless transitions that follow its event reaches it too. When no coroutine
-awaits that event, because a callback sent it or its caller was cancelled, the
-exception goes to the coroutine running the processing loop.
+awaits that event, because a callback sent it or its caller was cancelled while
+awaiting it, the exception goes to the coroutine running the processing loop.
 
 If the coroutine running the processing loop is cancelled, only that coroutine
 stops: a coroutine awaiting a queued event takes the loop over, and returns
-once the queue is empty. The caller of the event being processed when the
-cancellation hit gets a `StateMachineError`, since its callbacks were
+once the queue is empty. With no coroutine waiting, the events left in the
+queue run at the next `send()`. The caller of the event being processed when
+the cancellation hit gets a `StateMachineError`, since its callbacks were
 interrupted.
 
 
