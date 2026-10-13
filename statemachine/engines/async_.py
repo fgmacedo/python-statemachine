@@ -373,6 +373,8 @@ class AsyncEngine(BaseEngine):
                     self._drop_external_events()
 
         except Exception as exc:
+            self._reject_pending_futures(exc)
+            self.clear()
             if caller_future is not None:
                 # Route the exception to the caller's future if still pending.
                 # If already resolved (caller's own event succeeded before a
@@ -478,17 +480,12 @@ class AsyncEngine(BaseEngine):
                 self._resolve_future(event_future, result)
                 return result
             if not self.sm.allow_event_without_transition:
-                tna = TransitionNotAllowed(external_event.event, self.sm.configuration)
-                self._reject_future(event_future, tna)
-                self._reject_pending_futures(tna)
-                raise tna
+                raise TransitionNotAllowed(external_event.event, self.sm.configuration)
             # Event allowed but no transition — resolve with None
             self._resolve_future(event_future, None)
             return self._sentinel
         except Exception as exc:
             self._reject_future(event_future, exc)
-            self._reject_pending_futures(exc)
-            self.clear()
             raise
 
     async def enabled_events(self, *args, **kwargs):

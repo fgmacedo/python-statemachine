@@ -185,6 +185,7 @@ class BaseEngine:
         )
 
     def clear(self):
+        self.internal_queue.clear()
         self.external_queue.clear()
 
     def _drop_external_events(self):

@@ -70,10 +70,13 @@ class SyncEngine(BaseEngine):
                 took_events = True
                 while took_events and self.running:
                     self.clear_cache()
-                    took_events = self._run_macrostep()
-
-                    # Spawn invoke handlers for states entered during this macrostep.
-                    self._invoke_manager.spawn_pending_sync()
+                    try:
+                        took_events = self._run_macrostep()
+                        # Spawn invoke handlers for states entered during this macrostep.
+                        self._invoke_manager.spawn_pending_sync()
+                    except Exception:
+                        self.clear()
+                        raise
                     self._check_root_final_state()
                     if not self.running:
                         break
