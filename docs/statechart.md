@@ -133,13 +133,19 @@ sm.cancel_event("my_timeout")
 
 On the async engine, a coroutine awaiting the `send()` of a cancelled event gets `None`.
 
-Only `send()` takes a delay. An internal event runs within the current macrostep,
-which takes no time, so `raise_(..., delay=...)` and `send(..., delay=..., internal=True)`
-raise {class}`~statemachine.exceptions.InvalidDefinition`. An explicit `delay=0` overrides a
-delay declared on the event.
+A delay declared on the event itself, `Event(..., delay=5000)`, applies every time the event
+is triggered, whether by `send()` or by calling it as a method (see {ref}`events`). An explicit
+`delay=0` overrides it.
+
+Only `send()` delivers an event later. An internal event runs within the current macrostep,
+which takes no time, so any delay on an internal event, given or declared, raises
+{class}`~statemachine.exceptions.InvalidDefinition`: `raise_(..., delay=...)`,
+`send(..., delay=..., internal=True)`, `raise_()` on an event declared with a `delay`, and
+`send(..., delay=...)` on an event declared `internal=True`. An explicit `delay=0` overrides a
+declared delay.
 
 ```{note}
-The delay is **blocking** in the sync engine — the processing loop sleeps until the
+The delay is **blocking** in the sync engine: the processing loop sleeps until the
 delay elapses, holding the calling thread. In the async engine, delays are scheduled
 with `asyncio` and do not block the event loop.
 ```

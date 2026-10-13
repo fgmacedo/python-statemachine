@@ -460,7 +460,8 @@ The directive supports the same layout options as the standard `image` and
 `:target:` *(URL or empty)*
 : Makes the diagram clickable. When set without a value, the raw SVG is
   saved as a file and linked so users can open it in a new tab for
-  full-resolution zooming — useful for large or complex diagrams.
+  full-resolution zooming, useful for large or complex diagrams. The link is relative to
+  the page, so it also works when the documentation is served below a URL prefix.
 
 `:class:` *(space-separated strings)*
 : Extra CSS classes for the wrapper element.
@@ -486,6 +487,8 @@ JupyterLab cells — no extra code needed:
 ![Approval machine on JupyterLab](images/lab_approval_machine_accepted.png)
 
 
+(diagram-graphviz-errors)=
+
 ## When Graphviz fails
 
 Every path that runs `dot` (the `svg` format, `_repr_svg_()` in Jupyter, the command line
@@ -496,10 +499,11 @@ what Graphviz wrote to stderr, such as
 `Error: <stdin>: syntax error in line 25 near ','`. The Sphinx directive reports the same
 text as a build warning.
 
-A missing program raises {class}`~statemachine.contrib.diagram.GraphvizNotFoundError`, a
-subclass of both `GraphvizError` and {class}`FileNotFoundError`. Catch `GraphvizError` to
-handle every case; code that skips diagrams with `except FileNotFoundError` when Graphviz is
-not installed keeps working:
+`GraphvizError` is a {class}`~statemachine.exceptions.StateMachineError`. A missing program
+raises {class}`~statemachine.contrib.diagram.GraphvizNotFoundError`, a subclass of both
+`GraphvizError` and {class}`FileNotFoundError`. Catch `GraphvizError` to handle every case;
+code that skips diagrams with `except FileNotFoundError` when Graphviz is not installed keeps
+working:
 
 ```py
 >>> from statemachine.contrib.diagram import GraphvizError

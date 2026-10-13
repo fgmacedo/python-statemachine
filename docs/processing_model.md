@@ -71,7 +71,9 @@ Within a single macrostep, the engine repeats:
 3. If neither step produced a transition, the macrostep is **done**.
 
 After the macrostep completes, the engine picks the next event from the
-**external queue** (placed by `send()`) and starts a new macrostep.
+**external queue** (placed by `send()`) and starts a new macrostep. Once the
+machine reaches a top-level final state it stops, and the events left in the
+external queue are discarded.
 
 
 ### Event queues
