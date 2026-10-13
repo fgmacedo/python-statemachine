@@ -5,6 +5,8 @@ from urllib.request import urlopen
 
 from .extract import extract
 from .formatter import formatter as formatter
+from .graphviz import GraphvizError as GraphvizError
+from .graphviz import run_graphviz
 
 if TYPE_CHECKING:
     from .renderers.dot import DotRendererConfig
@@ -207,13 +209,19 @@ def write_image(qualname, out, events=None, fmt=None):
         else:
             with open(out, "w") as f:
                 f.write(text)
+    elif out == "-":
+        sys.stdout.buffer.write(_render_image(machine, "svg"))
     else:
-        graph = DotGraphMachine(machine).get_graph()
-        if out == "-":
-            sys.stdout.buffer.write(graph.create_svg())  # type: ignore[attr-defined]
-        else:
-            out_extension = out.rsplit(".", 1)[1]
-            graph.write(out, format=out_extension)
+        image = _render_image(machine, out.rsplit(".", 1)[1])
+        with open(out, "wb") as f:
+            f.write(image)
+
+
+def _render_image(machine, fmt: str) -> bytes:
+    dot_source: str = DotGraphMachine(machine).get_graph().to_string()
+    if fmt == "raw":
+        return dot_source.encode("utf-8")
+    return run_graphviz(dot_source, fmt)
 
 
 def main(argv=None):

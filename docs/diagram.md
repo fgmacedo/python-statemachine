@@ -486,6 +486,24 @@ JupyterLab cells — no extra code needed:
 ![Approval machine on JupyterLab](images/lab_approval_machine_accepted.png)
 
 
+## When Graphviz fails
+
+Every path that runs `dot` (the `svg` format, `_repr_svg_()` in Jupyter, the command line
+and the Sphinx directive) raises
+{class}`~statemachine.contrib.diagram.GraphvizError` when the program is missing from
+`PATH`, cannot run or exits with an error. The message carries the format that was requested and
+what Graphviz wrote to stderr, such as
+`Error: <stdin>: syntax error in line 25 near ','`. The Sphinx directive reports the same
+text as a build warning.
+
+Formats requested directly on the `pydot.Dot` object (`write_png()`, `create_svg()`, ...)
+are run by pydot, which reports only the exit code.
+
+```{eval-rst}
+.. autoexception:: statemachine.contrib.diagram.GraphvizError
+```
+
+
 ## Online generation (QuickChart)
 
 If you prefer not to install Graphviz locally, you can generate diagrams
