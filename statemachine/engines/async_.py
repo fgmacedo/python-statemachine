@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 from ..event_data import EventData
 from ..event_data import TriggerData
 from ..exceptions import InvalidDefinition
+from ..exceptions import StateMachineError
 from ..exceptions import TransitionNotAllowed
+from ..i18n import _
 from ..orderedset import OrderedSet
 from ..state import State
 from .base import _ERROR_EXECUTION
@@ -42,10 +44,14 @@ class _MacrostepCaller:
         return True
 
     def interrupt(self):
-        if self.future is not None:
-            self.future.cancel(
-                "The task running the processing loop was cancelled while it processed this event."
+        self.reject(
+            StateMachineError(
+                _(
+                    "The task running the processing loop was cancelled while it processed "
+                    "this event."
+                )
             )
+        )
 
 
 class AsyncEngine(BaseEngine):
@@ -430,9 +436,10 @@ class AsyncEngine(BaseEngine):
                     self._drop_external_events()
 
         except Exception as exc:
+            answered = caller_future is None or caller_future.done()
             self._reject_pending_futures(exc)
             self.clear()
-            if not macrostep.reject(exc) and (caller_future is None or caller_future.done()):
+            if not macrostep.reject(exc) and answered:
                 raise
         except BaseException:
             self.internal_queue.clear()

@@ -12,6 +12,7 @@ import asyncio
 import pytest
 from statemachine.engines.base import EventQueue
 from statemachine.event_data import TriggerData
+from statemachine.exceptions import StateMachineError
 from statemachine.exceptions import TransitionNotAllowed
 
 from statemachine import Event
@@ -831,6 +832,22 @@ class TestMacrostepErrorAnswersQueuedCallers:
         assert sm.send("flee") == 1
 
 
+class FlickeringLamp(StateMachine):
+    """Its initial state raises an internal event whose transition fails."""
+
+    off = State(initial=True)
+    lit = State(final=True)
+
+    switch = off.to(lit)
+    flicker = Event(off.to.itself(internal=True), internal=True)
+
+    async def on_enter_off(self):
+        self.flicker.put()
+
+    def on_flicker(self):
+        raise ValueError("short circuit")
+
+
 async def cancel_and_wait(task):
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -891,26 +908,23 @@ class TestMacrostepErrorReachesTheCallerOfItsEvent:
     @pytest.mark.timeout(5)
     @pytest.mark.asyncio()
     async def test_failure_after_the_lazy_initial_activation_reaches_every_caller(self):
-        class Lamp(StateMachine):
-            off = State(initial=True)
-            lit = State(final=True)
-
-            switch = off.to(lit)
-            flicker = Event(off.to.itself(internal=True), internal=True)
-
-            async def on_enter_off(self):
-                self.flicker.put()
-
-            def on_flicker(self):
-                raise ValueError("short circuit")
-
-        sm = Lamp()
+        sm = FlickeringLamp()
         results = await asyncio.gather(
             sm.send("switch"), sm.send("switch"), return_exceptions=True
         )
 
         assert [str(result) for result in results] == ["short circuit", "short circuit"]
         assert sm.configuration_values == {"off"}
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_caller_running_the_loop_retrieves_its_rejected_future(self):
+        sm = FlickeringLamp()
+        trigger = sm.switch.put()
+
+        with pytest.raises(ValueError, match="short circuit"):
+            await sm._processing_loop(trigger.future)
+        assert not trigger.future._log_traceback
 
 
 def stalled_road(base=StateMachine):
@@ -1019,7 +1033,7 @@ class TestCancelledLockHolder:
 
         await cancel_and_wait(holder)
 
-        with pytest.raises(asyncio.CancelledError, match="was cancelled while"):
+        with pytest.raises(StateMachineError, match="was cancelled while"):
             await stalled
         assert await stepper == 1
         assert sm.configuration_values == {"road"}
@@ -1049,12 +1063,8 @@ class TestCancelledLockHolder:
 
             boot = booting.to(ready)
 
-            def __init__(self):
-                self.gate = asyncio.Event()
-                super().__init__()
-
             async def on_enter_booting(self):
-                await self.gate.wait()
+                await asyncio.Event().wait()
 
         sm = SlowStart()
         activation = asyncio.ensure_future(sm.activate_initial_state())
@@ -1062,9 +1072,8 @@ class TestCancelledLockHolder:
         (waiter,) = await queue_behind(sm, ("boot", {}))
 
         await cancel_and_wait(activation)
-        sm.gate.set()
 
-        await waiter
+        assert await waiter is None
         assert sm.configuration_values == {"ready"}
 
 

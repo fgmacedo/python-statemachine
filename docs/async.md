@@ -152,7 +152,8 @@ processing loop at a time. The sync engine does not support this pattern.
 Under the hood, the async engine attaches an `asyncio.Future` to each
 externally enqueued event. The coroutine that acquires the processing lock
 resolves each event's future as it processes the queue. Callers that didn't
-acquire the lock simply `await` their future.
+acquire the lock `await` their future, or the release of the lock, to take
+the loop over if the coroutine holding it was cancelled.
 
 ```{note}
 Futures are created for every event sent from outside the processing loop,
@@ -174,7 +175,8 @@ exception goes to the coroutine running the processing loop.
 If the coroutine running the processing loop is cancelled, only that coroutine
 stops: a coroutine awaiting a queued event takes the loop over, and returns
 once the queue is empty. The caller of the event being processed when the
-cancellation hit gets `CancelledError`, since its callbacks were interrupted.
+cancellation hit gets a `StateMachineError`, since its callbacks were
+interrupted.
 
 
 (syncengine)=
