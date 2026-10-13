@@ -135,7 +135,8 @@ On the async engine, a coroutine awaiting the `send()` of a cancelled event gets
 
 Only `send()` takes a delay. An internal event runs within the current macrostep,
 which takes no time, so `raise_(..., delay=...)` and `send(..., delay=..., internal=True)`
-raise {class}`~statemachine.exceptions.InvalidDefinition`.
+raise {class}`~statemachine.exceptions.InvalidDefinition`. An explicit `delay=0` overrides a
+delay declared on the event.
 
 ```{note}
 The delay is **blocking** in the sync engine — the processing loop sleeps until the

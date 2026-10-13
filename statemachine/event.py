@@ -114,7 +114,7 @@ class Event(AddCallbacksMixin, str):
         _has_real_id = id is not None
         id = str(id) if _has_real_id else f"__event__{uuid4().hex}"
 
-        if delay and internal:
+        if delay and internal and _has_real_id:
             raise_delayed_internal(id)
 
         instance = super().__new__(cls, id)

@@ -302,24 +302,70 @@ class TestWhoIsRunningTheStep:
 
 
 class TestDelayedInternal:
-    def test_a_declaration_cannot_be_both_delayed_and_internal(self):
-        with pytest.raises(InvalidDefinition, match=DELAYED_INTERNAL):
+    @pytest.mark.parametrize(
+        ("attribute", "kwargs", "event_id"),
+        [
+            pytest.param("light", {}, "light", id="attribute"),
+            pytest.param("light", {"id": "kindle"}, "kindle", id="explicit-id"),
+            pytest.param("error_light", {}, "error_light", id="prefixed"),
+        ],
+    )
+    def test_a_declaration_cannot_be_both_delayed_and_internal(self, attribute, kwargs, event_id):
+        with pytest.raises(InvalidDefinition, match=f"^Event '{event_id}' {DELAYED_INTERNAL}"):
+            type(
+                "DelayedBeacons",
+                (StateChart,),
+                {
+                    "dark": (dark := State(initial=True)),
+                    "lit": (lit := State(final=True)),
+                    attribute: Event(dark.to(lit), delay=50, internal=True, **kwargs),
+                },
+            )
+
+    @pytest.mark.parametrize(
+        ("attribute", "kwargs", "event_id"),
+        [
+            pytest.param("light", {}, "light", id="attribute"),
+            pytest.param("light", {"id": "kindle"}, "kindle", id="explicit-id"),
+            pytest.param("error_light", {}, "error_light", id="prefixed"),
+        ],
+    )
+    def test_a_compound_declaration_cannot_be_both_delayed_and_internal(
+        self, attribute, kwargs, event_id
+    ):
+        with pytest.raises(InvalidDefinition, match=f"^Event '{event_id}' {DELAYED_INTERNAL}"):
+            type(
+                "chain",
+                (State.Compound,),
+                {
+                    "dark": (dark := State(initial=True)),
+                    "lit": (lit := State(final=True)),
+                    attribute: Event(dark.to(lit), delay=50, internal=True, **kwargs),
+                },
+            )
+
+    def test_a_declaration_without_transitions_cannot_be_both_delayed_and_internal(self):
+        with pytest.raises(InvalidDefinition, match=f"^Event 'light' {DELAYED_INTERNAL}"):
 
             class DelayedBeacons(StateChart):
                 dark = State(initial=True)
                 lit = State(final=True)
 
-                light = Event(dark.to(lit), delay=50, internal=True)
+                kindle = dark.to(lit)
+                light = Event(delay=50, internal=True)
 
-    def test_a_compound_declaration_cannot_be_both_delayed_and_internal(self):
-        with pytest.raises(InvalidDefinition, match=DELAYED_INTERNAL):
+    def test_a_compound_declaration_without_transitions_cannot_be_both_delayed_and_internal(
+        self,
+    ):
+        with pytest.raises(InvalidDefinition, match=f"^Event 'light' {DELAYED_INTERNAL}"):
 
             class DelayedBeacons(StateChart):
                 class chain(State.Compound):
                     dark = State(initial=True)
                     lit = State(final=True)
 
-                    light = Event(dark.to(lit), delay=50, internal=True)
+                    kindle = dark.to(lit)
+                    light = Event(delay=50, internal=True)
 
     @pytest.mark.parametrize(
         "trigger",
@@ -379,3 +425,37 @@ class TestDelayedInternal:
 
         with pytest.raises(InvalidDefinition):
             load(json.dumps(document), format="json", validate=validate)
+
+
+class DelayedBeacons(StateChart):
+    dark = State(initial=True)
+    lit = State(final=True)
+
+    signal = Event(dark.to(lit, on="kindle"), delay=60_000)
+
+    def kindle(self):
+        return "kindled"
+
+
+class TestExplicitZeroDelay:
+    @pytest.mark.timeout(10)
+    async def test_send_with_delay_zero_overrides_the_declared_delay(self, sm_runner):
+        sm = await sm_runner.start(DelayedBeacons)
+
+        assert await sm_runner.send(sm, "signal", delay=0) == "kindled"
+        assert sm.configuration_values == {"lit"}
+
+    @pytest.mark.timeout(10)
+    async def test_raise_with_delay_zero_overrides_the_declared_delay(self, sm_runner):
+        sm = await sm_runner.start(DelayedBeacons)
+
+        assert await settle(sm.raise_("signal", delay=0)) == "kindled"
+        assert sm.configuration_values == {"lit"}
+
+    async def test_raise_without_delay_keeps_the_declared_delay(self, sm_runner):
+        sm = await sm_runner.start(DelayedBeacons)
+
+        with pytest.raises(InvalidDefinition, match=f"^Event 'signal' {DELAYED_INTERNAL}"):
+            await settle(sm.raise_("signal"))
+
+        assert sm.configuration_values == {"dark"}
