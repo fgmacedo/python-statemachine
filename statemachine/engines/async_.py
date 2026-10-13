@@ -16,7 +16,36 @@ from .base import _processing_step
 from .base import _running_engine
 
 if TYPE_CHECKING:
+    from ..statemachine import StateChart
     from ..transition import Transition
+
+
+class _MacrostepCaller:
+    """The caller of the external event whose macrostep is running, answered once the
+    macrostep ends, so that an exception raised by its internal events or eventless
+    transitions still reaches it."""
+
+    def __init__(self):
+        self.future: "asyncio.Future[object] | None" = None
+        self.result: object = None
+
+    def answer(self):
+        AsyncEngine._resolve_future(self.future, self.result)
+        self.future = None
+        self.result = None
+
+    def reject(self, exc: Exception) -> bool:
+        """Reject the caller with ``exc``; returns whether a caller was still waiting."""
+        if self.future is None or self.future.done():
+            return False
+        self.future.set_exception(exc)
+        return True
+
+    def interrupt(self):
+        if self.future is not None:
+            self.future.cancel(
+                "The task running the processing loop was cancelled while it processed this event."
+            )
 
 
 class AsyncEngine(BaseEngine):
@@ -25,6 +54,10 @@ class AsyncEngine(BaseEngine):
     Mirrors :class:`SyncEngine` algorithm but uses ``async``/``await`` for callback dispatch.
     All pure-computation helpers are inherited from :class:`BaseEngine`.
     """
+
+    def __init__(self, sm: "StateChart"):
+        super().__init__(sm)
+        self._lock_waiters: "set[asyncio.Future[object]]" = set()
 
     def put(self, trigger_data: TriggerData, internal: bool = False):
         """Override to attach an asyncio.Future to a trigger put from outside the loop.
@@ -49,12 +82,6 @@ class AsyncEngine(BaseEngine):
         """Resolve a future with the given result, if present and not yet done."""
         if future is not None and not future.done():
             future.set_result(result)
-
-    @staticmethod
-    def _reject_future(future: "asyncio.Future[object] | None", exc: Exception):
-        """Reject a future with the given exception, if present and not yet done."""
-        if future is not None and not future.done():
-            future.set_exception(exc)
 
     def _reject_pending_futures(self, exc: Exception):
         """Reject all unresolved futures in the external queue."""
@@ -340,17 +367,45 @@ class AsyncEngine(BaseEngine):
 
         When ``caller_future`` is provided, the caller can ``await`` it to
         receive its own event's result — even if another coroutine holds the
-        processing lock.
+        processing lock. If that coroutine is cancelled, the caller takes the loop over.
         """
-        if not self._processing.acquire(blocking=False):
-            # Another coroutine holds the lock and will process our event.
-            # Await the caller's future so we get our own result back.
-            if caller_future is not None:
-                return await caller_future
-            return None
+        while not self._processing.acquire(blocking=False):
+            if caller_future is None:
+                return None
+            await self._wait_for_result_or_release(caller_future)
+            if caller_future.done():
+                return caller_future.result()
 
+        try:
+            return await self._run_processing_loop(caller_future)
+        finally:
+            self._processing.release()
+            self._wake_lock_waiters()
+
+    async def _wait_for_result_or_release(self, caller_future: "asyncio.Future[object]"):
+        """Wait until the caller's event is answered or the processing lock is released.
+
+        A caller cancelled here cancels its future, so its event, still processed, answers
+        nobody.
+        """
+        released = caller_future.get_loop().create_future()
+        self._lock_waiters.add(released)
+        try:
+            await asyncio.wait((caller_future, released), return_when=asyncio.FIRST_COMPLETED)
+        except BaseException:
+            caller_future.cancel()
+            raise
+        finally:
+            self._lock_waiters.discard(released)
+
+    def _wake_lock_waiters(self):
+        for released in self._lock_waiters:
+            self._resolve_future(released, None)
+
+    async def _run_processing_loop(self, caller_future: "asyncio.Future[object] | None"):
         self._debug("%s Processing loop started: %s", self._log_id, self.sm.current_state_value)
         first_result = self._sentinel
+        macrostep = _MacrostepCaller()
         try:
             with _processing_step(self):
                 took_events = True
@@ -360,37 +415,34 @@ class AsyncEngine(BaseEngine):
 
                     # Spawn invoke handlers for states entered during this macrostep.
                     await self._invoke_manager.spawn_pending_async()
+                    macrostep.answer()
                     self._check_root_final_state()
                     if not self.running:
                         break
 
                     took_external_events, first_result = await self._take_due_external_event(
-                        first_result
+                        first_result, macrostep
                     )
                     took_events = took_events or took_external_events
 
+                macrostep.answer()
                 if not self.running:
                     self._drop_external_events()
 
         except Exception as exc:
             self._reject_pending_futures(exc)
             self.clear()
-            if caller_future is not None:
-                # Route the exception to the caller's future if still pending.
-                # If already resolved (caller's own event succeeded before a
-                # later event failed), suppress the exception — the caller will
-                # get their successful result via ``await future`` below, and
-                # the failing event's exception was already routed to *its*
-                # caller's future by ``_reject_future(event_future, ...)``.
-                self._reject_future(caller_future, exc)
-            else:
+            if not macrostep.reject(exc) and (caller_future is None or caller_future.done()):
                 raise
-        finally:
-            self._processing.release()
+        except BaseException:
+            self.internal_queue.clear()
+            macrostep.interrupt()
+            if caller_future is not None:
+                caller_future.cancel()
+            raise
 
         self._debug("%s Processing loop ended", self._log_id)
         result = first_result if first_result is not self._sentinel else None
-        # If the caller has a future, await it (already resolved by now).
         if caller_future is not None:
             # Resolve the future if it wasn't processed (e.g. machine terminated).
             self._resolve_future(caller_future, result)
@@ -424,11 +476,12 @@ class AsyncEngine(BaseEngine):
                 took_events = True
                 await self.microstep(list(enabled_transitions), internal_event)
 
-    async def _take_due_external_event(self, first_result):
+    async def _take_due_external_event(self, first_result, macrostep: "_MacrostepCaller"):
         """Take the external event at the head of the queue, if it is due.
 
         One at a time, so the macrostep that follows runs the internal events and eventless
-        transitions it enabled before the next external event is taken.
+        transitions it enabled before the next external event is taken. The event's caller is
+        left in ``macrostep``, to be answered once that macrostep ends.
 
         Returns whether the queue held an event, and ``first_result`` updated with the result
         of the first event that enabled a transition.
@@ -458,35 +511,29 @@ class AsyncEngine(BaseEngine):
             await self._enter_states(transitions, external_event, OrderedSet(), OrderedSet())
             return True, first_result
 
+        macrostep.future = external_event.future
         result = await self._take_external_event(external_event)
+        if result is not self._sentinel:
+            macrostep.result = result
         if first_result is self._sentinel:
             first_result = result
         return True, first_result
 
     async def _take_external_event(self, external_event: TriggerData):
-        """Run one external event and settle its future.
+        """Run one external event.
 
         Returns the event's microstep result, or the sentinel when it enabled no transition.
         """
         # Finalize + autoforward for active invocations
         self._invoke_manager.handle_external_event(external_event)
 
-        event_future = external_event.future
-        try:
-            enabled_transitions = await self.select_transitions(external_event)
-            self._debug("%s Enabled transitions: %s", self._log_id, enabled_transitions)
-            if enabled_transitions:
-                result = await self.microstep(list(enabled_transitions), external_event)
-                self._resolve_future(event_future, result)
-                return result
-            if not self.sm.allow_event_without_transition:
-                raise TransitionNotAllowed(external_event.event, self.sm.configuration)
-            # Event allowed but no transition — resolve with None
-            self._resolve_future(event_future, None)
-            return self._sentinel
-        except Exception as exc:
-            self._reject_future(event_future, exc)
-            raise
+        enabled_transitions = await self.select_transitions(external_event)
+        self._debug("%s Enabled transitions: %s", self._log_id, enabled_transitions)
+        if enabled_transitions:
+            return await self.microstep(list(enabled_transitions), external_event)
+        if not self.sm.allow_event_without_transition:
+            raise TransitionNotAllowed(external_event.event, self.sm.configuration)
+        return self._sentinel
 
     async def enabled_events(self, *args, **kwargs):
         sm = self.sm

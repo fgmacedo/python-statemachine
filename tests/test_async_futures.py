@@ -681,7 +681,8 @@ class TestMacrostepErrorAnswersQueuedCallers:
         sm = gated(khazad_dum(StateMachine, failing, eventless))()
         holder, waiters = await cross_with_callers_queued(sm, *THREE_FLIGHTS)
 
-        await holder
+        with pytest.raises(ValueError, match=f"{failing} failed"):
+            await holder
         results = await asyncio.gather(*waiters, return_exceptions=True)
         assert [str(result) for result in results] == [f"{failing} failed"] * 3
         assert sm.flights == 0
@@ -706,8 +707,7 @@ class TestMacrostepErrorAnswersQueuedCallers:
     async def test_machine_takes_new_events_afterwards(self):
         sm = gated(khazad_dum(StateMachine, "on_falling"))()
         holder, waiters = await cross_with_callers_queued(sm, *THREE_FLIGHTS)
-        await holder
-        await asyncio.gather(*waiters, return_exceptions=True)
+        await asyncio.gather(holder, *waiters, return_exceptions=True)
 
         assert await sm.send("flee") == 1
         assert sm.configuration_values == {"bridge"}
@@ -725,9 +725,9 @@ class TestMacrostepErrorAnswersQueuedCallers:
         )
         sm.cancel_event("horn")
 
-        await holder
-        results = await asyncio.gather(delayed, cancelled, flight, return_exceptions=True)
+        results = await asyncio.gather(holder, delayed, cancelled, flight, return_exceptions=True)
         assert [str(result) for result in results] == [
+            "on_falling failed",
             "on_falling failed",
             "None",
             "on_falling failed",
@@ -737,7 +737,7 @@ class TestMacrostepErrorAnswersQueuedCallers:
 
     @pytest.mark.timeout(5)
     @pytest.mark.asyncio()
-    async def test_failure_after_a_queued_event_answers_only_the_callers_behind_it(self):
+    async def test_failure_after_a_queued_event_answers_its_caller_and_those_behind_it(self):
         sm = gated(khazad_dum(StateMachine, "on_falling"))()
         holder, waiters = await cross_with_callers_queued(
             sm, ("flee", {}), ("retreat", {}), ("cross", {}), *THREE_FLIGHTS[:2], awake=False
@@ -745,8 +745,8 @@ class TestMacrostepErrorAnswersQueuedCallers:
 
         assert await holder == "crossed"
         results = await asyncio.gather(*waiters, return_exceptions=True)
-        assert results[:3] == [1, None, "crossed"]
-        assert [str(result) for result in results[3:]] == ["on_falling failed"] * 2
+        assert results[:2] == [1, None]
+        assert [str(result) for result in results[2:]] == ["on_falling failed"] * 3
         assert sm.flights == 1
 
     @pytest.mark.timeout(5)
@@ -755,9 +755,8 @@ class TestMacrostepErrorAnswersQueuedCallers:
         sm = gated(khazad_dum(StateChart, "validate_falling"))()
         holder, waiters = await cross_with_callers_queued(sm, *THREE_FLIGHTS)
 
-        await holder
-        results = await asyncio.gather(*waiters, return_exceptions=True)
-        assert [str(result) for result in results] == ["validate_falling failed"] * 3
+        results = await asyncio.gather(holder, *waiters, return_exceptions=True)
+        assert [str(result) for result in results] == ["validate_falling failed"] * 4
         assert sm.flights == 0
 
     @pytest.mark.timeout(5)
@@ -830,6 +829,243 @@ class TestMacrostepErrorAnswersQueuedCallers:
         assert sm._engine.external_queue.is_empty()
         assert sm._engine.internal_queue.is_empty()
         assert sm.send("flee") == 1
+
+
+async def cancel_and_wait(task):
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+class TestMacrostepErrorReachesTheCallerOfItsEvent:
+    """An exception escaping the internal events or eventless transitions that follow an
+    external event reaches the caller of that event, on both engines. When no caller awaits
+    that event, because a callback sent it, the exception reaches the caller running the loop.
+
+    See: https://github.com/fgmacedo/python-statemachine/issues/689
+    """
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.parametrize("eventless", [False, True], ids=["internal", "eventless"])
+    @pytest.mark.parametrize("failing", FAILING_CALLBACKS)
+    async def test_caller_gets_the_exception(self, sm_runner, failing, eventless):
+        sm = await sm_runner.start(khazad_dum(StateMachine, failing, eventless))
+
+        with pytest.raises(ValueError, match=f"{failing} failed"):
+            await sm_runner.send(sm, "cross")
+
+        assert await sm_runner.send(sm, "flee") == 1
+
+    @pytest.mark.timeout(5)
+    async def test_statechart_caller_gets_its_result(self, sm_runner):
+        sm = await sm_runner.start(khazad_dum(StateChart, "on_falling"))
+
+        assert await sm_runner.send(sm, "cross") == "crossed"
+
+    @pytest.mark.timeout(5)
+    async def test_event_sent_by_a_callback_fails_on_the_caller_running_the_loop(self, sm_runner):
+        sm = await sm_runner.start(khazad_dum(StateMachine, "on_falling"))
+
+        with pytest.raises(ValueError, match="on_falling failed"):
+            await sm_runner.send(sm, "cross", awake=False, queued=("retreat", "cross"))
+
+        assert sm.configuration_values == {"bridge"}
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_failure_of_a_cancelled_callers_event_reaches_the_caller_running_the_loop(
+        self,
+    ):
+        sm = gated(khazad_dum(StateMachine, "on_falling"))()
+        holder, (retreat, gives_up, flee) = await cross_with_callers_queued(
+            sm, ("retreat", {}), ("cross", {}), ("flee", {}), awake=False
+        )
+        await cancel_and_wait(gives_up)
+
+        with pytest.raises(ValueError, match="on_falling failed"):
+            await holder
+        assert await retreat is None
+        with pytest.raises(ValueError, match="on_falling failed"):
+            await flee
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_failure_after_the_lazy_initial_activation_reaches_every_caller(self):
+        class Lamp(StateMachine):
+            off = State(initial=True)
+            lit = State(final=True)
+
+            switch = off.to(lit)
+            flicker = Event(off.to.itself(internal=True), internal=True)
+
+            async def on_enter_off(self):
+                self.flicker.put()
+
+            def on_flicker(self):
+                raise ValueError("short circuit")
+
+        sm = Lamp()
+        results = await asyncio.gather(
+            sm.send("switch"), sm.send("switch"), return_exceptions=True
+        )
+
+        assert [str(result) for result in results] == ["short circuit", "short circuit"]
+        assert sm.configuration_values == {"off"}
+
+
+def stalled_road(base=StateMachine):
+    """``go`` and ``stall`` hold the processing lock until cancelled, ``go`` until ``gate``
+    is set first; ``step`` counts the steps taken."""
+
+    class StalledRoad(base):
+        start = State(initial=True)
+        road = State()
+
+        go = start.to(road)
+        stall = start.to.itself(internal=True) | road.to.itself(internal=True)
+        step = start.to.itself(internal=True) | road.to.itself(internal=True)
+        hop = Event(road.to.itself(internal=True), internal=True)
+
+        def __init__(self, *args, **kwargs):
+            self.gate = asyncio.Event()
+            self.stalling = asyncio.Event()
+            self.steps = 0
+            self.hops = 0
+            super().__init__(*args, **kwargs)
+
+        async def on_go(self):
+            self.hop.put()
+            await self.gate.wait()
+            return "went"
+
+        async def on_stall(self):
+            self.stalling.set()
+            await asyncio.Event().wait()
+
+        def on_step(self):
+            self.steps += 1
+            return self.steps
+
+        def on_hop(self):
+            self.hops += 1
+
+    return StalledRoad
+
+
+class TestCancelledLockHolder:
+    """Cancelling the coroutine that runs the processing loop cancels only that caller: a
+    coroutine awaiting a queued event takes the loop over, and the machine stays usable.
+
+    See: https://github.com/fgmacedo/python-statemachine/issues/690
+    """
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_queued_callers_get_their_results(self):
+        sm = stalled_road()()
+        await sm.activate_initial_state()
+        holder = asyncio.ensure_future(sm.send("go"))
+        await asyncio.sleep(0)
+        waiters = await queue_behind(sm, ("step", {}), ("step", {"delay": 50}), ("step", {}))
+
+        await cancel_and_wait(holder)
+
+        assert await asyncio.gather(*waiters) == [1, 3, 2]
+        assert sm.configuration_values == {"start"}
+        assert sm.hops == 0
+        assert not sm._engine._processing.locked()
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_machine_takes_new_events_afterwards(self):
+        sm = stalled_road()()
+        await sm.activate_initial_state()
+        holder = asyncio.ensure_future(sm.send("go"))
+        await asyncio.sleep(0)
+
+        await cancel_and_wait(holder)
+
+        assert not sm._engine._processing.locked()
+        assert sm._engine.internal_queue.is_empty()
+        assert await sm.send("step") == 1
+        assert sm.hops == 0
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_cancelled_while_waiting_for_a_delayed_event(self):
+        sm = stalled_road()()
+        await sm.activate_initial_state()
+        holder = asyncio.ensure_future(sm.send("step", delay=100))
+        await asyncio.sleep(0)
+        (waiter,) = await queue_behind(sm, ("step", {"delay": 50}))
+
+        await cancel_and_wait(holder)
+
+        assert await waiter == 1
+        assert sm.steps == 2
+        assert sm._engine.external_queue.is_empty()
+        assert not sm._engine._processing.locked()
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_caller_of_the_interrupted_event_is_cancelled(self):
+        sm = stalled_road()()
+        await sm.activate_initial_state()
+        holder = asyncio.ensure_future(sm.send("go"))
+        await asyncio.sleep(0)
+        stalled, stepper = await queue_behind(sm, ("stall", {}), ("step", {}))
+        sm.gate.set()
+        await sm.stalling.wait()
+
+        await cancel_and_wait(holder)
+
+        with pytest.raises(asyncio.CancelledError, match="was cancelled while"):
+            await stalled
+        assert await stepper == 1
+        assert sm.configuration_values == {"road"}
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_cancelled_waiter_leaves_its_event_queued(self):
+        sm = stalled_road()()
+        await sm.activate_initial_state()
+        holder = asyncio.ensure_future(sm.send("go"))
+        await asyncio.sleep(0)
+        gives_up, waiter = await queue_behind(sm, ("step", {}), ("step", {}))
+
+        await cancel_and_wait(gives_up)
+        sm.gate.set()
+
+        assert await holder == "went"
+        assert await waiter == 2
+        assert sm.hops == 1
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_cancelled_initial_activation_hands_the_loop_over(self):
+        class SlowStart(StateMachine):
+            booting = State(initial=True)
+            ready = State(final=True)
+
+            boot = booting.to(ready)
+
+            def __init__(self):
+                self.gate = asyncio.Event()
+                super().__init__()
+
+            async def on_enter_booting(self):
+                await self.gate.wait()
+
+        sm = SlowStart()
+        activation = asyncio.ensure_future(sm.activate_initial_state())
+        await asyncio.sleep(0)
+        (waiter,) = await queue_behind(sm, ("boot", {}))
+
+        await cancel_and_wait(activation)
+        sm.gate.set()
+
+        await waiter
+        assert sm.configuration_values == {"ready"}
 
 
 class TestEventQueueRejectFutures:

@@ -165,9 +165,16 @@ model: they are enqueued and processed by the running loop.
 If an exception occurs during processing (with `catch_errors_as_events=False`),
 the exception is routed to the caller whose event raised it. Other callers
 whose events were still pending will also receive the exception, since the
-processing loop clears the queue on failure. An exception raised by the
-internal events or eventless transitions that follow an event goes only to
-the callers still pending: the caller of that event already has its result.
+processing loop clears the queue on failure. A caller is answered once the
+macrostep of its event ends, so an exception raised by the internal events or
+eventless transitions that follow its event reaches it too. When no coroutine
+awaits that event, because a callback sent it or its caller was cancelled, the
+exception goes to the coroutine running the processing loop.
+
+If the coroutine running the processing loop is cancelled, only that coroutine
+stops: a coroutine awaiting a queued event takes the loop over, and returns
+once the queue is empty. The caller of the event being processed when the
+cancellation hit gets `CancelledError`, since its callbacks were interrupted.
 
 
 (syncengine)=
