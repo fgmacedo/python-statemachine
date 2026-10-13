@@ -161,14 +161,15 @@ class Listeners:
         # if the attr is an unbounded method, we'll try to find the bounded method
         # on the self
         if not spec.is_bounded:
+            attr_name = spec.lookup_name
             for listener in self.items:
-                func = getattr(listener.obj, spec.attr_name, None)
+                func = getattr(listener.obj, attr_name, None)
                 # ``getattr`` may return a non-method that happens to share the name
                 # (e.g. a model attribute named like a compiled guard); it is not the
                 # unbounded method we are rebinding, so skip it instead of accessing
                 # ``__func__`` (which would raise on a plain value).
                 if getattr(func, "__func__", None) is spec.func:
-                    yield listener.build_key(spec.attr_name), partial(callable_method, func)
+                    yield listener.build_key(attr_name), partial(callable_method, func)
                     return
 
         yield f"{spec.attr_name}-{id(spec.func)}@None", partial(callable_method, spec.func)

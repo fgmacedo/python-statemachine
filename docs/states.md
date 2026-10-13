@@ -162,6 +162,11 @@ True
 
 ```
 
+Regions run independently, but their class bodies share one namespace. Callbacks attached
+through a decorator, or by passing the function itself, may reuse a name across bodies and each
+runs in its own body. Any other reuse of a name, such as a naming-convention callback, a string
+reference or a plain method, raises `InvalidDefinition` (see {ref}`callback-name-collision`).
+
 ```{seealso}
 See {ref}`done-state-events` for how `done.state` events work with parallel
 states (all regions must reach a final state).

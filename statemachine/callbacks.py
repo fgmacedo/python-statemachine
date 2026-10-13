@@ -8,6 +8,8 @@ from enum import IntFlag
 from enum import auto
 from functools import partial
 from inspect import isawaitable
+from inspect import isfunction
+from typing import Any
 
 from .exceptions import AttrNotFound
 from .i18n import _
@@ -16,6 +18,11 @@ from .utils import ensure_iterable
 
 def allways_true(*args, **kwargs):
     return True
+
+
+def is_unbounded_reference(func: Any) -> bool:
+    """Whether ``func`` is a function that a `CallbackSpec` holds by object."""
+    return isfunction(func) and hasattr(func, "attr_name")
 
 
 class CallbackPriority(IntEnum):
@@ -102,6 +109,10 @@ class CallbackSpec:
             and self.group == CallbackGroup.COND
             and self.reference == SpecReference.NAME
         )
+
+        self.lookup_name: str = self.attr_name
+        """Attribute of the machine holding an unbounded callable. Differs from `attr_name`
+        when nested state bodies share the name and each function is stored apart."""
 
     def __repr__(self):
         return f"{type(self).__name__}({self.func!r}, is_convention={self.is_convention!r})"

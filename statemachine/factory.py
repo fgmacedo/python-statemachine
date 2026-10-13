@@ -5,6 +5,8 @@ from . import registry
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
+from .callbacks import SpecReference
+from .callbacks import is_unbounded_reference
 from .event import Event
 from .event import _expand_event_id
 from .exceptions import InvalidDefinition
@@ -13,10 +15,23 @@ from .graph import iterate_states
 from .graph import iterate_states_and_transitions
 from .graph import states_without_path_to_final_states
 from .i18n import _
+from .spec_parser import names_in_boolean_expr
 from .state import State
 from .states import States
 from .transition import Transition
 from .transition_list import TransitionList
+
+
+def _same_callable(func: Any, other: Any) -> bool:
+    return type(func) is type(other) and func == other
+
+
+def _can_store_apart(existing: Any, owners: list[tuple[State, Any]]) -> bool:
+    """Only callbacks held by object can move to a key of their own: a name is still
+    reachable through ``self.<name>``, so it must not lose a plain method or attribute."""
+    return all(is_unbounded_reference(func) for _, func in owners) and (
+        existing is None or isinstance(existing, Event) or is_unbounded_reference(existing)
+    )
 
 
 class StateMachineMetaclass(type):
@@ -59,7 +74,6 @@ class StateMachineMetaclass(type):
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
         cls._collect_class_listeners(attrs, bases)
-        cls._unpack_builders_callbacks()
         cls._update_event_references()
 
         if not cls.states:
@@ -88,6 +102,7 @@ class StateMachineMetaclass(type):
 
         cls._check()
         cls._setup()
+        cls._unpack_builders_callbacks(attrs)
         cls._expand_docstring()
 
     _STATECHART_RE = re.compile(r"\{statechart:(\w+)\}")
@@ -163,14 +178,96 @@ class StateMachineMetaclass(type):
             if not any(t for t in parent.transitions if t.initial and t.target == state):
                 parent.to(state, initial=True)  # pragma: no cover
 
-    def _unpack_builders_callbacks(cls):
-        callbacks = {}
+    def _unpack_builders_callbacks(cls, attrs: dict[str, Any]):
+        names_resolved_by_name = cls._names_resolved_by_name()
+        relocated: dict[Any, str] = {}
+        for attr_name, owners in cls._nested_callbacks().items():
+            existing = cls.__dict__.get(attr_name)
+            owners = [(s, f) for s, f in owners if not _same_callable(f, existing)]
+            if not owners:
+                continue
+            if existing is None and len(owners) == 1:
+                setattr(cls, attr_name, owners[0][1])
+                continue
+            if attr_name in names_resolved_by_name or not _can_store_apart(existing, owners):
+                cls._raise_callback_collision(attr_name, existing, owners, attrs)
+            for state, func in owners:
+                relocated[func] = f"{state.id}:{attr_name}"
+                setattr(cls, relocated[func], func)
+        own_states = [value for value in attrs.values() if isinstance(value, State)]
+        cls._update_lookup_names(relocated, own_states)
+
+    def _nested_callbacks(cls) -> dict[str, list[tuple[State, Any]]]:
+        """Distinct callables declared under each name, with the state body declaring them."""
+        claims: dict[str, list[tuple[State, Any]]] = {}
         for state in iterate_states(cls.states):
             if state._callbacks:
-                callbacks.update(state._callbacks)
+                for attr_name, func in state._callbacks.items():
+                    owners = claims.setdefault(attr_name, [])
+                    if not any(_same_callable(func, other) for _, other in owners):
+                        owners.append((state, func))
                 state._callbacks = None
-        for key, value in callbacks.items():
-            setattr(cls, key, value)
+        return claims
+
+    def _update_lookup_names(cls, relocated: dict[Any, str], own_states: list[State]):
+        """Inherited states share their specs with the base class, which must keep its own."""
+        if not relocated:
+            return
+        for visited in iterate_states_and_transitions(own_states):
+            for spec in visited._specs:
+                if spec.reference is SpecReference.CALLABLE and spec.func in relocated:
+                    spec.lookup_name = relocated[spec.func]
+
+    def _all_specs(cls):
+        yield cls._specs
+        for visited in iterate_states_and_transitions(cls.states):
+            yield visited._specs
+
+    def _names_resolved_by_name(cls) -> set[str]:
+        names: set[str] = set()
+        for specs in cls._all_specs():
+            for spec in specs:
+                if spec.may_contain_boolean_expression:
+                    names.update(names_in_boolean_expr(spec.attr_name))
+                elif spec.reference is SpecReference.NAME:
+                    names.add(spec.attr_name)
+        return names
+
+    def _raise_callback_collision(
+        cls,
+        attr_name: str,
+        existing: Any,
+        owners: list[tuple[State, Any]],
+        attrs: dict[str, Any],
+    ):
+        class_body_names = set(attrs)
+        class_body_names.update(
+            value.attr_name for value in attrs.values() if getattr(value, "attr_name", None)
+        )
+        state, func = owners[0]
+        if existing is None:
+            conflict = _("is declared in both the '{}' and the '{}' state bodies").format(
+                state.id, owners[1][0].id
+            )
+        elif isinstance(existing, Event):
+            conflict = _("in the '{}' state body clashes with the event '{}'").format(
+                state.id, existing.id
+            )
+        elif attr_name in class_body_names:
+            conflict = _("is declared in both the '{}' state body and the '{}' class body").format(
+                state.id, cls.__name__
+            )
+        else:
+            conflict = _("in the '{}' state body clashes with the '{}' attribute of '{}'").format(
+                state.id, attr_name, cls.__name__
+            )
+        name = func.__name__ if getattr(func, "is_event", False) else attr_name
+        raise InvalidDefinition(
+            _(
+                "Callback '{}' {}. Nested state bodies share the class namespace. "
+                "Rename one of them."
+            ).format(name, conflict)
+        )
 
     def _check(cls):
         has_states = bool(cls.states)

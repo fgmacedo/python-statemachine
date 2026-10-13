@@ -183,6 +183,47 @@ The `donedata` parameter can only be used on states marked as `final=True`:
 ```
 
 
+(callback-name-collision)=
+
+### Callback names across nested state bodies
+
+Callbacks declared inside a `State.Compound` or `State.Parallel` body are attached to the
+statechart class under their own names, so nested bodies share one namespace with each other
+and with the class body. A name reached by name (a naming convention such as
+`on_enter_<state>`, a string reference such as `cond="ready"`, or a plain method called as
+`self.ready()`) declared twice would keep only the last body:
+
+```py
+>>> try:
+...     class Bad(StateChart):
+...         class war(State.Parallel):
+...             class quest(State.Compound):
+...                 start = State(initial=True)
+...                 end = State(final=True)
+...                 go = start.to(end)
+...
+...                 def on_enter_end(self):
+...                     print("quest")
+...
+...             class battle(State.Compound):
+...                 fighting = State(initial=True)
+...                 won = State(final=True)
+...                 go = fighting.to(won)
+...
+...                 def on_enter_end(self):
+...                     print("battle")
+... except InvalidDefinition as e:
+...     print(e)
+Callback 'on_enter_end' is declared in both the 'quest' and the 'battle' state bodies. Nested state bodies share the class namespace. Rename one of them.
+
+```
+
+The same callable assigned under one name in several bodies is not a collision, and a nested
+body may override a method inherited from a base class. A plain method named like an event or
+another attribute of the class is also rejected. Callbacks attached through a decorator, or by
+passing the function itself, may share a name, even with an event: each runs in the body that
+declares it, as long as no naming convention, string reference or plain method uses that name.
+
 ### Invalid listener entries
 
 Entries in the `listeners` class attribute must be classes, callables, or
@@ -280,6 +321,7 @@ Expressions support `and`, `or`, `not`, and parentheses. See
 | Initial transitions have no cond  | Class definition| No                         |
 | `donedata` on final states only   | Class definition| No                         |
 | Invalid listener entries          | Class definition| No                         |
+| Callback names in nested bodies   | Class definition| No                         |
 | Callback resolution               | Instance creation | No                       |
 | Boolean expression parsing        | Instance creation | No                       |
 
