@@ -539,6 +539,299 @@ class TestEventsDroppedAtFinalState:
         assert sm._engine.external_queue.is_empty()
 
 
+FAILING_CALLBACKS = [
+    "balrog_stirs",
+    "before_falling",
+    "on_exit_bridge",
+    "on_falling",
+    "on_enter_abyss",
+    "after_falling",
+]
+
+
+class Balrog:
+    failing: "str | None" = None
+    eventless = False
+
+    def __init__(self, *args, **kwargs):
+        self.flights = 0
+        self.echoes = 0
+        self.balrog_awake = False
+        super().__init__(*args, **kwargs)
+
+    def on_cross(self, awake=True, queued=()):
+        self.balrog_awake = awake
+        if not self.eventless:
+            self.fall.put()
+        self.echo.put()
+        for event in queued:
+            getattr(self, event).put()
+        return "crossed"
+
+    def on_flee(self):
+        self.flights += 1
+        return self.flights
+
+    def on_echo(self):
+        self.echoes += 1
+
+    def balrog_stirs(self):
+        self._maybe_fail("balrog_stirs")
+        return self.balrog_awake
+
+    def _maybe_fail(self, name):
+        if name == self.failing and self.balrog_awake:
+            self.balrog_awake = False
+            raise ValueError(f"{name} failed")
+
+    def validate_falling(self):
+        self._maybe_fail("validate_falling")
+
+    def before_falling(self):
+        self._maybe_fail("before_falling")
+
+    def on_exit_bridge(self):
+        self._maybe_fail("on_exit_bridge")
+
+    def on_falling(self):
+        self._maybe_fail("on_falling")
+
+    def on_enter_abyss(self):
+        self._maybe_fail("on_enter_abyss")
+
+    def after_falling(self):
+        self._maybe_fail("after_falling")
+
+
+def khazad_dum(base, failing=None, eventless=False):
+    """``cross`` takes the bridge and, through an internal event or an eventless transition,
+    the machine falls into the abyss while the balrog is awake, raising from ``failing``."""
+    fall_callbacks = {
+        "cond": "balrog_stirs",
+        "validators": "validate_falling",
+        "before": "before_falling",
+        "on": "on_falling",
+        "after": "after_falling",
+    }
+
+    class KhazadDum(Balrog, base):
+        hall = State(initial=True)
+        bridge = State()
+        abyss = State()
+
+        cross = hall.to(bridge)
+        retreat = bridge.to(hall)
+        if eventless:
+            bridge.to(abyss, **fall_callbacks)
+        else:
+            fall = Event(bridge.to(abyss, **fall_callbacks), internal=True)
+        flee = (
+            hall.to.itself(internal=True)
+            | bridge.to.itself(internal=True)
+            | abyss.to.itself(internal=True)
+        )
+        echo = Event(
+            bridge.to.itself(internal=True) | abyss.to.itself(internal=True), internal=True
+        )
+
+    KhazadDum.failing = failing
+    KhazadDum.eventless = eventless
+    return KhazadDum
+
+
+def gated(cls):
+    """Hold the processing lock when leaving the hall until ``gate`` is set."""
+
+    class Gated(cls):
+        def __init__(self, *args, **kwargs):
+            self.gate = asyncio.Event()
+            super().__init__(*args, **kwargs)
+
+        async def on_exit_hall(self):
+            await self.gate.wait()
+
+    return Gated
+
+
+async def cross_with_callers_queued(sm, *sends, awake=True):
+    await sm.activate_initial_state()
+    holder = asyncio.ensure_future(sm.send("cross", awake=awake))
+    await asyncio.sleep(0)
+    waiters = await queue_behind(sm, *sends)
+    sm.gate.set()
+    return holder, waiters
+
+
+THREE_FLIGHTS: "list[tuple[str, dict]]" = [("flee", {})] * 3
+
+
+class TestMacrostepErrorAnswersQueuedCallers:
+    """An exception escaping the internal events or eventless transitions that follow an
+    external event, like one escaping the event itself, drops the events still queued, and a
+    coroutine awaiting one gets that exception.
+
+    See: https://github.com/fgmacedo/python-statemachine/issues/686
+    """
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    @pytest.mark.parametrize("eventless", [False, True], ids=["internal", "eventless"])
+    @pytest.mark.parametrize("failing", FAILING_CALLBACKS)
+    async def test_statemachine_callers_get_the_exception(self, failing, eventless):
+        sm = gated(khazad_dum(StateMachine, failing, eventless))()
+        holder, waiters = await cross_with_callers_queued(sm, *THREE_FLIGHTS)
+
+        await holder
+        results = await asyncio.gather(*waiters, return_exceptions=True)
+        assert [str(result) for result in results] == [f"{failing} failed"] * 3
+        assert sm.flights == 0
+        assert sm.echoes == 0
+        assert sm._engine.external_queue.is_empty()
+        assert sm._engine.internal_queue.is_empty()
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    @pytest.mark.parametrize("eventless", [False, True], ids=["internal", "eventless"])
+    @pytest.mark.parametrize("failing", FAILING_CALLBACKS)
+    async def test_statechart_callers_get_their_results(self, failing, eventless):
+        sm = gated(khazad_dum(StateChart, failing, eventless))()
+        holder, waiters = await cross_with_callers_queued(sm, *THREE_FLIGHTS)
+
+        assert await holder == "crossed"
+        assert await asyncio.gather(*waiters) == [1, 2, 3]
+        assert sm.echoes == 1
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_machine_takes_new_events_afterwards(self):
+        sm = gated(khazad_dum(StateMachine, "on_falling"))()
+        holder, waiters = await cross_with_callers_queued(sm, *THREE_FLIGHTS)
+        await holder
+        await asyncio.gather(*waiters, return_exceptions=True)
+
+        assert await sm.send("flee") == 1
+        assert sm.configuration_values == {"bridge"}
+        assert sm.echoes == 0
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_delayed_and_cancelled_callers_are_answered(self):
+        sm = gated(khazad_dum(StateMachine, "on_falling"))()
+        holder, (delayed, cancelled, flight) = await cross_with_callers_queued(
+            sm,
+            ("flee", {"delay": 60000}),
+            ("flee", {"delay": 60000, "send_id": "horn"}),
+            ("flee", {}),
+        )
+        sm.cancel_event("horn")
+
+        await holder
+        results = await asyncio.gather(delayed, cancelled, flight, return_exceptions=True)
+        assert [str(result) for result in results] == [
+            "on_falling failed",
+            "None",
+            "on_falling failed",
+        ]
+        assert sm.flights == 0
+        assert sm._engine.external_queue.is_empty()
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_failure_after_a_queued_event_answers_only_the_callers_behind_it(self):
+        sm = gated(khazad_dum(StateMachine, "on_falling"))()
+        holder, waiters = await cross_with_callers_queued(
+            sm, ("flee", {}), ("retreat", {}), ("cross", {}), *THREE_FLIGHTS[:2], awake=False
+        )
+
+        assert await holder == "crossed"
+        results = await asyncio.gather(*waiters, return_exceptions=True)
+        assert results[:3] == [1, None, "crossed"]
+        assert [str(result) for result in results[3:]] == ["on_falling failed"] * 2
+        assert sm.flights == 1
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_statechart_validator_failure_answers_the_callers(self):
+        sm = gated(khazad_dum(StateChart, "validate_falling"))()
+        holder, waiters = await cross_with_callers_queued(sm, *THREE_FLIGHTS)
+
+        await holder
+        results = await asyncio.gather(*waiters, return_exceptions=True)
+        assert [str(result) for result in results] == ["validate_falling failed"] * 3
+        assert sm.flights == 0
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.asyncio()
+    async def test_failed_initial_activation_answers_the_callers(self):
+        class Gate(StateMachine):
+            closed = State(initial=True)
+            opened = State(final=True)
+
+            open = closed.to(opened)
+
+            def __init__(self):
+                self.attempts = 0
+                super().__init__()
+
+            async def on_enter_closed(self):
+                self.attempts += 1
+                if self.attempts == 1:
+                    raise ValueError("stuck")
+
+        sm = Gate()
+        results = await asyncio.gather(sm.send("open"), sm.send("open"), return_exceptions=True)
+
+        assert [str(result) for result in results] == ["stuck", "stuck"]
+        assert sm._engine.external_queue.is_empty()
+        await sm.activate_initial_state()
+        await sm.send("open")
+        assert sm.configuration_values == {"opened"}
+
+    @pytest.mark.timeout(5)
+    async def test_internal_events_raised_before_an_external_failure_are_dropped(self, sm_runner):
+        class Beacon(StateMachine):
+            dark = State(initial=True)
+            lit = State(final=True)
+
+            light = dark.to(lit)
+            ping = Event(dark.to.itself(internal=True), internal=True)
+            wait = dark.to.itself(internal=True)
+
+            def __init__(self, *args, **kwargs):
+                self.pings = 0
+                super().__init__(*args, **kwargs)
+
+            def on_light(self):
+                self.ping.put()
+                raise ValueError("no fuel")
+
+            def on_ping(self):
+                self.pings += 1
+
+        sm = await sm_runner.start(Beacon)
+        with pytest.raises(ValueError, match="no fuel"):
+            await sm_runner.send(sm, "light")
+        await sm_runner.send(sm, "wait")
+
+        assert sm.pings == 0
+        assert sm.configuration_values == {"dark"}
+
+    @pytest.mark.timeout(5)
+    @pytest.mark.parametrize("eventless", [False, True], ids=["internal", "eventless"])
+    @pytest.mark.parametrize("failing", FAILING_CALLBACKS)
+    def test_sync_engine_drops_the_events_queued_behind_the_failure(self, failing, eventless):
+        sm = khazad_dum(StateMachine, failing, eventless)()
+
+        with pytest.raises(ValueError, match=f"{failing} failed"):
+            sm.send("cross", queued=("flee", "flee"))
+
+        assert sm.flights == 0
+        assert sm.echoes == 0
+        assert sm._engine.external_queue.is_empty()
+        assert sm._engine.internal_queue.is_empty()
+        assert sm.send("flee") == 1
+
+
 class TestEventQueueRejectFutures:
     """Unit tests for EventQueue.reject_futures."""
 
