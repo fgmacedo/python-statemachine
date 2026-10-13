@@ -87,7 +87,10 @@ Ready to contribute? Here's how to set up `python-statemachine` for local develo
 
 1. Install dependencies.
    1. [graphviz](https://graphviz.org/download/#linux)
-   1. [uv](https://docs.astral.sh/uv/getting-started/installation/)
+   1. [uv](https://docs.astral.sh/uv/getting-started/installation/) 0.9.17 or newer
+      (older releases ignore the `[tool.uv]` settings in `pyproject.toml` and rewrite `uv.lock`).
+      The project resolves with a 7-day `exclude-newer` cooldown; to take a release younger
+      than that, use uv's `exclude-newer-package` setting.
 
 1. Fork the `python-statemachine` repository on GitHub.
 

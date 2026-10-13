@@ -7,6 +7,8 @@ jobs:
   release-build:
     name: Build release artifacts
     runs-on: ubuntu-latest
+    env:
+      UV_LOCKED: 1
 
     permissions:
       id-token: write
@@ -27,7 +29,7 @@ jobs:
           enable-cache: true
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
 
       - name: Test
         run: |
