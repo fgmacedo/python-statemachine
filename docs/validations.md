@@ -218,11 +218,11 @@ Callback 'on_enter_end' is declared in both the 'quest' and the 'battle' state b
 
 ```
 
-The same callable assigned under one name in several bodies is not a collision. A name
-that an event or another attribute of the class already uses is also rejected. Callbacks
-attached through a decorator, or by passing the function itself, may share a name: each runs in
-the body that declares it, as long as no naming convention, string reference or plain method
-uses that name.
+The same callable assigned under one name in several bodies is not a collision, and a nested
+body may override a method inherited from a base class. A plain method named like an event or
+another attribute of the class is also rejected. Callbacks attached through a decorator, or by
+passing the function itself, may share a name, even with an event: each runs in the body that
+declares it, as long as no naming convention, string reference or plain method uses that name.
 
 ### Invalid listener entries
 

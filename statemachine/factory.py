@@ -15,12 +15,11 @@ from .graph import iterate_states
 from .graph import iterate_states_and_transitions
 from .graph import states_without_path_to_final_states
 from .i18n import _
+from .spec_parser import names_in_boolean_expr
 from .state import State
 from .states import States
 from .transition import Transition
 from .transition_list import TransitionList
-
-_IDENTIFIER_RE = re.compile(r"[A-Za-z_]\w*")
 
 
 def _same_callable(func: Any, other: Any) -> bool:
@@ -183,7 +182,7 @@ class StateMachineMetaclass(type):
         names_resolved_by_name = cls._names_resolved_by_name()
         relocated: dict[Any, str] = {}
         for attr_name, owners in cls._nested_callbacks().items():
-            existing = getattr(cls, attr_name, None)
+            existing = cls.__dict__.get(attr_name)
             owners = [(s, f) for s, f in owners if not _same_callable(f, existing)]
             if not owners:
                 continue
@@ -195,7 +194,8 @@ class StateMachineMetaclass(type):
             for state, func in owners:
                 relocated[func] = f"{state.id}:{attr_name}"
                 setattr(cls, relocated[func], func)
-        cls._update_lookup_names(relocated)
+        own_states = [value for value in attrs.values() if isinstance(value, State)]
+        cls._update_lookup_names(relocated, own_states)
 
     def _nested_callbacks(cls) -> dict[str, list[tuple[State, Any]]]:
         """Distinct callables declared under each name, with the state body declaring them."""
@@ -209,11 +209,12 @@ class StateMachineMetaclass(type):
                 state._callbacks = None
         return claims
 
-    def _update_lookup_names(cls, relocated: dict[Any, str]):
+    def _update_lookup_names(cls, relocated: dict[Any, str], own_states: list[State]):
+        """Inherited states share their specs with the base class, which must keep its own."""
         if not relocated:
             return
-        for specs in cls._all_specs():
-            for spec in specs:
+        for visited in iterate_states_and_transitions(own_states):
+            for spec in visited._specs:
                 if spec.reference is SpecReference.CALLABLE and spec.func in relocated:
                     spec.lookup_name = relocated[spec.func]
 
@@ -226,8 +227,10 @@ class StateMachineMetaclass(type):
         names: set[str] = set()
         for specs in cls._all_specs():
             for spec in specs:
-                if spec.reference is SpecReference.NAME:
-                    names.update(_IDENTIFIER_RE.findall(spec.attr_name))
+                if spec.may_contain_boolean_expression:
+                    names.update(names_in_boolean_expr(spec.attr_name))
+                elif spec.reference is SpecReference.NAME:
+                    names.add(spec.attr_name)
         return names
 
     def _raise_callback_collision(
@@ -246,13 +249,13 @@ class StateMachineMetaclass(type):
             conflict = _("is declared in both the '{}' and the '{}' state bodies").format(
                 state.id, owners[1][0].id
             )
-        elif attr_name in class_body_names:
-            conflict = _("is declared in both the '{}' state body and the '{}' class body").format(
-                state.id, cls.__name__
-            )
         elif isinstance(existing, Event):
             conflict = _("in the '{}' state body clashes with the event '{}'").format(
                 state.id, existing.id
+            )
+        elif attr_name in class_body_names:
+            conflict = _("is declared in both the '{}' state body and the '{}' class body").format(
+                state.id, cls.__name__
             )
         else:
             conflict = _("in the '{}' state body clashes with the '{}' attribute of '{}'").format(

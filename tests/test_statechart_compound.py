@@ -598,24 +598,111 @@ class TestCallbackNameCollision:
             "class body. Nested state bodies share the class namespace. Rename one of them."
         )
 
-    def test_decorated_callback_named_as_an_inherited_method(self):
+    @pytest.mark.parametrize("decorated", [False, True])
+    async def test_nested_callback_overrides_an_inherited_method(self, sm_runner, decorated):
         class Guards:
             def ready(self):
-                return True
+                return "base"
 
-        with pytest.raises(InvalidDefinition, match="clashes with the 'ready' attribute"):
+        class Journey(Guards, StateChart):
+            class shire(State.Compound):
+                bag_end = State(initial=True)
+                green_dragon = State(final=True)
+                visit_pub = bag_end.to(green_dragon)
 
-            class Journey(Guards, StateChart):
-                class shire(State.Compound):
-                    bag_end = State(initial=True)
-                    green_dragon = State()
-                    road = State(final=True)
-                    visit_pub = bag_end.to(green_dragon, cond="ready")
-                    leave = green_dragon.to(road)
+                if decorated:
 
-                    @green_dragon.enter
+                    @bag_end.exit
                     def ready(self):
-                        return False
+                        return "nested"
+
+                else:
+
+                    def ready(self):
+                        return "nested"
+
+        sm = await sm_runner.start(Journey)
+        assert sm.ready() == "nested"
+
+    async def test_subclass_leaves_base_callbacks_untouched(self, sm_runner):
+        log = []
+
+        def arrive(self):
+            log.append(type(self).__name__)
+
+        class Model:
+            pass
+
+        Model.arrive = arrive
+
+        class Base(StateChart):
+            validate_trap_states = False
+            validate_disconnected_states = False
+            idle = State(initial=True, enter=arrive)
+
+        class Sub(Base):  # noqa: F841
+            class extra(State.Compound):
+                start = State(initial=True)
+                on_arrive = arrive
+
+            class other(State.Compound):
+                begin = State(initial=True)
+
+                @begin.enter
+                def arrive(self):
+                    log.append("other")
+
+        await sm_runner.start(Base, model=Model())
+        assert log == ["Model"]
+
+    async def test_string_literal_in_a_guard_does_not_block_storing_apart(self, sm_runner):
+        log = []
+
+        class War(StateChart):
+            mode = "audit"
+
+            class war(State.Parallel):
+                class quest(State.Compound):
+                    start = State(initial=True)
+                    end = State(final=True)
+                    go = start.to(end, cond="mode == 'audit'")
+
+                    @end.enter
+                    def audit(self):
+                        log.append("quest")
+
+                class battle(State.Compound):
+                    fighting = State(initial=True)
+                    won = State(final=True)
+                    go = fighting.to(won)
+
+                    @won.enter
+                    def audit(self):
+                        log.append("battle")
+
+        sm = await sm_runner.start(War)
+        await sm_runner.send(sm, "go")
+        assert sorted(log) == ["battle", "quest"]
+
+    def test_plain_callback_named_as_a_class_body_event(self):
+        with pytest.raises(InvalidDefinition) as exc_info:
+
+            class Gate(StateChart):
+                class gate(State.Compound):
+                    closed = State(initial=True)
+                    opened = State(final=True)
+                    push = closed.to(opened)
+
+                    def kick(self):
+                        return True
+
+                broken = State(final=True)
+                kick = gate.to(broken)
+
+        assert str(exc_info.value) == (
+            "Callback 'kick' in the 'gate' state body clashes with the event 'kick'. "
+            "Nested state bodies share the class namespace. Rename one of them."
+        )
 
     def test_decorated_callback_beside_a_plain_helper_of_the_same_name(self):
         with pytest.raises(InvalidDefinition, match="Callback 'limit' is declared in both"):

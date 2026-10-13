@@ -339,6 +339,15 @@ def parse_boolean_expr(expr, variable_hook, operator_mapping):
     return build_expression(tree.body, variable_hook, operator_mapping)
 
 
+def names_in_boolean_expr(expr: str) -> "set[str]":
+    """Variable names that :func:`parse_boolean_expr` would resolve in ``expr``."""
+    try:
+        tree = ast.parse(replace_operators(expr), mode="eval")
+    except SyntaxError:
+        return set()
+    return {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+
+
 def parse_expr(expr: str, variable_hook: Callable) -> Callable:
     """Parse a value expression into a callable using the restricted AST allowlist.
 
