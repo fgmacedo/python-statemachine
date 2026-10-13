@@ -86,12 +86,35 @@ class TestValueExpressions:
 
 
 class TestArithmeticMagnitudeCaps:
-    """``**`` and ``*`` stay usable but cannot blow up: the denial-of-service forms raise,
-    while ordinary and edge-case arithmetic pass through (GHSA-r8gj-366q-cgvj)."""
+    """``**``, ``*``, ``+`` and ``%`` stay usable but cannot blow up: the denial-of-service
+    forms raise, while ordinary and edge-case arithmetic pass through (GHSA-r8gj-366q-cgvj)."""
 
-    @pytest.mark.parametrize("expr", ["9**9**9", "2**100000", "[0]*20000000", "'a'*20000000"])
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "9**9**9",
+            "2**100000",
+            "[0]*20000000",
+            "'a'*20000000",
+            "3**2048 * 3**2048",
+            "[0]*999999 + [0]*999999",
+            "'a'*999999 + 'a'*999999",
+            "[[0]*1000]*1001",
+            "[[0]*1000]*500 + [[0]*1000]*501",
+            "[('a'*999999,)]*2",
+            "[3**2048]*3000",
+            "{((0,)*1000,)*1000, ((1,)*1000,)*1000}",
+            "{1: [[0]*1000]*600, 2: [[0]*1000]*600}",
+            "[p, p]",
+        ],
+    )
     def test_dos_forms_rejected(self, expr):
         with pytest.raises(ValueError, match="too large"):
+            parse_expr(expr, hook_from({"p": [[0] * 1000] * 600}))()
+
+    @pytest.mark.parametrize("expr", ["'%20000000d' % 0", "b'%d' % 1"])
+    def test_string_formatting_rejected(self, expr):
+        with pytest.raises(ValueError, match="string formatting is not allowed"):
             parse_expr(expr, hook_from({}))()
 
     @pytest.mark.parametrize(
@@ -106,10 +129,29 @@ class TestArithmeticMagnitudeCaps:
             ("[0] * 0", []),  # non-positive count: cap check skipped
             ("'ab' * 2", "abab"),  # small str replication
             ("3 * 4", 12),  # scalar multiply: neither operand a sequence
+            ("2.5 * 2", 5.0),  # float operand: int cap check skipped
+            ("3**2048 * 3", 3**2049),  # int product under the cap
+            ("[1] + [2]", [1, 2]),  # small sequence concatenation
+            ("'a' + 'b'", "ab"),  # small str concatenation
+            ("1 + 2", 3),  # scalar add: neither operand a sequence
+            ("10 % 3", 1),  # numeric modulo
+            ("[[0] * 2] * 2", [[0, 0], [0, 0]]),  # small nested replication
+            ("[[], 1.5, None]", [[], 1.5, None]),  # empty and scalar items
+            ("{1: (2, 'a'), 3: {4: 5}}", {1: (2, "a"), 3: {4: 5}}),  # nested dict
+            ("{(1, 2)}", {(1, 2)}),  # set literal
+            ("[d, d]", [{1: 2}, {1: 2}]),  # shared reference counted per appearance
         ],
     )
     def test_bounded_and_edge_cases_pass(self, expr, expected):
-        assert parse_expr(expr, hook_from({}))() == expected
+        assert parse_expr(expr, hook_from({"d": {1: 2}}))() == expected
+
+    def test_sets_are_measured_by_their_items(self):
+        assert parse_expr("[s, s]", hook_from({"s": frozenset({1, 2})}))() == [
+            frozenset({1, 2}),
+            frozenset({1, 2}),
+        ]
+        with pytest.raises(ValueError, match="too large"):
+            parse_expr("[s, s]", hook_from({"s": set(range(600_000))}))()
 
 
 class TestRejectedExpressions:

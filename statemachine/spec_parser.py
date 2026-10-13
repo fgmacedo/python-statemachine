@@ -204,7 +204,9 @@ def build_unaryop(op_fn, operand: Callable) -> Callable:
 
 def build_collection(factory, item_exprs: "list[Callable]") -> Callable:
     def decorated(*args, **kwargs):
-        return factory(item(*args, **kwargs) for item in item_exprs)
+        items = [item(*args, **kwargs) for item in item_exprs]
+        _check_value_size(items, "collection")
+        return factory(items)
 
     decorated.__name__ = f"{factory.__name__}(...)"
     return decorated
@@ -212,10 +214,12 @@ def build_collection(factory, item_exprs: "list[Callable]") -> Callable:
 
 def build_dict(key_exprs: "list[Callable]", value_exprs: "list[Callable]") -> Callable:
     def decorated(*args, **kwargs):
-        return {
-            key(*args, **kwargs): value(*args, **kwargs)
+        items = [
+            (key(*args, **kwargs), value(*args, **kwargs))
             for key, value in zip(key_exprs, value_exprs, strict=True)
-        }
+        ]
+        _check_value_size(items, "dict")
+        return dict(items)
 
     decorated.__name__ = "dict(...)"
     return decorated
@@ -383,11 +387,51 @@ operator_mapping = {
     ast.NotEq: build_custom_operator(operator.ne),
 }
 
-# Result-size caps for the two operators that can blow up cheaply. Ordinary scalar
-# arithmetic (``x * 2``, ``x ** 2``) is well under these; the caps only reject the
-# denial-of-service forms (``9**9**9`` bignum, ``[0]*20000000`` sequence replication).
+# Result-size caps for the values an expression can build cheaply. Ordinary arithmetic and
+# collections are well under these; the caps only reject the denial-of-service forms (giant
+# bignums, giant or deeply shared sequences and collections).
 _MAX_POW_RESULT_BITS = 4096
-_MAX_SEQUENCE_LEN = 1_000_000
+_MAX_VALUE_SIZE = 1_000_000
+
+_TEXT_TYPES = (str, bytes, bytearray)
+_SEQUENCE_TYPES = (*_TEXT_TYPES, list, tuple)
+_CONTAINER_TYPES = (list, tuple, set, frozenset)
+
+
+def _value_size(value) -> int:
+    """Size of ``value`` counting a shared reference every time it appears.
+
+    ``[[0] * 1000] * 1000`` holds a thousand references to one list, so it is cheap to build,
+    but comparing, hashing or printing it walks a million elements. That walked size is what
+    is measured here, in elements, characters or bytes, memoized by identity so the
+    measurement itself stays cheap.
+    """
+    memo: "dict[int, int]" = {}
+
+    def size(item) -> int:
+        key = id(item)
+        if key in memo:
+            return memo[key]
+        memo[key] = 1
+        if isinstance(item, _TEXT_TYPES):
+            total = len(item)
+        elif isinstance(item, int):
+            total = item.bit_length() // 8
+        elif isinstance(item, dict):
+            total = sum(size(k) + size(v) for k, v in item.items())
+        elif isinstance(item, _CONTAINER_TYPES):
+            total = sum(size(element) for element in item)
+        else:
+            total = 1
+        memo[key] = max(total, 1)
+        return memo[key]
+
+    return size(value)
+
+
+def _check_value_size(value, what: str):
+    if _value_size(value) > _MAX_VALUE_SIZE:
+        raise ValueError(f"{what} is too large for the restricted evaluator")
 
 
 def _guarded_pow(base, exp):
@@ -405,29 +449,52 @@ def _guarded_pow(base, exp):
 
 
 def _guarded_mul(a, b):
-    """``*`` with a sequence-replication cap (GHSA-r8gj-366q-cgvj).
+    """``*`` with a result-size cap (GHSA-r8gj-366q-cgvj).
 
     ``seq * n`` (list/str/bytes/tuple times an int) can allocate an enormous object from a
-    12-character expression (``[0]*20000000``). The resulting length is checked *before*
-    allocating. Scalar numeric multiplication is unaffected.
+    12-character expression (``[0]*20000000``), and repeatedly squaring an ``int`` doubles its
+    size every time. The result size is checked *before* allocating. Other operands (floats)
+    are passed straight through.
     """
+    if isinstance(a, int) and isinstance(b, int):
+        if a.bit_length() + b.bit_length() > _MAX_POW_RESULT_BITS:
+            raise ValueError("'*' result is too large for the restricted evaluator")
     for seq, n in ((a, b), (b, a)):
-        if isinstance(seq, (str, bytes, bytearray, list, tuple)) and isinstance(n, int):
-            if n > 0 and n * len(seq) > _MAX_SEQUENCE_LEN:
+        if isinstance(seq, _SEQUENCE_TYPES) and isinstance(n, int):
+            if n > 0 and n * _value_size(seq) > _MAX_VALUE_SIZE:
                 raise ValueError("'*' repetition is too large for the restricted evaluator")
     return operator.mul(a, b)
 
 
-# ``**`` and ``*`` stay available for ordinary arithmetic but are wrapped so a tiny untrusted
-# expression cannot exhaust CPU/memory (GHSA-r8gj-366q-cgvj). ``trusted=True`` uses the full
-# Python evaluator instead, without these caps.
+def _guarded_add(a, b):
+    """``+`` with a sequence-length cap: repeated ``x + x`` doubles a sequence every time."""
+    sizes = [_value_size(x) for x in (a, b) if isinstance(x, _SEQUENCE_TYPES)]
+    if len(sizes) == 2 and sum(sizes) > _MAX_VALUE_SIZE:
+        raise ValueError("'+' result is too large for the restricted evaluator")
+    return operator.add(a, b)
+
+
+def _guarded_mod(a, b):
+    """``%`` restricted to numbers.
+
+    printf-style formatting (``'%2000000000d' % 0``) allocates whatever field width the
+    expression asks for, so it is rejected on ``str``/``bytes`` operands.
+    """
+    if isinstance(a, _TEXT_TYPES):
+        raise ValueError("'%' string formatting is not allowed by the restricted evaluator")
+    return operator.mod(a, b)
+
+
+# ``**``, ``*``, ``+`` and ``%`` stay available for ordinary arithmetic but are wrapped so a
+# tiny untrusted expression cannot exhaust CPU/memory (GHSA-r8gj-366q-cgvj). ``trusted=True``
+# uses the full Python evaluator instead, without these caps.
 binary_operators = {
-    ast.Add: operator.add,
+    ast.Add: _guarded_add,
     ast.Sub: operator.sub,
     ast.Mult: _guarded_mul,
     ast.Div: operator.truediv,
     ast.FloorDiv: operator.floordiv,
-    ast.Mod: operator.mod,
+    ast.Mod: _guarded_mod,
     ast.Pow: _guarded_pow,
 }
 
