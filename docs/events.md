@@ -71,6 +71,28 @@ human-readable display name, use the `Event` class explicitly:
 
 ```
 
+`Event` also takes a `delay`, in milliseconds, and `internal`. Both apply by default every
+time the event is triggered, and an explicit argument to `send()` overrides either one
+(`delay=0`, `internal=False`). A delayed event waits in the external queue until it is due (see
+{ref}`delayed-events`), and an internal event triggered from a callback runs within the
+current macrostep (see {ref}`processing model`). An event cannot be both delayed and
+internal: declaring it so raises {class}`~statemachine.exceptions.InvalidDefinition`.
+
+```py
+>>> class Lantern(StateChart):
+...     dark = State(initial=True)
+...     lit = State(final=True)
+...
+...     light = Event(dark.to(lit), delay=50)
+
+>>> Lantern.light.delay
+50
+
+```
+
+Each of these forms also declares an event inside a `State.Compound` or `State.Parallel`
+body (see {ref}`compound-states`).
+
 
 (event-identity)=
 
