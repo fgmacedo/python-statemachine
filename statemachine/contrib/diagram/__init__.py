@@ -6,6 +6,7 @@ from urllib.request import urlopen
 from .extract import extract
 from .formatter import formatter as formatter
 from .graphviz import GraphvizError as GraphvizError
+from .graphviz import GraphvizNotFoundError as GraphvizNotFoundError
 from .graphviz import run_graphviz
 
 if TYPE_CHECKING:

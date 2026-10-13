@@ -1,5 +1,6 @@
 """Run the Graphviz ``dot`` program and report its failures."""
 
+import errno
 import subprocess
 
 from statemachine.exceptions import StateMachineError
@@ -11,6 +12,18 @@ class GraphvizError(StateMachineError):
     """Raised when the Graphviz ``dot`` program cannot run or fails to render a graph."""
 
 
+class GraphvizNotFoundError(GraphvizError, FileNotFoundError):
+    """Raised when the Graphviz program is not found in ``PATH``.
+
+    Also a :class:`FileNotFoundError`, so ``except FileNotFoundError`` catches a missing
+    Graphviz.
+    """
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.errno = errno.ENOENT
+
+
 def run_graphviz(dot_source: str, fmt: str, prog: str = "dot") -> bytes:
     """Render ``dot_source`` with Graphviz and return the output bytes.
 
@@ -20,6 +33,7 @@ def run_graphviz(dot_source: str, fmt: str, prog: str = "dot") -> bytes:
         prog: Graphviz layout program to run, looked up on ``PATH``.
 
     Raises:
+        GraphvizNotFoundError: If ``prog`` is not found in ``PATH``.
         GraphvizError: If ``prog`` cannot be run or exits with a non-zero code.
             The message carries what Graphviz wrote to stderr.
     """
@@ -32,7 +46,7 @@ def run_graphviz(dot_source: str, fmt: str, prog: str = "dot") -> bytes:
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except FileNotFoundError as err:
-        raise GraphvizError(
+        raise GraphvizNotFoundError(
             f"{prog!r} not found in PATH. Install Graphviz from {GRAPHVIZ_DOWNLOAD_URL} "
             "to generate diagrams."
         ) from err
