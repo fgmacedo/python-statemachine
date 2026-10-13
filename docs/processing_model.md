@@ -119,8 +119,9 @@ to the external queue, and the call returns its result like `send()`.
 
 A delay cannot be internal, since a macrostep takes no time. Declaring or
 sending an event with both `delay` and `internal=True`, or calling
-`raise_()` with a `delay`, raises {class}`~statemachine.exceptions.InvalidDefinition`.
-Use `send(..., delay=...)` to deliver an event later.
+`raise_()` with a `delay`, given or declared on the event, raises
+{class}`~statemachine.exceptions.InvalidDefinition`. Use `send(..., delay=...)` to deliver an
+event later, and pass `delay=0` to override a declared delay.
 
 ```{seealso}
 See {ref}`sending-events` for examples of `send()` vs `raise_()`.

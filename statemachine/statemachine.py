@@ -465,7 +465,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         self,
         event: str,
         *args,
-        delay: float = 0,
+        delay: "float | None" = None,
         send_id: "str | None" = None,
         internal: "bool | None" = None,
         **kwargs,
@@ -474,7 +474,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
         :param event: The trigger for the state machine, specified as an event id string.
         :param args: Additional positional arguments to pass to the event.
-        :param delay: A time delay in milliseconds to process the event. Default is 0.
+        :param delay: A time delay in milliseconds to process the event. Defaults to the
+            event's declaration, or 0. An explicit ``0`` overrides a declared delay.
         :param send_id: An identifier for the event, used with ``cancel_event()`` to cancel
             delayed events.
         :param internal: Put the event on the internal queue, so it runs within the current
@@ -489,9 +490,8 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         """
         know_event = getattr(self, event, None)
         event_name = know_event.name if know_event else event
-        delay = (
-            delay if delay else know_event and know_event.delay or 0
-        )  # first the param, then the event, or 0
+        if delay is None:
+            delay = cast(float, know_event.delay if know_event else 0)
         if internal is None:
             internal = bool(know_event and know_event.internal)
         event_instance = BoundEvent(
@@ -503,7 +503,12 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         return run_async_from_sync(result)
 
     def raise_(
-        self, event: str, *args, delay: float = 0, send_id: "str | None" = None, **kwargs
+        self,
+        event: str,
+        *args,
+        delay: "float | None" = None,
+        send_id: "str | None" = None,
+        **kwargs,
     ) -> Any:
         """Send an :ref:`Event` to the state machine in the internal event queue.
 
@@ -511,7 +516,9 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
         macrostep, before any pending external events. This is equivalent to calling
         ``send(..., internal=True)``: called from outside a callback, there is no macrostep
         to join, so the event goes to the external queue and its result is returned. A
-        ``delay`` other than 0 is an :class:`~statemachine.exceptions.InvalidDefinition`.
+        ``delay`` other than 0, given or declared on the event, is an
+        :class:`~statemachine.exceptions.InvalidDefinition`; pass ``delay=0`` to override a
+        declared one.
 
         .. seealso::
 

@@ -86,7 +86,7 @@ addopts = [
     "--benchmark-group-by=name",
     "--pdbcls=pdbr:RichPdb",
 ]
-doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL"
+doctest_optionflags = "ELLIPSIS IGNORE_EXCEPTION_DETAIL NORMALIZE_WHITESPACE"
 asyncio_mode = "auto"
 markers = [
     """slow: marks tests as slow (deselect with '-m "not slow"')""",

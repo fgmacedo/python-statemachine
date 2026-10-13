@@ -95,17 +95,19 @@ class NestedStateFactory(type):
                 for event_id in _expand_event_id(key):
                     value.add_event(event_id)
             elif isinstance(value, Event):
+                event_ids = [value.id] if value._has_real_id else _expand_event_id(key)
+                events = [
+                    Event(
+                        id=event_id,
+                        name=value.name,
+                        delay=value.delay,
+                        internal=value.internal,
+                    )
+                    for event_id in event_ids
+                ]
                 if value._transitions is not None:
-                    event_ids = [value.id] if value._has_real_id else _expand_event_id(key)
-                    for event_id in event_ids:
-                        value._transitions.add_event(
-                            Event(
-                                id=event_id,
-                                name=value.name,
-                                delay=value.delay,
-                                internal=value.internal,
-                            )
-                        )
+                    for event in events:
+                        value._transitions.add_event(event)
             elif getattr(value, "attr_name", None):
                 if value.is_event:
                     for event_id in _expand_event_id(key):
