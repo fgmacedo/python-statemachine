@@ -92,21 +92,24 @@ class NestedStateFactory(type):
                 value._set_id(key)
                 states.append(value)
             elif isinstance(value, TransitionList):
-                value.add_event(_expand_event_id(key))
+                for event_id in _expand_event_id(key):
+                    value.add_event(event_id)
             elif isinstance(value, Event):
                 if value._transitions is not None:
-                    event_id = value.id if value._has_real_id else _expand_event_id(key)
-                    value._transitions.add_event(
-                        Event(
-                            id=event_id,
-                            name=value.name,
-                            delay=value.delay,
-                            internal=value.internal,
+                    event_ids = [value.id] if value._has_real_id else _expand_event_id(key)
+                    for event_id in event_ids:
+                        value._transitions.add_event(
+                            Event(
+                                id=event_id,
+                                name=value.name,
+                                delay=value.delay,
+                                internal=value.internal,
+                            )
                         )
-                    )
             elif getattr(value, "attr_name", None):
                 if value.is_event:
-                    value._transitions.add_event(key)
+                    for event_id in _expand_event_id(key):
+                        value._transitions.add_event(event_id)
                 callbacks[value.attr_name] = value
             elif callable(value):
                 callbacks[key] = value
@@ -439,13 +442,24 @@ class AnyState(State):
     until the state machine class is evaluated.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._copies: dict[tuple[int, int], Transition] = {}
+        """Transition copied onto each state, keyed by ``(id(transition), id(state))``, so an
+        attribute that declares several ids adds them all to one copy."""
+
     def _on_event_defined(self, event: str, transition: Transition, states: list[State]):
         for state in states:
             if state.final:
                 continue
-            new_transition = transition._copy_with_args(source=state, event=event)
-
-            state.transitions.add_transitions(new_transition)
+            key = (id(transition), id(state))
+            copy = self._copies.get(key)
+            if copy is None:
+                copy = transition._copy_with_args(source=state, event=event)
+                self._copies[key] = copy
+                state.transitions.add_transitions(copy)
+            else:
+                copy.add_event(event)
 
 
 class HistoryType(str, Enum):

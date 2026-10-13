@@ -293,7 +293,8 @@ fine-grained control over event routing within a composite transition group.
 
 The engine generates certain events automatically in response to structural
 changes. You don't send these yourself — you define transitions that react
-to them.
+to them. The same applies to `error.execution`; see {ref}`platform-events` for
+what happens when user code sends one of these events anyway.
 
 
 ### `done.state` events
@@ -428,17 +429,53 @@ patterns, `after` as a finalize hook, and nested error scenarios.
 
 SCXML uses dot-separated event names (`done.state.quest`, `error.execution`),
 but Python identifiers cannot contain dots. The library provides prefix-based
-naming conventions that automatically register both forms:
+naming conventions that automatically register both forms, each as an event of
+its own, whichever declaration form you use (assignment, `Event(...)` or the
+`@source.to(target)` decorator): both are listed by `events`, `allowed_events`
+and `enabled_events()`, both can be sent by id, and the attribute name is also
+callable as a method:
+
+```py
+>>> class ErrorLogger(StateChart):
+...     running = State(initial=True)
+...     failed = State(final=True)
+...
+...     process = running.to(running, on="do_process")
+...     error_execution = running.to(failed, on="log_error")
+...
+...     def do_process(self):
+...         raise ValueError("bad data")
+...
+...     def log_error(self, error):
+...         self.last_error = error
+
+>>> [event.id for event in ErrorLogger.events]
+['process', 'error_execution', 'error.execution']
+
+>>> sm = ErrorLogger()
+>>> [event.id for event in sm.enabled_events()]
+['process', 'error_execution', 'error.execution']
+
+>>> sm.send("process")
+>>> sm.last_error
+ValueError('bad data')
+
+>>> sm = ErrorLogger()
+>>> sm.error_execution(error=RuntimeError("sent by hand"))
+>>> sm.last_error
+RuntimeError('sent by hand')
+
+```
 
 (done-state-convention)=
 
 ### `done_state_` prefix
 
-Any event attribute starting with `done_state_` matches both the underscore
+Any event attribute starting with `done_state_` registers both the underscore
 form and the dot-notation form. Only the prefix is replaced — the suffix is
 kept as-is, preserving multi-word state names:
 
-| Attribute name                | Matches event names |
+| Attribute name                | Registers event ids |
 |-------------------------------|---------------------|
 | `done_state_quest`            | `"done_state_quest"` and `"done.state.quest"` |
 | `done_state_lonely_mountain`  | `"done_state_lonely_mountain"` and `"done.state.lonely_mountain"` |
@@ -446,11 +483,11 @@ kept as-is, preserving multi-word state names:
 
 ### `error_` prefix
 
-Any event attribute starting with `error_` matches both the underscore form
+Any event attribute starting with `error_` registers both the underscore form
 and the dot-notation form. Unlike `done_state_`, **all** underscores after
 the prefix are replaced with dots:
 
-| Attribute name       | Matches event names |
+| Attribute name       | Registers event ids |
 |----------------------|---------------------|
 | `error_execution`    | `"error_execution"` and `"error.execution"` |
 

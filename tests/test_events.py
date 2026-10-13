@@ -253,6 +253,30 @@ class TestExplicitEvent:
         assert sm.send("cycle") == "Running cycle from yellow to red"
         assert sm.send("cycle") == "Running cycle from red to green"
 
+    def test_placeholder_bound_to_several_names_declares_each_as_an_id(self):
+        class TrafficLightMachine(StateChart):
+            green = State(initial=True)
+            yellow = State(final=True)
+
+            cycle = Event()
+            slowdown = cycle
+            green.to(yellow, event=cycle)
+
+        assert [event.id for event in TrafficLightMachine.events] == ["cycle", "slowdown"]
+        assert [str(t.events) for t in TrafficLightMachine.green.transitions] == ["cycle slowdown"]
+
+    def test_wildcard_transition_coexists_with_an_event_attribute(self):
+        class TrafficLightMachine(StateChart):
+            green = State(initial=True)
+            yellow = State()
+            red = State(final=True)
+
+            cycle = Event(green.to(yellow), name="Loop")
+            yellow.to(red, event="*")
+
+        assert [str(t.events) for t in TrafficLightMachine.yellow.transitions] == ["*"]
+        assert {event.id for event in TrafficLightMachine.events} == {"cycle", "*"}
+
     def test_allow_registering_callbacks_using_decorator(self):
         class TrafficLightMachine(StateChart):
             "A traffic light machine"

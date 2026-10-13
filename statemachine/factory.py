@@ -51,7 +51,7 @@ class StateMachineMetaclass(type):
         cls._abstract = True
         cls._events: dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
-        cls._events_to_update: dict[Event, Event | None] = {}
+        cls._events_to_update: dict[Event, list[Event]] = {}
         cls._specs = CallbackSpecList()
         cls.prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
             "prepare_event", priority=CallbackPriority.GENERIC, is_convention=True
@@ -168,7 +168,7 @@ class StateMachineMetaclass(type):
         for state in iterate_states(cls.states):
             if state._callbacks:
                 callbacks.update(state._callbacks)
-                del state._callbacks
+                state._callbacks = None
         for key, value in callbacks.items():
             setattr(cls, key, value)
 
@@ -305,23 +305,21 @@ class StateMachineMetaclass(type):
             if isinstance(value, State):
                 cls.add_state(key, value)
             elif isinstance(value, (Transition, TransitionList)):
-                event_id = _expand_event_id(key)
-                cls.add_event(event=Event(transitions=value, id=event_id))
+                for event_id in _expand_event_id(key):
+                    cls.add_event(event=Event(transitions=value, id=event_id))
             elif isinstance(value, (Event,)):
-                if value._has_real_id:
-                    event_id = value.id
-                else:
-                    event_id = _expand_event_id(key)
-                new_event = Event(
-                    transitions=value._transitions,
-                    id=event_id,
-                    name=value.name,
-                    delay=value.delay,
-                    internal=value.internal,
-                )
-                cls.add_event(event=new_event, old_event=value)
+                event_ids = [value.id] if value._has_real_id else _expand_event_id(key)
+                for event_id in event_ids:
+                    new_event = Event(
+                        transitions=value._transitions,
+                        id=event_id,
+                        name=value.name,
+                        delay=value.delay,
+                        internal=value.internal,
+                    )
+                    cls.add_event(event=new_event, old_event=value)
                 # Ensure the event is accessible by the Python attribute name
-                if event_id != key:
+                if key not in event_ids:
                     setattr(cls, key, new_event)
             elif getattr(value, "attr_name", None):
                 cls._add_unbounded_callback(key, value)
@@ -336,7 +334,8 @@ class StateMachineMetaclass(type):
         # machinery that is stored at ``func.attr_name``
         setattr(cls, func.attr_name, func)
         if func.is_event:
-            cls.add_event(event=Event(func._transitions, id=attr_name))
+            for event_id in _expand_event_id(attr_name):
+                cls.add_event(event=Event(func._transitions, id=event_id))
 
     def add_state(cls, id, state: State):
         state._set_id(id)
@@ -359,8 +358,7 @@ class StateMachineMetaclass(type):
         old_event: "Event | None" = None,
     ):
         if not event._has_real_id:
-            if event not in cls._events_to_update:
-                cls._events_to_update[event] = None
+            cls._events_to_update.setdefault(event, [])
             return
 
         transitions = event._transitions
@@ -372,20 +370,20 @@ class StateMachineMetaclass(type):
             setattr(cls, event.id, event)
 
         if old_event is not None:
-            cls._events_to_update[old_event] = event
+            cls._events_to_update.setdefault(old_event, []).append(event)
 
         return cls._events[event]
 
     def _update_event_references(cls):
-        for old_event, new_event in cls._events_to_update.items():
+        for old_event, new_events in cls._events_to_update.items():
             for state in cls.states:
                 for transition in state.transitions:
-                    if transition._events.match(old_event):
-                        if new_event is None:
+                    if old_event in transition._events:
+                        if not new_events:
                             raise InvalidDefinition(
                                 _("An event in the '{}' has no id.").format(transition)
                             )
-                        transition.events._replace(old_event, new_event)
+                        transition.events._replace(old_event, new_events)
 
         cls._events_to_update = {}
 
