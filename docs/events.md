@@ -293,7 +293,8 @@ fine-grained control over event routing within a composite transition group.
 
 The engine generates certain events automatically in response to structural
 changes. You don't send these yourself — you define transitions that react
-to them.
+to them. The same applies to `error.execution`; see {ref}`platform-events` for
+what happens when user code sends one of these events anyway.
 
 
 ### `done.state` events

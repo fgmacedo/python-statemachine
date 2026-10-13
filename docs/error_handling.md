@@ -125,6 +125,8 @@ of callbacks on the `error.execution` transition. Use
 ```
 
 
+(error-in-error-handler)=
+
 ### Error in error handler
 
 If the `error.execution` handler itself raises, the engine **ignores** the
@@ -140,6 +142,97 @@ handler's own action raises (e.g., a self-transition
 Entry/exit blocks still use block-level catching regardless of the
 current event.
 ```
+
+
+(platform-events)=
+
+## Platform events are not meant to be sent by user code
+
+`error.execution` is a **platform event**: the engine raises it after catching
+an error, and that is the only way it is meant to occur. The same holds for
+the other events the engine generates, such as `done.state.<id>` and
+`done.invoke.<id>`, described in {ref}`done-state-events`. SCXML defines these
+names for events the processor generates and gives them no external
+counterpart, so a `send("error.execution")` coming from user code has no
+meaning in the specification.
+
+The library does not enforce this. It makes no distinction between platform
+events and user events, so a transition declared for `error.execution` is
+listed by `allowed_events` and `enabled_events()` like any other, and `send()`
+accepts it:
+
+```py
+>>> from statemachine import Event, State, StateChart
+
+>>> class Reporter(StateChart):
+...     running = State(initial=True)
+...     failed = State(final=True)
+...
+...     process = running.to(running, on="do_process")
+...     error_execution = Event(running.to(failed, on="log_error"), id="error.execution")
+...
+...     def do_process(self):
+...         raise ValueError("bad data")
+...
+...     def log_error(self, error):
+...         self.last_error = error
+
+>>> sm = Reporter()
+>>> [e.id for e in sm.allowed_events]
+['process', 'error.execution']
+>>> [e.id for e in sm.enabled_events()]
+['process', 'error.execution']
+
+```
+
+Sending it yourself bypasses the error-handling contract. A bare
+`send("error.execution")` carries no exception, so a handler that asks for
+`error` fails. With `catch_errors_as_events` enabled, the `StateChart`
+default, that failure is discarded with a logged warning, the same guard
+described in {ref}`error-in-error-handler`, and the configuration is
+unchanged (exit actions that ran before the failure are not undone, and
+`after` callbacks do not run). With `catch_errors_as_events=False` the
+failure propagates to the caller instead:
+
+```py
+>>> sm.send("error.execution")
+>>> "running" in sm.configuration_values
+True
+>>> hasattr(sm, "last_error")
+False
+
+```
+
+Nothing stops user code from supplying the argument either. A
+`send("error.execution", error=exc)` runs the handler with `exc` and completes
+the transition, although no action failed. Raised by the engine, the same
+transition receives the real exception:
+
+```py
+>>> sm.send("process")
+>>> "failed" in sm.configuration_values
+True
+>>> str(sm.last_error)
+'bad data'
+
+```
+
+Treat these events as the engine's: declare transitions that react to them,
+and skip them when you offer the events from `allowed_events` or
+`enabled_events()` to the outside, for example in a UI or an API. The ids
+the engine generates share the `error.` and `done.` prefixes, and a transition
+declared with the `error_`, `done_state_` or `done_invoke_` convention also
+answers to the underscore spelling, so filter both:
+
+```py
+>>> sm = Reporter()
+>>> [e.id for e in sm.allowed_events if not e.id.startswith(("error", "done"))]
+['process']
+
+```
+
+To trigger a failure path from user code, raise the exception inside an
+action, or declare a regular event of your own.
 
 
 (error-handling-cleanup-finalize)=
