@@ -115,12 +115,15 @@ action failure.
 
 ## Arithmetic is magnitude-bounded
 
-The restricted evaluator allows arithmetic, but `**` and `*` are capped so that a tiny
-expression cannot exhaust CPU or memory: an exponentiation whose result would be enormous
-(`9 ** 9 ** 9`, a ~370-million-digit number) and a sequence replication that would allocate a
-huge object (`[0] * 20000000`) are both rejected before they run. Ordinary scalar arithmetic
-(`x * 2`, `x ** 2`) is unaffected. Under `trusted=True` the full Python evaluator is used, so
-these caps do not apply.
+The restricted evaluator allows arithmetic, but caps the operators that can build a huge object
+from a tiny expression, so it cannot exhaust CPU or memory. An exponentiation or an integer
+product whose result would be enormous (`9 ** 9 ** 9`, a ~370-million-digit number), a
+sequence replication or concatenation that would allocate a huge object (`[0] * 20000000`), a
+list, tuple, set or dict whose nested items add up to a huge value (`[[0] * 1000] * 2000`,
+cheap to build but slow to compare, hash or print), and `%` string formatting, whose field
+width sizes the result (`'%20000000d' % 0`), are rejected before they run. Ordinary arithmetic
+and collections (`x * 2`, `x ** 2`, `x + 1`, `x % 2`, `[a, b]`) are unaffected. Under
+`trusted=True` the full Python evaluator is used, so these caps do not apply.
 
 ## External resource references (`src`)
 
