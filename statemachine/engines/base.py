@@ -651,7 +651,9 @@ class BaseEngine:
 
             initial_transition = initial_transitions.get(target.id)
             if initial_transition is not None:
-                result += self.sm._callbacks.call(initial_transition.on.key, *args, **kwargs)
+                result += self.sm._callbacks.call(
+                    initial_transition.on.key, *args, on_error=on_error_transition, **kwargs
+                )
 
             # Handle default history states
             default_history_transitions = [

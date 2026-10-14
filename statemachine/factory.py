@@ -153,17 +153,21 @@ class StateMachineMetaclass(type):
             if s.initial:
                 initials.append(s)
 
+        if parent and not parent.parallel:
+            explicit_initials = [t for t in parent.transitions if t.initial]
+            if len(explicit_initials) > 1:
+                raise InvalidDefinition(
+                    _("State '{0}' has more than one initial transition.").format(parent.id)
+                )
+            if explicit_initials:
+                return
+
         if not initials and states:
             initial = states[0]
             initial._initial = True
             initials.append(initial)
 
         if not parent:
-            return
-
-        # If parent already has a multi-target initial transition (e.g., from SCXML initial
-        # attribute targeting multiple parallel regions), don't create default initial transitions.
-        if any(t for t in parent.transitions if t.initial and len(t.targets) > 1):
             return
 
         for initial in initials:

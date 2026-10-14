@@ -62,3 +62,36 @@ class TestNativeBehavior:
         sm = await sm_runner.start(load(doc, format="yaml"))
         await sm_runner.send(sm, "go")
         assert "high" in sm.configuration_values
+
+    async def test_explicit_initial_transition_to_descendant_runs_its_effect(self, sm_runner):
+        doc = """
+        datamodel:
+          - {id: trace, expr: "''"}
+        states:
+          d:
+            enter:
+              - assign: {location: trace, expr: "trace + 'enter_d;'"}
+            transitions:
+              - target: d212
+                initial: true
+                on:
+                  - assign: {location: trace, expr: "trace + 'effect;'"}
+            states:
+              d1: {}
+              d2:
+                enter:
+                  - assign: {location: trace, expr: "trace + 'enter_d2;'"}
+                states:
+                  d21:
+                    states:
+                      d211: {initial: true}
+                      d212:
+                        enter:
+                          - assign: {location: trace, expr: "trace + 'enter_d212;'"}
+        """
+        chart = load(doc, format="yaml", validate=True)
+        sm = await sm_runner.start(chart)
+
+        assert [t.target.id for t in chart.d.transitions if t.initial] == ["d212"]
+        assert set(sm.configuration_values) == {"d", "d2", "d21", "d212"}
+        assert sm.model.trace == "enter_d;effect;enter_d2;enter_d212;"
