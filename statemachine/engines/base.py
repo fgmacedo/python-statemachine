@@ -350,8 +350,8 @@ class BaseEngine:
         elif (
             transition.internal
             and transition.is_self
-            and transition.target
-            and transition.target.is_atomic
+            and len(transition.targets) == 1
+            and transition.source.is_atomic
         ):
             return transition.source
         else:

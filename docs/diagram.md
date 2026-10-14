@@ -701,7 +701,7 @@ A transition from a state back to itself.
 
 ### Internal transitions
 
-Internal transitions run their actions without exiting the source state. See {ref}`internal transition`.
+An internal transition declared with `internal=True`. See {ref}`internal transition` for the states it exits and enters.
 
 ```{literalinclude} ../tests/machines/showcase_internal.py
 :pyobject: InternalSC

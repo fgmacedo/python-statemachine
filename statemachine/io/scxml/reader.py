@@ -198,8 +198,9 @@ def parse_state(  # noqa: C901
         state.onexit.append(content)
 
     # Parse transitions
+    is_atomic = not any(child.tag in ("state", "parallel", "final") for child in state_elem)
     for trans_elem in state_elem.findall("transition"):
-        transition = parse_transition(trans_elem)
+        transition = parse_transition(trans_elem, atomic_source=is_atomic)
         state.transitions.append(transition)
 
     # Parse child states — handle initial attribute and <initial> element
@@ -265,12 +266,16 @@ def parse_donedata(element: ET.Element) -> DoneData:
     return DoneData(params=params, content_expr=content_expr)
 
 
-def parse_transition(trans_elem: ET.Element, initial: bool = False) -> Transition:
+def parse_transition(
+    trans_elem: ET.Element, initial: bool = False, atomic_source: bool = False
+) -> Transition:
+    """Parse a ``<transition>``; ``type="internal"`` is ignored on an atomic source, which
+    SCXML treats as external."""
     target = trans_elem.get("target")
 
     event = trans_elem.get("event")
     cond = trans_elem.get("cond")
-    internal = trans_elem.get("type") == "internal"
+    internal = trans_elem.get("type") == "internal" and not atomic_source
 
     executable_content = parse_executable_content(trans_elem)
 

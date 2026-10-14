@@ -6,7 +6,10 @@ that targets itself is exited and re-entered, as SCXML mandates. The outcome is 
 ``StateChart`` and ``StateMachine``.
 """
 
+import json
+
 import pytest
+from statemachine.io import load
 
 from statemachine import HistoryState
 from statemachine import State
@@ -235,3 +238,47 @@ class TestInternalTransitions:
 
         assert recorder.log == ["exit second", "effect resume", "enter second"]
         assert sm.configuration_values == {"steps", "second"}
+
+
+def test_multi_target_internal_from_an_atomic_source_is_external():
+    sm = load(
+        json.dumps(
+            {
+                "name": "Beacons",
+                "states": {
+                    "beacons": {
+                        "parallel": True,
+                        "initial": True,
+                        "states": {
+                            "east": {
+                                "states": {
+                                    "east_dark": {
+                                        "initial": True,
+                                        "transitions": [
+                                            {
+                                                "event": "light",
+                                                "target": "east_dark west_lit",
+                                                "internal": True,
+                                            }
+                                        ],
+                                    }
+                                }
+                            },
+                            "west": {
+                                "states": {
+                                    "west_dark": {"initial": True},
+                                    "west_lit": {},
+                                }
+                            },
+                        },
+                    }
+                },
+            }
+        ),
+        format="json",
+        validate=True,
+    )()
+
+    sm.send("light")
+
+    assert sm.configuration_values == {"beacons", "east", "east_dark", "west", "west_lit"}

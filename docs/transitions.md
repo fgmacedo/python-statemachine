@@ -47,7 +47,7 @@ True
 | `unless` | Negative guard — transition fires when this returns `False`. |
 | `validators` | Validation callback(s) that raise on failure. |
 | `event` | Override the event for this transition. See {ref}`event-parameter`. |
-| `internal` | If `True`, the source state is not exited. See {ref}`internal transition`. |
+| `internal` | If `True`, an atomic self-transition skips exit/entry, and a compound source targeting a descendant stays active. See {ref}`internal transition`. |
 
 
 ### Combining transitions with `|`
@@ -216,8 +216,9 @@ re-enters the state, running all exit and entry actions:
 (internal transition)=
 (internal-transition)=
 
-An **internal transition** does not exit its source state. Use `internal=True`
-on a transition whose target is the source itself or one of its descendants.
+An **internal transition** is declared with `internal=True` on a transition
+whose target is the source itself or one of its descendants. What it skips
+depends on the kind of source state.
 
 On an atomic state that targets itself, nothing is exited or entered: only the
 `on` callback executes:
@@ -291,7 +292,8 @@ enter escalated
 
 A compound or parallel state that targets itself with `internal=True` is
 still exited and re-entered, as the SCXML specification requires: its children
-restart from their initial states. To run an action on a compound state without
+restart from their initial states. A parallel source is also exited and
+re-entered when it targets one of its descendants. To run an action on a compound state without
 leaving it, declare a **targetless** transition, `to(None)`:
 
 ```py
@@ -323,6 +325,13 @@ leaving it, declare a **targetless** transition, `to(None)`:
 >>> sorted(sm.configuration_values)
 ['new', 'open']
 
+```
+
+
+```{note}
+In an SCXML document, `type="internal"` keeps its SCXML meaning: on an atomic
+source the transition is external, so a self-transition there runs `onexit` and
+`onentry`.
 ```
 
 
