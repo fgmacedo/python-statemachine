@@ -8,6 +8,7 @@ that targets itself is exited and re-entered, as SCXML mandates. The outcome is 
 
 import pytest
 
+from statemachine import HistoryState
 from statemachine import State
 from statemachine import StateChart
 from statemachine import StateMachine
@@ -91,6 +92,46 @@ def parallel_machine(base):
         finish = booking.to(done)
 
     return Trip
+
+
+def nested_atomic_machine(base):
+    class Console(base):
+        class session(State.Parallel):
+            class editor(State.Compound):
+                clean = State(initial=True)
+                dirty = State()
+
+                edit = clean.to(dirty)
+                type_key = dirty.to.itself(internal=True, on="effect")
+
+            class status(State.Compound):
+                ready = State(initial=True)
+
+        closed = State(final=True)
+
+        quit = session.to(closed)
+
+    return Console
+
+
+def history_machine(base):
+    class Wizard(base):
+        class steps(State.Compound):
+            first = State(initial=True)
+            second = State()
+            h = HistoryState()
+
+            advance = first.to(second)
+
+        paused = State()
+        done = State(final=True)
+
+        resume = steps.to(steps.h, internal=True, on="effect")
+        pause = steps.to(paused)
+        unpause = paused.to(steps.h)
+        finish = steps.to(done) | paused.to(done)
+
+    return Wizard
 
 
 @pytest.mark.timeout(5)
@@ -178,3 +219,19 @@ class TestInternalTransitions:
             "hotel",
             "browsing",
         }
+
+    async def test_nested_atomic_self_leaves_ancestors_untouched(self, sm_runner, base):
+        sm, recorder = await start(sm_runner, nested_atomic_machine(base), "edit")
+
+        await sm_runner.send(sm, "type_key")
+
+        assert recorder.log == ["effect type_key"]
+        assert sm.configuration_values == {"session", "editor", "dirty", "status", "ready"}
+
+    async def test_local_transition_to_recorded_history_keeps_source_active(self, sm_runner, base):
+        sm, recorder = await start(sm_runner, history_machine(base), "advance", "pause", "unpause")
+
+        await sm_runner.send(sm, "resume")
+
+        assert recorder.log == ["exit second", "effect resume", "enter second"]
+        assert sm.configuration_values == {"steps", "second"}

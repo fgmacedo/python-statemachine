@@ -690,15 +690,17 @@ class BaseEngine:
             default_history_content: A dictionary to hold temporary content for history states.
         """
         for transition in transitions:
+            # Determine the ancestor state (transition domain)
+            ancestor = self.get_transition_domain(transition)
+            if ancestor is not None and ancestor in transition.targets:
+                continue
+
             # Process each target state of the transition
             for target_state in transition.targets:
                 info = StateTransition(transition=transition, state=target_state)
                 self.add_descendant_states_to_enter(
                     info, states_to_enter, states_for_default_entry, default_history_content
                 )
-
-            # Determine the ancestor state (transition domain)
-            ancestor = self.get_transition_domain(transition)
 
             # Add ancestor states to enter for each effective target state
             for effective_target in self.get_effective_target_states(transition):
@@ -741,8 +743,7 @@ class BaseEngine:
             return
 
         # Add the state to the entry set
-        if not self._remains_active(info):
-            states_to_enter.add(info)
+        states_to_enter.add(info)
         state = info.state
 
         if state.parallel:
@@ -753,14 +754,6 @@ class BaseEngine:
             self._add_initial_states_to_enter(
                 info, states_to_enter, states_for_default_entry, default_history_content
             )
-
-    def _remains_active(self, info: StateTransition) -> bool:
-        """Whether ``info.state`` is the domain of its internal transition.
-
-        The domain is never exited, so taking the transition must not enter it again.
-        """
-        transition = info.transition
-        return transition.internal and info.state is self.get_transition_domain(transition)
 
     def _add_history_states_to_enter(
         self,
