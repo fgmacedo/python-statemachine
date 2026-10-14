@@ -1,0 +1,6 @@
+# Hand-written overlay, applied by convert.py. Keys under `behaviors` are XMI element ids.
+behaviors:
+  # T3 effect: increments `count`, then traces.
+  _osIrMK0VEeSpztZJiSDinw:
+  - assign: {location: count, expr: count + 1}
+  - trace: T3

@@ -1,0 +1,15 @@
+# Hand-written overlay, applied by convert.py. Keys under `behaviors` are XMI element ids.
+behaviors:
+  # S1 doActivity: sends Continue to the machine itself.
+  _Fn6OAOJvEeinLPG_TU9G7A:
+  - send: {event: Continue}
+  # T4 effect: traces the call argument and returns its negation as the call result. The
+  # returned value has no native spelling (requires: call_event), so only the input is traced.
+  _xnhI0FsoEeaFS4CWvlkpPA:
+  - trace: "T4(effect)[in={p1}]"
+stimulus:
+- event: Start
+- call: op
+  kwargs: {p1: true}
+  trace_result: "[out={result}]"
+- event: Continue

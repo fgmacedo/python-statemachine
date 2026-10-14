@@ -1,0 +1,5 @@
+# Hand-written overlay, applied by convert.py. Keys under `behaviors` are XMI element ids.
+behaviors:
+  # S1 exit: sends Pending to the machine itself.
+  _5_ZbYNvUEeWyw5VtdjRLxg:
+  - send: {event: Pending}

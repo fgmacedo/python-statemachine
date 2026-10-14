@@ -1,0 +1,14 @@
+# Hand-written overlay, applied by convert.py. Keys under `behaviors` are XMI element ids.
+behaviors:
+  # T2 effect: calls `initializeBalance()`, then traces.
+  _XKvZwK2qEeW90vHDeaShcg:
+  - assign: {location: balance, expr: "150"}
+  - trace: T2(effect)
+  # S1.2 entry: calls `updateBalance(100)`, then traces.
+  _ucyrUK2nEeW90vHDeaShcg:
+  - assign: {location: balance, expr: balance - 100}
+  - trace: S1.2(entry)
+  # S1.3 entry: calls `updateBalance(50)`, then traces.
+  _7498kK2nEeW90vHDeaShcg:
+  - assign: {location: balance, expr: balance - 50}
+  - trace: S1.3(entry)

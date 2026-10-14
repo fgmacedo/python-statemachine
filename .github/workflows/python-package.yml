@@ -64,3 +64,32 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         verbose: true
+
+  pssm-drift:
+    # The XMI may not be stored or cached anywhere, see tests/uml/pssm/README.md.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.15"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v10.2.0
+      with:
+        enable-cache: true
+        cache-suffix: "pssm-drift"
+    - name: Install the project
+      run: uv sync --all-extras --dev
+    - name: Download the PSSM test suite XMI
+      run: |
+        xmi_dir="$(mktemp -d)"
+        curl --fail --silent --show-error --location --retry 3 \
+          --output "$xmi_dir/PSSM_TestSuite.xmi" \
+          https://www.omg.org/spec/PSSM/20181101/PSSM_TestSuite.xmi
+        echo "PSSM_XMI=$xmi_dir/PSSM_TestSuite.xmi" >> "$GITHUB_ENV"
+    - name: Compare the committed cases with the converter output
+      env:
+        PSSM_REQUIRED: "1"
+      run: uv run pytest tests/uml/pssm/test_pssm_drift.py --timeout 300

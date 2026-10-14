@@ -1,0 +1,7 @@
+# Hand-written overlay, applied by convert.py.
+# The tester calls op() and traces its formatted return value, then sends Continue.
+stimulus:
+- event: Start
+- call: op
+  trace_result: "[out={result}]"
+- event: Continue

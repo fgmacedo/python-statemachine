@@ -86,6 +86,9 @@ tmp/
 # Local specs
 specs/
 
+# Local copy of the OMG PSSM test suite, never committed (see tests/uml/pssm/README.md)
+PSSM_TestSuite.xmi
+
 # Environment files (secrets)
 .env
 .env.*
