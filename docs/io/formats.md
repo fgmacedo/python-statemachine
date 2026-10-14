@@ -195,9 +195,9 @@ property or attribute is *read* and a **method** is *called* (with dependency in
 
 `cond` and `unless` also accept a list; the transition is taken only when every entry holds.
 
-A bare name resolves to the datamodel (or the bound model) first and to the event's keyword
-arguments only when the model has no attribute of that name, the same in both trusted and
-restricted mode. A payload key that collides with a datamodel variable is still reachable as
+A bare name resolves to a datamodel variable or a model attribute (including a property) first
+and to the event's keyword arguments only when the model has no attribute of that name, the
+same in both trusted and restricted mode. A payload key that collides with a datamodel variable is still reachable as
 `_event.data.<name>`:
 
 ```py

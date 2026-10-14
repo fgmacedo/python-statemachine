@@ -32,6 +32,7 @@ import html
 import re
 from collections.abc import Callable
 from inspect import isawaitable
+from inspect import isroutine
 from typing import Any
 from typing import Protocol
 
@@ -135,6 +136,33 @@ def cond_variable_hook(name: str) -> Callable:
     return resolver
 
 
+class _TrustedNamespace(dict):
+    """``eval`` locals that resolve a bare name the way the restricted evaluator does.
+
+    The model shadows the call kwargs. Instance attributes resolve as before; any other
+    attribute (property, class attribute, slot) resolves through the same boundary as
+    :func:`_resolvable_model_attr`. Methods are left out: the restricted guard dialect calls
+    a bare method name, which ``eval`` cannot reproduce per name.
+    """
+
+    def __init__(self, model, kwargs: dict, **overrides):
+        super().__init__(kwargs)
+        self.update(overrides)
+        self._model = model
+        self._overrides = overrides
+
+    def __getitem__(self, name: str) -> Any:
+        if name not in self._overrides and name not in protected_attrs:
+            instance_attrs = getattr(self._model, "__dict__", {})
+            if name in instance_attrs:
+                return instance_attrs[name]
+            if _resolvable_model_attr(name, self._model):
+                value = getattr(self._model, name)
+                if not isroutine(value):
+                    return value
+        return super().__getitem__(name)
+
+
 def _eval(expr: str, **kwargs) -> Any:
     """Evaluate an expression as arbitrary Python (``trusted=True`` path only).
 
@@ -144,14 +172,8 @@ def _eval(expr: str, **kwargs) -> Any:
         the document is loaded with ``trusted=True``.
     """
     if "machine" in kwargs:
-        kwargs.update(
-            **{
-                k: v
-                for k, v in kwargs["machine"].model.__dict__.items()
-                if k not in protected_attrs
-            }
-        )
-        kwargs["In"] = InState(kwargs["machine"])
+        machine = kwargs["machine"]
+        return eval(expr, {}, _TrustedNamespace(machine.model, kwargs, In=InState(machine)))
     return eval(expr, {}, kwargs)
 
 

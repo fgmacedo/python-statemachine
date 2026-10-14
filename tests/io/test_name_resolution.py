@@ -29,9 +29,32 @@ states:
 VALUE_FROM_DATAMODEL = '  - {id: value, expr: "1"}'
 
 
-class Holder:
-    def __init__(self, value):
-        self.value = value
+class InstanceAttribute:
+    def __init__(self):
+        self.value = 3
+
+
+class Property:
+    @property
+    def value(self):
+        return 3
+
+
+class ClassAttribute:
+    value = 3
+
+
+class Slots:
+    __slots__ = ("value", "state", "seen")
+
+    def __init__(self):
+        self.value = 3
+
+
+MODEL_KINDS = [
+    pytest.param(kind, id=kind.__name__)
+    for kind in (InstanceAttribute, Property, ClassAttribute, Slots)
+]
 
 
 @pytest.fixture(params=[False, True], ids=["restricted", "trusted"])
@@ -39,31 +62,38 @@ def trusted(request):
     return request.param
 
 
-def _run(trusted, *, expected, expr="value", datamodel="", model_value=None, **payload):
+def _run(trusted, *, expected, expr="value", datamodel="", model=None, **payload):
     sc = load(
         DOCUMENT.format(datamodel=datamodel, expr=expr, expected=expected),
         format="yaml",
         trusted=trusted,
         validate=True,
     )
-    sm = sc() if model_value is None else sc(model=Holder(model_value))
+    sm = sc() if model is None else sc(model=model())
     sm.send("go", **payload)
     return sm
 
 
 @pytest.mark.parametrize(
-    ("datamodel", "model_value", "payload", "expected"),
+    ("datamodel", "payload", "expected"),
     [
-        pytest.param(VALUE_FROM_DATAMODEL, None, {}, 1, id="datamodel-only"),
-        pytest.param("", 3, {}, 3, id="model-only"),
-        pytest.param("", None, {"value": 5}, 5, id="kwarg-only"),
+        pytest.param(VALUE_FROM_DATAMODEL, {}, 1, id="datamodel-only"),
+        pytest.param("", {"value": 5}, 5, id="kwarg-only"),
     ],
 )
-def test_name_from_a_single_source(trusted, datamodel, model_value, payload, expected):
-    sm = _run(trusted, expected=expected, datamodel=datamodel, model_value=model_value, **payload)
+def test_name_from_a_single_source(trusted, datamodel, payload, expected):
+    sm = _run(trusted, expected=expected, datamodel=datamodel, **payload)
 
     assert sm.configuration_values == {"matched"}
     assert sm.model.seen == expected
+
+
+@pytest.mark.parametrize("model", MODEL_KINDS)
+def test_name_from_the_model_only(trusted, model):
+    sm = _run(trusted, expected=3, model=model)
+
+    assert sm.configuration_values == {"matched"}
+    assert sm.model.seen == 3
 
 
 def test_event_data_reaches_the_payload(trusted):
@@ -75,18 +105,19 @@ def test_event_data_reaches_the_payload(trusted):
     assert sm.model.seen == 5
 
 
-@pytest.mark.parametrize(
-    ("datamodel", "model_value", "expected"),
-    [
-        pytest.param(VALUE_FROM_DATAMODEL, None, 1, id="datamodel-and-kwarg"),
-        pytest.param("", 3, 3, id="model-and-kwarg"),
-    ],
-)
-def test_datamodel_shadows_the_payload(trusted, datamodel, model_value, expected):
-    sm = _run(trusted, expected=expected, datamodel=datamodel, model_value=model_value, value=5)
+def test_datamodel_shadows_the_payload(trusted):
+    sm = _run(trusted, expected=1, datamodel=VALUE_FROM_DATAMODEL, value=5)
 
     assert sm.configuration_values == {"matched"}
-    assert sm.model.seen == expected
+    assert sm.model.seen == 1
+
+
+@pytest.mark.parametrize("model", MODEL_KINDS)
+def test_model_attribute_shadows_the_payload(trusted, model):
+    sm = _run(trusted, expected=3, model=model, value=5)
+
+    assert sm.configuration_values == {"matched"}
+    assert sm.model.seen == 3
 
 
 def test_assigned_value_shadows_the_payload(trusted):
@@ -115,3 +146,15 @@ def test_assigned_value_shadows_the_payload(trusted):
     sm.send("go", value=5)
 
     assert sm.configuration_values == {"matched"}
+
+
+class Method:
+    def value(self):
+        return 3
+
+
+def test_trusted_mode_does_not_resolve_a_model_method_by_bare_name():
+    sm = _run(True, expected=5, model=Method, value=5)
+
+    assert sm.configuration_values == {"matched"}
+    assert sm.model.seen == 5
