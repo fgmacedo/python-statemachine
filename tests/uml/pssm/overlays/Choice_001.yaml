@@ -1,0 +1,8 @@
+# Hand-written overlay, applied by convert.py. Keys under `behaviors` are XMI element ids.
+behaviors:
+  # Increment entry: calls `increment()`, which adds one to `value`.
+  _L02vQJ1GEeWN-6K8x1DQCg:
+  - assign: {location: value, expr: value + 1}
+  # T2 effect: calls `init()`, which resets `value`.
+  _jGunYJ1TEeW2k_GPtJ4ARg:
+  - assign: {location: value, expr: "0"}

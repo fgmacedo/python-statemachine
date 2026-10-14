@@ -1,0 +1,17 @@
+# Hand-written overlay, applied by convert.py. Keys under `behaviors` are XMI element ids.
+# The entries trace the call arguments and the out parameters they compute (left or right,
+# left xor right). Out parameters have no native spelling (requires: call_event), so only
+# the inputs are traced.
+behaviors:
+  # S1.1 entry
+  _uTGB21dtEeaPifyuLyWdzQ:
+  - trace: "S1.1(entry)[in={left}][in={right}]"
+  # S2.1.1 entry
+  _uTGC0FdtEeaPifyuLyWdzQ:
+  - trace: "S2.1.1(entry)[in={left}][in={right}]"
+stimulus:
+- event: Start
+- call: or
+  kwargs: {left: true, right: true}
+  trace_result: "[out={result}]"
+- event: Continue

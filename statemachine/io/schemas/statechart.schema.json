@@ -20,6 +20,9 @@
       "additionalProperties": { "$ref": "#/$defs/state" }
     }
   },
+  "patternProperties": {
+    "^x-": {}
+  },
   "additionalProperties": false,
   "$defs": {
     "flag": {

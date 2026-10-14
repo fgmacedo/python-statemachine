@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Must match the exclude-newer span recorded in uv.lock, or `uv sync --locked` fails.
+  UV_EXCLUDE_NEWER: "7 days"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,14 +31,14 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup Graphviz
-      uses: ts-graphviz/setup-graphviz@v2
+      uses: ts-graphviz/setup-graphviz@b1de5da23ed0a6d14e0aeee8ed52fdd87af2363c # v2
     - name: Install uv
-      uses: astral-sh/setup-uv@v10.2.0
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       with:
         enable-cache: true
         cache-suffix: "python${{ matrix.python-version }}"
     - name: Install the project
-      run: uv sync --all-extras --dev
+      run: uv sync --locked --all-extras --dev
       #----------------------------------------------
       #              run ruff
       #----------------------------------------------
@@ -54,7 +58,7 @@ jobs:
       #          upload coverage
       #----------------------------------------------
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v7
+      uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
       if: matrix.python-version == 3.15
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
@@ -64,3 +68,32 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         verbose: true
+
+  pssm-drift:
+    # The XMI may not be stored or cached anywhere, see tests/uml/pssm/README.md.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.15"
+    - name: Install uv
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: true
+        cache-suffix: "pssm-drift"
+    - name: Install the project
+      run: uv sync --locked --all-extras --dev
+    - name: Download the PSSM test suite XMI
+      run: |
+        xmi_dir="$(mktemp -d)"
+        curl --proto "=https" --fail --silent --show-error --location --retry 3 \
+          --output "$xmi_dir/PSSM_TestSuite.xmi" \
+          https://www.omg.org/spec/PSSM/20181101/PSSM_TestSuite.xmi
+        echo "PSSM_XMI=$xmi_dir/PSSM_TestSuite.xmi" >> "$GITHUB_ENV"
+    - name: Compare the committed cases with the converter output
+      env:
+        PSSM_REQUIRED: "1"
+      run: uv run --locked pytest tests/uml/pssm/test_pssm_drift.py --timeout 300
