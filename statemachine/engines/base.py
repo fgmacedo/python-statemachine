@@ -741,7 +741,7 @@ class BaseEngine:
             return
 
         # Add the state to the entry set
-        if self._enters_target(info.transition):
+        if not self._remains_active(info):
             states_to_enter.add(info)
         state = info.state
 
@@ -754,20 +754,13 @@ class BaseEngine:
                 info, states_to_enter, states_for_default_entry, default_history_content
             )
 
-    def _enters_target(self, transition: Transition) -> bool:
-        """Whether taking ``transition`` enters its target.
+    def _remains_active(self, info: StateTransition) -> bool:
+        """Whether ``info.state`` is the domain of its internal transition.
 
-        An internal transition to its own source, or to a descendant of it, does not, unless
-        the machine enables self-transition entries.
+        The domain is never exited, so taking the transition must not enter it again.
         """
-        return (
-            self.sm.enable_self_transition_entries
-            or not transition.internal
-            or not (
-                transition.is_self
-                or (transition.target and transition.target.is_descendant(transition.source))
-            )
-        )
+        transition = info.transition
+        return transition.internal and info.state is self.get_transition_domain(transition)
 
     def _add_history_states_to_enter(
         self,

@@ -23,8 +23,10 @@ class Transition:
         event (Optional[Union[str, List[str]]]): List of designators of events that trigger this
             transition. Can be either a list of strings, or a space-separated string list of event
             descriptors.
-        internal (bool): Is the transition internal or external? Internal transitions
-            don't execute the state entry/exit actions. Default ``False``.
+        internal (bool): Is the transition internal or external? An internal transition does
+            not exit its source; an atomic source targeting itself is neither exited nor
+            entered, while a compound or parallel source targeting itself is exited and
+            re-entered, as in SCXML. Default ``False``.
         validators (Optional[Union[str, Callable, List[Callable]]]): The validation callbacks to
             be invoked before the transition is executed.
         cond (Optional[Union[str, Callable, List[Callable]]]): The condition callbacks to be

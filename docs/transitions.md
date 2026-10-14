@@ -47,7 +47,7 @@ True
 | `unless` | Negative guard — transition fires when this returns `False`. |
 | `validators` | Validation callback(s) that raise on failure. |
 | `event` | Override the event for this transition. See {ref}`event-parameter`. |
-| `internal` | If `True`, no exit/enter actions fire. See {ref}`internal transition`. |
+| `internal` | If `True`, the source state is not exited. See {ref}`internal transition`. |
 
 
 ### Combining transitions with `|`
@@ -216,8 +216,11 @@ re-enters the state, running all exit and entry actions:
 (internal transition)=
 (internal-transition)=
 
-An **internal transition** stays in the same state **without** running exit
-or entry actions — only the `on` callback executes. Use `internal=True`:
+An **internal transition** does not exit its source state. Use `internal=True`
+on a transition whose target is the source itself or one of its descendants.
+
+On an atomic state that targets itself, nothing is exited or entered: only the
+`on` callback executes:
 
 ```py
 >>> class OrderCart(StateChart):
@@ -231,8 +234,13 @@ or entry actions — only the `on` callback executes. Use `internal=True`:
 ...
 ...     def do_add_item(self, price: float = 0):
 ...         self.total += price
+...
+...     def on_enter_shopping(self):
+...         print("entered shopping")
 
 >>> sm = OrderCart()
+entered shopping
+
 >>> sm.send("add_item", price=9.99)
 >>> sm.send("add_item", price=4.50)
 >>> sm.total
@@ -245,10 +253,76 @@ entering a state has side-effects like resetting a timer), while internal
 transitions skip them (useful for pure data updates that shouldn't re-trigger
 entry logic).
 
-```{seealso}
-The `enable_self_transition_entries` flag in {ref}`behaviour` controls whether
-self-transitions run exit/enter actions. `StateChart` defaults to `True` (SCXML
-semantics); `StateMachine` defaults to `False` (legacy behavior).
+When the target is a descendant of a compound source, the source stays active
+while its active child is exited and the target is entered:
+
+```py
+>>> class Ticket(StateChart):
+...     class open(State.Compound):
+...         new = State(initial=True)
+...         assigned = State()
+...         escalated = State()
+...
+...         assign = new.to(assigned)
+...
+...     closed = State(final=True)
+...
+...     escalate = open.to(open.escalated, internal=True)
+...     close = open.to(closed)
+...
+...     def on_exit_state(self, state):
+...         print(f"exit {state.id}")
+...
+...     def on_enter_state(self, state):
+...         print(f"enter {state.id}")
+
+>>> sm = Ticket()
+enter open
+enter new
+
+>>> sm.send("escalate")
+exit new
+enter escalated
+
+>>> sorted(sm.configuration_values)
+['escalated', 'open']
+
+```
+
+A compound or parallel state that targets itself with `internal=True` is
+still exited and re-entered, as the SCXML specification requires: its children
+restart from their initial states. To run an action on a compound state without
+leaving it, declare a **targetless** transition, `to(None)`:
+
+```py
+>>> class Ticket(StateChart):
+...     class open(State.Compound):
+...         new = State(initial=True)
+...         assigned = State()
+...
+...         assign = new.to(assigned)
+...
+...     closed = State(final=True)
+...
+...     restart = open.to.itself(internal=True)
+...     comment = open.to(None, on="add_comment")
+...     close = open.to(closed)
+...
+...     comments: int = 0
+...
+...     def add_comment(self):
+...         self.comments += 1
+
+>>> sm = Ticket()
+>>> sm.send("assign")
+>>> sm.send("comment")
+>>> sm.comments, sorted(sm.configuration_values)
+(1, ['assigned', 'open'])
+
+>>> sm.send("restart")
+>>> sorted(sm.configuration_values)
+['new', 'open']
+
 ```
 
 
