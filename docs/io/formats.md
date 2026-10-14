@@ -6,9 +6,9 @@ the same document in either format compiles to the same state machine. Pick YAML
 readability, or JSON when a tool emits or consumes it. (SCXML, the W3C XML standard, loads
 the same way and is covered at the [end of this page](#scxml).)
 
-A document has an optional top-level envelope (`name`, `description`, `datamodel`) and a
-`states` mapping keyed by state id. Here is the same toggle written both ways, proving the
-result is identical:
+A document has an optional top-level envelope (`name`, `description`, `datamodel` and
+[extension keys](#extension-keys)) and a `states` mapping keyed by state id. Here is the
+same toggle written both ways, proving the result is identical:
 
 ```py
 >>> from statemachine.io import load
@@ -445,6 +445,28 @@ states:
 Invoke spawns a child machine that runs concurrently, so the parent reaches `finished` only
 once the child signals back. Because that resolution is not synchronous, the example above
 is shown for structure rather than as a doctest.
+
+## Extension keys
+
+Top-level keys that start with `x-` are reserved for other tools: the loader and the
+[JSON Schema](json_schema.md) accept them and ignore their content, so a document can carry
+test fixtures, editor hints or provenance alongside the statechart. Any other unknown key is
+still an error, and so is an `x-` key below the document root.
+
+```py
+>>> sc = load(
+...     """
+...     x-review: {owner: ops, ticket: OPS-12}
+...     states:
+...       a: {initial: true}
+...     """,
+...     format="yaml",
+...     validate=True,
+... )
+>>> sorted(sc().configuration_values)
+['a']
+
+```
 
 ## SCXML
 

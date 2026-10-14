@@ -51,10 +51,20 @@ class TestSchema:
             node = node[key]
         assert set(parser_keys) == set(node)
 
+    def test_extension_prefix_matches_parser(self):
+        assert load_schema()["patternProperties"] == {f"^{native._EXTENSION_PREFIX}": {}}
+
 
 class TestValidateDocument:
     def test_valid(self):
         validate_document({"name": "M", "states": {"a": {"initial": True, "transitions": []}}})
+
+    def test_valid_with_extension_key(self):
+        validate_document({"states": {"a": {"initial": True}}, "x-tool": {"any": [1]}})
+
+    def test_extension_key_below_the_root_is_invalid(self):
+        with pytest.raises(InvalidDefinition):
+            validate_document({"states": {"a": {"initial": True, "x-tool": 1}}})
 
     def test_valid_with_actions(self):
         validate_document(

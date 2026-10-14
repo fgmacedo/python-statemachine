@@ -323,6 +323,22 @@ class TestStrictKeys:
         with pytest.raises(InvalidDefinition, match="Unknown document key"):
             defn({"states": {"a": {"initial": True}}, "bogus": 1})
 
+    def test_extension_keys_are_ignored_at_the_document_root(self):
+        definition = defn({"states": {"a": {"initial": True}}, "x-tool": {"any": [1, 2]}})
+        assert list(definition.states) == ["a"]
+
+    def test_extension_keys_are_ignored_in_inline_invoke_content(self):
+        child = {"states": {"r": {"initial": True}}, "x-tool": 1}
+        defn({"states": {"a": {"initial": True, "invoke": {"content": child}}}})
+
+    def test_extension_prefix_is_case_sensitive(self):
+        with pytest.raises(InvalidDefinition, match="Unknown document key"):
+            defn({"states": {"a": {"initial": True}}, "X-tool": 1})
+
+    def test_extension_keys_are_rejected_below_the_root(self):
+        with pytest.raises(InvalidDefinition, match="Unknown state 'a' key"):
+            defn({"states": {"a": {"initial": True, "x-tool": 1}}})
+
     def test_unknown_state_key(self):
         with pytest.raises(InvalidDefinition, match="Unknown state 'a' key"):
             defn({"states": {"a": {"initial": True, "bogus": 1}}})

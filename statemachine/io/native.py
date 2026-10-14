@@ -46,6 +46,8 @@ _ACTION_KEYS = {"assign", "raise", "log", "if", "foreach", "send", "cancel", "sc
 # accepted vocabulary and are asserted equal to the JSON Schema in tests/io/test_validation.py,
 # so the schema and the parser can never silently drift apart.
 _DOCUMENT_KEYS = frozenset({"name", "description", "datamodel", "states"})
+_EXTENSION_PREFIX = "x-"
+"""Document-root keys with this prefix are extensions for other tools; the parser ignores them."""
 _STATE_KEYS = frozenset(
     {
         "initial",
@@ -95,9 +97,17 @@ def _flag(value) -> bool:
     return bool(value)
 
 
-def _check_keys(node: Mapping, allowed: "frozenset[str]", kind: str) -> None:
+def _is_extension_key(key) -> bool:
+    return isinstance(key, str) and key.startswith(_EXTENSION_PREFIX)
+
+
+def _check_keys(
+    node: Mapping, allowed: "frozenset[str]", kind: str, *, extensions: bool = False
+) -> None:
     """Reject keys outside the declared vocabulary, mirroring the schema's strictness."""
-    unknown = sorted(set(node) - allowed)
+    unknown = sorted(
+        key for key in node if key not in allowed and not (extensions and _is_extension_key(key))
+    )
     if unknown:
         raise InvalidDefinition(
             f"Unknown {kind} key(s) {unknown}; allowed keys are {sorted(allowed)}."
@@ -112,7 +122,7 @@ def native_dict_to_definition(
         raise InvalidDefinition(
             f"Statechart definition must be a mapping, got {type(doc).__name__}."
         )
-    _check_keys(doc, _DOCUMENT_KEYS, "document")
+    _check_keys(doc, _DOCUMENT_KEYS, "document", extensions=True)
     states_doc = doc.get("states")
     if not isinstance(states_doc, Mapping) or not states_doc:
         raise InvalidDefinition("Statechart definition must have a non-empty 'states' mapping.")
