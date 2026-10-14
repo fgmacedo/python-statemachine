@@ -324,7 +324,7 @@ async def test_a_caller_awaiting_a_cancelled_event_gets_none(cancels, clock):
 
     for _ in range(cancels):
         sm.cancel_event("dawn")
-    await asyncio.sleep(0)
+    await asyncio.wait([waiting], timeout=1)
 
     assert (settled(dawn.future), settled(waiting)) == ("answered with None", "answered with None")
     clock.now += 1.0
