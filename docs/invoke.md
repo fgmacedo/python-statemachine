@@ -425,8 +425,8 @@ True
 
 ## Error handling
 
-If an invoke handler raises an exception, `error.execution` is sent to the machine's
-internal queue (when `catch_errors_as_events=True`, the default for `StateChart`). You can
+If an invoke handler raises an exception while its state is active, `error.execution` is
+sent to the machine's external queue, whatever `catch_errors_as_events` is set to. You can
 handle it with a transition for `error.execution`:
 
 ```py
@@ -450,6 +450,13 @@ True
 'FileNotFoundError'
 
 ```
+
+An error raised while the machine processes `done.invoke`, by a callback or by the
+handler's `on_finalize`, is handled like an error in any other step: it becomes `error.execution` when `catch_errors_as_events=True`,
+and propagates otherwise. When the machine is idle as the handler finishes, the handler's
+own thread or task processes `done.invoke`, and nobody awaits it: the sync engine lets the
+error propagate out of the thread, to `threading.excepthook`, and the async engine passes
+it to the event loop's exception handler.
 
 ## Multiple invokes
 

@@ -1,8 +1,10 @@
 """Tests for the invoke callback group."""
 
+import asyncio
 import threading
 import time
 
+import pytest
 from statemachine.invoke import IInvoke
 from statemachine.invoke import InvokeContext
 from statemachine.invoke import invoke_group
@@ -10,6 +12,7 @@ from statemachine.invoke import invoke_group
 from statemachine import Event
 from statemachine import State
 from statemachine import StateChart
+from statemachine import StateMachine
 
 
 class TestInvokeSimpleCallable:
@@ -293,6 +296,152 @@ class TestInvokeErrorHandling:
 
         assert errors == [True]
         assert "error_state" in sm.configuration_values
+
+
+@pytest.fixture()
+def thread_errors(monkeypatch) -> "list[BaseException]":
+    errors: "list[BaseException]" = []
+    monkeypatch.setattr(threading, "excepthook", lambda args: errors.append(args.exc_value))
+    return errors
+
+
+async def finish_invocation(
+    sm, release: threading.Event, thread_errors: "list[BaseException]"
+) -> "list[BaseException]":
+    """Let the only invocation finish and return the errors its thread or task reported."""
+    (invocation,) = sm._engine._invoke_manager._active.values()
+    if invocation.task is None:
+        release.set()
+        invocation.thread.join(timeout=5)
+        return thread_errors
+    loop_errors: "list[BaseException]" = []
+    loop = asyncio.get_running_loop()
+    previous_handler = loop.get_exception_handler()
+    loop.set_exception_handler(lambda _loop, context: loop_errors.append(context["exception"]))
+    try:
+        release.set()
+        await asyncio.wait([invocation.task], timeout=5)
+    finally:
+        loop.set_exception_handler(previous_handler)
+    assert invocation.task.exception() is None
+    return loop_errors
+
+
+class TestInvokeCompletionProcessingErrors:
+    """An error raised while the invocation itself processes its ``done.invoke`` is not lost.
+
+    The invocation finishes after the machine settled, so its own thread or task processes
+    ``done.invoke`` and the error has no other caller to reach.
+    """
+
+    async def test_error_leaving_the_state_propagates(self, sm_runner, thread_errors):
+        release = threading.Event()
+
+        class SM(StateMachine):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            done_invoke_s1 = s1.to(s2, on="boom")
+
+            def on_invoke_s1(self):
+                release.wait(timeout=5)
+
+            def boom(self):
+                raise ValueError("boom")
+
+        sm = await sm_runner.start(SM)
+        errors = await finish_invocation(sm, release, thread_errors)
+
+        assert [repr(e) for e in errors] == [repr(ValueError("boom"))]
+        assert sm.configuration_values == {"s1"}
+
+    async def test_error_staying_in_the_state_propagates(self, sm_runner, thread_errors):
+        release = threading.Event()
+
+        class SM(StateMachine):
+            s1 = State(initial=True)
+            s2 = State(final=True)
+            done_invoke_s1 = s1.to.itself(internal=True, on="boom")
+            error_execution = s1.to(s2)
+
+            def on_invoke_s1(self):
+                release.wait(timeout=5)
+
+            def boom(self):
+                raise ValueError("boom")
+
+        sm = await sm_runner.start(SM)
+        errors = await finish_invocation(sm, release, thread_errors)
+
+        assert [repr(e) for e in errors] == [repr(ValueError("boom"))]
+        assert sm.configuration_values == {"s1"}
+
+    async def test_error_leaving_the_state_becomes_error_execution(self, sm_runner, thread_errors):
+        release = threading.Event()
+
+        class SM(StateChart):
+            s1 = State(initial=True)
+            s2 = State()
+            handled = State(final=True)
+            done_invoke_s1 = s1.to(s2, on="boom")
+            error_execution = s2.to(handled)
+
+            def on_invoke_s1(self):
+                release.wait(timeout=5)
+
+            def boom(self):
+                raise ValueError("boom")
+
+        sm = await sm_runner.start(SM)
+        errors = await finish_invocation(sm, release, thread_errors)
+
+        assert errors == []
+        assert sm.configuration_values == {"handled"}
+
+
+class FailingFinalize:
+    def __init__(self, release: threading.Event):
+        self.release = release
+
+    def run(self, ctx):
+        self.release.wait(timeout=5)
+
+    def on_finalize(self, trigger_data):
+        raise ValueError("finalize")
+
+
+class TestInvokeFinalizeErrors:
+    """An error raised by ``on_finalize`` is handled like an error in any other step."""
+
+    async def test_finalize_error_becomes_error_execution(self, sm_runner, thread_errors):
+        release = threading.Event()
+
+        class SM(StateChart):
+            s1 = State(initial=True, invoke=FailingFinalize(release))
+            s2 = State()
+            handled = State(final=True)
+            done_invoke_s1 = s1.to(s2)
+            error_execution = s2.to(handled)
+
+        sm = await sm_runner.start(SM)
+        errors = await finish_invocation(sm, release, thread_errors)
+
+        assert errors == []
+        assert sm.configuration_values == {"handled"}
+
+    async def test_finalize_error_propagates(self, sm_runner, thread_errors):
+        release = threading.Event()
+
+        class SM(StateMachine):
+            s1 = State(initial=True, invoke=FailingFinalize(release))
+            s2 = State(final=True)
+            done_invoke_s1 = s1.to(s2)
+            error_execution = s1.to(s2)
+
+        sm = await sm_runner.start(SM)
+        errors = await finish_invocation(sm, release, thread_errors)
+
+        assert [repr(e) for e in errors] == [repr(ValueError("finalize"))]
+        assert sm.configuration_values == {"s1"}
 
 
 class TestInvokeMultiple:

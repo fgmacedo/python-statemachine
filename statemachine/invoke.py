@@ -401,11 +401,6 @@ class InvokeManager:
                 result = handler.run(ctx)
             else:
                 result = callback.call(ctx=ctx, machine=ctx.machine, **ctx.kwargs)
-            if not ctx.cancelled.is_set():
-                self.sm.send(
-                    f"done.invoke.{ctx.invokeid}",
-                    data=result,
-                )
         except Exception as e:
             if not ctx.cancelled.is_set():
                 # Intentionally using the external queue (no internal=True):
@@ -415,6 +410,9 @@ class InvokeManager:
                 # active (the internal queue is only drained within a macrostep).
                 # This matches done.invoke, which also uses the external queue.
                 self.sm.send("error.execution", error=e)
+        else:
+            if not ctx.cancelled.is_set():
+                self.sm.send(f"done.invoke.{ctx.invokeid}", data=result)
         finally:
             invocation.terminated = True
             self._debug(
@@ -484,11 +482,6 @@ class InvokeManager:
                 result = await loop.run_in_executor(
                     None, lambda: callback.call(ctx=ctx, machine=ctx.machine, **ctx.kwargs)
                 )
-            if not ctx.cancelled.is_set():
-                await self.sm.send(
-                    f"done.invoke.{ctx.invokeid}",
-                    data=result,
-                )
         except asyncio.CancelledError:
             # Intentionally swallowed: the owning state was exited, so this
             # invocation was cancelled — there is nothing to propagate.
@@ -497,6 +490,9 @@ class InvokeManager:
             if not ctx.cancelled.is_set():
                 # External queue — see comment in _run_sync_handler.
                 await self.sm.send("error.execution", error=e)
+        else:
+            if not ctx.cancelled.is_set():
+                await self._send_done_async(ctx.invokeid, result)
         finally:
             invocation.terminated = True
             self._debug(
@@ -504,6 +500,19 @@ class InvokeManager:
                 self._log_id,
                 ctx.invokeid,
                 ctx.cancelled.is_set(),
+            )
+
+    async def _send_done_async(self, invokeid: str, result: Any):
+        """Send ``done.invoke`` and report an error raised while processing it.
+
+        The invocation's task drives the macrostep when the machine is idle, and no caller
+        awaits that task, so the error goes to the event loop's exception handler.
+        """
+        try:
+            await self.sm.send(f"done.invoke.{invokeid}", data=result)
+        except Exception as e:
+            asyncio.get_running_loop().call_exception_handler(
+                {"message": f"Error while processing done.invoke.{invokeid}", "exception": e}
             )
 
     # --- Cancel ---
@@ -589,7 +598,10 @@ class InvokeManager:
             # Note: finalize must run even after the invocation terminates, because
             # child events may still be queued when the handler thread completes.
             if is_from_child and hasattr(handler, "on_finalize"):
-                handler.on_finalize(trigger_data)
+                try:
+                    handler.on_finalize(trigger_data)
+                except Exception as e:
+                    self._engine._handle_error(e, trigger_data)
 
             # Autoforward: forward parent events to child (not events from child itself).
             # Only forward if the invocation is still running.
