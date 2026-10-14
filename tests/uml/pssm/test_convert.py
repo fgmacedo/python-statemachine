@@ -178,14 +178,17 @@ def test_discovers_tests_and_reads_the_oracle_from_compiled_activities():
 def test_converts_a_case():
     case = convert_demo()
 
-    assert case["requires"] == []
-    assert case["stimulus"] == [{"event": "Start"}, {"event": "Data", "kwargs": {"value": 7}}]
-    assert case["behaviors"] == {
-        "pssm_S1_entry": ["S1(entry)"],
-        "pssm_T2_effect": ["T2(effect)[in={value}]"],
-    }
-    assert case["statechart"] == {
+    assert case == {
         "name": "Demo_001",
+        c.PSSM_KEY: {
+            "requires": [],
+            "expected_traces": ["S1(entry)"],
+            "stimulus": [{"event": "Start"}, {"event": "Data", "kwargs": {"value": 7}}],
+            "behaviors": {
+                "pssm_S1_entry": ["S1(entry)"],
+                "pssm_T2_effect": ["T2(effect)[in={value}]"],
+            },
+        },
         "datamodel": {"count": "0"},
         "states": {
             "wait": {"initial": True, "transitions": [{"event": "Start", "target": "S1"}]},
@@ -214,15 +217,20 @@ def test_converts_a_case():
     }
 
 
+def test_case_document_starts_with_its_name_and_test():
+    assert list(convert_demo()) == ["name", c.PSSM_KEY, "datamodel", "states"]
+
+
 def test_converted_case_runs_on_the_harness():
     case = yaml.safe_load(c.dump_case(convert_demo()))
-    recorder = TraceRecorder(case["behaviors"], is_async=False)
+    test = case[c.PSSM_KEY]
+    recorder = TraceRecorder(test["behaviors"], is_async=False)
     sm = build_machine(case, recorder)
 
-    for item in case["stimulus"]:
+    for item in test["stimulus"]:
         sm.send(item["event"], **item.get("kwargs", {}))
 
-    assert "::".join(recorder.trace) in case["expected_traces"]
+    assert "::".join(recorder.trace) in test["expected_traces"]
 
 
 def test_dumped_case_starts_with_the_generated_header():
@@ -246,9 +254,9 @@ def test_overlay_replaces_a_behavior():
 
     case = convert_demo(overlay)
 
-    effect = case["statechart"]["states"]["S1"]["transitions"][0]["on"]
+    effect = case["states"]["S1"]["transitions"][0]["on"]
     assert effect == [{"assign": {"location": "count", "expr": "count + 1"}}, "pssm_T2_effect"]
-    assert case["behaviors"]["pssm_T2_effect"] == ["T2"]
+    assert case[c.PSSM_KEY]["behaviors"]["pssm_T2_effect"] == ["T2"]
 
 
 def test_unused_overlay_entry_fails_the_conversion():

@@ -1,8 +1,9 @@
 """Run every case generated from the OMG PSSM 1.0 test suite, on both engines.
 
-Each case is a native YAML document loaded untrusted through ``statemachine.io.load``. The
-harness listener provides the callbacks the document references and records the trace tokens
-they emit; the joined trace must equal one of the case's ``expected_traces``.
+Each case is a native YAML statechart loaded untrusted through ``statemachine.io.load``; its
+``x-pssm`` extension key holds the test. The harness listener provides the callbacks the
+document references and records the trace tokens they emit; the joined trace must equal one
+of the case's ``expected_traces``.
 """
 
 import asyncio
@@ -21,6 +22,7 @@ from .conftest import CASES_DIR
 from .conftest import LOWERED
 from .conftest import XFAIL_ASYNC
 from .conftest import XFAIL_SYNC
+from .convert import PSSM_KEY
 
 SETTLE_TIMEOUT_S = 5.0
 MAX_TRACE_TOKENS = 500
@@ -145,7 +147,7 @@ def build_machine(case: dict, recorder: TraceRecorder):
     library drops an error raised while processing a doActivity's completion when that same
     step leaves the doActivity's state, and it records ``error.execution`` sends.
     """
-    cls = load(json.dumps(case["statechart"]), format="json", trusted=False, validate=True)
+    cls = load(json.dumps(case), format="json", trusted=False, validate=True)
     cls.catch_errors_as_events = False
     original_send = cls.send
 
@@ -174,7 +176,7 @@ async def _recording(result, recorder: TraceRecorder):
 def assert_trace(case: dict, recorder: TraceRecorder):
     assert not recorder.errors, recorder.errors
     trace = "::".join(recorder.trace)
-    assert trace in case["expected_traces"], f"trace {trace!r} not expected"
+    assert trace in case[PSSM_KEY]["expected_traces"], f"trace {trace!r} not expected"
 
 
 def _stimulus_args(item: dict) -> "tuple[str, dict]":
@@ -199,7 +201,7 @@ def trace_result(item: dict, result, recorder: TraceRecorder) -> None:
 def run_sync(case: dict, recorder: TraceRecorder):
     sm = build_machine(case, recorder)
     settle_sync(sm, recorder)
-    for item in case["stimulus"]:
+    for item in case[PSSM_KEY]["stimulus"]:
         if append_tester_trace(item, recorder):
             continue
         name, kwargs = _stimulus_args(item)
@@ -211,7 +213,7 @@ async def run_async(case: dict, recorder: TraceRecorder):
     sm = build_machine(case, recorder)
     await sm.activate_initial_state()
     await settle_async(sm, recorder)
-    for item in case["stimulus"]:
+    for item in case[PSSM_KEY]["stimulus"]:
         if append_tester_trace(item, recorder):
             continue
         name, kwargs = _stimulus_args(item)
@@ -229,12 +231,12 @@ def check_sync(case: dict, recorder: TraceRecorder):
 
 def test_pssm_case_sync(pssm_case: Path):
     case = load_case(pssm_case)
-    check_sync(case, TraceRecorder(case["behaviors"], is_async=False))
+    check_sync(case, TraceRecorder(case[PSSM_KEY]["behaviors"], is_async=False))
 
 
 async def test_pssm_case_async(pssm_case: Path):
     case = load_case(pssm_case)
-    recorder = TraceRecorder(case["behaviors"], is_async=True)
+    recorder = TraceRecorder(case[PSSM_KEY]["behaviors"], is_async=True)
     try:
         await run_async(case, recorder)
     finally:
@@ -251,31 +253,33 @@ def test_every_case_needing_a_construct_is_classified(xfail):
     for reasons, prefix in ((xfail, "requires"), (LOWERED, "lowered")):
         for case_id, reason in reasons.items():
             codes = set(re.findall(rf"{prefix}:(\w+)", reason))
-            assert codes == set(cases[case_id]["requires"]), case_id
-    assert {cid for cid, case in cases.items() if case["requires"]} <= set(xfail) | set(LOWERED)
+            assert codes == set(cases[case_id][PSSM_KEY]["requires"]), case_id
+    assert {cid for cid, case in cases.items() if case[PSSM_KEY]["requires"]} <= set(xfail) | set(
+        LOWERED
+    )
 
 
 ERRING_CASE = {
-    "expected_traces": ["S1(do)"],
-    "stimulus": [],
-    "behaviors": {"on_invoke_S1": ["S1(do)"]},
-    "statechart": {
-        "name": "erring",
-        "states": {
-            "S1": {
-                "initial": True,
-                "transitions": [
-                    {"event": "done.invoke.S1", "target": "S2", "cond": "undefined_name == 1"}
-                ],
-            },
-            "S2": {},
+    "name": "erring",
+    PSSM_KEY: {
+        "expected_traces": ["S1(do)"],
+        "stimulus": [],
+        "behaviors": {"on_invoke_S1": ["S1(do)"]},
+    },
+    "states": {
+        "S1": {
+            "initial": True,
+            "transitions": [
+                {"event": "done.invoke.S1", "target": "S2", "cond": "undefined_name == 1"}
+            ],
         },
+        "S2": {},
     },
 }
 
 
 def test_error_after_a_do_activity_fails_the_sync_case():
-    recorder = TraceRecorder(ERRING_CASE["behaviors"], is_async=False)
+    recorder = TraceRecorder(ERRING_CASE[PSSM_KEY]["behaviors"], is_async=False)
 
     # Whichever thread processes the completion, the error surfaces.
     with pytest.raises((NameError, AssertionError), match="undefined_name"):
@@ -283,7 +287,7 @@ def test_error_after_a_do_activity_fails_the_sync_case():
 
 
 async def test_error_after_a_do_activity_fails_the_async_case():
-    recorder = TraceRecorder(ERRING_CASE["behaviors"], is_async=True)
+    recorder = TraceRecorder(ERRING_CASE[PSSM_KEY]["behaviors"], is_async=True)
 
     await run_async(ERRING_CASE, recorder)
 
@@ -292,30 +296,30 @@ async def test_error_after_a_do_activity_fails_the_async_case():
 
 
 ERRING_EXIT_CASE = {
-    "expected_traces": ["S1(do)"],
-    "stimulus": [],
-    "behaviors": {"on_invoke_S1": ["S1(do)"]},
-    "statechart": {
-        "name": "erring_exit",
-        "states": {
-            "S1": {
-                "initial": True,
-                "transitions": [
-                    {
-                        "event": "done.invoke.S1",
-                        "target": "S2",
-                        "on": [{"assign": {"location": "x", "expr": "undefined_name + 1"}}],
-                    }
-                ],
-            },
-            "S2": {},
+    "name": "erring_exit",
+    PSSM_KEY: {
+        "expected_traces": ["S1(do)"],
+        "stimulus": [],
+        "behaviors": {"on_invoke_S1": ["S1(do)"]},
+    },
+    "states": {
+        "S1": {
+            "initial": True,
+            "transitions": [
+                {
+                    "event": "done.invoke.S1",
+                    "target": "S2",
+                    "on": [{"assign": {"location": "x", "expr": "undefined_name + 1"}}],
+                }
+            ],
         },
+        "S2": {},
     },
 }
 
 
 async def test_error_leaving_a_do_activity_state_fails_the_async_case():
-    recorder = TraceRecorder(ERRING_EXIT_CASE["behaviors"], is_async=True)
+    recorder = TraceRecorder(ERRING_EXIT_CASE[PSSM_KEY]["behaviors"], is_async=True)
 
     await run_async(ERRING_EXIT_CASE, recorder)
 
@@ -324,7 +328,7 @@ async def test_error_leaving_a_do_activity_state_fails_the_async_case():
 
 
 def test_error_leaving_a_do_activity_state_fails_the_sync_case():
-    recorder = TraceRecorder(ERRING_EXIT_CASE["behaviors"], is_async=False)
+    recorder = TraceRecorder(ERRING_EXIT_CASE[PSSM_KEY]["behaviors"], is_async=False)
 
     with pytest.raises((NameError, AssertionError), match="undefined_name"):
         check_sync(ERRING_EXIT_CASE, recorder)

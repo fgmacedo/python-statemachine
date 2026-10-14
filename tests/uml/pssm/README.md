@@ -34,7 +34,9 @@ cases are *based on* PSSM; passing them is not a conformance claim.
 
 ## Case format
 
-Each case is a YAML mapping:
+Each case is a native statechart document: `statemachine.io.load(path)` loads it as is. The
+test lives in the document's `x-pssm` [extension key](../../../docs/io/formats.md#extension-keys),
+which the loader ignores:
 
 - `requires`: UML constructs the case uses that the native format cannot spell yet
   (`choice`, `junction`, `join`, `fork`, `terminate`, `entry_point`, `exit_point`,
@@ -48,7 +50,10 @@ Each case is a YAML mapping:
   with the event data. `on_invoke_<state>` entries are doActivities; in them,
   `{send: {event}}` sends an event to the machine and `{accept}` parks the doActivity until
   its state is left.
-- `statechart`: a native document, loaded untrusted with `statemachine.io.load`.
+
+The callbacks the statechart names come from the harness listener, which reads
+`behaviors`; loaded without it, the machine runs but traces nothing. The harness loads the
+cases untrusted and validated against the JSON Schema.
 
 The converter lowers UML completion transitions to what the library has today: from a
 composite state to `done.state.<id>`, from a state with a doActivity to

@@ -35,6 +35,8 @@ HEADER = (
 
 HERE = Path(__file__).parent
 OVERLAYS_DIR = HERE / "overlays"
+PSSM_KEY = "x-pssm"
+"""Extension key that carries the test next to the statechart in each case document."""
 
 _XMI = "{http://www.omg.org/spec/XMI/20131001}"
 _PASS_THROUGH = {"junction", "choice", "entryPoint", "exitPoint", "join"}
@@ -1208,13 +1210,13 @@ class Suite:
             builder.requires.add("call_event")
         if test_id not in self.oracle:
             raise ConversionError(f"{test_id}: no expected traces")
-        return {
+        test = {
             "requires": sorted(builder.requires),
             "expected_traces": self.oracle[test_id],
             "stimulus": stimulus,
             "behaviors": builder.behaviors,
-            "statechart": statechart,
         }
+        return {"name": statechart.pop("name"), PSSM_KEY: test, **statechart}
 
 
 def canonical_states(states: dict) -> dict:
