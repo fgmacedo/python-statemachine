@@ -3,6 +3,10 @@ on:
     tags: [ 'v?*.*.*' ]
 name: release
 
+env:
+  # Must match the exclude-newer span recorded in uv.lock, or `uv sync --locked` fails.
+  UV_EXCLUDE_NEWER: "7 days"
+
 jobs:
   release-build:
     name: Build release artifacts

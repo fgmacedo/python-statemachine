@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Must match the exclude-newer span recorded in uv.lock, or `uv sync --locked` fails.
+  UV_EXCLUDE_NEWER: "7 days"
+
 jobs:
   build:
     runs-on: ubuntu-latest
