@@ -195,6 +195,35 @@ property or attribute is *read* and a **method** is *called* (with dependency in
 
 `cond` and `unless` also accept a list; the transition is taken only when every entry holds.
 
+A bare name resolves to the datamodel (or the bound model) first and to the event's keyword
+arguments only when the model has no attribute of that name, the same in both trusted and
+restricted mode. A payload key that collides with a datamodel variable is still reachable as
+`_event.data.<name>`:
+
+```py
+>>> sc = load(
+...     """
+...     datamodel:
+...       - {id: limit, expr: "10"}
+...     states:
+...       idle:
+...         initial: true
+...         transitions:
+...           - {event: check, target: within, cond: "limit == 10 and _event.data.limit == 99"}
+...           - {event: check, target: other}
+...       within: {final: true}
+...       other: {final: true}
+...     """,
+...     format="yaml",
+...     validate=True,
+... )
+>>> sm = sc()
+>>> _ = sm.send("check", limit=99)
+>>> sorted(sm.configuration_values)
+['within']
+
+```
+
 ## Actions
 
 Five positions carry behaviour: a state's `enter` and `exit`, and a transition's `before`,

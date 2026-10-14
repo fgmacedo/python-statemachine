@@ -76,32 +76,38 @@ def _resolvable_model_attr(name: str, model) -> bool:
     Engine-protected names (``machine``, ``event``, system variables, …) and any
     private/dunder name (leading underscore) never resolve off the model, mirroring the
     dotted-access guard in :func:`statemachine.spec_parser.build_attribute`. System
-    variables stay reachable because they are provided via the call kwargs, which are
-    consulted before this. This keeps a semi-trusted document from reading the model's
-    internals (``_secret``) or walking the object graph (``__class__``).
+    variables stay reachable because they are provided via the call kwargs. This keeps a
+    semi-trusted document from reading the model's internals (``_secret``) or walking the
+    object graph (``__class__``).
     """
     return name not in protected_attrs and not name.startswith("_") and hasattr(model, name)
+
+
+def _kwarg(name: str, kwargs: dict) -> Any:
+    if name not in _event_data_kwargs and name in kwargs:
+        return kwargs[name]
+    raise NameError(f"name '{name}' is not defined")
 
 
 def variable_hook(name: str) -> Callable:
     """Resolve a datamodel name at call time.
 
-    Looks the name up in the call kwargs first (SCXML system variables such as
-    ``_event``, ``_name``), then falls back to a (non-protected, non-private) attribute of
-    ``machine.model``. Names in :data:`~statemachine.event._event_data_kwargs` (``machine``,
-    ``model``, ``event``, ``transition``, ...) are the live engine-capability objects; they
-    are **withheld** from the kwargs lookup so an untrusted expression cannot obtain the
-    engine and pivot through it onto shared classes (GHSA-v3qq-3xvg-m77g). The ``_``-prefixed
-    system variables are not engine objects and stay resolvable.
+    Looks the name up as a (non-protected, non-private) attribute of ``machine.model``
+    first, so the datamodel shadows an event keyword argument of the same name (the payload
+    stays reachable as ``_event.data.<name>``). It then falls back to the call kwargs, which
+    carry the SCXML system variables (``_event``, ``_name``) and the event payload. Names in
+    :data:`~statemachine.event._event_data_kwargs` (``machine``, ``model``, ``event``,
+    ``transition``, ...) are the live engine-capability objects; they are **withheld** from
+    the kwargs lookup so an untrusted expression cannot obtain the engine and pivot through
+    it onto shared classes (GHSA-v3qq-3xvg-m77g). The ``_``-prefixed system variables are not
+    engine objects and stay resolvable.
     """
 
     def resolver(*args, **kwargs):
-        if name not in _event_data_kwargs and name in kwargs:
-            return kwargs[name]
         model = kwargs["machine"].model
         if _resolvable_model_attr(name, model):
             return getattr(model, name)
-        raise NameError(f"name '{name}' is not defined")
+        return _kwarg(name, kwargs)
 
     resolver.__name__ = name
     return resolver
@@ -117,15 +123,13 @@ def cond_variable_hook(name: str) -> Callable:
     """
 
     def resolver(*args, **kwargs):
-        if name not in _event_data_kwargs and name in kwargs:
-            return kwargs[name]
         model = kwargs["machine"].model
         if _resolvable_model_attr(name, model):
             value = getattr(model, name)
             if callable(value):
                 return callable_method(value)(*args, **kwargs)
             return value
-        raise NameError(f"name '{name}' is not defined")
+        return _kwarg(name, kwargs)
 
     resolver.__name__ = name
     return resolver
