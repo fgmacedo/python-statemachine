@@ -38,7 +38,6 @@ class Order:
 
 class OrderControl(StateChart):
     allow_event_without_transition = False
-    enable_self_transition_entries = False
 
     waiting_for_payment = State(initial=True, enter="wait_for_payment")
     processing = State()

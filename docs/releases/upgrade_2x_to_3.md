@@ -54,7 +54,6 @@ now a subclass of `StateChart` with defaults that preserve 2.x behavior:
 | Attribute                         | `StateChart` | `StateMachine` |
 |-----------------------------------|:------------:|:--------------:|
 | `allow_event_without_transition`  | `True`       | `False`        |
-| `enable_self_transition_entries`  | `True`       | `False`        |
 | `atomic_configuration_update`     | `False`      | `True`         |
 | `catch_errors_as_events`              | `True`       | `False`        |
 
@@ -303,9 +302,8 @@ Or simply use `StateMachine`, which has `atomic_configuration_update=True` by de
 
 ## Self-transition entry/exit behavior
 
-In `StateChart`, self-transitions (a state transitioning to itself) now execute entry and exit
-actions, following the SCXML spec. In `StateMachine`, the 2.x behavior is preserved (no
-entry/exit on self-transitions). See {ref}`self-transition`.
+Self-transitions (a state transitioning to itself) now execute entry and exit actions,
+following the SCXML spec. See {ref}`self-transition`.
 
 **Before (2.x):**
 
@@ -320,10 +318,8 @@ loop = s1.to.itself()
 # Self-transitions DO trigger on_enter_*/on_exit_* callbacks
 loop = s1.to.itself()
 
-
-# To disable (preserve 2.x behavior):
-class MyChart(StateChart):
-    enable_self_transition_entries = False
+# To skip them (preserve 2.x behavior), declare an internal transition:
+loop = s1.to.itself(internal=True)
 ```
 
 

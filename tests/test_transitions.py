@@ -307,8 +307,6 @@ class TestInternalTransition:
         calls = []
 
         class TestStateMachine(StateChart):
-            enable_self_transition_entries = False
-
             initial = State(initial=True)
 
             loop = initial.to.itself(internal=True)

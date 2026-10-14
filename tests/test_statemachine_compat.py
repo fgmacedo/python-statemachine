@@ -5,7 +5,6 @@ with different defaults) continues to work as expected.  Tests here exercise
 behaviour that differs from ``StateChart`` defaults:
 
 - ``allow_event_without_transition = False``  → ``TransitionNotAllowed``
-- ``enable_self_transition_entries = False``
 - ``atomic_configuration_update = True``
 - ``catch_errors_as_events = False``  → exceptions propagate directly
 - ``current_state`` deprecated property
@@ -25,13 +24,10 @@ from statemachine import exceptions
 
 
 class TestStateMachineDefaults:
-    """Verify the four class-level flag defaults on StateMachine."""
+    """Verify the class-level flag defaults on StateMachine."""
 
     def test_allow_event_without_transition(self):
         assert StateMachine.allow_event_without_transition is False
-
-    def test_enable_self_transition_entries(self):
-        assert StateMachine.enable_self_transition_entries is False
 
     def test_atomic_configuration_update(self):
         assert StateMachine.atomic_configuration_update is True
@@ -272,16 +268,33 @@ class TestErrorOnExecutionFalse:
 
 
 # ---------------------------------------------------------------------------
-# enable_self_transition_entries = False
+# enable_self_transition_entries (deprecated, no effect)
 # ---------------------------------------------------------------------------
 
 
 class TestSelfTransitionNoEntries:
-    """With enable_self_transition_entries=False, internal self-transitions do NOT fire entry/exit.
+    """Self-transitions behave the same as on ``StateChart``."""
 
-    Note: ``enable_self_transition_entries`` only applies to *internal* self-transitions
-    (``internal=True``). External self-transitions always fire entry/exit regardless.
-    """
+    def test_setting_the_flag_is_deprecated(self):
+        with pytest.warns(DeprecationWarning, match="enable_self_transition_entries"):
+
+            class SM(StateMachine):
+                enable_self_transition_entries = False
+
+                s1 = State(initial=True)
+                s2 = State(final=True)
+
+                go = s1.to(s2)
+
+    def test_inheriting_the_flag_does_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            class SM(StateMachine):
+                s1 = State(initial=True)
+                s2 = State(final=True)
+
+                go = s1.to(s2)
 
     def test_internal_self_transition_does_not_fire_enter_exit(self):
         log = []

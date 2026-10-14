@@ -1,4 +1,5 @@
 import re
+import warnings
 from typing import Any
 
 from . import registry
@@ -71,6 +72,7 @@ class StateMachineMetaclass(type):
         cls.prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
             "prepare_event", priority=CallbackPriority.GENERIC, is_convention=True
         )
+        cls._warn_deprecated_attributes(bases, attrs)
         cls.add_inherited(bases)
         cls.add_from_attributes(attrs)
         cls._collect_class_listeners(attrs, bases)
@@ -104,6 +106,17 @@ class StateMachineMetaclass(type):
         cls._setup()
         cls._unpack_builders_callbacks(attrs)
         cls._expand_docstring()
+
+    @staticmethod
+    def _warn_deprecated_attributes(bases: tuple[type], attrs: dict[str, Any]) -> None:
+        is_subclass = any(isinstance(base, StateMachineMetaclass) for base in bases)
+        if is_subclass and "enable_self_transition_entries" in attrs:
+            warnings.warn(
+                "`enable_self_transition_entries` is deprecated and has no effect since 3.3.0. "
+                "Use `internal=True` for a self-transition that skips exit and entry actions.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
 
     _STATECHART_RE = re.compile(r"\{statechart:(\w+)\}")
 
