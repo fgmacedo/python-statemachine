@@ -28,6 +28,7 @@ See the :mod:`statemachine.io.scxml` package docstring and the GHSA-v4jc-pm6r-3v
 """
 
 import ast
+import builtins
 import html
 import re
 from collections.abc import Callable
@@ -141,8 +142,9 @@ class _TrustedNamespace(dict):
 
     The model shadows the call kwargs. Instance attributes resolve as before; any other
     attribute (property, class attribute, slot) resolves through the same boundary as
-    :func:`_resolvable_model_attr`. Methods are left out: the restricted guard dialect calls
-    a bare method name, which ``eval`` cannot reproduce per name.
+    :func:`_resolvable_model_attr`, unless it is named like a builtin. Methods are left out:
+    the restricted guard dialect calls a bare method name, which ``eval`` cannot reproduce
+    per name.
     """
 
     def __init__(self, model, kwargs: dict, **overrides):
@@ -156,7 +158,7 @@ class _TrustedNamespace(dict):
             instance_attrs = getattr(self._model, "__dict__", {})
             if name in instance_attrs:
                 return instance_attrs[name]
-            if _resolvable_model_attr(name, self._model):
+            if name not in builtins.__dict__ and _resolvable_model_attr(name, self._model):
                 value = getattr(self._model, name)
                 if not isroutine(value):
                     return value

@@ -158,3 +158,15 @@ def test_trusted_mode_does_not_resolve_a_model_method_by_bare_name():
 
     assert sm.configuration_values == {"matched"}
     assert sm.model.seen == 5
+
+
+class BuiltinNamedClassAttribute:
+    len = 0
+    value = 3
+
+
+def test_trusted_mode_keeps_builtins_over_model_class_attributes():
+    sm = _run(True, expected=1, expr="len([value])", model=BuiltinNamedClassAttribute)
+
+    assert sm.configuration_values == {"matched"}
+    assert sm.model.seen == 1
