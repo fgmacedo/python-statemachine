@@ -192,6 +192,12 @@ Update the version string in **both** files:
 - `pyproject.toml` — the `version` field under `[project]`
 - `statemachine/__init__.py` — the `__version__` variable
 
+Then refresh the lock file, which records the project's own version:
+
+```shell
+uv lock
+```
+
 #### 2. Update translations
 
 Extract new translatable strings, merge them into all existing `.po` files, translate the
@@ -204,6 +210,10 @@ uv run pybabel update -i statemachine/locale/statemachine.pot -d statemachine/lo
 uv run pybabel compile -d statemachine/locale/ -D statemachine
 ```
 
+The `en` catalog keeps empty `msgstr` entries: English falls back to the source strings.
+When a translation needs the placeholders in a different order, number them (`'{0}'`,
+`'{2}'`, `'{1}'`) instead of reordering bare `{}`, which would swap the values.
+
 ```{note}
 The `.pot` and `.mo` files are git-ignored. Only the `.po` source files are committed.
 The compiled `.mo` files may cause test failures if your system locale matches a translated
@@ -213,7 +223,8 @@ verifying translations work: `rm -f statemachine/locale/*/LC_MESSAGES/statemachi
 
 #### 3. Write release notes
 
-Create `docs/releases/X.Y.Z.md` documenting all changes since the previous release. Include
+Create `docs/releases/X.Y.Z.md` documenting all changes since the previous release, if
+the pull requests did not already start it. Include
 sections for new features, bugfixes, performance improvements, and miscellaneous changes.
 Reference GitHub issues/PRs where applicable.
 
@@ -222,6 +233,9 @@ major version section).
 
 Update any related documentation pages (e.g., if a bugfix adds a new behavior that users
 should know about).
+
+Replace the `*Not released yet*` line under the title with the release date (e.g.
+`*October 13, 2026*`).
 
 #### 4. Run linters and tests
 
@@ -237,11 +251,12 @@ All checks must pass before committing.
 #### 5. Commit
 
 Stage all changed files and commit. The pre-commit hooks will run ruff, mypy, and pytest
-automatically.
+automatically. If a hook rewrites a file (e.g. `fix end of files` on the `.po` files), stage
+it and commit again.
 
 ```shell
 git add <files>
-git commit -m "chore: prepare release X.Y.Z"
+git commit -s -m "chore: prepare release X.Y.Z"
 ```
 
 #### 6. Tag the release

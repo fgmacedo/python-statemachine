@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version:  3.1.1\n"
 "Report-Msgid-Bugs-To: fgmacedo@gmail.com\n"
-"POT-Creation-Date: 2026-06-16 23:00-0300\n"
+"POT-Creation-Date: 2026-10-13 21:26-0300\n"
 "PO-Revision-Date: 2024-06-07 17:41-0300\n"
 "Last-Translator: Fernando Macedo <fgmacedo@gmail.com>\n"
 "Language: hi_IN\n"
@@ -16,7 +16,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: statemachine/callbacks.py:398 statemachine/callbacks.py:403
+#: statemachine/callbacks.py:409 statemachine/callbacks.py:414
 #, python-brace-format
 msgid "Did not found name '{}' from model or statemachine"
 msgstr "मॉडल या स्टेटमशीन में नाम '{}' नहीं मिला"
@@ -29,12 +29,24 @@ msgstr ""
 "कोई वर्तमान स्टेट सेट नहीं है। असिंक्रोनस कोड में, क्या आपने प्रारंभिक "
 "स्टेट को सक्रिय किया? (उदाहरण: `await sm.activate_initial_state()`)"
 
-#: statemachine/dispatcher.py:123
+#: statemachine/dispatcher.py:127
 #, python-brace-format
 msgid "Failed to parse boolean expression '{}'"
 msgstr "बूलियन अभिव्यक्ति '{}' को पार्स करने में विफल रहा"
 
-#: statemachine/event.py:94
+#: statemachine/event.py:56
+#, python-brace-format
+msgid ""
+"Event {id!r} cannot be both delayed and internal: the internal queue runs"
+" within the current macrostep, which takes no time. Drop 'internal' to "
+"deliver it later on the external queue, or drop 'delay' to run it now."
+msgstr ""
+"इवेंट {id!r} एक साथ विलंबित और आंतरिक नहीं हो सकता: आंतरिक कतार वर्तमान "
+"मैक्रोस्टेप के भीतर चलती है, जिसमें कोई समय नहीं लगता। इसे बाद में बाहरी "
+"कतार से भेजने के लिए 'internal' हटाएँ, या इसे अभी चलाने के लिए 'delay' "
+"हटाएँ।"
+
+#: statemachine/event.py:108
 #, python-brace-format
 msgid ""
 "Event() received a non-string 'id' ({cls_name}). To combine multiple "
@@ -43,12 +55,12 @@ msgstr ""
 "Event() को एक गैर-स्ट्रिंग 'id' ({cls_name}) मिला। एक ही इवेंट के तहत कई "
 "ट्रांज़िशन को जोड़ने के लिए, | ऑपरेटर का उपयोग करें: t1 | t2।"
 
-#: statemachine/event.py:130
+#: statemachine/event.py:147
 #, python-brace-format
 msgid "Cannot add callback '{}' to an event with no transitions."
 msgstr "बिना ट्रांज़िशन वाले इवेंट में कॉलबैक '{}' नहीं जोड़ सकते।"
 
-#: statemachine/event.py:163
+#: statemachine/event.py:182
 #, python-brace-format
 msgid "Event {} cannot be called without a SM instance"
 msgstr "इवेंट {} को SM इंस्टेंस के बिना कॉल नहीं किया जा सकता"
@@ -63,14 +75,43 @@ msgstr "{!r} एक मान्य स्टेट मान नहीं ह�
 msgid "Can't {} when in {}."
 msgstr "{} स्थिति में {} नहीं कर सकते।"
 
-#: statemachine/factory.py:77
+#: statemachine/factory.py:91
 #, python-brace-format
 msgid ""
 "There should be one and only one initial state. Your currently have "
 "these: {0}"
 msgstr "एक और केवल एक प्रारंभिक स्टेट होना चाहिए। वर्तमान में आपके पास ये हैं: {0}"
 
-#: statemachine/factory.py:194
+#: statemachine/factory.py:249
+#, python-brace-format
+msgid "is declared in both the '{}' and the '{}' state bodies"
+msgstr "'{}' और '{}' दोनों स्टेट बॉडी में घोषित है"
+
+#: statemachine/factory.py:253
+#, python-brace-format
+msgid "in the '{}' state body clashes with the event '{}'"
+msgstr "'{}' स्टेट बॉडी में इवेंट '{}' से टकराता है"
+
+#: statemachine/factory.py:257
+#, python-brace-format
+msgid "is declared in both the '{}' state body and the '{}' class body"
+msgstr "'{}' स्टेट बॉडी और '{}' क्लास बॉडी दोनों में घोषित है"
+
+#: statemachine/factory.py:261
+#, python-brace-format
+msgid "in the '{}' state body clashes with the '{}' attribute of '{}'"
+msgstr "'{0}' स्टेट बॉडी में '{2}' के एट्रिब्यूट '{1}' से टकराता है"
+
+#: statemachine/factory.py:267
+#, python-brace-format
+msgid ""
+"Callback '{}' {}. Nested state bodies share the class namespace. Rename "
+"one of them."
+msgstr ""
+"कॉलबैक '{}' {}। नेस्टेड स्टेट बॉडी क्लास का नेमस्पेस साझा करती हैं। इनमें"
+" से एक का नाम बदलें।"
+
+#: statemachine/factory.py:291
 #, python-brace-format
 msgid ""
 "There should be one and only one initial state. You currently have these:"
@@ -79,12 +120,12 @@ msgstr ""
 "एक और केवल एक प्रारंभिक स्टेट होना चाहिए। वर्तमान में आपके पास ये हैं: "
 "{!r}"
 
-#: statemachine/factory.py:209
+#: statemachine/factory.py:306
 #, python-brace-format
 msgid "Cannot declare transitions from final state. Invalid state(s): {}"
 msgstr "अंतिम स्टेट से ट्रांज़िशन घोषित नहीं कर सकते। अमान्य स्टेट: {}"
 
-#: statemachine/factory.py:221
+#: statemachine/factory.py:318
 #, python-brace-format
 msgid ""
 "All non-final states should have at least one outgoing transition. These "
@@ -93,7 +134,7 @@ msgstr ""
 "सभी गैर-अंतिम स्टेट में कम से कम एक आउटगोइंग ट्रांज़िशन होना चाहिए। इन "
 "स्टेट में कोई आउटगोइंग ट्रांज़िशन नहीं है: {!r}"
 
-#: statemachine/factory.py:235
+#: statemachine/factory.py:332
 #, python-brace-format
 msgid ""
 "All non-final states should have at least one path to a final state. "
@@ -102,7 +143,7 @@ msgstr ""
 "सभी गैर-अंतिम स्टेट में अंतिम स्टेट तक कम से कम एक पथ होना चाहिए। इन "
 "स्टेट में अंतिम स्टेट तक कोई पथ नहीं है: {!r}"
 
-#: statemachine/factory.py:248
+#: statemachine/factory.py:345
 #, python-brace-format
 msgid ""
 "There are unreachable states. The statemachine graph should have a single"
@@ -111,7 +152,7 @@ msgstr ""
 "कुछ स्टेट पहुंच योग्य नहीं हैं। स्टेटमशीन ग्राफ में एक ही घटक होना चाहिए।"
 " डिस्कनेक्टेड स्टेट: {}"
 
-#: statemachine/factory.py:285
+#: statemachine/factory.py:382
 #, python-brace-format
 msgid ""
 "Invalid entry in 'listeners': {!r}. Expected a class, callable, or "
@@ -120,7 +161,7 @@ msgstr ""
 "'listeners' में अमान्य प्रविष्टि: {!r}। एक क्लास, कॉलेबल, या लिसनर "
 "इंस्टेंस अपेक्षित है।"
 
-#: statemachine/factory.py:384
+#: statemachine/factory.py:481
 #, python-brace-format
 msgid "An event in the '{}' has no id."
 msgstr "'{}' में एक इवेंट का आईडी नहीं है।"
@@ -130,15 +171,15 @@ msgstr "'{}' में एक इवेंट का आईडी नहीं �
 msgid "{!r} is not a valid state machine name."
 msgstr "{!r} एक मान्य स्टेटमशीन नाम नहीं है।"
 
-#: statemachine/state.py:249
+#: statemachine/state.py:273
 msgid "'donedata' can only be specified on final states."
 msgstr "'donedata' केवल अंतिम स्टेट पर निर्दिष्ट किया जा सकता है।"
 
-#: statemachine/statemachine.py:167
+#: statemachine/statemachine.py:168
 msgid "There are no states or transitions."
 msgstr "कोई स्टेट या ट्रांज़िशन नहीं हैं।"
 
-#: statemachine/statemachine.py:237
+#: statemachine/statemachine.py:242
 #, python-brace-format
 msgid "State overriding is not allowed. Trying to add '{}' to {}"
 msgstr ""
@@ -158,6 +199,14 @@ msgstr ""
 #, python-brace-format
 msgid "{} only supports the decorator syntax to register callbacks."
 msgstr "{} केवल कॉलबैक रजिस्टर करने के लिए डेकोरेटर सिंटैक्स का समर्थन करता है।"
+
+#: statemachine/engines/async_.py:50
+msgid ""
+"The task running the processing loop was cancelled while it processed "
+"this event."
+msgstr ""
+"प्रोसेसिंग लूप चलाने वाला टास्क इस इवेंट को प्रोसेस करते समय रद्द कर दिया"
+" गया।"
 
 #~ msgid "There are no states."
 #~ msgstr "कोई स्टेट नहीं है।"
