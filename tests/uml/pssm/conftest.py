@@ -30,13 +30,7 @@ XFAIL_BOTH = {
     "Exit_003": "requires:exit_point: exit point effect runs before the state exit",
     "Exiting_004": "requires:exit_point: exit point effect runs before the state exit",
     "Fork_002": "requires:fork: fork branch effects interleave with entries",
-    "History_001-A": "bug:B2: effect into a restored history runs twice",
-    "History_002-A": "bug:B2: effect into a restored history runs twice",
-    "History_002-B": (
-        "bug:B2, unclassified: effect into a restored history runs twice; completions of "
-        "two regions share one microstep"
-    ),
-    "History_002-C": "bug:B1: history without stored value nor default empties the config",
+    "History_002-B": "unclassified: completions of two regions share one microstep",
     "History_002-D": "conflict:K10: history restores a final state, completion loops",
     "Join_001": "requires:join: join effects run after all exits",
     "Join_002": "requires:join: join effects run after all exits",

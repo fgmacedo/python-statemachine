@@ -9,6 +9,9 @@ Theme: Gollum's dual personality — remembers which was active.
 
 import pytest
 
+from statemachine import HistoryState
+from statemachine import State
+from statemachine import StateChart
 from tests.machines.history.deep_memory_of_moria import DeepMemoryOfMoria
 from tests.machines.history.gollum_personality import GollumPersonality
 from tests.machines.history.gollum_personality_default_gollum import GollumPersonalityDefaultGollum
@@ -106,3 +109,156 @@ class TestHistoryStates:
         sm = await sm_runner.start(GollumPersonalityDefaultGollum)
         await sm_runner.send(sm, "enter_via_history")
         assert "gollum" in sm.configuration_values
+
+
+def _build_traced_machine(kind, with_default=False):
+    class Traced(StateChart):
+        outside = State(initial=True)
+
+        class region(State.Compound):
+            class nested(State.Compound):
+                n1 = State(initial=True)
+                n2 = State()
+                deeper = n1.to(n2)
+
+            other = State()
+            h = HistoryState(type=kind)
+            sideways = nested.to(other)
+            if with_default:
+                h.to(other, on="default_effect")
+
+        enter = outside.to(region, on="enter_effect")
+        leave = region.to(outside)
+        back = outside.to(region.h, on="back_effect")
+
+        def __init__(self, *args, **kwargs):
+            self.trace = []
+            super().__init__(*args, **kwargs)
+
+        def enter_effect(self):
+            self.trace.append("enter_effect")
+
+        def back_effect(self):
+            self.trace.append("back_effect")
+
+        def default_effect(self):
+            self.trace.append("default_effect")
+
+        def on_enter_state(self, target):
+            self.trace.append(f"enter:{target.id}")
+
+        def on_exit_state(self, source):
+            self.trace.append(f"exit:{source.id}")
+
+    return Traced
+
+
+@pytest.mark.timeout(5)
+@pytest.mark.parametrize("kind", ["shallow", "deep"])
+class TestHistoryDefaultEntry:
+    async def test_no_stored_value_and_no_default_enters_parent_by_default(self, sm_runner, kind):
+        sm = await sm_runner.start(_build_traced_machine(kind))
+        sm.trace.clear()
+
+        await sm_runner.send(sm, "back")
+
+        assert {"region", "nested", "n1"} == set(sm.configuration_values)
+        assert sm.trace == [
+            "exit:outside",
+            "back_effect",
+            "enter:region",
+            "enter:nested",
+            "enter:n1",
+        ]
+
+    async def test_machine_keeps_running_after_default_entry_of_parent(self, sm_runner, kind):
+        sm = await sm_runner.start(_build_traced_machine(kind))
+        await sm_runner.send(sm, "back")
+        await sm_runner.send(sm, "deeper")
+        await sm_runner.send(sm, "leave")
+        await sm_runner.send(sm, "back")
+
+        expected_leaf = "n2" if kind == "deep" else "n1"
+        assert {"region", "nested", expected_leaf} == set(sm.configuration_values)
+
+    async def test_stored_value_runs_incoming_effect_once(self, sm_runner, kind):
+        sm = await sm_runner.start(_build_traced_machine(kind))
+        await sm_runner.send(sm, "enter")
+        await sm_runner.send(sm, "sideways")
+        await sm_runner.send(sm, "leave")
+        sm.trace.clear()
+
+        await sm_runner.send(sm, "back")
+
+        assert {"region", "other"} == set(sm.configuration_values)
+        assert sm.trace == ["exit:outside", "back_effect", "enter:region", "enter:other"]
+
+    async def test_default_runs_incoming_effect_once_then_default_effect(self, sm_runner, kind):
+        sm = await sm_runner.start(_build_traced_machine(kind, with_default=True))
+        sm.trace.clear()
+
+        await sm_runner.send(sm, "back")
+
+        assert {"region", "other"} == set(sm.configuration_values)
+        assert sm.trace == [
+            "exit:outside",
+            "back_effect",
+            "enter:region",
+            "default_effect",
+            "enter:other",
+        ]
+
+    async def test_stored_value_skips_default_effect(self, sm_runner, kind):
+        sm = await sm_runner.start(_build_traced_machine(kind, with_default=True))
+        await sm_runner.send(sm, "enter")
+        await sm_runner.send(sm, "deeper")
+        await sm_runner.send(sm, "leave")
+        sm.trace.clear()
+
+        await sm_runner.send(sm, "back")
+
+        expected_leaf = "n2" if kind == "deep" else "n1"
+        assert {"region", "nested", expected_leaf} == set(sm.configuration_values)
+        assert sm.trace == [
+            "exit:outside",
+            "back_effect",
+            "enter:region",
+            "enter:nested",
+            f"enter:{expected_leaf}",
+        ]
+
+    async def test_default_entry_of_parent_enters_its_ancestors(self, sm_runner, kind):
+        class Nested(StateChart):
+            outside = State(initial=True)
+
+            class top(State.Compound):
+                class region(State.Compound):
+                    r1 = State(initial=True)
+                    h = HistoryState(type=kind)
+
+                t1 = State(initial=True)
+
+            back = outside.to(top.region.h)
+
+        sm = await sm_runner.start(Nested)
+
+        await sm_runner.send(sm, "back")
+
+        assert {"top", "region", "r1"} == set(sm.configuration_values)
+
+    async def test_default_entry_of_parent_from_a_sibling(self, sm_runner, kind):
+        class Siblings(StateChart):
+            class top(State.Compound):
+                t1 = State(initial=True)
+
+                class region(State.Compound):
+                    r1 = State(initial=True)
+                    h = HistoryState(type=kind)
+
+                back = t1.to(region.h)
+
+        sm = await sm_runner.start(Siblings)
+
+        await sm_runner.send(sm, "back")
+
+        assert {"top", "region", "r1"} == set(sm.configuration_values)
