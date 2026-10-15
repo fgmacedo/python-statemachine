@@ -184,6 +184,40 @@ The compound approach scales better as you add more states — no need to
 remember to include each new state in a `from_()` list.
 
 
+### Multiple targets: the UML fork
+
+Pass a list of states to `to()` to enter them all in a single transition. This
+is the UML **fork**: one event activates every target at once, so the machine
+ends up in more than one region at the same time:
+
+```py
+>>> class ForkMachine(StateChart):
+...     started = State(initial=True)
+...
+...     class active(State.Parallel):
+...         class region1(State.Compound):
+...             step1 = State(initial=True)
+...             done1 = State(final=True)
+...             finish1 = step1.to(done1)
+...
+...         class region2(State.Compound):
+...             step2 = State(initial=True)
+...             done2 = State(final=True)
+...             finish2 = step2.to(done2)
+...
+...     fork = started.to([active.region1.step1, active.region2.step2])
+
+>>> sm = ForkMachine()
+>>> sm.send("fork")
+>>> set(sm.configuration_values) == {"active", "region1", "step1", "region2", "step2"}
+True
+
+```
+
+The graph checks follow every target of a transition, so a state that is only
+entered by a fork doesn't need another incoming transition to count as reachable.
+
+
 (self-transition)=
 (self transition)=
 

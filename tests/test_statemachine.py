@@ -444,6 +444,29 @@ def test_history_state_reachable_without_disabling_flag():
     assert "a" in HistoryMachine.states_map
 
 
+def test_fork_multi_target_transition_is_reachable():
+    """A fork targets several states at once; the reachability walk follows all of them."""
+
+    class ForkMachine(StateChart):
+        started = State(initial=True)
+
+        class active(State.Parallel):
+            class r1(State.Compound):
+                x1 = State(initial=True)
+                x2 = State(final=True)
+
+            class r2(State.Compound):
+                y1 = State(initial=True)
+                y2 = State(final=True)
+
+        fork = started.to([active.r1.x2, active.r2.y2])
+
+    sm = ForkMachine()
+    sm.send("fork")
+
+    assert set(sm.configuration_values) == {"active", "r1", "r2", "x2", "y2"}
+
+
 def test_state_value_is_correct():
     STATE_NEW = 0
     STATE_DRAFT = 1

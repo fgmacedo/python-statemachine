@@ -34,9 +34,10 @@ class _TransitionBuilder:
 
 
 class _ToState(_TransitionBuilder):
-    def __call__(self, *states: "State | NestedStateFactory | None", **kwargs):
+    def __call__(self, *states: "State | NestedStateFactory | list[State] | None", **kwargs):
         transitions = TransitionList(
-            Transition(self._state, cast("State | None", state), **kwargs) for state in states
+            Transition(self._state, cast("State | list[State] | None", state), **kwargs)
+            for state in states
         )
         self._state.transitions.add_transitions(transitions)
         return transitions
