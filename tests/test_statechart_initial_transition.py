@@ -221,3 +221,101 @@ class TestInitialTransitionToHistory:
 
         assert sm.effects == 2
         assert set(sm.configuration_values) == {"d", "b"}
+
+
+class InitConvention(StateChart):
+    class d(State.Compound):
+        class d1(State.Compound):
+            d11 = State(initial=True)
+
+        class d2(State.Compound):
+            class d21(State.Compound):
+                d211 = State(initial=True)
+
+        to_d2 = d1.to(d2)
+        to_d211 = d1.to(d2.d21.d211)
+
+    d.to(d.d1, initial=True, on="explicit_effect")
+
+    def __init__(self, *args, **kwargs):
+        self.log = []
+        super().__init__(*args, **kwargs)
+
+    def explicit_effect(self):
+        self.log.append("explicit")
+
+    def on_init_d(self):
+        self.log.append("init:d")
+
+    def on_init_d2(self):
+        self.log.append("init:d2")
+
+    def on_init_d21(self):
+        self.log.append("init:d21")
+
+    def on_enter_state(self, state):
+        self.log.append(f"enter:{state.id}")
+
+
+class TestOnInitNamingConvention:
+    async def test_runs_after_explicit_effect_and_before_children(self, sm_runner):
+        sm = await sm_runner.start(InitConvention)
+
+        assert sm.log == ["enter:d", "explicit", "init:d", "enter:d1", "enter:d11"]
+
+    async def test_runs_on_the_default_initial_transition(self, sm_runner):
+        sm = await sm_runner.start(InitConvention)
+        sm.log.clear()
+
+        await sm_runner.send(sm, "to_d2")
+
+        assert sm.log == ["enter:d2", "init:d2", "enter:d21", "init:d21", "enter:d211"]
+
+    async def test_skipped_when_a_transition_targets_a_substate(self, sm_runner):
+        sm = await sm_runner.start(InitConvention)
+        sm.log.clear()
+
+        await sm_runner.send(sm, "to_d211")
+
+        assert sm.log == ["enter:d2", "enter:d21", "enter:d211"]
+
+    async def test_resolved_on_listeners(self, sm_runner):
+        class Listener:
+            def __init__(self):
+                self.inits = []
+
+            def on_init_d2(self, target):
+                self.inits.append(target.id)
+
+        listener = Listener()
+        sm = await sm_runner.start(InitConvention, listeners=[listener])
+
+        await sm_runner.send(sm, "to_d2")
+
+        assert listener.inits == ["d2"]
+
+    async def test_parallel_state_runs_it_per_region(self, sm_runner):
+        class Chart(StateChart):
+            class p(State.Parallel):
+                class r1(State.Compound):
+                    a = State()
+
+                class r2(State.Compound):
+                    b = State()
+
+            def __init__(self, *args, **kwargs):
+                self.inits = []
+                super().__init__(*args, **kwargs)
+
+            def on_init_p(self):
+                self.inits.append("p")
+
+            def on_init_r1(self):
+                self.inits.append("r1")
+
+            def on_init_r2(self):
+                self.inits.append("r2")
+
+        sm = await sm_runner.start(Chart)
+
+        assert sm.inits == ["r1", "r2"]

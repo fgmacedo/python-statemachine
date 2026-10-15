@@ -123,6 +123,8 @@ class Transition:
 
         before("before_transition", priority=CallbackPriority.GENERIC, is_convention=True)
         on("on_transition", priority=CallbackPriority.GENERIC, is_convention=True)
+        if self.initial:
+            on(f"on_init_{self.source.id}", priority=CallbackPriority.NAMING, is_convention=True)
 
         for event in self._events:
             same_event_cond = event.is_same_event
