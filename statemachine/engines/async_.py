@@ -257,6 +257,7 @@ class AsyncEngine(BaseEngine):
         if self.sm.atomic_configuration_update:
             self.sm.configuration = new_configuration
 
+        initial_transitions = {i.state.id: i.transition for i in states_for_default_entry}
         for info in ordered_states:
             target = info.state
             transition = info.transition
@@ -273,13 +274,11 @@ class AsyncEngine(BaseEngine):
                 target.enter.key, *args, on_error=on_error, **kwargs
             )
 
-            # Handle default initial states
-            if target.id in {t.state.id for t in states_for_default_entry if t.state}:
-                initial_transitions = [t for t in target.transitions if t.initial]
-                if len(initial_transitions) == 1:
-                    result += await self.sm._callbacks.async_call(
-                        initial_transitions[0].on.key, *args, **kwargs
-                    )
+            initial_transition = initial_transitions.get(target.id)
+            if initial_transition is not None:
+                result += await self.sm._callbacks.async_call(
+                    initial_transition.on.key, *args, **kwargs
+                )
 
             # Handle default history states
             default_history_transitions = [

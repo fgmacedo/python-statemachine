@@ -209,6 +209,20 @@ True
 Use `HistoryState(type="deep")` for deep history that remembers the exact leaf state
 in nested compounds.
 
+On the first visit there is nothing recorded yet. A transition declared from the history
+state (`h.to(b)`) is its default: its target is entered and its actions run. Without one,
+the compound state is entered as usual, through its initial state. Either way, the actions
+of the transition that led to the history state run exactly once.
+
+```py
+>>> sm = WithHistory()
+>>> sm.send("leave")
+>>> sm.send("resume")
+>>> sorted(sm.configuration_values)
+['a', 'mode']
+
+```
+
 
 ```{seealso}
 See {ref}`querying-configuration` for how to inspect which states are currently

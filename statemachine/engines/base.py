@@ -387,12 +387,14 @@ class BaseEngine:
             if state.is_history:
                 if state.id in self.sm.history_values:
                     targets.update(self.sm.history_values[state.id])
-                else:
+                elif state.transitions:
                     targets.update(
                         state
                         for t in state.transitions
                         for state in self.get_effective_target_states(t)
                     )
+                else:
+                    targets.add(cast(State, state.parent))
             else:
                 targets.add(state)
 
@@ -628,6 +630,7 @@ class BaseEngine:
         if self.sm.atomic_configuration_update:
             self.sm.configuration = new_configuration
 
+        initial_transitions = {i.state.id: i.transition for i in states_for_default_entry}
         for info in ordered_states:
             target = info.state
             transition = info.transition
@@ -646,13 +649,9 @@ class BaseEngine:
                 target.enter.key, *args, on_error=on_error, **kwargs
             )
 
-            # Handle default initial states
-            if target.id in {t.state.id for t in states_for_default_entry if t.state}:
-                initial_transitions = [t for t in target.transitions if t.initial]
-                if len(initial_transitions) == 1:
-                    result += self.sm._callbacks.call(
-                        initial_transitions[0].on.key, *args, **kwargs
-                    )
+            initial_transition = initial_transitions.get(target.id)
+            if initial_transition is not None:
+                result += self.sm._callbacks.call(initial_transition.on.key, *args, **kwargs)
 
             # Handle default history states
             default_history_transitions = [
@@ -778,20 +777,26 @@ class BaseEngine:
         states_for_default_entry,
         default_history_content,
     ):
-        """Add the states a history state stands for: those it recorded, or its default."""
-        parent_id = state.parent and state.parent.id
-        default_history_content[parent_id] = [info]
+        """Add the states a history state stands for.
+
+        Those it recorded; else its default transition's targets, whose content runs on entry
+        of the parent; else the parent's own default entry.
+        """
+        parent = cast(State, state.parent)
         if state.id in self.sm.history_values:
             self._debug(
                 "%s History state '%s.%s' %s restoring: '%s'",
                 self._log_id,
-                state.parent,
+                parent,
                 state,
                 state.type.value,
                 [s.id for s in self.sm.history_values[state.id]],
             )
-            for history_state in self.sm.history_values[state.id]:
-                info_to_add = StateTransition(transition=info.transition, state=history_state)
+            infos = [
+                StateTransition(transition=info.transition, state=history_state)
+                for history_state in self.sm.history_values[state.id]
+            ]
+            for info_to_add in infos:
                 if state.type.is_deep:
                     states_to_enter.add(info_to_add)
                 else:
@@ -801,46 +806,50 @@ class BaseEngine:
                         states_for_default_entry,
                         default_history_content,
                     )
-            for history_state in self.sm.history_values[state.id]:
-                info_to_add = StateTransition(transition=info.transition, state=history_state)
-                self.add_ancestor_states_to_enter(
+        elif state.transitions:
+            self._debug(
+                "%s History state '%s.%s' default content: %s",
+                self._log_id,
+                parent,
+                state,
+                [t.target.id for t in state.transitions if t.target],
+            )
+            infos = [
+                StateTransition(transition=transition, state=cast(State, transition.target))
+                for transition in state.transitions
+            ]
+            default_history_content[parent.id] = infos
+            for info_to_add in infos:
+                self.add_descendant_states_to_enter(
                     info_to_add,
-                    state.parent,
                     states_to_enter,
                     states_for_default_entry,
                     default_history_content,
                 )
         else:
-            # Handle default history content
             self._debug(
-                "%s History state '%s.%s' default content: %s",
+                "%s History state '%s.%s' has no content, default entry of '%s'",
                 self._log_id,
-                state.parent,
+                parent,
                 state,
-                [t.target.id for t in state.transitions if t.target],
+                parent,
             )
+            self.add_descendant_states_to_enter(
+                StateTransition(transition=info.transition, state=parent),
+                states_to_enter,
+                states_for_default_entry,
+                default_history_content,
+            )
+            return
 
-            for transition in state.transitions:
-                target = cast(State, transition.target)
-                info_history = StateTransition(transition=transition, state=target)
-                default_history_content[parent_id].append(info_history)
-                self.add_descendant_states_to_enter(
-                    info_history,
-                    states_to_enter,
-                    states_for_default_entry,
-                    default_history_content,
-                )
-            for transition in state.transitions:
-                target = cast(State, transition.target)
-                info_history = StateTransition(transition=transition, state=target)
-
-                self.add_ancestor_states_to_enter(
-                    info_history,
-                    state.parent,
-                    states_to_enter,
-                    states_for_default_entry,
-                    default_history_content,
-                )
+        for info_to_add in infos:
+            self.add_ancestor_states_to_enter(
+                info_to_add,
+                parent,
+                states_to_enter,
+                states_for_default_entry,
+                default_history_content,
+            )
 
     def _add_regions_to_enter(
         self,
@@ -869,8 +878,8 @@ class BaseEngine:
     ):
         """Add the states a compound state's initial transition targets."""
         state = info.state
-        states_for_default_entry.add(info)
         transition = next(t for t in state.transitions if t.initial)
+        states_for_default_entry.add(StateTransition(transition=transition, state=state))
         # Process all targets (supports multi-target initial transitions for parallel regions)
         for initial_target in transition.targets:
             info_initial = StateTransition(transition=transition, state=initial_target)
