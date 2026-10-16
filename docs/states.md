@@ -181,7 +181,8 @@ compound state, whether the transition is explicit or picked by document order. 
 runs after the state's `enter` callbacks and after the transition's `on` action, and
 only when the compound is entered by default: a transition that targets one of its
 descendants directly skips it. A parallel state never runs its own `on_init_<state>()`;
-each of its regions runs theirs.
+each of its regions runs theirs. An event named `init_<state>` would bind the same method
+name, so it raises `InvalidDefinition` (see {ref}`callback-name-conflicts`).
 
 To run an initial action for the whole chart, before any substate is entered, wrap the
 states in a top-level compound and give it an explicit initial transition:

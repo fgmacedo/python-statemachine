@@ -144,6 +144,41 @@ All non-final states should have at least one path to a final state. These state
 Disable with `validate_final_reachability = False`.
 
 
+(callback-name-conflicts)=
+
+### Callback names bound to an event and to a state
+
+A method name can match two naming conventions at once: `on_init_payment` is the action
+of an event `init_payment` and also the {ref}`initial action <explicit-initial-transition>`
+of a compound state `payment`. Such a method would run for both. When the class, its
+model or a listener defines one, an `on_init_<state>` name raises `InvalidDefinition`:
+
+```py
+>>> try:
+...     class Checkout(StateChart):
+...         cart = State(initial=True)
+...         class payment(State.Compound):
+...             choosing = State()
+...             paid = State(final=True)
+...             pay = choosing.to(paid)
+...         init_payment = cart.to(payment)
+...
+...         def on_init_payment(self):
+...             pass
+... except InvalidDefinition as e:
+...     print(e)
+Checkout defines on_init_payment, bound both to an event and to the initial transition of a compound state. Rename the event or the method.
+
+```
+
+The same overlap with `on_enter_<state>`, `on_exit_<state>` or `on_invoke_<state>` (an
+event `enter_x` and a state `x`, for instance) emits a `DeprecationWarning` and will raise
+in 4.0. Listeners are checked when they are attached, by the constructor or by
+`add_listener()`.
+
+Disable with `validate_callback_name_conflicts = False`; the method then runs for both.
+
+
 ### Internal transition targets
 
 Internal transitions must target the same state (self) or a descendant —
@@ -317,6 +352,7 @@ Expressions support `and`, `or`, `not`, and parentheses. See
 | Unreachable states                | Class definition| `validate_disconnected_states` |
 | Trap states                       | Class definition| `validate_trap_states`     |
 | Final state reachability          | Class definition| `validate_final_reachability` |
+| Callback names bound twice        | Class definition, listeners | `validate_callback_name_conflicts` |
 | Internal transition targets       | Class definition| No                         |
 | Initial transitions have no cond  | Class definition| No                         |
 | `donedata` on final states only   | Class definition| No                         |
