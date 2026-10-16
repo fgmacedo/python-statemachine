@@ -126,6 +126,97 @@ True
 Entering a compound activates both the parent and its `initial` child. You can query
 whether a state is compound using the `is_compound` property.
 
+(explicit-initial-transition)=
+
+### Explicit initial transition
+
+To enter a compound at a nested descendant, or to run an action each time the compound
+is entered by default, declare its initial transition explicitly with
+`parent.to(target, initial=True)`. The target can be any descendant, and the `on`
+action runs after the parent's `enter` callbacks and before any child is entered:
+
+```py
+>>> class Trip(StateChart):
+...     class travel(State.Compound):
+...         class planning(State.Compound):
+...             dates = State(initial=True)
+...             route = State()
+...             next_step = dates.to(route)
+...         booked = State()
+...         book = planning.to(booked)
+...         replan = booked.to(planning)
+...     travel.to(travel.planning.route, initial=True, on="load_saved_route")
+...     home = State()
+...     cancel = travel.to(home)
+...     restart = home.to(travel)
+...
+...     def __init__(self):
+...         self.log = []
+...         super().__init__()
+...
+...     def load_saved_route(self):
+...         self.log.append("load saved route")
+...
+...     def on_enter_state(self, state):
+...         self.log.append(f"enter {state.id}")
+
+>>> sm = Trip()
+>>> sm.log
+['enter travel', 'load saved route', 'enter planning', 'enter route']
+
+>>> sm.send("cancel")
+>>> sm.log.clear()
+>>> sm.send("restart")
+>>> sm.log
+['enter travel', 'load saved route', 'enter planning', 'enter route']
+
+```
+
+An explicit initial transition replaces the default one: the first child is no longer
+picked by document order. A compound state accepts a single initial transition, so
+declaring a second one raises `InvalidDefinition`.
+
+A method named `on_init_<state>()` runs as part of the initial transition of that
+compound state, whether the transition is explicit or picked by document order. It
+runs after the state's `enter` callbacks and after the transition's `on` action, and
+only when the compound is entered by default: a transition that targets one of its
+descendants directly skips it. A parallel state never runs its own `on_init_<state>()`;
+each of its regions runs theirs. An event named `init_<state>` would bind the same method
+name, so it raises `InvalidDefinition` (see {ref}`callback-name-conflicts`).
+
+To run an initial action for the whole chart, before any substate is entered, wrap the
+states in a top-level compound and give it an explicit initial transition:
+
+```py
+>>> class Device(StateChart):
+...     class top(State.Compound):
+...         class idle(State.Compound):
+...             waiting = State()
+...         class active(State.Compound):
+...             class job(State.Compound):
+...                 running = State()
+...         stop = active.to(idle)
+...     top.to(top.active, initial=True, on="reset_counters")
+...
+...     def __init__(self):
+...         self.log = []
+...         super().__init__()
+...
+...     def reset_counters(self):
+...         self.log.append("top init")
+...
+...     def on_init_active(self):
+...         self.log.append("active init")
+...
+...     def on_enter_state(self, state):
+...         self.log.append(f"enter {state.id}")
+
+>>> sm = Device()
+>>> sm.log
+['enter top', 'top init', 'enter active', 'active init', 'enter job', 'enter running']
+
+```
+
 ```{seealso}
 See {ref}`done-state-events` for completion events when a compound state's
 final child is reached.

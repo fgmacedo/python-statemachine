@@ -52,7 +52,10 @@ sequence of **groups**. Each group runs to completion before the next one starts
 *   - Enter
     - `on_enter_state()`, `on_enter_<state>()`
     - entering state
-    - Runs once per state being entered, from ancestor to child.
+    - Runs once per state being entered, from ancestor to child. A compound entered
+      by default then runs its initial transition: its `on` action, then
+      `on_init_<state>()`, before any child is entered. Errors there follow the
+      transition `on` rules. See {ref}`explicit-initial-transition`.
 *   - Invoke
     - `on_invoke_state()`, `on_invoke_<state>()`
     - `target`

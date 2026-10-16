@@ -2,6 +2,8 @@ import re
 from typing import Any
 
 from . import registry
+from .callback_names import ambiguous_callback_names
+from .callback_names import check_callback_names
 from .callbacks import CallbackGroup
 from .callbacks import CallbackPriority
 from .callbacks import CallbackSpecList
@@ -47,6 +49,13 @@ class StateMachineMetaclass(type):
     """If ``True`` and final states exist, non-final states without a path to any final
     state raise ``InvalidDefinition``."""
 
+    validate_callback_name_conflicts: bool = True
+    """If ``True``, a method that the machine, its model or a listener defines under a name
+    bound both to an event (``on_<event>``) and to a state (``on_enter_<state>``,
+    ``on_exit_<state>``, ``on_invoke_<state>``, ``on_init_<state>``) is reported:
+    ``on_init_<state>`` raises ``InvalidDefinition``, the others emit a
+    ``DeprecationWarning``."""
+
     def __init__(
         cls,
         name: str,
@@ -64,6 +73,7 @@ class StateMachineMetaclass(type):
         """Map of ``state.value`` to the corresponding :ref:`state`."""
 
         cls._abstract = True
+        cls._ambiguous_callback_names: frozenset[str] = frozenset()
         cls._events: dict[Event, None] = {}  # used Dict to preserve order and avoid duplicates
         cls._protected_attrs: set = set()
         cls._events_to_update: dict[Event, list[Event]] = {}
@@ -103,6 +113,7 @@ class StateMachineMetaclass(type):
         cls._check()
         cls._setup()
         cls._unpack_builders_callbacks(attrs)
+        cls._check_callback_names()
         cls._expand_docstring()
 
     _STATECHART_RE = re.compile(r"\{statechart:(\w+)\}")
@@ -153,17 +164,21 @@ class StateMachineMetaclass(type):
             if s.initial:
                 initials.append(s)
 
+        if parent and not parent.parallel:
+            explicit_initials = [t for t in parent.transitions if t.initial]
+            if len(explicit_initials) > 1:
+                raise InvalidDefinition(
+                    _("State '{0}' has more than one initial transition.").format(parent.id)
+                )
+            if explicit_initials:
+                return
+
         if not initials and states:
             initial = states[0]
             initial._initial = True
             initials.append(initial)
 
         if not parent:
-            return
-
-        # If parent already has a multi-target initial transition (e.g., from SCXML initial
-        # attribute targeting multiple parallel regions), don't create default initial transitions.
-        if any(t for t in parent.transitions if t.initial and len(t.targets) > 1):
             return
 
         for initial in initials:
@@ -347,6 +362,18 @@ class StateMachineMetaclass(type):
                     "Disconnected states: {}"
                 ).format([s.id for s in states])
             )
+
+    def _check_callback_names(cls):
+        cls._ambiguous_callback_names = (
+            ambiguous_callback_names(cls.states)
+            if cls.validate_callback_name_conflicts
+            else frozenset()
+        )
+        check_callback_names(
+            cls.__name__,
+            (name for name in cls._ambiguous_callback_names if hasattr(cls, name)),
+            stacklevel=3,
+        )
 
     def _setup(cls):
         for visited in iterate_states_and_transitions(cls.states):

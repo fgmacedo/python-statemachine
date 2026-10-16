@@ -22,7 +22,7 @@ class TestErrorExecutionStatechart:
                 safe = State(initial=True)
                 danger = State()
 
-                enter_danger = safe.to(danger)
+                go_danger = safe.to(danger)
 
                 def on_enter_danger(self):
                     raise RuntimeError("Balrog awakens!")
@@ -31,7 +31,7 @@ class TestErrorExecutionStatechart:
             error_execution = Event(realm.to(error_state), id="error.execution")
 
         sm = await sm_runner.start(CompoundError)
-        await sm_runner.send(sm, "enter_danger")
+        await sm_runner.send(sm, "go_danger")
         assert {"error_state"} == set(sm.configuration_values)
 
     async def test_error_in_parallel_region_isolation(self, sm_runner):

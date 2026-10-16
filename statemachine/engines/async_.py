@@ -277,7 +277,7 @@ class AsyncEngine(BaseEngine):
             initial_transition = initial_transitions.get(target.id)
             if initial_transition is not None:
                 result += await self.sm._callbacks.async_call(
-                    initial_transition.on.key, *args, **kwargs
+                    initial_transition.on.key, *args, on_error=on_error_transition, **kwargs
                 )
 
             # Handle default history states

@@ -1,4 +1,5 @@
 import warnings
+from collections.abc import Iterable
 from collections.abc import MutableSet
 from inspect import isawaitable
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ from typing import cast
 
 from statemachine.orderedset import OrderedSet
 
+from .callback_names import check_callback_names
 from .callbacks import SPECS_ALL
 from .callbacks import SPECS_SAFE
 from .callbacks import CallbackSpecList
@@ -137,6 +139,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     _protected_attrs: set
     _specs: CallbackSpecList
     _class_listeners: list[Any]
+    _ambiguous_callback_names: frozenset[str]
     prepare: SpecListGrouper
 
     def __init__(
@@ -271,9 +274,9 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
         # _listeners already contained both class-level and runtime listeners
         # when serialized, so just re-register them all.
-        self._register_callbacks([])
+        self._register_callbacks([], check_names=False)
         if listeners:
-            self.add_listener(*listeners.values())
+            self._attach_listeners(listeners.values(), check_names=False)
         self._engine = self._get_engine()
         self._engine.start()
 
@@ -315,15 +318,17 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
         return self
 
-    def _register_callbacks(self, listeners: list[object]):
+    def _register_callbacks(self, listeners: list[object], check_names: bool = True):
+        external = (
+            Listener.from_obj(self.model, skip_attrs={self.state_field}),
+            *(Listener.from_obj(listener) for listener in listeners),
+        )
+        if check_names:
+            self._check_listener_names(external, stacklevel=3)
         self._listeners.update({id(listener): listener for listener in listeners})
         self._add_listener(
             Listeners.from_listeners(
-                (
-                    Listener.from_obj(self, skip_attrs=self._protected_attrs),
-                    Listener.from_obj(self.model, skip_attrs={self.state_field}),
-                    *(Listener.from_obj(listener) for listener in listeners),
-                )
+                (Listener.from_obj(self, skip_attrs=self._protected_attrs), *external)
             )
         )
 
@@ -357,11 +362,29 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
             :ref:`listeners`.
         """
+        return self._attach_listeners(listeners, check_names=True)
+
+    def _attach_listeners(self, listeners: "Iterable[object]", check_names: bool):
+        listeners = list(listeners)
+        added = [Listener.from_obj(listener) for listener in listeners]
+        if check_names:
+            self._check_listener_names(added, stacklevel=3)
         self._listeners.update({id(listener): listener for listener in listeners})
         return self._add_listener(
-            Listeners.from_listeners(Listener.from_obj(listener) for listener in listeners),
+            Listeners.from_listeners(added),
             allowed_references=SPECS_SAFE,
         )
+
+    def _check_listener_names(self, listeners: "Iterable[Listener]", stacklevel: int):
+        ambiguous = self._ambiguous_callback_names
+        if not ambiguous:
+            return
+        for listener in listeners:
+            check_callback_names(
+                type(listener.obj).__name__,
+                ambiguous & listener.all_attrs,
+                stacklevel=stacklevel + 1,
+            )
 
     def _repr_html_(self):
         return f'<div class="statemachine">{self._repr_svg_()}</div>'
