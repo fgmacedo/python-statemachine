@@ -12,7 +12,6 @@ from statemachine import StateChart
 
 class OrderControl(StateChart):
     allow_event_without_transition = False
-    enable_self_transition_entries = False
     waiting_for_payment = State(initial=True)
     processing = State()
     shipping = State()

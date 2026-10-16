@@ -83,9 +83,9 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     :ref:`event` triggers. Default: ``True``."""
 
     enable_self_transition_entries: bool = True
-    """If `False` (default), when a self-transition is selected,
-    the state entry/exit actions will not be executed. If `True`, the state entry actions
-    will be executed, which is conformant with the SCXML spec.
+    """Deprecated since 3.3.0, has no effect: setting it on a subclass emits a
+    ``DeprecationWarning``. An external self-transition always runs exit and entry actions;
+    use ``internal=True`` on an atomic state to skip them.
     """
 
     atomic_configuration_update: bool = False
@@ -546,6 +546,5 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
 
 class StateMachine(StateChart):
     allow_event_without_transition: bool = False
-    enable_self_transition_entries: bool = False
     atomic_configuration_update: bool = True
     catch_errors_as_events: bool = False

@@ -350,8 +350,8 @@ class BaseEngine:
         elif (
             transition.internal
             and transition.is_self
-            and transition.target
-            and transition.target.is_atomic
+            and len(transition.targets) == 1
+            and transition.source.is_atomic
         ):
             return transition.source
         else:
@@ -690,15 +690,17 @@ class BaseEngine:
             default_history_content: A dictionary to hold temporary content for history states.
         """
         for transition in transitions:
+            # Determine the ancestor state (transition domain)
+            ancestor = self.get_transition_domain(transition)
+            if ancestor is not None and ancestor in transition.targets:
+                continue
+
             # Process each target state of the transition
             for target_state in transition.targets:
                 info = StateTransition(transition=transition, state=target_state)
                 self.add_descendant_states_to_enter(
                     info, states_to_enter, states_for_default_entry, default_history_content
                 )
-
-            # Determine the ancestor state (transition domain)
-            ancestor = self.get_transition_domain(transition)
 
             # Add ancestor states to enter for each effective target state
             for effective_target in self.get_effective_target_states(transition):
@@ -741,8 +743,7 @@ class BaseEngine:
             return
 
         # Add the state to the entry set
-        if self._enters_target(info.transition):
-            states_to_enter.add(info)
+        states_to_enter.add(info)
         state = info.state
 
         if state.parallel:
@@ -753,21 +754,6 @@ class BaseEngine:
             self._add_initial_states_to_enter(
                 info, states_to_enter, states_for_default_entry, default_history_content
             )
-
-    def _enters_target(self, transition: Transition) -> bool:
-        """Whether taking ``transition`` enters its target.
-
-        An internal transition to its own source, or to a descendant of it, does not, unless
-        the machine enables self-transition entries.
-        """
-        return (
-            self.sm.enable_self_transition_entries
-            or not transition.internal
-            or not (
-                transition.is_self
-                or (transition.target and transition.target.is_descendant(transition.source))
-            )
-        )
 
     def _add_history_states_to_enter(
         self,

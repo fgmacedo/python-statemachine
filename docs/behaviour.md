@@ -40,7 +40,6 @@ GHSA-v4jc-pm6r-3vj8.
 | Attribute | `StateChart` | `StateMachine` | Description |
 |---|---|---|---|
 | `allow_event_without_transition` | `True` | `False` | Tolerate events that don't match any transition |
-| `enable_self_transition_entries` | `True` | `False` | Execute entry/exit actions on self-transitions |
 | `atomic_configuration_update` | `False` | `True` | When to update {ref}`configuration <querying-configuration>` during a microstep |
 | `catch_errors_as_events` | `True` | `False` | Catch action errors as `error.execution` events |
 
@@ -65,14 +64,16 @@ See {ref}`conditions` for how the engine selects transitions, and
 
 ## `enable_self_transition_entries`
 
-When `True` (SCXML default), a {ref}`self-transition <self-transition>`
-executes the state's exit and entry actions, just like any other transition.
-When `False` (legacy default), self-transitions skip entry/exit actions.
+```{deprecated} 3.3.0
+This attribute has no effect, and setting it on a subclass emits a
+`DeprecationWarning`.
+```
 
-The SCXML spec treats self-transitions as regular transitions that happen to
-return to the same state, so entry/exit actions must fire. Use an
-{ref}`internal transition <internal-transition>` if you need a transition that
-stays in the same state **without** running exit/entry actions.
+A {ref}`self-transition <self-transition>` always executes the state's exit
+and entry actions, as the SCXML spec requires. Use an
+{ref}`internal transition <internal-transition>` on an atomic state if you need
+a transition that stays in the same state **without** running exit/entry
+actions.
 
 ```{seealso}
 See {ref}`transitions` for the full reference on self-transitions and
