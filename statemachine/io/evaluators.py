@@ -28,10 +28,12 @@ See the :mod:`statemachine.io.scxml` package docstring and the GHSA-v4jc-pm6r-3v
 """
 
 import ast
+import builtins
 import html
 import re
 from collections.abc import Callable
 from inspect import isawaitable
+from inspect import isroutine
 from typing import Any
 from typing import Protocol
 
@@ -76,32 +78,38 @@ def _resolvable_model_attr(name: str, model) -> bool:
     Engine-protected names (``machine``, ``event``, system variables, …) and any
     private/dunder name (leading underscore) never resolve off the model, mirroring the
     dotted-access guard in :func:`statemachine.spec_parser.build_attribute`. System
-    variables stay reachable because they are provided via the call kwargs, which are
-    consulted before this. This keeps a semi-trusted document from reading the model's
-    internals (``_secret``) or walking the object graph (``__class__``).
+    variables stay reachable because they are provided via the call kwargs. This keeps a
+    semi-trusted document from reading the model's internals (``_secret``) or walking the
+    object graph (``__class__``).
     """
     return name not in protected_attrs and not name.startswith("_") and hasattr(model, name)
+
+
+def _kwarg(name: str, kwargs: dict) -> Any:
+    if name not in _event_data_kwargs and name in kwargs:
+        return kwargs[name]
+    raise NameError(f"name '{name}' is not defined")
 
 
 def variable_hook(name: str) -> Callable:
     """Resolve a datamodel name at call time.
 
-    Looks the name up in the call kwargs first (SCXML system variables such as
-    ``_event``, ``_name``), then falls back to a (non-protected, non-private) attribute of
-    ``machine.model``. Names in :data:`~statemachine.event._event_data_kwargs` (``machine``,
-    ``model``, ``event``, ``transition``, ...) are the live engine-capability objects; they
-    are **withheld** from the kwargs lookup so an untrusted expression cannot obtain the
-    engine and pivot through it onto shared classes (GHSA-v3qq-3xvg-m77g). The ``_``-prefixed
-    system variables are not engine objects and stay resolvable.
+    Looks the name up as a (non-protected, non-private) attribute of ``machine.model``
+    first, so the datamodel shadows an event keyword argument of the same name (the payload
+    stays reachable as ``_event.data.<name>``). It then falls back to the call kwargs, which
+    carry the SCXML system variables (``_event``, ``_name``) and the event payload. Names in
+    :data:`~statemachine.event._event_data_kwargs` (``machine``, ``model``, ``event``,
+    ``transition``, ...) are the live engine-capability objects; they are **withheld** from
+    the kwargs lookup so an untrusted expression cannot obtain the engine and pivot through
+    it onto shared classes (GHSA-v3qq-3xvg-m77g). The ``_``-prefixed system variables are not
+    engine objects and stay resolvable.
     """
 
     def resolver(*args, **kwargs):
-        if name not in _event_data_kwargs and name in kwargs:
-            return kwargs[name]
         model = kwargs["machine"].model
         if _resolvable_model_attr(name, model):
             return getattr(model, name)
-        raise NameError(f"name '{name}' is not defined")
+        return _kwarg(name, kwargs)
 
     resolver.__name__ = name
     return resolver
@@ -117,18 +125,44 @@ def cond_variable_hook(name: str) -> Callable:
     """
 
     def resolver(*args, **kwargs):
-        if name not in _event_data_kwargs and name in kwargs:
-            return kwargs[name]
         model = kwargs["machine"].model
         if _resolvable_model_attr(name, model):
             value = getattr(model, name)
             if callable(value):
                 return callable_method(value)(*args, **kwargs)
             return value
-        raise NameError(f"name '{name}' is not defined")
+        return _kwarg(name, kwargs)
 
     resolver.__name__ = name
     return resolver
+
+
+class _TrustedNamespace(dict):
+    """``eval`` locals that resolve a bare name the way the restricted evaluator does.
+
+    The model shadows the call kwargs. Instance attributes resolve as before; any other
+    attribute (property, class attribute, slot) resolves through the same boundary as
+    :func:`_resolvable_model_attr`, unless it is named like a builtin. Methods are left out:
+    the restricted guard dialect calls a bare method name, which ``eval`` cannot reproduce
+    per name.
+    """
+
+    def __init__(self, model, kwargs: dict, **overrides):
+        super().__init__(kwargs)
+        self.update(overrides)
+        self._model = model
+        self._overrides = overrides
+
+    def __getitem__(self, name: str) -> Any:
+        if name not in self._overrides and name not in protected_attrs:
+            instance_attrs = getattr(self._model, "__dict__", {})
+            if name in instance_attrs:
+                return instance_attrs[name]
+            if name not in builtins.__dict__ and _resolvable_model_attr(name, self._model):
+                value = getattr(self._model, name)
+                if not isroutine(value):
+                    return value
+        return super().__getitem__(name)
 
 
 def _eval(expr: str, **kwargs) -> Any:
@@ -140,14 +174,8 @@ def _eval(expr: str, **kwargs) -> Any:
         the document is loaded with ``trusted=True``.
     """
     if "machine" in kwargs:
-        kwargs.update(
-            **{
-                k: v
-                for k, v in kwargs["machine"].model.__dict__.items()
-                if k not in protected_attrs
-            }
-        )
-        kwargs["In"] = InState(kwargs["machine"])
+        machine = kwargs["machine"]
+        return eval(expr, {}, _TrustedNamespace(machine.model, kwargs, In=InState(machine)))
     return eval(expr, {}, kwargs)
 
 
