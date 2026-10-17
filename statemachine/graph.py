@@ -17,7 +17,7 @@ def visit_connected_states(state: "State"):
             continue
         already_visited.add(state)
         yield state
-        visit.extend(t.target for t in state.transitions if t.target)
+        visit.extend(target for t in state.transitions for target in t.targets)
         # Traverse the state hierarchy: entering a compound/parallel state
         # implicitly enters its initial children (all children for parallel).
         for child in state.states:
