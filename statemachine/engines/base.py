@@ -39,8 +39,8 @@ to the same machine does not.
 
 
 @contextmanager
-def _processing_step(engine: "BaseEngine") -> Iterator[None]:
-    """Mark the current context as running a step of ``engine``, until the block ends."""
+def _processing_step(engine: "BaseEngine | None") -> Iterator[None]:
+    """Set the current processing engine, or clear it, until the block ends."""
     token = _running_engine.set(engine)
     try:
         yield

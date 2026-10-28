@@ -451,8 +451,12 @@ class InvokeManager:
         self._active[ctx.invokeid] = invocation
         self._debug("%s invoke spawn async: %s on state %s", self._log_id, ctx.invokeid, state.id)
 
+        from .engines.base import _processing_step
+
         loop = asyncio.get_running_loop()
-        task = loop.create_task(self._run_async_handler(callback, handler, ctx, invocation))
+        # Invoke handlers run outside the macrostep that spawned them.
+        with _processing_step(None):
+            task = loop.create_task(self._run_async_handler(callback, handler, ctx, invocation))
         invocation.task = task
 
     async def _run_async_handler(
