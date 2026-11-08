@@ -209,7 +209,9 @@ def callable_method(a_callable) -> Callable:
             ba = sig_bind_expected(*args, **kwargs)
             return a_callable(*ba.args, **ba.kwargs)
 
-    signature_adapter.__name__ = metadata_to_copy.__name__
+    signature_adapter.__name__ = getattr(
+        metadata_to_copy, "__name__", type(metadata_to_copy).__name__
+    )
     signature_adapter.__doc__ = metadata_to_copy.__doc__
     signature_adapter.is_coroutine = sig.is_coroutine  # type: ignore[attr-defined]
 

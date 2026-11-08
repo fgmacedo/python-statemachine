@@ -215,7 +215,7 @@ class StateMachineMetaclass(type):
             return
         for visited in iterate_states_and_transitions(own_states):
             for spec in visited._specs:
-                if spec.reference is SpecReference.CALLABLE and spec.func in relocated:
+                if is_unbounded_reference(spec.func) and spec.func in relocated:
                     spec.lookup_name = relocated[spec.func]
 
     def _all_specs(cls):
