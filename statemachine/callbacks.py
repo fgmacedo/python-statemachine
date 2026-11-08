@@ -94,8 +94,9 @@ class CallbackSpec:
         elif callable(func):
             self.reference = SpecReference.CALLABLE
             is_partial = isinstance(func, partial)
-            self.is_bounded = is_partial or hasattr(func, "__self__")
-            name = func.func.__name__ if is_partial else func.__name__
+            self.is_bounded = not isfunction(func) or hasattr(func, "__self__")
+            metadata = func.func if is_partial else func
+            name = getattr(metadata, "__name__", type(metadata).__name__)
             self.attr_name = name if not self.is_event or self.is_bounded else f"_{name}_"
             if not self.is_bounded:
                 func.attr_name = self.attr_name  # type: ignore[union-attr]

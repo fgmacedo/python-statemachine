@@ -197,6 +197,38 @@ and passed by reference (`cond=my_condition`).
 ```
 
 
+Callable instances are also supported, including instances with an async `__call__`
+method and instances wrapped in `functools.partial`. They receive dependencies by
+parameter name, just like functions. The callable stays bound to its own object;
+request `machine` to access the state machine.
+
+```py
+>>> class MinimumAmount:
+...     def __init__(self, minimum):
+...         self.minimum = minimum
+...
+...     def __call__(self, amount):
+...         return amount >= self.minimum
+
+>>> class Payment(StateChart):
+...     pending = State(initial=True)
+...     approved = State(final=True)
+...     approve = pending.to(approved, cond=MinimumAmount(10))
+
+>>> payment = Payment()
+>>> payment.send("approve", amount=5)
+>>> "pending" in payment.configuration_values
+True
+>>> payment.send("approve", amount=10)
+>>> "approved" in payment.configuration_values
+True
+
+```
+
+Reusing a callable instance also shares its state between machines. An async
+`__call__` selects the async engine, as an async function does.
+
+
 (condition expressions)=
 
 ### Condition expressions

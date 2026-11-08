@@ -5,6 +5,7 @@ from inspect import BoundArguments
 from inspect import Parameter
 from inspect import Signature
 from inspect import iscoroutinefunction
+from inspect import isfunction
 from itertools import chain
 from types import MethodType
 from typing import Any
@@ -26,8 +27,10 @@ def _make_key(method):
                 method.__code__.co_varnames,
             )
         )
-    else:
+    elif isfunction(method):
         return hash((method.__qualname__, method.__code__.co_varnames))
+    # Callable instances may be unhashable or expose instance-specific signatures.
+    return None
 
 
 def signature_cache(user_function):
@@ -36,6 +39,8 @@ def signature_cache(user_function):
 
     def cached_function(cls, method):
         key = _make_key(method)
+        if key is None:
+            return user_function(cls, method)
         sig = cache_get(key)
         if sig is None:
             sig = user_function(cls, method)
@@ -60,16 +65,15 @@ class SignatureAdapter(Signature):
     @classmethod
     @signature_cache
     def from_callable(cls, method):
-        if hasattr(method, "__signature__"):
-            sig = method.__signature__
-            adapter = SignatureAdapter(
-                sig.parameters.values(),
-                return_annotation=sig.return_annotation,
-            )
-        else:
-            adapter = super().from_callable(method)
+        sig = super().from_callable(method)
+        adapter = cls(sig.parameters.values(), return_annotation=sig.return_annotation)
 
-        adapter.is_coroutine = iscoroutinefunction(method)
+        implementation = method
+        while isinstance(implementation, partial):
+            implementation = implementation.func
+        adapter.is_coroutine = iscoroutinefunction(implementation) or (
+            not isfunction(implementation) and iscoroutinefunction(implementation.__call__)
+        )
         return adapter
 
     def bind_expected(self, *args: Any, **kwargs: Any) -> BoundArguments:
