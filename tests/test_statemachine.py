@@ -53,6 +53,43 @@ def test_machine_should_only_allow_only_one_initial_state():
             deliver = producing.to(closed)
 
 
+async def test_state_named_prepare(sm_runner):
+    class Workflow(StateChart):
+        prepare = State(initial=True)
+        done = State(final=True)
+
+        finish = prepare.to(done)
+
+        def prepare_event(self, value=0):
+            return {"prepared_value": value + 1}
+
+        def on_finish(self, prepared_value):
+            return prepared_value
+
+    sm = await sm_runner.start(Workflow)
+    assert sm.prepare.is_active
+
+    assert await sm_runner.send(sm, "finish", value=41) == 42
+    assert sm.done.is_active
+
+
+async def test_event_named_prepare(sm_runner):
+    class Workflow(StateChart):
+        ready = State(initial=True)
+        done = State(final=True)
+
+        prepare = ready.to(done)
+
+        def on_prepare(self):
+            return 42
+
+    sm = await sm_runner.start(Workflow)
+    assert sm.ready.is_active
+
+    assert await sm_runner.send(sm, "prepare") == 42
+    assert sm.done.is_active
+
+
 def test_machine_should_activate_initial_state(mocker):
     spy = mocker.Mock()
 

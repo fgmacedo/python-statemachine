@@ -68,7 +68,7 @@ class StateMachineMetaclass(type):
         cls._protected_attrs: set = set()
         cls._events_to_update: dict[Event, list[Event]] = {}
         cls._specs = CallbackSpecList()
-        cls.prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
+        cls._prepare = cls._specs.grouper(CallbackGroup.PREPARE).add(
             "prepare_event", priority=CallbackPriority.GENERIC, is_convention=True
         )
         cls.add_inherited(bases)
