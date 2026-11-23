@@ -120,7 +120,7 @@ class AsyncEngine(BaseEngine):
 
         args, kwargs = event_data.args, event_data.extended_kwargs
 
-        result = await self.sm._callbacks.async_call(self.sm.prepare.key, *args, **kwargs)
+        result = await self.sm._callbacks.async_call(self.sm._prepare.key, *args, **kwargs)
         for new_kwargs in result:
             kwargs.update(new_kwargs)
 

@@ -428,7 +428,7 @@ class BaseEngine:
 
         args, kwargs = event_data.args, event_data.extended_kwargs
 
-        result = self.sm._callbacks.call(self.sm.prepare.key, *args, **kwargs)
+        result = self.sm._callbacks.call(self.sm._prepare.key, *args, **kwargs)
         for new_kwargs in result:
             kwargs.update(new_kwargs)
 

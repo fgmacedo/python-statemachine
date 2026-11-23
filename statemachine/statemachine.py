@@ -137,7 +137,7 @@ class StateChart(Generic[TModel], metaclass=StateMachineMetaclass):
     _protected_attrs: set
     _specs: CallbackSpecList
     _class_listeners: list[Any]
-    prepare: SpecListGrouper
+    _prepare: SpecListGrouper
 
     def __init__(
         self,
